@@ -1,20 +1,24 @@
 import { defineConfig } from "vitepress";
 
+const siteBase = process.env.GITHUB_ACTIONS ? "/JellyGlance/" : "/";
+const withBase = (path) => `${siteBase}${path.replace(/^\//, "")}`;
+
 export default defineConfig({
   title: "JellyGlance",
   description: "Modern Jellyfin analytics and media control.",
+  base: siteBase,
   cleanUrls: true,
   head: [
-    ["link", { rel: "icon", href: "/favicon.ico" }],
-    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" }],
-    ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-b-192.png" }],
-    ["link", { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-b-512.png" }],
+    ["link", { rel: "icon", href: withBase("/favicon.ico") }],
+    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: withBase("/apple-touch-icon.png") }],
+    ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: withBase("/icon-b-192.png") }],
+    ["link", { rel: "icon", type: "image/png", sizes: "512x512", href: withBase("/icon-b-512.png") }],
     ["meta", { name: "theme-color", content: "#aa5cc3" }],
     ["meta", { property: "og:title", content: "JellyGlance" }],
     ["meta", { property: "og:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }]
   ],
   themeConfig: {
-    logo: "/project-logo.png",
+    logo: withBase("/project-logo.png"),
     siteTitle: "JellyGlance",
     nav: [
       { text: "Guide", link: "/guide/getting-started" },

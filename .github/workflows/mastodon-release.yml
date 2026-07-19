@@ -4,6 +4,12 @@ on:
   release:
     types:
       - published
+  workflow_run:
+    workflows:
+      - RELEASE
+    types:
+      - completed
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,15 +17,60 @@ permissions:
 jobs:
   post:
     name: Publish Mastodon release post
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
+      - name: Resolve release details
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_RELEASE_NAME: ${{ github.event.release.name }}
+          EVENT_RELEASE_TAG: ${{ github.event.release.tag_name }}
+          EVENT_RELEASE_BODY: ${{ github.event.release.body }}
+          EVENT_RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const { execFileSync } = require("child_process");
+
+          const output = (name, value) => {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}<<EOF\n${value || ""}\nEOF\n`);
+          };
+
+          let release = {
+            name: process.env.EVENT_RELEASE_NAME,
+            tag_name: process.env.EVENT_RELEASE_TAG,
+            body: process.env.EVENT_RELEASE_BODY,
+            html_url: process.env.EVENT_RELEASE_URL,
+          };
+
+          if (process.env.EVENT_NAME !== "release") {
+            const json = execFileSync(
+              "gh",
+              ["api", `repos/${process.env.GITHUB_REPOSITORY}/releases/latest`],
+              { encoding: "utf8" }
+            );
+            release = JSON.parse(json);
+          }
+
+          if (!release.tag_name || !release.html_url) {
+            throw new Error("Unable to resolve the release to post.");
+          }
+
+          output("name", release.name || `JellyGlance ${release.tag_name}`);
+          output("tag", release.tag_name);
+          output("body", release.body || "");
+          output("url", release.html_url);
+          NODE
+
       - name: Create Mastodon status
         env:
-          RELEASE_NAME: ${{ github.event.release.name }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_BODY: ${{ github.event.release.body }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_NAME: ${{ steps.release.outputs.name }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_BODY: ${{ steps.release.outputs.body }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
           MASTODON_MAX_CHARS: ${{ vars.MASTODON_MAX_CHARS || '500' }}
         run: |
           python3 <<'PY'
