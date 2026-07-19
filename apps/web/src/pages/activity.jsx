@@ -11,6 +11,7 @@ import { Trans } from "react-i18next";
 import { Button, FormControl, FormSelect, Modal } from "react-bootstrap";
 import i18next from "i18next";
 import LibraryFilterModal from "./components/library/library-filter-modal";
+import socket from "../socket";
 
 function Activity() {
   const [data, setData] = useState();
@@ -119,6 +120,32 @@ function Activity() {
       clearTimeout(handler);
     };
   }, [searchQuery]);
+
+  useEffect(() => {
+    const handleRestoredData = () => {
+      localStorage.removeItem("PREF_ACTIVITY_libraryFilters");
+      setLibraryFilters([]);
+      setLibraries([]);
+      setFilterParams((currentFilters) => currentFilters.filter((filter) => filter.field !== "ParentId"));
+      setCurrentPage(1);
+      setData(undefined);
+      Config.getConfig(true)
+        .then((newConfig) => {
+          if (!newConfig?.response) {
+            setConfig(newConfig);
+          }
+        })
+        .catch((error) => console.log(error));
+    };
+
+    window.addEventListener("jellyglance-backup-restored", handleRestoredData);
+    socket.on("BackupRestore", handleRestoredData);
+
+    return () => {
+      window.removeEventListener("jellyglance-backup-restored", handleRestoredData);
+      socket.off("BackupRestore", handleRestoredData);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchConfig = async () => {

@@ -1,10 +1,10 @@
 version: v1.0.2
 title: JellyGlance v1.0.2
 ---
-fix: refresh account config after Quick Connect setup
+fix: refresh restored backup data across the app
 
-- Refresh cached app config immediately after Jellyfin Quick Connect completes
-- Update the navbar from fresh backend config instead of stale localStorage data
-- Broadcast config updates so account UI reflects the Jellyfin user without a page refresh
-- Return Jellyfin profile image metadata from Quick Connect completion
-- Prevent the sidebar from briefly showing Local login after Quick Connect approval
+- Refresh materialized views after backup restore completes
+- Broadcast a BackupRestore socket event so open pages can reload restored data
+- Clear stale Activity library filters after restore to avoid hiding imported playback rows
+- Clear cached config after restore so restored settings and account state are picked up
+- Return restore metadata including restored rows, tables, and refreshed views

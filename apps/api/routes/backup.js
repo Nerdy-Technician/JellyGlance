@@ -12,6 +12,7 @@ const taskstate = require("../logging/taskstate");
 const taskName = require("../logging/taskName");
 const sanitizeFilename = require("../utils/sanitizer");
 const { getBackupDir } = require("../utils/storage-paths");
+const db = require("../db");
 
 const { sendUpdate } = require("../ws");
 
@@ -115,9 +116,13 @@ async function restore(file, refLog) {
     return;
   }
 
+  const restoredTables = [];
+  let restoredRows = 0;
+
   for (let table of jsonData) {
     const data = Object.values(table)[0];
     const tableName = Object.keys(table)[0];
+    restoredTables.push(tableName);
     refLog.logData.push({
       color: "dodgerblue",
       key: tableName,
@@ -142,11 +147,27 @@ async function restore(file, refLog) {
       const valueString = valuesWithQuotes.join(", ");
 
       const query = `INSERT INTO ${tableName} (${keyString}) VALUES(${valueString})  ON CONFLICT DO NOTHING`;
-      const { rows } = await pool.query(query);
+      await pool.query(query);
+      restoredRows += 1;
     }
   }
   await pool.end();
+
+  for (const view of db.materializedViews) {
+    const refresh = await db.refreshMaterializedView(view);
+    refLog.logData.push({
+      color: refresh.Result === "SUCCESS" ? "lawngreen" : "red",
+      Message: refresh.message,
+    });
+  }
+
   refLog.logData.push({ color: "lawngreen", Message: "Restore Complete" });
+
+  return {
+    restoredRows,
+    restoredTables,
+    refreshedViews: db.materializedViews,
+  };
 }
 
 // Route handler for backup endpoint
@@ -189,11 +210,15 @@ router.get("/restore/:filename", async (req, res) => {
     const filename = sanitizeFilename(req.params.filename);
     const filePath = path.join(getBackupDir(), filename);
 
-    await restore(filePath, refLog);
+    const restoreResult = await restore(filePath, refLog);
     Logging.updateLog(uuid, refLog.logData, taskstate.SUCCESS);
 
-    res.send("Restore completed successfully");
-    sendUpdate("TaskComplete", { message: "Restore completed successfully" });
+    res.json({
+      message: "Restore completed successfully",
+      ...restoreResult,
+    });
+    sendUpdate("GeneralAlert", { type: "Success", message: "Restore completed successfully. Dashboard data refreshed." });
+    sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", ...restoreResult });
   } catch (error) {
     console.error(error);
     res.status(500).send("Restore failed");

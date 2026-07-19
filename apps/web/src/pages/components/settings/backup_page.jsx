@@ -121,7 +121,11 @@ function BackupPage() {
     try {
       setBusyAction(`restore-${filename}`);
       const response = await axios.get(`/backup/restore/${encodeURIComponent(filename)}`, { headers: getHeaders() });
-      setMessage({ type: "success", text: response.data || "Restore completed successfully." });
+      localStorage.removeItem("config");
+      localStorage.removeItem("PREF_ACTIVITY_libraryFilters");
+      window.dispatchEvent(new Event("jellyglance-config-updated"));
+      window.dispatchEvent(new CustomEvent("jellyglance-backup-restored", { detail: response.data }));
+      setMessage({ type: "success", text: response.data?.message || "Restore completed successfully." });
       await fetchData();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data || "Restore failed" });
