@@ -1,5 +1,5 @@
-version: v1.0.2
-title: JellyGlance v1.0.2
+version: v1.0.3
+title: JellyGlance v1.0.3
 ---
 fix: refresh restored backup data across the app
 
