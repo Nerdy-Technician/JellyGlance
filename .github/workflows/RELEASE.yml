@@ -1,0 +1,190 @@
+name: RELEASE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/RELEASE"
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: file-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, publish, and release from .github/RELEASE
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read release file
+        id: release
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const releaseFile = ".github/RELEASE";
+          const raw = fs.readFileSync(releaseFile, "utf8").replace(/\r\n/g, "\n");
+          const parts = raw.split(/^---\s*$/m);
+          const header = parts.shift() || "";
+          const notes = parts.join("---").trim();
+          const meta = {};
+
+          for (const line of header.split("\n")) {
+            const match = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.+)$/);
+            if (match) {
+              meta[match[1].toLowerCase()] = match[2].trim();
+            }
+          }
+
+          const version = (meta.version || "").replace(/^v/i, "");
+          if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
+            throw new Error(`${releaseFile} needs a valid semver version, for example: version: 0.1.1`);
+          }
+
+          const tag = `v${version}`;
+          const title = meta.title || `JellyGlance ${tag}`;
+          const releaseNotes = notes || `Release ${tag}`;
+
+          fs.writeFileSync("RELEASE_NOTES.md", `${releaseNotes}\n`);
+
+          const output = fs.createWriteStream(process.env.GITHUB_OUTPUT, { flags: "a" });
+          output.write(`version=${version}\n`);
+          output.write(`tag=${tag}\n`);
+          output.write(`title=${title}\n`);
+          output.write("notes_file=RELEASE_NOTES.md\n");
+          NODE
+
+      - name: Stop if tag already exists
+        run: |
+          git fetch --tags --force
+          if git rev-parse "${{ steps.release.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.release.outputs.tag }} already exists. Update .github/RELEASE to a new version."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply .github/RELEASE version to package files
+        run: npm version "${{ steps.release.outputs.version }}" --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
+
+      - name: Verify package versions
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const expected = "${{ steps.release.outputs.version }}";
+          const packageFiles = [
+            "package.json",
+            "apps/api/package.json",
+            "apps/web/package.json",
+            "docs/package.json",
+          ];
+
+          for (const file of packageFiles) {
+            const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+            if (pkg.version !== expected) {
+              throw new Error(`${file} is ${pkg.version}, expected ${expected}`);
+            }
+          }
+
+          const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+          const lockPackages = {
+            "package-lock root": lock,
+            "package-lock packages root": lock.packages?.[""],
+            "package-lock apps/api": lock.packages?.["apps/api"],
+            "package-lock apps/web": lock.packages?.["apps/web"],
+            "package-lock docs": lock.packages?.["docs"],
+          };
+
+          for (const [name, pkg] of Object.entries(lockPackages)) {
+            if (!pkg) {
+              throw new Error(`${name} is missing`);
+            }
+            if (pkg.version !== expected) {
+              throw new Error(`${name} is ${pkg.version}, expected ${expected}`);
+            }
+          }
+
+          console.log(`All package versions match ${expected}`);
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint web app
+        run: npm run lint
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Build docs
+        run: npm run build:docs
+
+      - name: Commit package version files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json apps/*/package.json docs/package.json
+          if git diff --cached --quiet; then
+            echo "Package files already match ${{ steps.release.outputs.version }}"
+          else
+            git commit -m "chore(release): ${{ steps.release.outputs.tag }}"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nerdy-technician/jellyglance
+          tags: |
+            type=raw,value=${{ steps.release.outputs.tag }}
+            type=raw,value=${{ steps.release.outputs.version }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Create and push git tag
+        run: |
+          git tag -a "${{ steps.release.outputs.tag }}" -m "${{ steps.release.outputs.title }}"
+          git push origin "${{ steps.release.outputs.tag }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.release.outputs.tag }}" \
+            --title "${{ steps.release.outputs.title }}" \
+            --notes-file "${{ steps.release.outputs.notes_file }}"

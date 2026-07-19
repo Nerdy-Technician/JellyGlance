@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.vscode
+.github
+backups
+config
+postgres-data
+apps/api/backup-data
+apps/api/config-data
+docs/.vitepress/dist
+apps/web/dist

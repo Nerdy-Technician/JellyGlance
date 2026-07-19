@@ -1,0 +1,284 @@
+@import "pages/css/variables.css";
+.app-shell-main {
+  flex: 1 1 auto;
+  width: auto !important;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100vh;
+  margin-inline: 0;
+  padding: 16px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 82% 0%, rgba(170, 92, 195, 0.16), transparent 28%),
+    radial-gradient(circle at 14% 12%, rgba(0, 164, 220, 0.1), transparent 28%),
+    linear-gradient(135deg, #090b10 0%, var(--background-color) 54%, #05070b 100%);
+}
+
+.App > .d-flex {
+  min-width: 0;
+}
+
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .settings, .watch-stats, .Home) {
+  width: 100%;
+  min-height: 0;
+  align-self: start;
+}
+
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .settings) > * {
+  min-height: 0;
+  align-self: start;
+}
+
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  .App > .d-flex {
+    flex-direction: column !important;
+  }
+
+  .app-shell-main {
+    min-height: 100vh;
+    padding: 10px 10px calc(88px + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+  }
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+html body {
+  background-color: var(--background-color);
+  color: white;
+}
+
+h1 {
+  color: white;
+  font-weight: 800 !important;
+  margin: 0 !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  letter-spacing: 0;
+}
+
+h2 {
+  color: white;
+  font-weight: 800 !important;
+  margin: 0 !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  letter-spacing: 0;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.App-header {
+  /* min-height: 100vh; */
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-outline-primary {
+  color: white !important;
+  border-color: rgba(0, 164, 220, 0.45) !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 10px !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: rgba(0, 164, 220, 0.16) !important;
+}
+
+.btn-outline-primary.active {
+  background-color: var(--primary-color) !important;
+}
+
+.btn-outline-primary:focus {
+  background-color: var(--primary-color) !important;
+}
+
+.btn-primary {
+  color: white !important;
+  border-color: var(--primary-color) !important;
+  background: linear-gradient(90deg, var(--primary-color), #d78df0) !important;
+  border-radius: 10px !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark-color) !important;
+}
+
+.btn-primary.active {
+  background-color: var(--primary-color) !important;
+}
+
+.btn-primary:focus {
+  background-color: var(--primary-color) !important;
+}
+
+.form-select {
+  background-color: var(--secondary-background-color) !important;
+  border-color: var(--surface-border-color) !important ;
+  color: white !important;
+  border-radius: 10px !important;
+}
+
+.form-select:focus {
+  box-shadow: none !important;
+  border-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.form-select option {
+  background-color: var(--secondary-background-color) !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border-color: var(--primary-color) !important;
+}
+
+.form-select option:hover {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.bg-primary-1 {
+  background-color: var(--primary-color) !important;
+}
+
+.hide-tab-titles {
+  display: none !important;
+}
+
+::placeholder {
+  color: #a7a7a7 !important; /* Replace with your desired color */
+}
+
+.text-primary-custom {
+  color: var(--primary-color) !important;
+}
+
+.text-secondary-custom {
+  color: var(--secondary-color) !important;
+}
+
+.jellyglance-toast-container {
+  width: min(420px, calc(100vw - 28px));
+}
+
+.jellyglance-toast {
+  min-height: 74px;
+  overflow: hidden;
+  border: 1px solid rgba(215, 141, 240, 0.26);
+  border-radius: 16px !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(170, 92, 195, 0.18), transparent 38%),
+    linear-gradient(135deg, rgba(18, 22, 30, 0.98), rgba(7, 10, 16, 0.96)) !important;
+  color: #f8fafc !important;
+  box-shadow:
+    0 22px 58px rgba(0, 0, 0, 0.44),
+    0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+  backdrop-filter: blur(18px);
+}
+
+.jellyglance-toast::before {
+  display: none;
+  content: none;
+}
+
+.jellyglance-toast .Toastify__toast-icon {
+  position: relative;
+  z-index: 1;
+  width: 38px;
+  min-width: 38px;
+  margin-inline-end: 14px;
+  color: #f1c8ff;
+  filter: drop-shadow(0 0 12px rgba(215, 141, 240, 0.45));
+}
+
+.jellyglance-toast.Toastify__toast--info .Toastify__toast-icon {
+  color: #00c8ff;
+}
+
+.jellyglance-toast.Toastify__toast--success .Toastify__toast-icon {
+  color: #34d399;
+}
+
+.jellyglance-toast.Toastify__toast--error .Toastify__toast-icon {
+  color: #fb7185;
+}
+
+.jellyglance-toast-body {
+  align-items: center;
+  padding: 8px 8px 8px 2px;
+  color: #e8eef8;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.jellyglance-toast .Toastify__close-button {
+  align-self: flex-start;
+  margin-top: 7px;
+  color: #cbd5e1;
+  opacity: 0.72;
+}
+
+.jellyglance-toast .Toastify__close-button:hover {
+  color: #fff;
+  opacity: 1;
+}
+
+.jellyglance-toast-progress {
+  height: 3px !important;
+  background: linear-gradient(90deg, var(--primary-color), #d78df0) !important;
+}
+
+.Toastify__toast--info .jellyglance-toast-progress {
+  background: linear-gradient(90deg, var(--secondary-color), #d78df0) !important;
+}
+
+.Toastify__toast--success .jellyglance-toast-progress {
+  background: linear-gradient(90deg, #34d399, #d78df0) !important;
+}
+
+.Toastify__toast--error .jellyglance-toast-progress {
+  background: linear-gradient(90deg, #fb7185, #d78df0) !important;
+}

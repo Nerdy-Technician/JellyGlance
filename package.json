@@ -1,0 +1,35 @@
+{
+  "name": "jellyglance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JellyGlance - a modern Jellyfin analytics and media control dashboard by Nerdy-Technician.",
+  "license": "GPL-3.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "docs"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @jellyglance/api\" \"npm run dev -w @jellyglance/web\"",
+    "dev:web": "npm run dev -w @jellyglance/web",
+    "dev:api": "npm run dev -w @jellyglance/api",
+    "build": "npm run build -w @jellyglance/web",
+    "build:docs": "npm run build -w @jellyglance/docs",
+    "docs:dev": "npm run dev -w @jellyglance/docs",
+    "lint": "npm run lint -w @jellyglance/web",
+    "start": "npm run start -w @jellyglance/api",
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.3",
+    "@semantic-release/npm": "^12.0.2",
+    "@semantic-release/release-notes-generator": "^14.0.3",
+    "concurrently": "^9.2.1",
+    "semantic-release": "^24.2.9"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

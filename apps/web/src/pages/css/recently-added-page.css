@@ -1,0 +1,373 @@
+.recently-added-page {
+  overflow: visible;
+}
+
+.recently-added-page-header {
+  margin-bottom: 22px;
+  max-width: 860px;
+}
+
+.recently-added-page-header p {
+  margin: 0 0 6px;
+  color: #d78df0;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.recently-added-page-header h1 {
+  margin-bottom: 8px !important;
+}
+
+.recently-added-page-header span {
+  color: #9aa7bb;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.recently-added-shelves {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.recent-library-shelf {
+  --recent-shelf-gap: 14px;
+  padding: 18px 20px 20px;
+  border: 1px solid rgba(215, 141, 240, 0.16);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(215, 141, 240, 0.1), transparent 34%),
+    rgba(8, 10, 15, 0.82);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  content-visibility: auto;
+  contain-intrinsic-size: 310px;
+}
+
+.recent-library-shelf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.recent-library-shelf-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.recent-library-shelf-icon {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(215, 141, 240, 0.42);
+  border-radius: 14px;
+  color: #e38df5;
+  background: rgba(215, 141, 240, 0.13);
+}
+
+.recent-library-shelf-title h2 {
+  margin: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: clamp(18px, 1.4vw, 24px);
+  font-weight: 950;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-library-shelf-title span {
+  display: block;
+  margin-top: 4px;
+  color: #9fb0c7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.recent-library-shelf-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.recent-library-shelf-controls button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(215, 141, 240, 0.34);
+  border-radius: 12px;
+  color: #f5d2ff;
+  background: rgba(215, 141, 240, 0.15);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.recent-library-shelf-controls button:hover,
+.recent-library-shelf-controls button:focus-visible {
+  border-color: rgba(215, 141, 240, 0.82);
+  background: rgba(215, 141, 240, 0.28);
+  transform: translateY(-1px);
+}
+
+.recent-library-shelf-controls button:disabled {
+  cursor: default;
+  opacity: 0.42;
+  transform: none;
+}
+
+.recent-library-shelf-track {
+  display: flex;
+  gap: var(--recent-shelf-gap);
+  margin-inline: -2px;
+  padding: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recent-library-shelf-track::-webkit-scrollbar {
+  display: none;
+}
+
+.recently-added-page .last-card {
+  flex: 0 0 calc((100% - (var(--recent-shelf-gap) * 9)) / 10);
+  width: calc((100% - (var(--recent-shelf-gap) * 9)) / 10);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.recently-added-page .last-card-banner {
+  height: clamp(154px, 13.5vw, 220px);
+}
+
+.recently-added-page .last-item-details {
+  padding: 9px 10px 0;
+}
+
+.recently-added-page .last-last-played {
+  font-size: 10px;
+}
+
+.recently-added-page .last-item-name {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.recently-added-page .last-item-episode {
+  font-size: 11px;
+}
+
+.recent-library-shelf-empty {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 96px;
+  padding: 0 18px;
+  border: 1px dashed rgba(215, 141, 240, 0.24);
+  border-radius: 14px;
+  color: #9fb0c7;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.recently-added-error,
+.recently-added-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  border: 1px solid rgba(215, 141, 240, 0.18);
+  border-radius: 16px;
+  color: #d4deef;
+  background: rgba(8, 10, 15, 0.72);
+  font-weight: 850;
+}
+
+.recently-added-empty {
+  flex-direction: column;
+  gap: 12px;
+  color: #aebbd0;
+}
+
+@media (max-width: 1400px) {
+  .recently-added-page .last-card {
+    flex-basis: calc((100% - (var(--recent-shelf-gap) * 7)) / 8);
+    width: calc((100% - (var(--recent-shelf-gap) * 7)) / 8);
+  }
+}
+
+@media (max-width: 1100px) {
+  .recently-added-page .last-card {
+    flex-basis: calc((100% - (var(--recent-shelf-gap) * 5)) / 6);
+    width: calc((100% - (var(--recent-shelf-gap) * 5)) / 6);
+  }
+}
+
+@media (max-width: 760px) {
+  .recently-added-page {
+    padding-inline: 10px;
+  }
+
+  .recently-added-page-header {
+    margin-bottom: 16px;
+  }
+
+  .recently-added-page-header p {
+    font-size: 10px;
+  }
+
+  .recently-added-page-header h1 {
+    font-size: clamp(30px, 11vw, 44px);
+    line-height: 0.95;
+  }
+
+  .recently-added-page-header span {
+    display: block;
+    max-width: 34ch;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .recently-added-shelves {
+    gap: 14px;
+  }
+
+  .recent-library-shelf {
+    --recent-shelf-gap: 10px;
+    margin-inline: -2px;
+    padding: 12px 10px 14px;
+    border-radius: 14px;
+    contain-intrinsic-size: 280px;
+  }
+
+  .recent-library-shelf-header {
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .recent-library-shelf-title {
+    gap: 9px;
+  }
+
+  .recent-library-shelf-icon {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .recent-library-shelf-title h2 {
+    max-width: 58vw;
+    font-size: 20px;
+  }
+
+  .recent-library-shelf-title span {
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .recent-library-shelf-controls button {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .recent-library-shelf-track {
+    margin-inline: -10px;
+    padding: 2px 10px 4px;
+    scroll-padding-inline: 10px;
+  }
+
+  .recently-added-page .last-card {
+    flex: 0 0 clamp(132px, 39vw, 170px);
+    width: clamp(132px, 39vw, 170px);
+    border-radius: 11px;
+  }
+
+  .recently-added-page .last-card-banner {
+    height: clamp(198px, 58vw, 250px);
+  }
+
+  .recently-added-page .last-item-details {
+    margin: 8px 8px 5px;
+    padding: 0;
+  }
+
+  .recently-added-page .last-last-played {
+    font-size: 9px;
+  }
+
+  .recently-added-page .last-item-name {
+    display: -webkit-box;
+    min-height: 32px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.28;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .recently-added-page .last-item-episode {
+    overflow: hidden;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .recent-library-shelf-header {
+    flex-direction: row;
+  }
+
+  .recent-library-shelf-controls {
+    width: auto;
+    margin-left: auto;
+  }
+
+  .recent-library-shelf-controls button {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .recently-added-page .last-card {
+    flex-basis: clamp(126px, 43vw, 154px);
+    width: clamp(126px, 43vw, 154px);
+  }
+
+  .recently-added-page .last-card-banner {
+    height: clamp(188px, 64vw, 232px);
+  }
+}
+
+@media (max-width: 390px) {
+  .recent-library-shelf-title h2 {
+    max-width: 48vw;
+    font-size: 18px;
+  }
+
+  .recent-library-shelf-controls {
+    gap: 6px;
+  }
+
+  .recently-added-page .last-card {
+    flex-basis: 136px;
+    width: 136px;
+  }
+}

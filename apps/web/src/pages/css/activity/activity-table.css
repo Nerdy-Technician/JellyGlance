@@ -1,0 +1,260 @@
+@import "../variables.css";
+
+.activity-mrt-paper {
+  color: #f8fafc;
+}
+
+.activity-mrt-paper .MuiTable-root {
+  min-width: 980px;
+}
+
+.activity-mrt-paper .MuiTableHead-root .MuiTableRow-root {
+  background: transparent;
+}
+
+.activity-mrt-paper .MuiTableHead-root .MuiButtonBase-root,
+.activity-mrt-paper .MuiTableHead-root .MuiSvgIcon-root {
+  color: #95a3b8 !important;
+}
+
+.activity-mrt-paper .MuiTableHead-root .Mui-active,
+.activity-mrt-paper .MuiTableSortLabel-icon {
+  color: #d78df0 !important;
+}
+
+.activity-mrt-paper .MuiTableBody-root .MuiTableRow-root {
+  background: transparent;
+}
+
+.activity-mrt-paper .MuiCheckbox-root {
+  color: #8e63a4 !important;
+}
+
+.activity-mrt-paper a,
+.activity-table-link {
+  color: #f8fafc !important;
+  text-decoration: none !important;
+}
+
+.activity-table-link:hover,
+.activity-title-link:hover {
+  color: #d78df0 !important;
+}
+
+.activity-user-link {
+  font-weight: 950;
+}
+
+.activity-title-link {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #fff !important;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-client-link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #9ee6ff !important;
+  background: rgba(0, 164, 220, 0.09);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.activity-method-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #e9f8ee !important;
+  background: rgba(34, 197, 94, 0.12);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none !important;
+}
+
+.activity-method-pill.is-transcode {
+  color: #9ee6ff !important;
+  background: rgba(0, 164, 220, 0.14);
+}
+
+.activity-method-pill.is-stream {
+  color: #f0c6ff !important;
+  background: rgba(215, 141, 240, 0.13);
+}
+
+.activity-method-pill.is-empty {
+  color: #78879a !important;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.activity-date-cell {
+  display: block;
+  color: #d7e4f4;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.activity-duration-cell {
+  color: #fff;
+  font-weight: 950;
+}
+
+.activity-plays-cell {
+  display: inline-grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(215, 141, 240, 0.22);
+  border-radius: 999px;
+  color: #f7d5ff;
+  background: rgba(215, 141, 240, 0.12);
+  font-weight: 950;
+}
+
+.activity-mrt-paper + .MuiBox-root,
+.activity-table-shell > div > .MuiBox-root {
+  padding-top: 10px;
+}
+
+.activity-mrt-paper + .MuiBox-root .MuiPaginationItem-root,
+.activity-table-shell .MuiPaginationItem-root {
+  border-color: rgba(215, 141, 240, 0.22) !important;
+  color: #dbe6f7 !important;
+  background: rgba(8, 12, 18, 0.74) !important;
+}
+
+.activity-mrt-paper + .MuiBox-root .Mui-selected,
+.activity-table-shell .MuiPaginationItem-root.Mui-selected {
+  border-color: rgba(215, 141, 240, 0.72) !important;
+  color: #fff !important;
+  background: rgba(215, 141, 240, 0.22) !important;
+}
+
+.activity-table {
+  background-color: var(--secondary-background-color);
+  color: white !important;
+}
+
+td,
+th,
+td > button {
+  color: white !important;
+  background-color: var(--tertiary-background-color);
+}
+
+th {
+  color: white !important;
+  background-color: rgba(200, 200, 200, 0.2);
+}
+
+.activity-client:hover {
+  color: var(--secondary-color) !important;
+}
+.activity-client:hover > span {
+  cursor: pointer;
+  color: var(--secondary-color) !important;
+}
+
+td > a {
+  color: white;
+}
+
+td:hover > a {
+  color: var(--secondary-color);
+}
+
+.page-number {
+  margin-inline: 10px;
+  color: white;
+}
+
+select option {
+  background-color: var(--secondary-background-color);
+  outline: unset;
+  width: 100%;
+  border: none;
+}
+
+.pagination-range .items {
+  background-color: rgb(255, 255, 255, 0.1);
+  padding-inline: 10px;
+}
+
+.pagination-range .header {
+  padding-inline: 10px;
+  align-self: center;
+}
+
+.pagination-range {
+  width: 130px;
+  height: 35px;
+  color: white;
+  display: flex;
+  background-color: var(--secondary-background-color);
+  border-radius: 8px;
+  font-size: 1.2em;
+  align-self: flex-end;
+  justify-content: space-between;
+}
+
+.pagination-range select {
+  height: 35px;
+  outline: none;
+  border: none;
+  border-radius: 8px;
+  background-color: rgb(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1em;
+}
+
+.page-btn {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.MuiTableCell-head > .Mui-active,
+.MuiTableSortLabel-icon {
+  color: var(--secondary-color) !important;
+}
+
+.MuiTableCell-head :hover {
+  color: var(--secondary-color) !important;
+}
+
+.modal-header {
+  color: white;
+  border-bottom: none !important;
+}
+
+.modal-footer {
+  border-top: none !important;
+}
+
+.modal-content {
+  background-color: var(--secondary-background-color) !important;
+}
+
+::-webkit-scrollbar {
+  width: 10px; /* set scrollbar width */
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent; /* set track color */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #8888884d; /* set thumb color */
+  border-radius: 5px; /* round corners */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #88888883; /* set thumb color */
+}

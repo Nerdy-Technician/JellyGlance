@@ -1,0 +1,57 @@
+import { defineConfig } from "vitepress";
+
+export default defineConfig({
+  title: "JellyGlance",
+  description: "Modern Jellyfin analytics and media control.",
+  cleanUrls: true,
+  head: [
+    ["link", { rel: "icon", href: "/favicon.ico" }],
+    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-b-192.png" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-b-512.png" }],
+    ["meta", { name: "theme-color", content: "#aa5cc3" }],
+    ["meta", { property: "og:title", content: "JellyGlance" }],
+    ["meta", { property: "og:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }]
+  ],
+  themeConfig: {
+    logo: "/project-logo.png",
+    siteTitle: "JellyGlance",
+    nav: [
+      { text: "Guide", link: "/guide/getting-started" },
+      { text: "Integrations", link: "/guide/integrations" },
+      { text: "Operations", link: "/operations/docker" },
+      { text: "Releases", link: "/operations/releases" },
+      { text: "GitHub", link: "https://github.com/Nerdy-Technician/JellyGlance" }
+    ],
+    sidebar: [
+      {
+        text: "Project Guide",
+        items: [
+          { text: "Getting Started", link: "/guide/getting-started" },
+          { text: "Integrations", link: "/guide/integrations" },
+          { text: "Architecture", link: "/guide/architecture" }
+        ]
+      },
+      {
+        text: "Operations",
+        items: [
+          { text: "Docker", link: "/operations/docker" },
+          { text: "Releases", link: "/operations/releases" }
+        ]
+      }
+    ],
+    socialLinks: [
+      { icon: "github", link: "https://github.com/Nerdy-Technician/JellyGlance" }
+    ],
+    search: {
+      provider: "local"
+    },
+    footer: {
+      message: "Built for Jellyfin homeservers.",
+      copyright: "Released under GPL-3.0."
+    },
+    outline: {
+      level: [2, 3]
+    }
+  }
+});

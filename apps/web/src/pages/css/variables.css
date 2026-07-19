@@ -1,0 +1,10 @@
+:root {
+    --primary-color: #AA5CC3;
+    --primary-dark-color: #75358f;
+    --secondary-color: #00A4DC;
+    --background-color: #080a0f;
+    --secondary-background-color: #11151d;
+    --tertiary-background-color: #181d26;
+    --surface-color: rgba(18, 22, 30, 0.86);
+    --surface-border-color: rgba(255, 255, 255, 0.1);
+  }

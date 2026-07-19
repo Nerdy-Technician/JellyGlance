@@ -1,0 +1,143 @@
+@import "./variables.css";
+.last-played-container {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02)),
+    rgba(12, 16, 23, 0.78);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 16px;
+  color: white;
+  margin-bottom: 20px;
+  min-height: 326px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.26);
+  scroll-snap-type: x proximity;
+  scrollbar-color: rgba(215, 141, 240, 0.32) transparent;
+}
+
+.last-played-container::-webkit-scrollbar {
+  width: 5px; /* set scrollbar width */
+}
+
+.last-played-container::-webkit-scrollbar-track {
+  background-color: transparent; /* set track color */
+}
+
+.last-played-container::-webkit-scrollbar-thumb {
+  background-color: rgba(215, 141, 240, 0.28);
+  border-radius: 5px; /* round corners */
+  width: 5px;
+}
+
+.last-played-container::-webkit-scrollbar-thumb:hover {
+  background-color: #88888883; /* set thumb color */
+}
+
+.last-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 154px;
+  width: 154px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    rgba(6, 8, 12, 0.92);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+  scroll-snap-align: start;
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+}
+
+.last-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(170, 92, 195, 0.36);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.36);
+}
+
+.episode {
+  width: 220px !important;
+  height: 128px !important;
+}
+
+.episode-card {
+  width: 220px !important;
+}
+
+.audio {
+  height: 150px !important;
+}
+
+.last-card-banner {
+  width: 100%;
+  height: 232px;
+  transition: opacity 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+.size-tag {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background-color: rgba(90, 45, 165, 0.8);
+  padding: 2px;
+  border-radius: 8px 0px 0px 0px;
+  font-size: 0.9rem;
+  /* opacity: 0.8; */
+}
+
+.last-card-banner:hover {
+  opacity: 0.82;
+}
+
+.last-card-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+.last-item-details {
+  width: auto;
+  position: relative;
+  margin: 10px 10px 8px;
+}
+
+.last-item-details a {
+  text-decoration: none !important;
+  color: white !important;
+}
+
+.last-item-details a:hover {
+  color: var(--secondary-color) !important;
+}
+
+.last-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.last-item-episode {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #8b98ad;
+  font-size: 0.8em;
+}
+
+.number {
+  margin-inline: 10px;
+  padding-bottom: 10px;
+}
+
+.last-last-played {
+  font-size: 11px;
+  margin-bottom: 5px;
+  color: #d78df0;
+  font-weight: 800;
+}

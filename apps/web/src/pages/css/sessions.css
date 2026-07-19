@@ -1,0 +1,378 @@
+.sessions-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 416px), 496px));
+  gap: 18px;
+  grid-auto-rows: auto;
+  margin-bottom: 8px;
+}
+
+.session-details {
+  margin: 0px !important;
+  padding: 10px 10px 0 10px !important;
+  color: #e5edf8;
+  font-size: 11px;
+  line-height: 1.28;
+}
+
+.session-details .row {
+  align-items: baseline;
+  width: fit-content;
+  margin: 0 0 3px !important;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.session-details-title {
+  color: #d6a3f1 !important;
+  min-width: 72px;
+  padding: 0 8px 0 0 !important;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 14px rgba(170, 92, 195, 0.2);
+}
+
+.session-details-title + .col-auto {
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 750;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.62);
+}
+
+.session-details .ellipse {
+  padding: 0 !important;
+}
+
+.card-device-image-overlay {
+  position: absolute;
+  top: 12px;
+  right: 28px;
+  z-index: 10;
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.session-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(145deg, rgba(170, 92, 195, 0.12), rgba(255, 255, 255, 0.035)),
+    rgba(11, 14, 20, 0.9) !important;
+  color: white;
+  width: min(496px, 100%);
+  max-width: none;
+  max-height: none;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.32);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.session-card-main {
+  height: 176px;
+  min-height: 176px;
+}
+
+.session-card-main > .row {
+  height: 100%;
+}
+
+.session-card-body {
+  padding: 0 50px 10px 0 !important;
+  transform: translateX(-14px);
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(170, 92, 195, 0.32) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+}
+
+.progress-bar {
+  height: 7px;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-radius: 999px;
+  margin: 10px 12px 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.progress-custom {
+  height: 100%;
+  min-width: 3px;
+  background: #aa5cc3;
+  transition: width 0.2s ease-in-out;
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(170, 92, 195, 0.42);
+}
+
+.card-banner {
+  max-height: inherit;
+  height: 215px;
+  grid-row: 1 / 2;
+  grid-column-start: 1;
+}
+
+.card-details {
+  padding: 10px 14px;
+  max-height: inherit;
+  width: inherit;
+
+  grid-row: 1 / 3;
+
+  grid-column: 2 / 3;
+  backdrop-filter: blur(10px);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.64), rgba(8, 10, 15, 0.42)),
+    rgba(0, 0, 0, 0.26);
+  border-radius: 0 16px 0 0;
+}
+
+.session-card-banner-image {
+  max-width: 120px !important;
+  padding: 0px !important;
+  margin: 0px !important;
+}
+
+.card-user {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+
+  bottom: 30px;
+  right: 0;
+  padding-right: 5px;
+  position: absolute;
+}
+
+.session-card-user-image {
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  object-fit: cover;
+}
+
+.card-user-image-default {
+  /* width: 50px !important; */
+  font-size: large;
+}
+
+.card-username {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+}
+
+.card-username a {
+  text-decoration: none;
+  color: white;
+}
+
+.card-username:hover a {
+  color: rgb(0, 164, 219);
+}
+
+.card-device {
+  margin-top: 5px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  /* grid-column-gap: 10px; */
+}
+
+.card-device-name {
+  font-size: small;
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+}
+
+.card-device-image {
+  width: 30px;
+  height: 30px;
+  fill: var(--platform-icon-color, #aa5cc3);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--platform-icon-color, #aa5cc3) 52%, transparent));
+}
+
+.card-client {
+  font-size: small;
+  grid-row: 2 / 3;
+  grid-column: 2 / 3;
+}
+
+.card-item-name {
+  bottom: 45px;
+  margin-left: 8px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  position: absolute;
+}
+
+.card-playback-position {
+  bottom: 5px;
+  /* right: 5px; */
+  /* text-align: right; */
+  /* position: absolute; */
+}
+
+.device-info {
+  margin-bottom: 100%;
+}
+
+.card-ip {
+  grid-row: 2 / 3;
+  grid-column: 2 / 3;
+}
+
+.card-text > a {
+  text-decoration: none !important;
+  color: white !important;
+}
+
+.card-text a:hover {
+  color: var(--secondary-color) !important;
+}
+
+.ellipse {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-card-item-image {
+  width: 120px !important;
+  height: 176px;
+  object-fit: cover;
+  border-radius: 16px 0 0 0 !important;
+}
+
+.session-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  min-height: 58px;
+  padding: 8px 12px 10px !important;
+  background:
+    linear-gradient(180deg, rgba(7, 9, 13, 0.82), rgba(7, 9, 13, 0.96)),
+    rgba(7, 9, 13, 0.9);
+}
+
+.session-timecode {
+  margin: 0 !important;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.72);
+}
+
+.session-card-now-playing {
+  display: flex;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 0 !important;
+}
+
+.session-play-state {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(170, 92, 195, 0.18);
+  color: #f8fafc;
+}
+
+.session-play-state svg {
+  width: 16px;
+  height: 16px;
+}
+
+.session-title-copy {
+  min-width: 0;
+}
+
+.session-title,
+.session-subtitle {
+  margin: 0 !important;
+  min-width: 0;
+}
+
+.session-title a {
+  display: block;
+  max-width: 290px;
+  overflow: hidden;
+  color: #f8fafc !important;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-subtitle {
+  display: block;
+  max-width: 310px;
+  overflow: hidden;
+  color: #c7a4df;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-card-user {
+  display: flex;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: max-content;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0 !important;
+  align-self: center;
+  transform: translateY(-1px);
+}
+
+.session-user-name {
+  display: block;
+  max-width: 90px;
+  overflow: hidden;
+  color: #cbd5e1 !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 350px) {
+  .card-device-image {
+    display: none;
+  }
+
+  .card-client-version,
+  .session-card-user-image {
+    display: none !important;
+  }
+}

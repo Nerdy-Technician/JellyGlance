@@ -1,0 +1,79 @@
+name: Post Release to Mastodon
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    name: Publish Mastodon release post
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Mastodon status
+        env:
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          MASTODON_MAX_CHARS: ${{ vars.MASTODON_MAX_CHARS || '500' }}
+        run: |
+          python3 <<'PY'
+          import os
+
+          release_name = (os.environ.get("RELEASE_NAME") or "").strip()
+          release_tag = (os.environ.get("RELEASE_TAG") or "").strip()
+          release_body = (os.environ.get("RELEASE_BODY") or "").strip()
+          release_url = (os.environ.get("RELEASE_URL") or "").strip()
+          max_chars = int(os.environ.get("MASTODON_MAX_CHARS") or "500")
+
+          title = release_name or f"JellyGlance {release_tag}"
+          body_lines = [line.strip() for line in release_body.splitlines() if line.strip()]
+          highlights = []
+
+          for line in body_lines:
+            if line.startswith(("-", "*")):
+              highlights.append(f"- {line.lstrip('-* ').strip()}")
+            if len(highlights) == 4:
+              break
+
+          if highlights:
+            summary = "\n".join(highlights)
+          else:
+            summary = "Fresh JellyGlance release with the latest fixes, polish, and media-server improvements."
+
+          status = f"{title} is out.\n\n{summary}\n\n{release_url}"
+
+          if len(status) > max_chars:
+            suffix = f"\n\n{release_url}"
+            available = max(0, max_chars - len(suffix) - 3)
+            status = status[:available].rstrip() + "..." + suffix
+
+          with open("mastodon-status.txt", "w", encoding="utf-8") as handle:
+            handle.write(status)
+          PY
+
+      - name: Post to Mastodon
+        env:
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_INSTANCE_URL: ${{ vars.MASTODON_INSTANCE_URL || secrets.MASTODON_INSTANCE_URL }}
+          MASTODON_STATUS_VISIBILITY: ${{ vars.MASTODON_STATUS_VISIBILITY || 'public' }}
+          MASTODON_LANGUAGE: ${{ vars.MASTODON_LANGUAGE || 'en' }}
+        run: |
+          if [ -z "${MASTODON_ACCESS_TOKEN}" ] || [ -z "${MASTODON_INSTANCE_URL}" ]; then
+            echo "::warning::Skipping Mastodon post because MASTODON_ACCESS_TOKEN or MASTODON_INSTANCE_URL is not configured."
+            exit 0
+          fi
+
+          instance="${MASTODON_INSTANCE_URL%/}"
+
+          curl --fail --show-error --silent \
+            --request POST "${instance}/api/v1/statuses" \
+            --header "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" \
+            --data-urlencode "status@mastodon-status.txt" \
+            --data-urlencode "visibility=${MASTODON_STATUS_VISIBILITY}" \
+            --data-urlencode "language=${MASTODON_LANGUAGE}"
