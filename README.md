@@ -110,6 +110,8 @@ Start it:
 docker compose up -d
 ```
 
+Use Docker Compose v2 (`docker compose`, with a space). The old Python `docker-compose` v1 log watcher can crash on modern Docker events with `KeyError: 'id'`.
+
 Open:
 
 ```text

@@ -1,23 +1,10 @@
-version: v1.0.0
-title: JellyGlance v1.0.0
+version: v1.0.1
+title: JellyGlance v1.0.1
 ---
-Initial release of JellyGlance.
+fix: refine About page product messaging and creator attribution
 
-JellyGlance is a modern Jellyfin dashboard for live sessions, recently added media, libraries, users, playback activity, statistics, automation integrations, downloads, webhooks, backups, and first-run setup.
-
-Highlights:
-- Live active session cards with stream, device, client, playback, and user details
-- Recently Added shelves grouped by Jellyfin library
-- Library dashboards with storage, playback, file counts, and manual scan actions
-- JellyGlance Users page for Jellyfin, local, and OIDC-ready accounts
-- Role management with admin/viewer style access control
-- User profile pages with personal wrap-up stats and activity heatmaps
-- Statistics dashboard for top media, users, clients, libraries, and watch trends
-- Calendar page for Sonarr, Radarr, and Lidarr release planning
-- Downloads page for qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet queues
-- Magnet links, torrent URLs, and torrent file support
-- Integration settings for Jellyfin, Arr apps, Bazarr, and download clients
-- Multiple webhook destinations with selectable event triggers
-- Background tasks for syncs, imports, health checks, backups, and queue refreshes
-- Docker image and Compose setup with /app/config and /app/backups paths
-- Safe streamed backup downloads using short-lived signed links
+- Remove the technical stack pill panel from the About page
+- Replace implementation-focused hero copy with a clearer JellyGlance product description
+- Add a creator attribution card linking to Nerdy-Technician's GitHub profile
+- Keep the About page focused on what JellyGlance does for Jellyfin admins
+- Rebuild the Docker-served app so the updated About page appears on localhost

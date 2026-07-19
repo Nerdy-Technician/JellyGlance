@@ -31,8 +31,6 @@ const projectHighlights = [
   },
 ];
 
-const projectStack = ["React", "Vite", "Express", "PostgreSQL", "Docker", "VitePress", "GitHub Actions", "Semantic releases"];
-
 export default function SettingsAbout() {
   const token = localStorage.getItem("token");
   const [data, setData] = useState({
@@ -81,9 +79,9 @@ export default function SettingsAbout() {
           <p className="about-eyebrow">Project dashboard</p>
           <h1>JellyGlance</h1>
           <p>
-            A modern Jellyfin companion for seeing what is happening across your media server at a glance. Built with a
-            Vite React app, Express API, PostgreSQL storage, Docker packaging, VitePress docs, and automated GitHub
-            releases.
+            JellyGlance is a modern Jellyfin dashboard for live sessions, recently added media, library health, users,
+            downloads, release planning, webhooks, backups, and playback statistics. It gives self-hosted Jellyfin admins
+            a fast, polished control center without digging through server logs.
           </p>
           <div className="about-actions">
             <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
@@ -107,7 +105,9 @@ export default function SettingsAbout() {
         <article className={data.update_available ? "is-update" : ""}>
           <HeartPulseLineIcon />
           <span>Update status</span>
-          <strong>{data.message}</strong>
+          <a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank" rel="noreferrer">
+            {data.message}
+          </a>
         </article>
         <article>
           <GithubFillIcon />
@@ -120,8 +120,8 @@ export default function SettingsAbout() {
 
       <section className="about-content-grid">
         <div className="about-panel about-story">
-          <p className="about-eyebrow">What it is</p>
-          <h2>Jellyfin insight without digging through server logs.</h2>
+          <p className="about-eyebrow">Product description</p>
+          <h2>Jellyfin insight at a glance.</h2>
           <p>
             JellyGlance focuses on fast answers: who is watching, what changed in the library, which users are active,
             how libraries are performing, and what automation jobs or integrations need attention.
@@ -132,13 +132,16 @@ export default function SettingsAbout() {
           </p>
         </div>
 
-        <div className="about-panel about-stack">
-          <p className="about-eyebrow">Stack</p>
-          <div className="about-stack-list">
-            {projectStack.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
+        <div className="about-panel about-maker">
+          <p className="about-eyebrow">Creator</p>
+          <a href="https://github.com/Nerdy-Technician" target="_blank" rel="noreferrer">
+            <GithubFillIcon />
+            <div>
+              <span>Made by</span>
+              <strong>Nerdy-Technician</strong>
+              <small>github.com/Nerdy-Technician</small>
+            </div>
+          </a>
         </div>
       </section>
 

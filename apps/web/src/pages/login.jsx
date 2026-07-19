@@ -28,7 +28,6 @@ function Login() {
   const [submitButtonText, setsubmitButtonText] = useState(i18next.t("LOGIN"));
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
-  const wasLoggedOut = localStorage.getItem("jellyglance_logged_out") === "true";
   const canQuickConnect = setupInfo?.auth?.mode === "quick-connect";
 
   function handleFormChange(event) {
@@ -199,9 +198,6 @@ function Login() {
         const response = await axios.get("/auth/isConfigured");
         setSetupInfo(response.data);
         setConfig({});
-        if (!wasLoggedOut && response.data.requireLogin === false && response.data.auth?.mode !== "quick-connect") {
-          beginLogin();
-        }
       } catch (error) {
         console.log(error);
         setConfig({});
@@ -214,7 +210,7 @@ function Login() {
         fetchConfig();
       }
     }
-  }, [config, wasLoggedOut]);
+  }, [config]);
 
   useEffect(() => {
     if (!quickConnect?.secret || processing) {

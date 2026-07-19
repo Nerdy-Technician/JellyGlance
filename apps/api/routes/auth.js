@@ -251,7 +251,9 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     const response = await authenticateWithQuickConnect(config.host, secret);
     const jellyfinUser = response?.data?.User;
 
-    if (!jellyfinUser?.Policy?.IsAdministrator) {
+    const isFirstRunApproval = config.settings?.auth?.mode !== "quick-connect";
+
+    if (isFirstRunApproval && !jellyfinUser?.Policy?.IsAdministrator) {
       res.status(403).json({ errorMessage: "Approve Quick Connect with a Jellyfin administrator account" });
       return;
     }
@@ -268,7 +270,14 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
       },
     };
 
-    await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    if (isFirstRunApproval) {
+      await db.query('UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1', [
+        "jellyfin-quick-connect",
+        null,
+        true,
+        settings,
+      ]);
+    }
 
     const token = await signSetupToken(jellyfinUser.Name || "jellyfin-quick-connect");
     res.json({
@@ -391,6 +400,16 @@ router.post("/createuser", async (req, res) => {
     const { username, password } = req.body;
     const config = await new configClass().getConfig();
 
+    if (!username || !password || password === CryptoJS.SHA3("").toString()) {
+      res.status(400).json({ errorMessage: "Username and password are required" });
+      return;
+    }
+
+    if (config.settings?.auth?.mode === "quick-connect" || config.settings?.auth?.mode === "oidc") {
+      res.status(403).json({ errorMessage: "Local setup is disabled for the selected authentication mode" });
+      return;
+    }
+
     if (config.state != null && config.state < 2) {
       const user = { id: 1, username: username };
 
@@ -414,6 +433,7 @@ router.post("/createuser", async (req, res) => {
     }
   } catch (error) {
     console.log(error);
+    res.status(500).json({ errorMessage: "Unable to create setup user" });
   }
 });
 
@@ -508,14 +528,35 @@ router.post("/setup-auth", async (req, res) => {
   }
 });
 
+router.post("/test-jellyfin", async (req, res) => {
+  try {
+    const { JF_HOST, JF_API_KEY } = req.body;
+
+    if (!JF_HOST || !JF_API_KEY) {
+      res.status(400).json({ isValid: false, errorMessage: "Jellyfin URL and API key are required" });
+      return;
+    }
+
+    const validation = await API.validateSettings(JF_HOST, JF_API_KEY);
+    if (validation.isValid === false) {
+      res.status(validation.status || 400).json(validation);
+      return;
+    }
+
+    res.json(validation);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ isValid: false, errorMessage: "Unable to test Jellyfin connection" });
+  }
+});
+
 router.post("/configSetup", async (req, res) => {
   try {
     const { JF_HOST, JF_API_KEY } = req.body;
     const config = await new configClass().getConfig();
 
-    if (JF_HOST === undefined && JF_API_KEY === undefined) {
-      res.status(400);
-      res.send("JF_HOST and JF_API_KEY are required for configuration");
+    if (!JF_HOST || !JF_API_KEY) {
+      res.status(400).json({ isValid: false, errorMessage: "JF_HOST and JF_API_KEY are required for configuration" });
       return;
     }
 
@@ -559,6 +600,7 @@ router.post("/configSetup", async (req, res) => {
     }
   } catch (error) {
     console.log(error);
+    res.status(500).json({ isValid: false, errorMessage: "Unable to save Jellyfin configuration" });
   }
 });
 

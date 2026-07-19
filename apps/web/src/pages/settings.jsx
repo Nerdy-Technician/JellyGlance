@@ -50,8 +50,10 @@ function tabTitle(Icon, label) {
 }
 
 export default function Settings() {
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
   const savedTab = localStorage.getItem(`PREF_SETTINGS_LAST_SELECTED_TAB`) ?? "tabGeneral";
-  const [activeTab, setActiveTab] = useState(settingsTabs.includes(savedTab) ? savedTab : "tabGeneral");
+  const initialTab = settingsTabs.includes(requestedTab) ? requestedTab : savedTab;
+  const [activeTab, setActiveTab] = useState(settingsTabs.includes(initialTab) ? initialTab : "tabGeneral");
 
   function setTab(tabName) {
     if (!settingsTabs.includes(tabName)) {

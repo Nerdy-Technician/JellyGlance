@@ -194,20 +194,61 @@
   line-height: 1.05;
 }
 
-.about-stack-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
+.about-maker {
+  display: grid;
+  align-content: start;
+  gap: 14px;
 }
 
-.about-stack-list span {
-  padding: 9px 12px;
-  border: 1px solid rgba(215, 141, 240, 0.26);
-  border-radius: 999px;
-  background: rgba(170, 92, 195, 0.12);
+.about-maker a {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(215, 141, 240, 0.28);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(215, 141, 240, 0.2), transparent 48%),
+    rgba(255, 255, 255, 0.035);
+  color: #fff;
+  text-decoration: none;
+}
+
+.about-maker svg {
+  width: 58px;
+  height: 58px;
+  padding: 12px;
+  border: 1px solid rgba(215, 141, 240, 0.34);
+  border-radius: 16px;
+  background: rgba(170, 92, 195, 0.18);
   color: #f4c7ff;
+}
+
+.about-maker div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.about-maker span,
+.about-maker small {
+  overflow: hidden;
+  color: #9fb1c9;
   font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.about-maker strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 20px;
   font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .about-feature-grid {

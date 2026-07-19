@@ -8,6 +8,8 @@ Docker Compose is the recommended way to run JellyGlance for everyday self-hosti
 docker compose up -d
 ```
 
+Use Docker Compose v2 (`docker compose`, with a space). The legacy Python `docker-compose` v1 log watcher can crash on modern Docker event streams with `KeyError: 'id'`.
+
 The stack starts:
 
 - `jellyglance`, the combined API and web app

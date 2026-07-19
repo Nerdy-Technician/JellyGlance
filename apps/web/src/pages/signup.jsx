@@ -14,6 +14,7 @@ import EyeOffFillIcon from "remixicon-react/EyeOffFillIcon";
 import i18next from "i18next";
 import { Trans } from "react-i18next";
 import SetupShell from "./components/setup/SetupShell";
+import baseUrl from "../lib/baseurl";
 
 function Signup() {
   const [config, setConfig] = useState(null);
@@ -24,6 +25,7 @@ function Signup() {
   const [authMode, setAuthMode] = useState("quick-connect");
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
+  const [openIntegrationsAfterSetup, setOpenIntegrationsAfterSetup] = useState(true);
 
   function handleFormChange(event) {
     setFormValues({ ...formValues, [event.target.name]: event.target.value });
@@ -75,7 +77,7 @@ function Signup() {
         setsubmitButtonText("Settings Saved");
         await beginSync(response.data.token);
         setProcessing(false);
-        window.location.reload();
+        finishSetupNavigation();
         return;
       })
       .catch((error) => {
@@ -98,7 +100,7 @@ function Signup() {
     try {
       setProcessing(true);
       setQuickConnectStatus("Approved. Saving Jellyfin Quick Connect...");
-      await axios.post(
+      const response = await axios.post(
         "/auth/jellyfin-quick-connect/complete",
         { secret },
         {
@@ -107,7 +109,11 @@ function Signup() {
           },
         }
       );
-      saveAuthSetup();
+
+      localStorage.setItem("token", response.data.token);
+      await beginSync(response.data.token);
+      setProcessing(false);
+      finishSetupNavigation();
     } catch (error) {
       const errorMessage = error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`;
       setQuickConnectStatus(errorMessage);
@@ -141,6 +147,16 @@ function Signup() {
       .catch((error) => {
         console.log(error);
       });
+  }
+
+  function finishSetupNavigation() {
+    if (openIntegrationsAfterSetup) {
+      localStorage.setItem("PREF_SETTINGS_LAST_SELECTED_TAB", "tabIntegrations");
+      window.location.assign(`${baseUrl || ""}/settings?tab=tabIntegrations`);
+      return;
+    }
+
+    window.location.reload();
   }
 
   useEffect(() => {
@@ -222,6 +238,19 @@ function Signup() {
         </div>
 
         <Form onSubmit={handleFormSubmit} className="setup-form">
+          <label className="setup-followup-option">
+            <Form.Check
+              type="checkbox"
+              checked={openIntegrationsAfterSetup}
+              onChange={(event) => setOpenIntegrationsAfterSetup(event.target.checked)}
+              aria-label="Open integration setup after first-run setup"
+            />
+            <span>
+              <strong>Open integration setup next</strong>
+              <small>Jump straight to Jellyfin, Arr apps, webhooks, and download client setup.</small>
+            </span>
+          </label>
+
           {authMode === "quick-connect" && (
             <div className="setup-auth-summary">
               <strong>Jellyfin Quick Connect</strong>

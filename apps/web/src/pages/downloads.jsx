@@ -12,36 +12,6 @@ import "./css/integrations.css";
 
 const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
 
-const fallbackClients = [
-  { name: "qBittorrent", slug: "qbittorrent", protocol: "Torrent", connected: true, instanceId: "fallback-qbit" },
-  { name: "Deluge", slug: "deluge", protocol: "Torrent", connected: false, instanceId: "fallback-deluge", message: "Unknown method" },
-];
-
-const sampleDownloads = [
-  {
-    id: "ubuntu-iso",
-    name: "ubuntu-26.04-live-server-amd64.iso",
-    client: "qBittorrent",
-    source: "Other",
-    state: "stoppedDL",
-    progress: 55,
-    size: "1.5 GB / 2.7 GB",
-    down: "0 B/s",
-    up: "0 B/s",
-  },
-  {
-    id: "debian-iso",
-    name: "debian-13.3.0-amd64-netinst.iso",
-    client: "qBittorrent",
-    source: "Other",
-    state: "queuedUP",
-    progress: 100,
-    size: "0 B / 754 MB",
-    down: "0 B/s",
-    up: "0 B/s",
-  },
-];
-
 function clientIcon(client) {
   if (!client.slug) return null;
   return <img src={iconUrl(client.slug)} alt="" loading="lazy" decoding="async" />;
@@ -66,12 +36,11 @@ export default function Downloads() {
   const fileInputRef = useRef(null);
   const [integrations, setIntegrations] = useState(loadSavedIntegrations({ clients: [] }));
   const savedClients = integrations.clients || [];
-  const clients = savedClients.length ? savedClients : fallbackClients;
-  const usableClients = clients.filter((client) => client.protocol === "Torrent" || client.protocol === "Usenet");
+  const usableClients = savedClients.filter((client) => client.protocol === "Torrent" || client.protocol === "Usenet");
   const [selectedClientId, setSelectedClientId] = useState(usableClients[0]?.instanceId || "");
   const [torrentValue, setTorrentValue] = useState("");
   const [torrentFile, setTorrentFile] = useState(null);
-  const [downloads, setDownloads] = useState(sampleDownloads);
+  const [downloads, setDownloads] = useState([]);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -130,7 +99,12 @@ export default function Downloads() {
   }, [selectedClientId, usableClients]);
 
   async function addTorrent() {
-    if (!selectedClient || (!torrentValue.trim() && !torrentFile)) return;
+    if (!selectedClient) {
+      setMessage("Add a download client in Settings > Integrations first.");
+      return;
+    }
+
+    if (!torrentValue.trim() && !torrentFile) return;
 
     const nextDownload = {
       id: `${Date.now()}`,
@@ -185,12 +159,16 @@ export default function Downloads() {
       <section className="download-add-bar">
         <label>
           <span>Client</span>
-          <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
-            {usableClients.map((client) => (
-              <option value={client.instanceId} key={client.instanceId}>
-                {client.name}
-              </option>
-            ))}
+          <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)} disabled={!usableClients.length}>
+            {usableClients.length ? (
+              usableClients.map((client) => (
+                <option value={client.instanceId} key={client.instanceId}>
+                  {client.name}
+                </option>
+              ))
+            ) : (
+              <option>No clients added</option>
+            )}
           </select>
         </label>
         <label className="download-magnet-field">
@@ -202,7 +180,7 @@ export default function Downloads() {
           <span>{torrentFile ? torrentFile.name : "Torrent File"}</span>
           <input ref={fileInputRef} type="file" accept=".torrent,application/x-bittorrent" onChange={(event) => setTorrentFile(event.target.files?.[0] || null)} />
         </label>
-        <button type="button" className="download-add-button" onClick={addTorrent} disabled={isSubmitting}>
+        <button type="button" className="download-add-button" onClick={addTorrent} disabled={isSubmitting || !usableClients.length}>
           <AddLineIcon size={18} />
           {isSubmitting ? "Adding..." : "Add Torrent"}
         </button>
@@ -217,7 +195,7 @@ export default function Downloads() {
         <article className="download-panel active-downloads-panel">
           <h2>Active Downloads</h2>
           <div className="download-list">
-            {downloads.map((download) => (
+            {downloads.length ? downloads.map((download) => (
               <div className="download-row" key={download.id}>
                 <div className="download-row-main">
                   <div className="download-title-group">
@@ -254,14 +232,16 @@ export default function Downloads() {
                   </span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="integration-empty-state">No active downloads. Add a client in Settings &gt; Integrations, then sync the queue.</div>
+            )}
           </div>
         </article>
 
         <article className="download-panel download-clients-panel">
           <h2>Clients</h2>
           <div className="download-client-list">
-            {usableClients.map((client) => {
+            {usableClients.length ? usableClients.map((client) => {
               const count = downloads.filter((download) => download.client === client.name).length;
               return (
                 <div className="download-client-row" key={client.instanceId}>
@@ -276,7 +256,9 @@ export default function Downloads() {
                   <span className={`integration-status-light ${client.connected ? "is-connected" : "is-disconnected"}`} />
                 </div>
               );
-            })}
+            }) : (
+              <div className="integration-empty-state">No download clients added yet.</div>
+            )}
           </div>
         </article>
       </section>

@@ -27,13 +27,6 @@ const downloadClientOptions = [
   { name: "rTorrent", slug: null, protocol: "Torrent" },
 ];
 
-const initialDownloadClients = downloadClientOptions.slice(0, 5).map((client, index) => ({
-  ...client,
-  instanceId: `${client.name}-${index}`,
-  connected: false,
-  values: {},
-}));
-
 const initialAutomationApps = automationApps.map((app, index) => ({
   ...app,
   instanceId: `${app.name}-${index}`,
@@ -125,7 +118,7 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, remova
 export default function Integrations({ embedded = false }) {
   const [activeTab, setActiveTab] = useState("media-server");
   const [arrApps, setArrApps] = useState(initialAutomationApps);
-  const [clients, setClients] = useState(initialDownloadClients);
+  const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(downloadClientOptions[0].name);
   const connectorCount = useMemo(() => arrApps.length + clients.length, [arrApps.length, clients.length]);
 
@@ -150,16 +143,20 @@ export default function Integrations({ embedded = false }) {
         }
 
         saveSavedIntegrations(saved);
-        if (Array.isArray(saved.arrApps)) {
+        if (Array.isArray(saved.arrApps) && saved.arrApps.length) {
           setArrApps(saved.arrApps);
+        } else {
+          setArrApps(initialAutomationApps);
         }
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
       } catch {
         const saved = loadSavedIntegrations();
-        if (Array.isArray(saved.arrApps)) {
+        if (Array.isArray(saved.arrApps) && saved.arrApps.length) {
           setArrApps(saved.arrApps);
+        } else {
+          setArrApps(initialAutomationApps);
         }
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);

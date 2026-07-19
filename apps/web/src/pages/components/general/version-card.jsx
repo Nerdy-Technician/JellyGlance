@@ -56,7 +56,7 @@ export default function VersionCard() {
 
             {data.update_available?
               <Row>
-                   <Col ><a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank"  rel="noreferrer"  style={{color:'#00A4DC'}}>New version available: {data.latest_version}</a></Col>
+                   <Col ><a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank"  rel="noreferrer"  style={{color:'#00A4DC'}}>New version available: {data.latest_version}</a></Col>
                </Row>
                :
                <></>
