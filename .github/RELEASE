@@ -1,10 +1,10 @@
-version: v1.0.1
-title: JellyGlance v1.0.1
+version: v1.0.2
+title: JellyGlance v1.0.2
 ---
-fix: refine About page product messaging and creator attribution
+fix: refresh account config after Quick Connect setup
 
-- Remove the technical stack pill panel from the About page
-- Replace implementation-focused hero copy with a clearer JellyGlance product description
-- Add a creator attribution card linking to Nerdy-Technician's GitHub profile
-- Keep the About page focused on what JellyGlance does for Jellyfin admins
-- Rebuild the Docker-served app so the updated About page appears on localhost
+- Refresh cached app config immediately after Jellyfin Quick Connect completes
+- Update the navbar from fresh backend config instead of stale localStorage data
+- Broadcast config updates so account UI reflects the Jellyfin user without a page refresh
+- Return Jellyfin profile image metadata from Quick Connect completion
+- Prevent the sidebar from briefly showing Local login after Quick Connect approval

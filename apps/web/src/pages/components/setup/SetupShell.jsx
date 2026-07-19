@@ -1,6 +1,7 @@
 import CheckLineIcon from "remixicon-react/CheckLineIcon";
 import AdminLineIcon from "remixicon-react/AdminLineIcon";
 import ServerLineIcon from "remixicon-react/ServerLineIcon";
+import PlugLineIcon from "remixicon-react/PlugLineIcon";
 import DashboardLineIcon from "remixicon-react/DashboardLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import Key2LineIcon from "remixicon-react/Key2LineIcon";
@@ -22,6 +23,12 @@ const steps = [
     title: "Admin access",
     hint: "Quick Connect or OIDC",
     icon: AdminLineIcon,
+  },
+  {
+    id: 3,
+    title: "Integrations",
+    hint: "Optional next step",
+    icon: PlugLineIcon,
   },
 ];
 

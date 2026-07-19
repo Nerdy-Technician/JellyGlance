@@ -12,6 +12,7 @@ import { Trans } from "react-i18next";
 import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
 import { slugifyUserName } from "../../../lib/userProfile";
+import Config from "../../../lib/config";
 
 function getCachedConfig() {
   try {
@@ -23,10 +24,10 @@ function getCachedConfig() {
 
 export default function Navbar() {
   const [showAccount, setShowAccount] = useState(false);
+  const [config, setConfig] = useState(() => getCachedConfig());
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
-  const config = getCachedConfig();
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
@@ -53,6 +54,32 @@ export default function Navbar() {
   };
 
   const location = useLocation();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshConfig = async () => {
+      if (!localStorage.getItem("token")) {
+        setConfig(getCachedConfig());
+        return;
+      }
+
+      const freshConfig = await Config.getConfig(true);
+      if (isMounted && !freshConfig?.response) {
+        setConfig(freshConfig);
+      }
+    };
+
+    refreshConfig();
+    window.addEventListener("jellyglance-config-updated", refreshConfig);
+    window.addEventListener("storage", refreshConfig);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("jellyglance-config-updated", refreshConfig);
+      window.removeEventListener("storage", refreshConfig);
+    };
+  }, []);
 
   useEffect(() => {
     const handleSessions = (sessionData) => {

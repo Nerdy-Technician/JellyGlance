@@ -7,6 +7,8 @@ const configClass = require("../classes/config");
 const packageJson = require("../package.json");
 const API = require("../classes/api-loader");
 const { axios } = require("../classes/axios");
+const TaskManager = require("../classes/task-manager-singleton");
+const triggertype = require("../logging/triggertype");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JS_USER = process.env.JS_USER;
@@ -43,6 +45,46 @@ function getJellyfinAuthHeaders(deviceId = "jellyglance-web") {
 
 function normalizeJellyfinUrl(url) {
   return url?.trim()?.replace(/\/+$/, "");
+}
+
+function queueSetupJellyfinTasks() {
+  const taskManager = new TaskManager().getInstance();
+  const taskQueue = ["JellyfinSync", "PartialJellyfinSync", "JellyfinPlaybackReportingPluginSync", "RefreshDashboardStats"];
+  let index = 0;
+
+  const startNextTask = () => {
+    const taskKey = taskQueue[index];
+    index += 1;
+
+    if (!taskKey) {
+      return;
+    }
+
+    const task = taskManager.taskList[taskKey];
+    if (!task || taskManager.isTaskRunning(task.name)) {
+      startNextTask();
+      return;
+    }
+
+    const added = taskManager.addTask({
+      task,
+      onComplete: startNextTask,
+      onError: (error) => {
+        console.log(`[SETUP] ${task.name} failed: ${error.message}`);
+        startNextTask();
+      },
+      onExit: startNextTask,
+    });
+
+    if (!added) {
+      startNextTask();
+      return;
+    }
+
+    taskManager.startTask(task, triggertype.Automatic);
+  };
+
+  startNextTask();
 }
 
 async function getQuickConnectConfig() {
@@ -283,9 +325,11 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     res.json({
       token,
       mode: "quick-connect",
+      auth: settings.auth,
       user: {
         id: jellyfinUser.Id,
         name: jellyfinUser.Name,
+        primaryImageTag: jellyfinUser.PrimaryImageTag || null,
       },
     });
   } catch (error) {
@@ -594,6 +638,8 @@ router.post("/configSetup", async (req, res) => {
           await db.query(query, [settings]);
         }
       }
+
+      queueSetupJellyfinTasks();
       res.send(rows);
     } else {
       res.sendStatus(500);

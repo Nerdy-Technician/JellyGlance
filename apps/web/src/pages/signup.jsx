@@ -75,7 +75,6 @@ function Signup() {
       .then(async (response) => {
         localStorage.setItem("token", response.data.token);
         setsubmitButtonText("Settings Saved");
-        await beginSync(response.data.token);
         setProcessing(false);
         finishSetupNavigation();
         return;
@@ -111,7 +110,9 @@ function Signup() {
       );
 
       localStorage.setItem("token", response.data.token);
-      await beginSync(response.data.token);
+      localStorage.removeItem("config");
+      await Config.setConfig();
+      window.dispatchEvent(new Event("jellyglance-config-updated"));
       setProcessing(false);
       finishSetupNavigation();
     } catch (error) {
@@ -127,7 +128,17 @@ function Signup() {
       setQuickConnectStatus("Requesting a Jellyfin Quick Connect code...");
       const response = await axios.post("/auth/jellyfin-quick-connect/initiate");
       setQuickConnect(response.data);
-      setQuickConnectStatus("Enter this code in Jellyfin Quick Connect to approve setup.");
+      const copied = await copyQuickConnectCode(response.data.code);
+
+      if (response.data.quickConnectUrl) {
+        window.open(response.data.quickConnectUrl, "_blank", "noopener,noreferrer");
+      }
+
+      setQuickConnectStatus(
+        copied
+          ? "Code copied. Jellyfin Quick Connect opened in a new tab."
+          : "Jellyfin Quick Connect opened in a new tab. Enter this code to approve setup."
+      );
       setProcessing(false);
     } catch (error) {
       const errorMessage = error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`;
@@ -136,17 +147,18 @@ function Signup() {
     }
   }
 
-  async function beginSync(token) {
-    await axios
-      .get("/sync/beginSync", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+  async function copyQuickConnectCode(code) {
+    if (!code || !navigator.clipboard?.writeText) {
+      return false;
+    }
+
+    try {
+      await navigator.clipboard.writeText(code);
+      return true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
   }
 
   function finishSetupNavigation() {
