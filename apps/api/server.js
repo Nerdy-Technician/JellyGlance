@@ -66,6 +66,14 @@ if (JWT_SECRET === undefined) {
   process.exit(1); // end the program with error status code
 }
 
+const DEFAULT_ROLE_PERMISSIONS = {
+  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
+  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
+  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
+  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
+  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
+};
+
 // middlewares
 app.use(express.json()); // middleware to parse JSON request bodies
 app.use(cors());
@@ -154,25 +162,25 @@ app.use(`/auth`, authRouter, () => {
 app.use("/proxy", proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
-app.use("/api", authenticate, apiRouter, () => {
+app.use("/api", authenticate, authorizeApiRoute, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
-app.use("/sync", authenticate, syncRouter, () => {
+app.use("/sync", authenticate, requirePermission("settings"), syncRouter, () => {
   /*  #swagger.tags = ['Sync']*/
 }); // mount the API router at /sync, with JWT middleware
 app.use("/stats", authenticate, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
-app.use("/backup", authenticate, backupRouter, () => {
+app.use("/backup", authenticate, requirePermission("settings"), backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
-app.use("/logs", authenticate, logRouter, () => {
+app.use("/logs", authenticate, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
-app.use("/utils", authenticate, utilsRouter, () => {
+app.use("/utils", authenticate, requirePermission("settings"), utilsRouter, () => {
   /*  #swagger.tags = ['Utils']*/
 }); // mount the API router at /utils, with JWT middleware
-app.use("/webhooks", authenticate, webhooksRouter, () => {
+app.use("/webhooks", authenticate, requirePermission("settings"), webhooksRouter, () => {
   /*  #swagger.tags = ['Webhooks']*/
 }); // mount the API router at /webhooks, with JWT middleware
 
@@ -252,7 +260,13 @@ async function authenticate(req, res, next) {
 
     try {
       const decoded = jwt.verify(extracted_token, JWT_SECRET);
-      req.user = decoded.user;
+      const access = await resolveTokenAccess(decoded.user);
+      if (!access.permissions.dashboard) {
+        return res.status(403).json({ message: "This account is disabled in JellyGlance" });
+      }
+
+      req.user = access.user;
+      req.permissions = access.permissions;
       next();
     } catch (error) {
       console.log("Invalid token");
@@ -270,12 +284,127 @@ async function authenticate(req, res, next) {
       const keyExists = keys.some((obj) => obj.key === apiKey);
 
       if (keyExists) {
+        req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
         next();
       } else {
         return res.status(403).json({ message: "Invalid API key" });
       }
     }
   }
+}
+
+function getTokenPermissions(user) {
+  if (user === "internal") {
+    return DEFAULT_ROLE_PERMISSIONS.Owner;
+  }
+
+  if (user?.permissions) {
+    return user.permissions;
+  }
+
+  if (user?.role && DEFAULT_ROLE_PERMISSIONS[user.role]) {
+    return DEFAULT_ROLE_PERMISSIONS[user.role];
+  }
+
+  return DEFAULT_ROLE_PERMISSIONS.Owner;
+}
+
+function getRolePermissions(settings, role) {
+  return {
+    ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
+    ...((settings.rolePermissions || {})[role] || {}),
+  };
+}
+
+async function resolveTokenAccess(user) {
+  if (user === "internal") {
+    return { user, permissions: DEFAULT_ROLE_PERMISSIONS.Owner };
+  }
+
+  if (user?.authMode === "quick-connect" && user?.id) {
+    const { rows } = await dbInstance.query('SELECT settings FROM app_config where "ID"=1');
+    const settings = rows[0]?.settings || {};
+    const role = settings.userRoles?.[user.id] || (user.jellyfinUser?.isAdministrator ? "Admin" : "Viewer");
+    const permissions = getRolePermissions(settings, role);
+
+    return {
+      user: {
+        ...user,
+        role,
+        permissions,
+      },
+      permissions,
+    };
+  }
+
+  if (user?.authMode === "local") {
+    const { rows } = await dbInstance.query('SELECT "APP_USER", settings FROM app_config where "ID"=1');
+    const config = rows[0] || {};
+    const settings = config.settings || {};
+    const localUser = (settings.localUsers || []).find((item) => item.id === user.id || item.username === user.username);
+    const role = user.id === 1 || config.APP_USER === user.username ? "Owner" : localUser?.role || user.role || "Viewer";
+    const permissions = getRolePermissions(settings, role);
+
+    return {
+      user: {
+        ...user,
+        role,
+        permissions,
+      },
+      permissions,
+    };
+  }
+
+  const permissions = getTokenPermissions(user);
+  return { user, permissions };
+}
+
+function requirePermission(permission) {
+  return (req, res, next) => {
+    if (req.permissions?.[permission]) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ message: `Permission required: ${permission}` });
+  };
+}
+
+function authorizeApiRoute(req, res, next) {
+  const pathName = req.path.toLowerCase();
+
+  if (pathName === "/getconfig") {
+    next();
+    return;
+  }
+
+  const permission =
+    pathName.startsWith("/keys")
+      ? "apiKeys"
+      : pathName.startsWith("/useraccess") ||
+          pathName.startsWith("/roles") ||
+          pathName.startsWith("/localusers") ||
+          pathName.startsWith("/primarylocalpassword") ||
+          pathName.startsWith("/userroles") ||
+          pathName.startsWith("/setpreferredadmin") ||
+          pathName.startsWith("/untrackedusers") ||
+          pathName.startsWith("/setuntrackedusers")
+        ? "users"
+        : pathName.startsWith("/set") ||
+            pathName.includes("/purge") ||
+            pathName.startsWith("/integrations") ||
+            pathName.startsWith("/downloads/add") ||
+            pathName.startsWith("/starttask") ||
+            pathName.startsWith("/stoptask") ||
+            pathName.startsWith("/gettasksettings") ||
+            pathName.startsWith("/getactivitymonitorsettings") ||
+            pathName.startsWith("/checkforupdates") ||
+            pathName.startsWith("/deleteplaybackactivity") ||
+            pathName.startsWith("/getbackuptables")
+          ? "settings"
+          : "dashboard";
+
+  return requirePermission(permission)(req, res, next);
 }
 
 // start server

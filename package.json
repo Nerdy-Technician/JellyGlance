@@ -3,6 +3,31 @@
   "version": "1.0.3",
   "private": true,
   "description": "JellyGlance - a modern Jellyfin analytics and media control dashboard by Nerdy-Technician.",
+  "keywords": [
+    "jellyfin",
+    "jellyfin-dashboard",
+    "media-server",
+    "self-hosted",
+    "analytics",
+    "playback-statistics",
+    "quick-connect",
+    "sonarr",
+    "radarr",
+    "lidarr",
+    "bazarr",
+    "qbittorrent",
+    "docker",
+    "postgresql",
+    "react"
+  ],
+  "homepage": "https://nerdy-technician.github.io/JellyGlance/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nerdy-Technician/JellyGlance.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Nerdy-Technician/JellyGlance/issues"
+  },
   "license": "GPL-3.0",
   "type": "module",
   "workspaces": [

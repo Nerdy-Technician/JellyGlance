@@ -1,58 +1,119 @@
 <p align="center">
-  <img src="docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-white.png">
+    <img src="docs/public/full-logo-transparent.png" alt="JellyGlance" width="280">
+  </picture>
 </p>
 
 <p align="center">
-  <strong>A modern Jellyfin statistics, activity, and media-control dashboard.</strong>
+  <strong>Your Jellyfin control room: live sessions, users, libraries, stats, calendars, downloads, webhooks, and tasks in one clean dashboard.</strong>
 </p>
 
 <p align="center">
-  Built by <strong>Nerdy-Technician</strong> for self-hosted Jellyfin servers that deserve a cleaner control room.
+  Built by <strong>Nerdy-Technician</strong> for self-hosted media servers that deserve better visibility than a pile of browser tabs.
 </p>
 
 <p align="center">
   <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml"><img alt="Docker" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml/badge.svg"></a>
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-aa5cc3"></a>
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance"><img alt="GHCR" src="https://img.shields.io/badge/container-ghcr.io-2f3136"></a>
+  <img alt="Node >=22" src="https://img.shields.io/badge/node-%3E%3D22-43853d">
 </p>
 
-## Jellyfin At A Glance
+<p align="center">
+  <a href="https://nerdy-technician.github.io/JellyGlance/"><strong>Docs</strong></a>
+  ·
+  <a href="#quick-docker-start"><strong>Docker Start</strong></a>
+  ·
+  <a href="#screenshots"><strong>Screenshots</strong></a>
+  ·
+  <a href="#integrations"><strong>Integrations</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/public/screenshots/Home.png" alt="JellyGlance home dashboard" width="920">
+</p>
+
+<p align="center">
+  <sub>Live streams, watch history, library health, release planning, download queues, and access control without leaving the dashboard.</sub>
+</p>
+
+## Why JellyGlance
 
 JellyGlance gives your Jellyfin server a proper dashboard: live sessions, user watch stats, recent media, library health, activity history, release calendars, download queues, webhooks, backups, and integrations in one polished place.
 
-It is made for home-server admins who want answers quickly:
-
-- Who is watching right now?
-- Which users are most active?
-- What was recently added?
-- Which libraries need attention?
-- What releases are coming from Sonarr, Radarr, and Lidarr?
-- Are download clients moving, stuck, or finished?
-- Did scheduled syncs, imports, and webhook notifications actually run?
+| See | Manage | Automate |
+| --- | --- | --- |
+| Live streams, playback history, watch-time trends, user activity, and recently added media. | Jellyfin users, JellyGlance roles, local accounts, Quick Connect, API keys, backups, and settings. | Arr calendars, download queues, scheduled syncs, health checks, and webhook notifications. |
 
 ## Highlights
 
-- **Live Active Sessions**  
-  See active Jellyfin streams with device, client, codec, bitrate, user, runtime, episode details, and platform icons.
+- **Live active sessions** with device, client, codec, bitrate, user, runtime, episode details, and platform icons.
+- **Recently added shelves** grouped by library with poster-first rows for fast scanning.
+- **User dashboards** for Jellyfin Quick Connect users, local JellyGlance users, and OIDC-ready accounts.
+- **Useful statistics** covering top movies, series, libraries, clients, users, trends, watch time, and activity heatmaps.
+- **Media automation hub** for Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
+- **Calendar and downloads** for release planning, torrent URLs, magnet links, torrent uploads, and active queues.
+- **Webhook notifications** for session, media, task, backup, download, and health events.
+- **Backup and restore friendly** Docker paths via `/app/config` and `/app/backups`.
 
-- **Recently Added Shelves**  
-  Browse fresh Jellyfin items grouped by library with poster-focused rows.
+## Feature Map
 
-- **User Dashboards**  
-  Jellyfin Quick Connect users, local JellyGlance users, and OIDC-ready accounts get cleaner user cards, roles, watch summaries, and personal wrap-up pages.
+| Area | What You Get |
+| --- | --- |
+| Dashboard | Active stream counts, server snapshots, recent media, and quick operational context. |
+| Activity | Playback history with users, devices, clients, libraries, items, and timeline views. |
+| Libraries | Library cards, item details, metadata, images, purge tools, and tracked-library controls. |
+| Users | Jellyfin users, local accounts, roles, permissions, disabled users, and profile pages. |
+| Statistics | Most-played items, active users, popular libraries, client usage, days, hours, and watch-time charts. |
+| Integrations | Arr apps, download clients, health checks, release calendar data, and queue monitoring. |
+| Settings | Security, API keys, tasks, webhooks, backups, activity monitor tuning, and logs. |
 
-- **Statistics That Feel Useful**  
-  Top movies, series, libraries, clients, users, playback trends, watch time, and activity heatmaps without digging through raw logs.
+## Screenshots
 
-- **Media Automation Hub**  
-  Connect Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
+<details open>
+<summary><strong>Dashboard, Activity, And Libraries</strong></summary>
 
-- **Calendar And Downloads**  
-  Track upcoming releases from Arr apps and manage torrent URLs, magnet links, and torrent file uploads from connected download clients.
+| Dashboard | Activity |
+| --- | --- |
+| <img src="docs/public/screenshots/Home.png" alt="Home dashboard" width="440"> | <img src="docs/public/screenshots/Activity.png" alt="Activity table" width="440"> |
 
-- **Webhook Notifications**  
-  Add one or many webhook destinations and choose exactly which JellyGlance events trigger each one.
+| Libraries | Recently Added |
+| --- | --- |
+| <img src="docs/public/screenshots/Libraries.png" alt="Libraries overview" width="440"> | <img src="docs/public/screenshots/recently-added.png" alt="Recently added shelves" width="440"> |
 
-- **Backup And Restore Friendly**  
-  Docker exposes `/app/config` and `/app/backups`, with compose mounts for easy copy-out backups and restore uploads.
+</details>
+
+<details>
+<summary><strong>Users, Statistics, Calendar, And Downloads</strong></summary>
+
+| Statistics | Users |
+| --- | --- |
+| <img src="docs/public/screenshots/Stats.png" alt="Statistics dashboard" width="440"> | <img src="docs/public/screenshots/Users.png" alt="Users and roles" width="440"> |
+
+| Calendar | Downloads |
+| --- | --- |
+| <img src="docs/public/screenshots/Calendar.png" alt="Release calendar" width="440"> | <img src="docs/public/screenshots/Downloads.png" alt="Download queue" width="440"> |
+
+</details>
+
+<details>
+<summary><strong>Settings And Operations</strong></summary>
+
+| Settings | Activity Settings |
+| --- | --- |
+| <img src="docs/public/screenshots/Settings.png" alt="Settings overview" width="440"> | <img src="docs/public/screenshots/Settings-Activity.png" alt="Activity settings" width="440"> |
+
+| Security | Tasks |
+| --- | --- |
+| <img src="docs/public/screenshots/Settings-Security.png" alt="Security settings" width="440"> | <img src="docs/public/screenshots/Settings-Tasks.png" alt="Task settings" width="440"> |
+
+| Webhooks | Profile |
+| --- | --- |
+| <img src="docs/public/screenshots/Settings-Webhooks.png" alt="Webhook settings" width="440"> | <img src="docs/public/screenshots/Profile-Page.png" alt="Profile page" width="440"> |
+
+</details>
 
 ## Quick Docker Start
 
@@ -163,6 +224,13 @@ docker compose up -d
 
 - Repository: [Nerdy-Technician/JellyGlance](https://github.com/Nerdy-Technician/JellyGlance)
 - Docker image: `ghcr.io/nerdy-technician/jellyglance`
+- Documentation: [GitHub Pages docs](https://nerdy-technician.github.io/JellyGlance/)
+
+## GitHub Topics
+
+Suggested repository topics:
+
+`jellyfin`, `jellyfin-dashboard`, `media-server`, `self-hosted`, `analytics`, `playback-statistics`, `quick-connect`, `sonarr`, `radarr`, `lidarr`, `bazarr`, `qbittorrent`, `docker`, `postgresql`, `react`
 
 ## Credits
 

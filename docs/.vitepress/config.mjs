@@ -14,8 +14,15 @@ export default defineConfig({
     ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: withBase("/icon-b-192.png") }],
     ["link", { rel: "icon", type: "image/png", sizes: "512x512", href: withBase("/icon-b-512.png") }],
     ["meta", { name: "theme-color", content: "#aa5cc3" }],
+    ["meta", { name: "keywords", content: "JellyGlance,Jellyfin,dashboard,analytics,self-hosted,media server,Quick Connect,Sonarr,Radarr,Lidarr,Bazarr,qBittorrent,Docker,PostgreSQL,React" }],
     ["meta", { property: "og:title", content: "JellyGlance" }],
-    ["meta", { property: "og:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }]
+    ["meta", { property: "og:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }],
+    ["meta", { property: "og:image", content: withBase("/screenshots/Home.png") }],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:title", content: "JellyGlance" }],
+    ["meta", { name: "twitter:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }],
+    ["meta", { name: "twitter:image", content: withBase("/screenshots/Home.png") }]
   ],
   themeConfig: {
     logo: withBase("/project-logo.png"),
@@ -23,6 +30,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Integrations", link: "/guide/integrations" },
+      { text: "Screenshots", link: "/guide/screenshots" },
       { text: "Operations", link: "/operations/docker" },
       { text: "Releases", link: "/operations/releases" },
       { text: "GitHub", link: "https://github.com/Nerdy-Technician/JellyGlance" }
@@ -33,6 +41,7 @@ export default defineConfig({
         items: [
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Integrations", link: "/guide/integrations" },
+          { text: "Screenshots", link: "/guide/screenshots" },
           { text: "Architecture", link: "/guide/architecture" }
         ]
       },

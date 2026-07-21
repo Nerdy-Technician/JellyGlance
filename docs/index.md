@@ -36,3 +36,9 @@ features:
   - title: Docker First
     details: Run JellyGlance with Docker Compose and PostgreSQL, or develop locally with npm workspaces.
 ---
+
+## Product Tour
+
+JellyGlance brings the daily admin surfaces for a Jellyfin homeserver into one place: current streams, fresh library additions, user access, playback history, statistics, release calendars, download queues, webhooks, and task settings.
+
+See the full interface tour in the [screenshots gallery](/guide/screenshots).

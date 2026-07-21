@@ -33,6 +33,33 @@ function signSetupToken(username) {
   });
 }
 
+const DEFAULT_ROLE_PERMISSIONS = {
+  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
+  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
+  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
+  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
+  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
+};
+
+function getRolePermissions(settings, role) {
+  return {
+    ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
+    ...((settings.rolePermissions || {})[role] || {}),
+  };
+}
+
+function signAuthToken(user) {
+  return new Promise((resolve, reject) => {
+    jwt.sign({ user }, JWT_SECRET, (err, token) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(token);
+      }
+    });
+  });
+}
+
 function getJellyfinAuthHeaders(deviceId = "jellyglance-web") {
   const authHeader = `MediaBrowser Client="JellyGlance", Device="JellyGlance Web", DeviceId="${deviceId}", Version="${packageJson.version}"`;
 
@@ -175,16 +202,25 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    const localUsers = login[0]?.settings?.localUsers || [];
-    const loginUser = login.filter(
-      (user) =>
-        (user.APP_USER === username && user.APP_PASSWORD === password) ||
-        localUsers.some((localUser) => localUser.role !== "Disabled" && localUser.username === username && localUser.password === password) ||
-        user.REQUIRE_LOGIN == false
+    const configRow = login[0] || {};
+    const settings = configRow.settings || {};
+    const localUsers = settings.localUsers || [];
+    const localUser = localUsers.find(
+      (user) => user.role !== "Disabled" && user.username === username && user.password === password
     );
+    const isPrimaryLocalUser = configRow.APP_USER === username && configRow.APP_PASSWORD === password;
+    const isFallbackEnvUser = username === JS_USER && password === CryptoJS.SHA3(JS_PASSWORD).toString();
+    const loginUser = login.filter((user) => isPrimaryLocalUser || localUser || user.REQUIRE_LOGIN == false);
 
-    if (loginUser.length > 0 || (username === JS_USER && password === CryptoJS.SHA3(JS_PASSWORD).toString())) {
-      const user = { id: 1, username: username };
+    if (loginUser.length > 0 || isFallbackEnvUser) {
+      const role = isFallbackEnvUser || isPrimaryLocalUser || configRow.REQUIRE_LOGIN == false ? "Owner" : localUser.role || "Viewer";
+      const user = {
+        id: isFallbackEnvUser || isPrimaryLocalUser ? 1 : localUser.id,
+        username: username,
+        authMode: "local",
+        role,
+        permissions: getRolePermissions(settings, role),
+      };
 
       jwt.sign({ user }, JWT_SECRET, (err, token) => {
         if (err) {
@@ -292,6 +328,10 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
 
     const response = await authenticateWithQuickConnect(config.host, secret);
     const jellyfinUser = response?.data?.User;
+    if (!jellyfinUser?.Id) {
+      res.status(502).json({ errorMessage: "Jellyfin did not return an authenticated user" });
+      return;
+    }
 
     const isFirstRunApproval = config.settings?.auth?.mode !== "quick-connect";
 
@@ -301,15 +341,18 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     }
 
     const settings = config.settings || {};
+    const assignedRole = settings.userRoles?.[jellyfinUser.Id] || (jellyfinUser?.Policy?.IsAdministrator ? "Admin" : "Viewer");
+    const permissions = getRolePermissions(settings, assignedRole);
+
+    if (assignedRole === "Disabled" || !permissions.dashboard) {
+      res.status(403).json({ errorMessage: "This Jellyfin account is disabled in JellyGlance" });
+      return;
+    }
+
     settings.auth = {
       ...(settings.auth || {}),
       mode: "quick-connect",
       label: "Jellyfin Quick Connect",
-      jellyfinUser: {
-        id: jellyfinUser.Id,
-        name: jellyfinUser.Name,
-        primaryImageTag: jellyfinUser.PrimaryImageTag || null,
-      },
     };
 
     if (isFirstRunApproval) {
@@ -321,15 +364,37 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
       ]);
     }
 
-    const token = await signSetupToken(jellyfinUser.Name || "jellyfin-quick-connect");
+    const token = await signAuthToken({
+      id: jellyfinUser.Id,
+      username: jellyfinUser.Name || "jellyfin-quick-connect",
+      authMode: "quick-connect",
+      role: assignedRole,
+      permissions,
+      jellyfinUser: {
+        id: jellyfinUser.Id,
+        name: jellyfinUser.Name,
+        primaryImageTag: jellyfinUser.PrimaryImageTag || null,
+        isAdministrator: Boolean(jellyfinUser?.Policy?.IsAdministrator),
+      },
+    });
     res.json({
       token,
       mode: "quick-connect",
-      auth: settings.auth,
+      auth: {
+        ...settings.auth,
+        jellyfinUser: {
+          id: jellyfinUser.Id,
+          name: jellyfinUser.Name,
+          primaryImageTag: jellyfinUser.PrimaryImageTag || null,
+          isAdministrator: Boolean(jellyfinUser?.Policy?.IsAdministrator),
+        },
+      },
       user: {
         id: jellyfinUser.Id,
         name: jellyfinUser.Name,
         primaryImageTag: jellyfinUser.PrimaryImageTag || null,
+        role: assignedRole,
+        permissions,
       },
     });
   } catch (error) {

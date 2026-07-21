@@ -457,10 +457,26 @@ router.get("/getconfig", async (req, res) => {
       return;
     }
 
+    const settings = { ...(config.settings || {}) };
+    const auth = { ...(settings.auth || {}) };
+    if (req.user?.authMode === "quick-connect" && req.user?.jellyfinUser) {
+      auth.mode = "quick-connect";
+      auth.label = auth.label || "Jellyfin Quick Connect";
+      auth.jellyfinUser = req.user.jellyfinUser;
+      auth.role = req.user.role || "Viewer";
+      auth.permissions = req.user.permissions || DEFAULT_ROLE_PERMISSIONS.Viewer;
+      settings.auth = auth;
+    } else if (req.user?.authMode) {
+      auth.mode = req.user.authMode;
+      auth.role = req.user.role;
+      auth.permissions = req.user.permissions;
+      settings.auth = auth;
+    }
+
     const payload = {
       JF_HOST: config.JF_HOST,
-      APP_USER: config.APP_USER,
-      settings: config.settings,
+      APP_USER: req.user?.username || config.APP_USER,
+      settings,
       REQUIRE_LOGIN: config.REQUIRE_LOGIN,
       IS_JELLYFIN: config.IS_JELLYFIN,
     };
