@@ -1,12 +1,15 @@
 import { defineConfig } from "vitepress";
 
-const siteBase = process.env.GITHUB_ACTIONS ? "/JellyGlance/" : "/";
+const siteBase = "/";
 const withBase = (path) => `${siteBase}${path.replace(/^\//, "")}`;
 
 export default defineConfig({
   title: "JellyGlance",
   description: "Modern Jellyfin analytics and media control.",
   base: siteBase,
+  sitemap: {
+    hostname: "https://jellyglance.com"
+  },
   cleanUrls: true,
   head: [
     ["link", { rel: "icon", href: withBase("/favicon.ico") }],

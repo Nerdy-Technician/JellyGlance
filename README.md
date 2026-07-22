@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://nerdy-technician.github.io/JellyGlance/"><strong>Docs</strong></a>
+  <a href="https://jellyglance.com/"><strong>Docs</strong></a>
   ·
   <a href="#quick-docker-start"><strong>Docker Start</strong></a>
   ·
@@ -223,7 +223,7 @@ docker compose up -d
 
 - Repository: [Nerdy-Technician/JellyGlance](https://github.com/Nerdy-Technician/JellyGlance)
 - Docker image: `ghcr.io/nerdy-technician/jellyglance`
-- Documentation: [GitHub Pages docs](https://nerdy-technician.github.io/JellyGlance/)
+- Documentation: [jellyglance.com](https://jellyglance.com/)
 
 ## GitHub Topics
 
