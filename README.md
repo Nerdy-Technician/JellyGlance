@@ -18,7 +18,6 @@
   <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-aa5cc3"></a>
   <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance"><img alt="GHCR" src="https://img.shields.io/badge/container-ghcr.io-2f3136"></a>
-  <img alt="Node >=22" src="https://img.shields.io/badge/node-%3E%3D22-43853d">
 </p>
 
 <p align="center">
