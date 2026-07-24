@@ -337,6 +337,22 @@ async function resolveTokenAccess(user) {
     };
   }
 
+  if (user?.authMode === "oidc" && user?.jellyfinUser?.id) {
+    const { rows } = await dbInstance.query('SELECT settings FROM app_config where "ID"=1');
+    const settings = rows[0]?.settings || {};
+    const role = settings.userRoles?.[user.jellyfinUser.id] || (user.jellyfinUser?.isAdministrator ? "Admin" : "Viewer");
+    const permissions = getRolePermissions(settings, role);
+
+    return {
+      user: {
+        ...user,
+        role,
+        permissions,
+      },
+      permissions,
+    };
+  }
+
   if (user?.authMode === "local") {
     const { rows } = await dbInstance.query('SELECT "APP_USER", settings FROM app_config where "ID"=1');
     const config = rows[0] || {};

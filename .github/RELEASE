@@ -1,20 +1,12 @@
-version: v1.0.5
-title: JellyGlance v1.0.5
+version: v1.0.6
+title: JellyGlance v1.0.6
 ---
-docs: refresh README and integration docs
+fix(auth): enable OIDC login with Jellyfin account matching
 
-- Add JellyGlance screenshots to docs assets
-- Move screenshot tour into a dedicated docs gallery page
-- Add Screenshots to the docs nav and sidebar
-- Redesign integrations docs with local app icon cards
-- Add self-hosted app icons for Jellyfin, Arr apps, download clients, and webhooks
-- Improve README with badges, hero preview, feature map, and collapsible screenshot galleries
-- Add package metadata for homepage, repository, bugs, and keywords
-- Update docs social/SEO metadata
+- Add OIDC authorization-code login and callback handling with signed state and PKCE
+- Exchange OIDC codes for tokens and surface provider callback errors on the login page
+- Match OIDC users to Jellyfin accounts using username-style claims, including username, preferred_username, name, email, and email local-part
+- Issue JellyGlance tokens with the matched Jellyfin user, role, permissions, and avatar/profile context
+- Preserve OIDC as the configured default while allowing Jellyfin Quick Connect as a fallback login path
+- Prefer matched Jellyfin profile images for OIDC account display
 
-fix(auth): respect Jellyfin Quick Connect user roles
-
-- Sign Quick Connect sessions as the approving Jellyfin user
-- Return per-token account identity from config
-- Enforce JellyGlance role permissions on protected API routes
-- Block disabled Quick Connect accounts

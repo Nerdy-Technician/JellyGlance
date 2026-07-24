@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "../lib/axios_instance";
 import Config from "../lib/config";
+import baseUrl from "../lib/baseurl";
 import CryptoJS from "crypto-js";
 import "./css/setup.css";
 import Form from "react-bootstrap/Form";
@@ -28,7 +29,10 @@ function Login() {
   const [submitButtonText, setsubmitButtonText] = useState(i18next.t("LOGIN"));
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
+  const [oidcStatus, setOidcStatus] = useState("");
   const canQuickConnect = setupInfo?.auth?.mode === "quick-connect";
+  const canOidc = setupInfo?.auth?.mode === "oidc";
+  const canUseQuickConnect = canQuickConnect || canOidc;
 
   function handleFormChange(event) {
     setFormValues({ ...formValues, [event.target.name]: event.target.value });
@@ -81,9 +85,20 @@ function Login() {
       return;
     }
 
+    if (canOidc) {
+      startOidcLogin();
+      return;
+    }
+
     let hashedPassword = CryptoJS.SHA3(formValues.JS_PASSWORD).toString();
 
     beginLogin(formValues.JS_USERNAME, hashedPassword);
+  }
+
+  function startOidcLogin() {
+    setProcessing(true);
+    setOidcStatus("");
+    window.location.href = `${baseUrl}/auth/oidc/login`.replace(/\/{2,}/g, "/");
   }
 
   async function finishQuickConnect(secret) {
@@ -197,6 +212,12 @@ function Login() {
       try {
         const response = await axios.get("/auth/isConfigured");
         setSetupInfo(response.data);
+        const oidcError = sessionStorage.getItem("jellyglance_oidc_error");
+        if (oidcError) {
+          setsubmitButtonText(oidcError);
+          setOidcStatus(oidcError);
+          sessionStorage.removeItem("jellyglance_oidc_error");
+        }
         setConfig({});
       } catch (error) {
         console.log(error);
@@ -255,6 +276,22 @@ function Login() {
               <small>Use Jellyfin Quick Connect to approve this browser with your Jellyfin admin account.</small>
               {!quickConnect?.code && quickConnectStatus && <small className="quick-connect-status">{quickConnectStatus}</small>}
             </div>
+          ) : canOidc ? (
+            <div className="setup-auth-summary quick-connect-intro">
+              <strong>{setupInfo?.auth?.label || "OIDC / Authentik"}</strong>
+              <small>Continue with your configured identity provider.</small>
+              {oidcStatus && <small className="quick-connect-status">{oidcStatus}</small>}
+              {!quickConnect?.code && (
+                <Button
+                  type="button"
+                  className="quick-connect-refresh-button"
+                  disabled={processing}
+                  onClick={() => startQuickConnect(true)}
+                >
+                  Use Jellyfin Quick Connect
+                </Button>
+              )}
+            </div>
           ) : (
             <>
               <Form.Group className="inputbox">
@@ -291,10 +328,10 @@ function Login() {
             </>
           )}
 
-          {canQuickConnect && quickConnect?.code ? (
+          {canUseQuickConnect && quickConnect?.code ? (
             <>
               <Button type="button" className="setup-button quick-connect-open-button" disabled={processing} onClick={() => startQuickConnect(true)}>
-                Jellyfin Login
+                Open Jellyfin Quick Connect
               </Button>
 
               <div className="quick-connect-code-panel">
@@ -312,6 +349,8 @@ function Login() {
                 ? `${i18next.t("VALIDATING")}...`
                 : canQuickConnect
                   ? "Jellyfin Login"
+                  : canOidc
+                    ? `Continue with ${setupInfo?.auth?.label || "OIDC"}`
                   : submitButtonText}
             </Button>
           )}

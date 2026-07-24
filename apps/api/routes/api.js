@@ -466,6 +466,14 @@ router.get("/getconfig", async (req, res) => {
       auth.role = req.user.role || "Viewer";
       auth.permissions = req.user.permissions || DEFAULT_ROLE_PERMISSIONS.Viewer;
       settings.auth = auth;
+    } else if (req.user?.authMode === "oidc" && req.user?.jellyfinUser) {
+      auth.mode = "oidc";
+      auth.label = auth.label || "OIDC / Authentik";
+      auth.jellyfinUser = req.user.jellyfinUser;
+      auth.oidcUser = req.user.oidcUser;
+      auth.role = req.user.role || "Viewer";
+      auth.permissions = req.user.permissions || DEFAULT_ROLE_PERMISSIONS.Viewer;
+      settings.auth = auth;
     } else if (req.user?.authMode) {
       auth.mode = req.user.authMode;
       auth.role = req.user.role;

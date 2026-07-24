@@ -37,7 +37,7 @@ export default function Navbar() {
   const accountName = jellyfinUser?.name || config?.username || authLabel;
   const accountRole = authMode === "quick-connect" ? "Jellyfin User" : authMode === "oidc" ? "OIDC User" : "Local User";
   const jellyfinAvatar = jellyfinUser?.id ? `${baseUrl}/proxy/Users/Images/Primary?id=${jellyfinUser.id}&fillWidth=160&quality=80` : "";
-  const avatarSrc = canUploadAvatar ? customAvatar : jellyfinAvatar;
+  const avatarSrc = jellyfinAvatar || (canUploadAvatar ? customAvatar : "");
 
   const handleLogout = () => {
     localStorage.setItem("jellyglance_logged_out", "true");
