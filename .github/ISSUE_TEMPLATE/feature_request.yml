@@ -1,0 +1,100 @@
+name: JellyGlance Feature Request
+description: Suggest a new JellyGlance feature or command-center improvement.
+title: "feat: "
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+        </p>
+
+        ## JellyGlance Feature Intake
+
+        Got an idea for JellyGlance? Nice. Tell us the media-server problem first, then the feature you imagine.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: JellyGlance Pre-flight Checks
+      options:
+        - label: I have searched existing issues and did not find the same request.
+          required: true
+        - label: This is related to JellyGlance, Jellyfin, or a self-hosted media workflow.
+          required: true
+        - label: I am happy for the maintainers to adjust the design/implementation details.
+          required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: JellyGlance Feature Area
+      options:
+        - Home dashboard
+        - Requests / Seerr apps
+        - Users / profiles
+        - Favourites / watchlist
+        - Libraries / metadata
+        - Activity / watch history
+        - Statistics
+        - Calendar
+        - Downloads
+        - Integrations
+        - Webhooks / notifications
+        - Health / audit / operations
+        - Backup / restore
+        - Security / auth
+        - Mobile / responsive UI
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: JellyGlance Problem To Solve
+      description: What pain point, workflow, or missing capability would this improve?
+      placeholder: "I want to know when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed JellyGlance Solution
+      description: Describe the feature as you imagine it.
+      placeholder: "Add a card/page/setting that..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: feature_type
+    attributes:
+      label: JellyGlance Feature Type
+      options:
+        - label: New page or major UI section
+        - label: Existing page improvement
+        - label: Integration
+        - label: Automation or scheduled task
+        - label: Notification or webhook
+        - label: API change
+        - label: Documentation
+        - label: Small polish / quality of life
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workaround, existing tool, or different approach you have tried?
+    validations:
+      required: false
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: JellyGlance Mockups / Examples
+      description: Attach screenshots, rough sketches, links, or examples from Jellyfin/other apps.
+    validations:
+      required: false

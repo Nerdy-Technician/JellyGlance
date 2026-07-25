@@ -1,0 +1,57 @@
+name: JellyGlance Docs Request
+description: Report missing, confusing, or outdated JellyGlance documentation.
+title: "docs: "
+labels: ["documentation", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+        </p>
+
+        ## JellyGlance Docs Intake
+
+        Help keep the JellyGlance README and docs site clear, useful, and up to date.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: JellyGlance Docs Checks
+      options:
+        - label: I have checked the current README and docs site.
+          required: true
+        - label: This is about documentation, screenshots, examples, or setup guidance.
+          required: true
+
+  - type: dropdown
+    id: docs_area
+    attributes:
+      label: JellyGlance Docs Area
+      options:
+        - README
+        - Getting Started
+        - Docker
+        - Integrations
+        - Screenshots
+        - Architecture
+        - Releases
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What Needs Updating?
+      placeholder: "The docs should explain..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested_text
+    attributes:
+      label: Suggested Wording Or Examples
+      description: Optional, but very helpful.
+    validations:
+      required: false

@@ -1,12 +1,12 @@
 # Integrations
 
-JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sessions, and watch history. Integrations extend that core into release planning, download monitoring, automation, notifications, and access control.
+JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sessions, favourites, watchlists, and watch history. Integrations extend that core into request management, release planning, download monitoring, automation, notifications, and access control.
 
 <div class="integration-hero">
   <div>
     <p class="integration-kicker">Media stack control center</p>
     <h2>Connect the tools around Jellyfin.</h2>
-    <p>Bring Jellyfin, Arr apps, download clients, webhooks, and account access into one operational view for your homeserver.</p>
+    <p>Bring Jellyfin, Seerr apps, Arr apps, download clients, webhooks, and account access into one operational view for your homeserver.</p>
   </div>
   <div class="integration-orbit" aria-label="Supported integration logos">
     <img src="/icons/selfhst/jellyfin.svg" alt="Jellyfin">
@@ -31,6 +31,11 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
     <span>Sonarr, Radarr, Lidarr, and Bazarr status, health checks, calendar entries, and event context.</span>
   </article>
   <article>
+    <span class="integration-text-icon" aria-hidden="true">Rq</span>
+    <strong>Seerr Apps</strong>
+    <span>Jellyseerr and Overseerr requests, poster metadata, requester context, availability checks, actions, and request badges.</span>
+  </article>
+  <article>
     <img src="/icons/selfhst/qbittorrent.svg" alt="">
     <strong>Download Clients</strong>
     <span>qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet queues, submissions, and health.</span>
@@ -41,6 +46,22 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
     <span>Discord-compatible and Gotify-style webhooks for task, sync, import, health, and download events.</span>
   </article>
 </div>
+
+## Seerr Apps
+
+Seerr apps live under **Settings > Integrations > Seerr Apps** before the Download Clients tab. Enable Jellyseerr, Overseerr, or both, then add the base URL and API key for each service.
+
+Connected Seerr apps power the dedicated **Requests** page:
+
+- poster-first request cards with requester, status, source, type, and request age
+- fast filters for all, approved, available, failed, and partial requests
+- search and newest/oldest/status sorting
+- request detail modal with movie, show, season, and episode context when the source provides it
+- availability checks against Jellyfin so requests can show Available, Missing, or Partially available
+- approve, decline, retry, mark available, and open-in-Seerr actions where the source supports them
+- sidebar badge counts for request items that need attention
+
+The Requests page caches expensive request and metadata lookups so large Seerr histories stay responsive while still allowing a manual refresh.
 
 ## Jellyfin
 
@@ -185,8 +206,8 @@ You can add one or many webhook destinations, then choose which JellyGlance even
 | Integration Sync | Refreshes connected integration status |
 | Arr Calendar Sync | Pulls release calendar data from Arr apps |
 | Download Queue Sync | Pulls active download queues from connected clients |
-| Integration Health Check | Tests connected integration health |
-| Webhook Health Check | Sends a test event through enabled task webhooks |
+| Integration Health Check | Tests connected integration health and updates health history |
+| Webhook Health Check | Sends a test event through enabled task webhooks and records delivery status |
 | Backup JellyGlance | Creates a JellyGlance backup |
 | Refresh Dashboard Stats | Refreshes cached dashboard/statistics views |
 | Clear Stale Task Logs | Marks interrupted task logs as stale |
@@ -195,9 +216,10 @@ You can add one or many webhook destinations, then choose which JellyGlance even
 
 1. Connect Jellyfin and complete the first JellyGlance setup.
 2. Run a full Jellyfin sync.
-3. Add Sonarr, Radarr, Lidarr, or Bazarr under Integrations.
-4. Run Arr Calendar Sync.
-5. Add one or more download clients.
-6. Run Download Queue Sync.
-7. Add webhook destinations and tick the events each destination should receive.
-8. Use Tasks to schedule the sync jobs you care about.
+3. Add Jellyseerr or Overseerr under Seerr Apps if you want the Requests page.
+4. Add Sonarr, Radarr, Lidarr, or Bazarr under Arr Apps.
+5. Run Arr Calendar Sync.
+6. Add one or more download clients.
+7. Run Download Queue Sync.
+8. Add webhook destinations and tick the events each destination should receive.
+9. Use Tasks to schedule the sync jobs you care about.

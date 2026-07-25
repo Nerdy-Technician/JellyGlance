@@ -1,10 +1,12 @@
 # Screenshots
 
-The gallery shows the primary JellyGlance surfaces: the dashboard, Jellyfin activity, library views, user access, statistics, release calendars, download queues, and operations settings.
+The gallery shows the primary JellyGlance surfaces: the customizable home dashboard, Jellyfin activity, library views, user access, statistics, release calendars, download queues, and operations settings.
 
 ## Dashboard
 
 <img src="/screenshots/Home.png" alt="JellyGlance home dashboard">
+
+The Home page can now be tuned into a proper command center: reorder sections, show or hide widgets, choose presets, adjust density, pin important panels, refresh individual sections, use kiosk mode, and surface needs-attention alerts for requests, health, backups, webhooks, and integrations.
 
 ## Media And Activity
 
@@ -40,6 +42,8 @@ The gallery shows the primary JellyGlance surfaces: the dashboard, Jellyfin acti
   </figure>
 </div>
 
+Profile pages can include favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episode cards, watchlist actions, recommendations, and profile media search.
+
 ## Integrations
 
 <div class="screenshot-grid">
@@ -52,6 +56,8 @@ The gallery shows the primary JellyGlance surfaces: the dashboard, Jellyfin acti
     <figcaption>Download queue</figcaption>
   </figure>
 </div>
+
+The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, with poster cards, status filters, availability checks, request actions, and direct links back to the source app.
 
 ## Operations
 
@@ -77,3 +83,5 @@ The gallery shows the primary JellyGlance surfaces: the dashboard, Jellyfin acti
     <figcaption>Webhook settings</figcaption>
   </figure>
 </div>
+
+Operations settings also cover the health dashboard, integration history, webhook delivery history, admin audit log, backup freshness, and automation activity feed.

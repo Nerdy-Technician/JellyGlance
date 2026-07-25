@@ -1,0 +1,117 @@
+name: JellyGlance Bug Report
+description: Report something broken in the JellyGlance command center.
+title: "bug: "
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+        </p>
+
+        ## JellyGlance Bug Intake
+
+        Thanks for helping improve JellyGlance. Tell us what broke in your media command center, and include screenshots/logs when they help.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: JellyGlance Pre-flight Checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true
+        - label: I am running the latest available JellyGlance version or have checked the changelog.
+          required: true
+        - label: I have included logs, screenshots, or reproduction steps where possible.
+          required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: JellyGlance Area
+      description: Where did you notice the problem in JellyGlance?
+      options:
+        - Home dashboard
+        - Requests
+        - Users / profiles
+        - Libraries
+        - Activity
+        - Statistics
+        - Calendar
+        - Downloads
+        - Integrations
+        - Settings
+        - Webhooks
+        - Backup / restore
+        - Docker / deployment
+        - API
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: JellyGlance Version
+      description: Find this in the sidebar footer, About page, Docker tag, or release name.
+      placeholder: "Example: 1.1.0 or latest"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: JellyGlance Install Method
+      options:
+        - Docker Compose
+        - Docker
+        - Local development
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What Happened In JellyGlance?
+      description: Tell us what broke and what you expected instead.
+      placeholder: "When I open Requests, the page..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps To Reproduce In JellyGlance
+      description: A clear sequence makes this much faster to fix.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: JellyGlance Logs / Screenshots
+      description: Paste relevant logs, browser console output, API errors, or attach screenshots.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: JellyGlance Environment
+      description: Add any details that might matter.
+      placeholder: |
+        OS:
+        Browser:
+        Jellyfin version:
+        PostgreSQL version:
+        Reverse proxy:
+    validations:
+      required: false

@@ -61,22 +61,34 @@ Once Jellyfin is connected, the most useful follow-up configuration lives in **S
 
 | Settings Area | What It Controls |
 | --- | --- |
-| Integrations | Jellyfin, Arr apps, download clients, and integration event sources |
+| Integrations | Jellyfin, Seerr apps, Arr apps, download clients, health checks, and integration event sources |
 | Tasks | Manual and scheduled sync jobs for Jellyfin, calendar, downloads, health checks, and backups |
-| Webhooks | One or many webhook destinations with event toggles per destination |
+| Webhooks | One or many webhook destinations with event toggles, test delivery, and delivery history |
 | API Key | Scoped JellyGlance access tokens for automation or dashboards |
 | Library Settings | Library sync behavior and manual scan options |
 | Backup | Backup export options for JellyGlance data |
-| Logs | Task and sync execution history |
+| Logs | Task, sync, webhook, health, and audit history |
+
+## New Feature Quick Wins
+
+After the first Jellyfin sync, these areas are worth opening first:
+
+| Page | Why It Matters |
+| --- | --- |
+| Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. |
+| Requests | Connect Jellyseerr or Overseerr to review request cards, posters, availability, requester info, status filters, and actions. |
+| Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. |
+| Settings > Health | Check Jellyfin, database, tasks, webhooks, integrations, and backup freshness from one compact operations view. |
 
 ## Integrations Quick List
 
 JellyGlance can connect to:
 
 - Jellyfin for media, users, sessions, activity, and artwork
+- Jellyseerr and Overseerr for media requests and availability checks
 - Sonarr, Radarr, Lidarr, and Bazarr for automation status and release calendars
 - qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet for download queues and torrent/magnet submission
-- Discord-compatible and Gotify-style webhook endpoints for notifications
+- Discord-compatible and Gotify-style webhook endpoints for notifications and delivery history
 
 See [Integrations](./integrations.md) for the complete setup map.
 

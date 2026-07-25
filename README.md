@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>Your Jellyfin control room: live sessions, users, libraries, stats, calendars, downloads, webhooks, and tasks in one clean dashboard.</strong>
+  <strong>Your Jellyfin command center: live sessions, requests, users, libraries, stats, calendars, downloads, health, webhooks, and tasks in one clean dashboard.</strong>
 </p>
 
 <p align="center">
@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=github&label=Stars&color=aa5cc3&labelColor=16111f"></a>
   <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml"><img alt="Docker" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml/badge.svg"></a>
   <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-aa5cc3"></a>
@@ -35,39 +36,53 @@
 </p>
 
 <p align="center">
-  <sub>Live streams, watch history, library health, release planning, download queues, and access control without leaving the dashboard.</sub>
+  <sub>Live streams, request triage, watch history, library health, release planning, download queues, and access control without leaving the dashboard.</sub>
 </p>
 
 ## Why JellyGlance
 
-JellyGlance gives your Jellyfin server a proper dashboard: live sessions, user watch stats, recent media, library health, activity history, release calendars, download queues, webhooks, backups, and integrations in one polished place.
+JellyGlance gives your Jellyfin server a proper dashboard: live sessions, request triage, user watch stats, recent media, library health, activity history, release calendars, download queues, webhooks, backups, and integrations in one polished place.
 
-| See | Manage | Automate |
+| Watch | Triage | Operate |
 | --- | --- | --- |
-| Live streams, playback history, watch-time trends, user activity, and recently added media. | Jellyfin users, JellyGlance roles, local accounts, Quick Connect, API keys, backups, and settings. | Arr calendars, download queues, scheduled syncs, health checks, and webhook notifications. |
+| Live streams, playback history, watch-time trends, user activity, favourites, watchlists, and recently added media. | Jellyseerr/Overseerr requests, Jellyfin availability, failed integrations, webhook delivery, backups, and user access. | Arr calendars, download queues, scheduled syncs, health checks, quick actions, audit history, and webhook notifications. |
+
+## What's New
+
+| Command Center | Request Center | User Profiles |
+| --- | --- | --- |
+| Custom home order, show/hide toggles, presets, density modes, themes, kiosk URL, alert rules, section refresh controls, and quick actions. | Jellyseerr and Overseerr sources, poster cards, fast filters, sorting, availability checks, actions, status badges, and click-through details. | Favourites, watchlist split by Movies and Shows, Continue Watching, Recently Watched, next episodes, watchlist actions, and per-user media search. |
+
+| Operations | Integrations | Home Intelligence |
+| --- | --- | --- |
+| Health dashboard, integration uptime, webhook delivery history, admin audit log, backup freshness, and automation activity feed. | Jellyfin, Arr apps, Seerr apps, download clients, webhook targets, and only-enabled health summaries. | Top item this week, user streaks, storage pressure, watch party suggestions, library gaps, request urgency, and needs-attention alerts. |
 
 ## Highlights
 
 - **Live active sessions** with device, client, codec, bitrate, user, runtime, episode details, and platform icons.
+- **Customizable home command center** with drag-and-drop section order, visibility toggles, presets, density, themes, kiosk mode, and alert rules.
+- **Requests page** for Jellyseerr and Overseerr with posters, status filters, availability checks, request actions, and direct open links.
 - **Recently added shelves** grouped by library with poster-first rows for fast scanning.
-- **User dashboards** for Jellyfin Quick Connect users, local JellyGlance users, and OIDC-ready accounts.
+- **User dashboards** for Jellyfin Quick Connect users, local JellyGlance users, OIDC-ready accounts, favourites, watchlists, Continue Watching, and recently watched media.
 - **Useful statistics** covering top movies, series, libraries, clients, users, trends, watch time, and activity heatmaps.
-- **Media automation hub** for Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
+- **Media automation hub** for Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
 - **Calendar and downloads** for release planning, torrent URLs, magnet links, torrent uploads, and active queues.
-- **Webhook notifications** for session, media, task, backup, download, and health events.
+- **Webhook notifications** with delivery history for session, media, request, task, backup, download, and health events.
+- **Admin audit trail** for settings, auth, integrations, webhooks, roles, backups, and restore-sensitive actions.
 - **Backup and restore friendly** Docker paths via `/app/config` and `/app/backups`.
 
 ## Feature Map
 
 | Area | What You Get |
 | --- | --- |
-| Dashboard | Active stream counts, server snapshots, recent media, and quick operational context. |
+| Dashboard | Active stream counts, server snapshots, recent media, home section ordering, presets, quick actions, health alerts, watch party suggestions, and operational context. |
 | Activity | Playback history with users, devices, clients, libraries, items, and timeline views. |
 | Libraries | Library cards, item details, metadata, images, purge tools, and tracked-library controls. |
-| Users | Jellyfin users, local accounts, roles, permissions, disabled users, and profile pages. |
+| Requests | Jellyseerr and Overseerr request cards, posters, filters, sorting, availability, actions, retry/open controls, and summary badges. |
+| Users | Jellyfin users, local accounts, roles, permissions, disabled users, profile pages, favourites, watchlists, Continue Watching, and recently watched rails. |
 | Statistics | Most-played items, active users, popular libraries, client usage, days, hours, and watch-time charts. |
-| Integrations | Arr apps, download clients, health checks, release calendar data, and queue monitoring. |
-| Settings | Security, API keys, tasks, webhooks, backups, activity monitor tuning, and logs. |
+| Integrations | Arr apps, Seerr apps, download clients, health checks, uptime history, release calendar data, and queue monitoring. |
+| Settings | Security, API keys, tasks, webhooks, webhook delivery history, backups, health dashboard, admin audit log, activity monitor tuning, and logs. |
 
 ## Screenshots
 
@@ -208,9 +223,10 @@ JellyGlance is built to sit in the middle of a self-hosted media stack:
 | --- | --- |
 | Media server | Jellyfin |
 | Arr apps | Sonarr, Radarr, Lidarr, Bazarr |
+| Seerr apps | Jellyseerr, Overseerr |
 | Download clients | qBittorrent, Transmission, Deluge, SABnzbd, NZBGet |
 | Auth | Jellyfin Quick Connect, local accounts, OIDC-ready flow |
-| Notifications | Discord-compatible webhooks, Gotify-style webhooks |
+| Notifications | Discord-compatible webhooks, Gotify-style webhooks, delivery history |
 
 ## Updates
 
@@ -224,12 +240,6 @@ docker compose up -d
 - Repository: [Nerdy-Technician/JellyGlance](https://github.com/Nerdy-Technician/JellyGlance)
 - Docker image: `ghcr.io/nerdy-technician/jellyglance`
 - Documentation: [jellyglance.com](https://jellyglance.com/)
-
-## GitHub Topics
-
-Suggested repository topics:
-
-`jellyfin`, `jellyfin-dashboard`, `media-server`, `self-hosted`, `analytics`, `playback-statistics`, `quick-connect`, `sonarr`, `radarr`, `lidarr`, `bazarr`, `qbittorrent`, `docker`, `postgresql`, `react`
 
 ## Credits
 

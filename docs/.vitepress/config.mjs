@@ -5,7 +5,7 @@ const withBase = (path) => `${siteBase}${path.replace(/^\//, "")}`;
 
 export default defineConfig({
   title: "JellyGlance",
-  description: "Modern Jellyfin analytics and media control.",
+  description: "Modern Jellyfin command center for analytics, requests, health, and media control.",
   base: siteBase,
   sitemap: {
     hostname: "https://jellyglance.com"
@@ -17,14 +17,14 @@ export default defineConfig({
     ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: withBase("/icon-b-192.png") }],
     ["link", { rel: "icon", type: "image/png", sizes: "512x512", href: withBase("/icon-b-512.png") }],
     ["meta", { name: "theme-color", content: "#aa5cc3" }],
-    ["meta", { name: "keywords", content: "JellyGlance,Jellyfin,dashboard,analytics,self-hosted,media server,Quick Connect,Sonarr,Radarr,Lidarr,Bazarr,qBittorrent,Docker,PostgreSQL,React" }],
+    ["meta", { name: "keywords", content: "JellyGlance,Jellyfin,dashboard,analytics,requests,Jellyseerr,Overseerr,self-hosted,media server,Quick Connect,Sonarr,Radarr,Lidarr,Bazarr,qBittorrent,Docker,PostgreSQL,React" }],
     ["meta", { property: "og:title", content: "JellyGlance" }],
-    ["meta", { property: "og:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }],
+    ["meta", { property: "og:description", content: "Modern Jellyfin analytics, requests, sessions, users, health, webhooks, and docs." }],
     ["meta", { property: "og:image", content: withBase("/screenshots/Home.png") }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     ["meta", { name: "twitter:title", content: "JellyGlance" }],
-    ["meta", { name: "twitter:description", content: "Modern Jellyfin analytics, sessions, users, webhooks, and docs." }],
+    ["meta", { name: "twitter:description", content: "Modern Jellyfin analytics, requests, sessions, users, health, webhooks, and docs." }],
     ["meta", { name: "twitter:image", content: withBase("/screenshots/Home.png") }]
   ],
   themeConfig: {

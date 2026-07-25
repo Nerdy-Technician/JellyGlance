@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: JellyGlance Docs
+    url: https://jellyglance.com/
+    about: Check setup, Docker, integrations, screenshots, and operations docs.
+  - name: GitHub Discussions
+    url: https://github.com/Nerdy-Technician/JellyGlance/discussions
+    about: Ask questions, share ideas, or talk through a setup before opening an issue.

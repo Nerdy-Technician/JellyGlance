@@ -1,0 +1,90 @@
+name: JellyGlance Integration Request
+description: Request support for another JellyGlance media stack integration.
+title: "feat(integration): "
+labels: ["integration", "enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <p align="center">
+          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+        </p>
+
+        ## JellyGlance Integration Intake
+
+        Use this for apps around Jellyfin: request managers, metadata tools, download clients, notification services, monitoring, automation, or media utilities.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: JellyGlance Integration Checks
+      options:
+        - label: I have searched existing issues for this integration.
+          required: true
+        - label: The service has an API, webhook, RSS feed, database, or other machine-readable interface.
+          required: true
+        - label: I can provide docs, sample responses, or testing details if needed.
+          required: false
+
+  - type: input
+    id: app_name
+    attributes:
+      label: App / Service Name For JellyGlance
+      placeholder: "Example: Jellyseerr, Tautulli, Kometa"
+    validations:
+      required: true
+
+  - type: input
+    id: website
+    attributes:
+      label: Project Link
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: JellyGlance Integration Category
+      options:
+        - Request manager
+        - Metadata / library management
+        - Download client
+        - Indexer / search
+        - Notifications
+        - Monitoring / health
+        - Authentication
+        - Automation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: What Should JellyGlance Do With It?
+      placeholder: "Show health, sync requests, trigger actions, display stats..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: api_docs
+    attributes:
+      label: API / Webhook Docs
+      description: Link official docs or paste useful endpoint details.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: capabilities
+    attributes:
+      label: Desired JellyGlance Capabilities
+      options:
+        - label: Health/status check
+        - label: Dashboard card
+        - label: Dedicated page
+        - label: Settings tab
+        - label: Webhook events
+        - label: Scheduled sync
+        - label: Actions from JellyGlance
+        - label: Notifications
