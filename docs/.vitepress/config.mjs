@@ -36,6 +36,7 @@ export default defineConfig({
       { text: "Screenshots", link: "/guide/screenshots" },
       { text: "Operations", link: "/operations/docker" },
       { text: "Releases", link: "/operations/releases" },
+      { text: "Discord", link: "https://discord.gg/dMGhv8j2kx" },
       { text: "GitHub", link: "https://github.com/Nerdy-Technician/JellyGlance" }
     ],
     sidebar: [
@@ -57,6 +58,7 @@ export default defineConfig({
       }
     ],
     socialLinks: [
+      { icon: "discord", link: "https://discord.gg/dMGhv8j2kx" },
       { icon: "github", link: "https://github.com/Nerdy-Technician/JellyGlance" }
     ],
     search: {

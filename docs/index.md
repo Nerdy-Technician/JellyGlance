@@ -19,6 +19,9 @@ hero:
       text: Integrations
       link: /guide/integrations
     - theme: alt
+      text: Discord
+      link: https://discord.gg/dMGhv8j2kx
+    - theme: alt
       text: GitHub
       link: https://github.com/Nerdy-Technician/JellyGlance
 
@@ -62,6 +65,18 @@ JellyGlance brings the daily admin surfaces for a Jellyfin homeserver into one p
     <h2>Health, history, and attention signals.</h2>
     <p>Use the health dashboard, integration uptime, webhook delivery history, admin audit log, backup freshness, automation feed, and needs-attention alerts to spot trouble faster.</p>
   </section>
+</div>
+
+## Community
+
+<div class="discord-community">
+  <section>
+    <p class="feature-kicker">JellyGlance Discord</p>
+    <h2>Join the media command center crew.</h2>
+    <p>Ask setup questions, share dashboard ideas, test new features, and help shape the next Jellyfin-friendly tools.</p>
+    <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">Join Discord</a>
+  </section>
+  <iframe src="https://discord.com/widget?id=1530493220805677056&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
 </div>
 
 See the full interface tour in the [screenshots gallery](/guide/screenshots).

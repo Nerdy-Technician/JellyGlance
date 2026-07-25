@@ -1,0 +1,87 @@
+name: Discord Star Notifications
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: discord-star-notifications
+  cancel-in-progress: false
+
+jobs:
+  stars:
+    name: Post new star updates
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_STARS_WEBHOOK: ${{ secrets.DISCORD_STARS_WEBHOOK }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read star state
+        id: stars
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const { execFileSync } = require("child_process");
+
+          const repo = process.env.REPO;
+          const repoData = JSON.parse(execFileSync("gh", ["api", `repos/${repo}`], { encoding: "utf8" }));
+          const current = Number(repoData.stargazers_count || 0);
+
+          let previous = 0;
+          try {
+            const variable = JSON.parse(execFileSync("gh", ["api", `repos/${repo}/actions/variables/DISCORD_LAST_STAR_COUNT`], { encoding: "utf8" }));
+            previous = Number(variable.value || 0);
+          } catch {
+            previous = current;
+          }
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `current=${current}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous=${previous}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${current > previous ? "true" : "false"}\n`);
+          NODE
+
+      - name: Post Discord star update
+        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
+        env:
+          DISCORD_EVENT_TYPE: stars
+          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_STARS_WEBHOOK }}
+          STAR_COUNT: ${{ steps.stars.outputs.current }}
+          PREVIOUS_STAR_COUNT: ${{ steps.stars.outputs.previous }}
+          REPOSITORY_URL: https://github.com/${{ github.repository }}
+        run: node .github/scripts/discord-notify.mjs
+
+      - name: Save star state
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          STAR_COUNT: ${{ steps.stars.outputs.current }}
+        run: |
+          if [ -z "${STAR_COUNT}" ]; then
+            echo "No star count was read; skipping state update."
+            exit 0
+          fi
+
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${REPO}/actions/variables/DISCORD_LAST_STAR_COUNT" \
+            -f name="DISCORD_LAST_STAR_COUNT" \
+            -f value="${STAR_COUNT}" \
+          || gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${REPO}/actions/variables" \
+            -f name="DISCORD_LAST_STAR_COUNT" \
+            -f value="${STAR_COUNT}"

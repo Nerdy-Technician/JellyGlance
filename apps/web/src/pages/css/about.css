@@ -16,6 +16,7 @@
 .about-hero,
 .about-status-grid article,
 .about-panel,
+.about-discord-panel,
 .about-feature-grid article,
 .about-footer-panel {
   border: 1px solid rgba(215, 141, 240, 0.18);
@@ -84,6 +85,7 @@
 
 .about-hero-copy > p,
 .about-story p,
+.about-discord-panel p,
 .about-feature-grid p,
 .about-footer-panel p {
   margin: 0;
@@ -251,6 +253,63 @@
   white-space: nowrap;
 }
 
+.about-discord-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 18px;
+  align-items: stretch;
+  padding: 20px;
+  background:
+    linear-gradient(145deg, rgba(88, 101, 242, 0.14), rgba(170, 92, 195, 0.1)),
+    rgba(8, 11, 17, 0.88);
+}
+
+.about-discord-panel > div {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.about-discord-panel h2 {
+  margin: 0 !important;
+  color: #fff;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 950;
+  line-height: 1.02;
+}
+
+.about-discord-panel a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(215, 141, 240, 0.38);
+  border-radius: 12px;
+  background: linear-gradient(90deg, #5865f2, #aa5cc3);
+  color: #fff;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.about-discord-panel a svg {
+  width: 18px;
+  height: 18px;
+}
+
+.about-discord-panel iframe {
+  display: block;
+  width: 350px;
+  max-width: 100%;
+  min-height: 500px;
+  border: 1px solid rgba(215, 141, 240, 0.22);
+  border-radius: 16px;
+  background: rgba(5, 7, 12, 0.7);
+}
+
 .about-feature-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -292,6 +351,7 @@
 @media (max-width: 980px) {
   .about-hero,
   .about-content-grid,
+  .about-discord-panel,
   .about-feature-grid {
     grid-template-columns: 1fr;
   }
@@ -308,9 +368,14 @@
 
   .about-hero,
   .about-panel,
+  .about-discord-panel,
   .about-feature-grid article,
   .about-footer-panel {
     padding: 16px;
+  }
+
+  .about-discord-panel iframe {
+    width: 100%;
   }
 
   .about-feature-grid article,

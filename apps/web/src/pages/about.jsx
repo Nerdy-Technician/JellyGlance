@@ -5,6 +5,7 @@ import "./css/about.css";
 import logo from "./images/icon-b-512.png";
 import projectText from "./images/project-text.png";
 import ArchiveLineIcon from "remixicon-react/ArchiveLineIcon";
+import DiscordFillIcon from "remixicon-react/DiscordFillIcon";
 import FilmLineIcon from "remixicon-react/FilmLineIcon";
 import GitBranchLineIcon from "remixicon-react/GitBranchLineIcon";
 import GithubFillIcon from "remixicon-react/GithubFillIcon";
@@ -92,6 +93,10 @@ export default function SettingsAbout() {
               <ArchiveLineIcon size={18} />
               Container image
             </a>
+            <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
+              <DiscordFillIcon size={18} />
+              Discord community
+            </a>
           </div>
         </div>
       </section>
@@ -143,6 +148,30 @@ export default function SettingsAbout() {
             </div>
           </a>
         </div>
+      </section>
+
+      <section className="about-discord-panel">
+        <div>
+          <p className="about-eyebrow">Community</p>
+          <h2>Join the JellyGlance Discord.</h2>
+          <p>
+            Ask setup questions, share dashboard ideas, follow new features, and help shape the next round of Jellyfin
+            command-center tools.
+          </p>
+          <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
+            <DiscordFillIcon />
+            Join Discord
+          </a>
+        </div>
+        <iframe
+          title="JellyGlance Discord"
+          src="https://discord.com/widget?id=1530493220805677056&theme=dark"
+          width="350"
+          height="500"
+          allowTransparency="true"
+          frameBorder="0"
+          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+        />
       </section>
 
       <section className="about-feature-grid">

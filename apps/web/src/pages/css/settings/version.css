@@ -24,6 +24,18 @@
     text-decoration: underline;
 }
 
+.version-community-row
+{
+    margin-top: 4px;
+}
+
+.version-community-row a
+{
+    color: #d78df0;
+    font-size: 12px;
+    font-weight: 800;
+}
+
 .version-backup-row > .col
 {
     display: grid;

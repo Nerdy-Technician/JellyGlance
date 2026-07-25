@@ -1,11 +1,12 @@
-version: v1.1.0
-title: JellyGlance v1.1.0
+version: v1.1.1
+title: JellyGlance v1.1.1
 ---
-feat: add requests, health, and customizable home dashboard - Version V1.10 stable
+feat: add Discord community links and automation
 
-- add Seerr requests page with actions, posters, filters, availability checks, and nav badge
-- add health dashboard, audit/webhook history support, and integration uptime history
-- add customizable home layout with presets, visibility toggles, kiosk mode, themes, alerts, quick actions, and weekly stats
-- add user profile media rails for favourites, watchlist, continue watching, recent watches, and recommendations
-- improve integration settings, library import cards, request card layout, and persistence for integration config
-- cache Seerr request/detail lookups to improve Requests page speed
+- Add Discord invite links to README, docs navigation, docs home, About page, and version card
+- Embed the Discord server widget on the docs home page and in the JellyGlance About page
+- Add Discord release notifications using DISCORD_RELEASES_WEBHOOK
+- Add hourly GitHub star growth notifications using DISCORD_STARS_WEBHOOK
+- Add shared Discord embed notification script for release and star posts
+- Document Discord webhook setup and required GitHub Actions secrets
+- Validate workflows, notifier script, docs build, and web build

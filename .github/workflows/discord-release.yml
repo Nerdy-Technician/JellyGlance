@@ -1,0 +1,54 @@
+name: Discord Release Notifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce, for example v1.1.0
+        required: true
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Post release update
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read release
+        id: release
+        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const { execFileSync } = require("child_process");
+
+          const release = JSON.parse(execFileSync("gh", ["api", `repos/${process.env.REPO}/releases/tags/${process.env.RELEASE_TAG}`], { encoding: "utf8" }));
+          fs.writeFileSync("RELEASE_NOTES.txt", release.body || "");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${release.tag_name}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `title=${release.name || release.tag_name}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${release.html_url}\n`);
+          NODE
+
+      - name: Post Discord release update
+        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' }}
+        env:
+          DISCORD_EVENT_TYPE: release
+          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_RELEASES_WEBHOOK }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+        run: |
+          RELEASE_NOTES="$(cat RELEASE_NOTES.txt)" node .github/scripts/discord-notify.mjs

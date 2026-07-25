@@ -97,6 +97,11 @@ export default function VersionCard() {
             <Row>
                  <Col>JellyGlance {data.current_version}</Col>
              </Row>
+            <Row className="version-community-row">
+              <Col>
+                <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">Join Discord</a>
+              </Col>
+            </Row>
              
 
             {data.update_available?
