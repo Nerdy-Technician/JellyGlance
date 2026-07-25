@@ -73,6 +73,23 @@ async function sendStars() {
   const previous = Number(optionalEnv("PREVIOUS_STAR_COUNT", "0"));
   const gained = Math.max(0, current - previous);
   const repoUrl = optionalEnv("REPOSITORY_URL", "https://github.com/Nerdy-Technician/JellyGlance");
+  const starUsers = optionalEnv("STAR_USERS", "");
+  const firstStarUser = starUsers.match(/\[@([^\]]+)\]/)?.[1];
+  const title = starUsers && gained === 1
+    ? `@${firstStarUser || "Someone"} starred JellyGlance`
+    : gained > 1
+      ? `JellyGlance gained ${gained} new stars`
+      : "JellyGlance gained a new star";
+  const fields = [
+    { name: "Previous", value: String(previous), inline: true },
+    { name: "Current", value: String(current), inline: true },
+  ];
+
+  if (starUsers) {
+    fields.push({ name: gained > 1 ? "Starred by" : "Starred by", value: starUsers, inline: false });
+  }
+
+  fields.push({ name: "Repository", value: repoUrl, inline: false });
 
   await postDiscord(webhook, {
     username: "JellyGlance Stars",
@@ -80,14 +97,10 @@ async function sendStars() {
     embeds: [
       {
         ...buildBaseEmbed(),
-        title: gained > 1 ? `JellyGlance gained ${gained} new stars` : "JellyGlance gained a new star",
+        title,
         url: `${repoUrl}/stargazers`,
         description: `JellyGlance now has **${current}** GitHub stars. Thanks for helping the project grow.`,
-        fields: [
-          { name: "Previous", value: String(previous), inline: true },
-          { name: "Current", value: String(current), inline: true },
-          { name: "Repository", value: repoUrl, inline: false },
-        ],
+        fields,
       },
     ],
   });

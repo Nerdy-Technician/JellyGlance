@@ -54,10 +54,36 @@ jobs:
             previous = Number(fs.readFileSync(stateFile, "utf8").trim() || current);
           }
 
+          const gained = Math.max(0, current - previous);
+          let users = "";
+          if (gained > 0) {
+            try {
+              const lastPage = Math.max(1, Math.ceil(current / 100));
+              const pages = [...new Set([1, lastPage])];
+              const stargazers = pages.flatMap((page) => JSON.parse(execFileSync("gh", [
+                  "api",
+                  `repos/${repo}/stargazers?per_page=100&page=${page}`,
+                  "-H",
+                  "Accept: application/vnd.github.star+json",
+                ], { encoding: "utf8" })));
+
+              users = stargazers
+                .filter((entry) => entry?.user?.login)
+                .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.user.login === entry.user.login) === index)
+                .sort((a, b) => new Date(b.starred_at || 0) - new Date(a.starred_at || 0))
+                .slice(0, gained)
+                .map((entry) => `[@${entry.user.login}](${entry.user.html_url})`)
+                .join(", ");
+            } catch (error) {
+              console.log(`Unable to read stargazer users: ${error.message}`);
+            }
+          }
+
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `current=${current}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous=${previous}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${current > previous ? "true" : "false"}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_state=${hasState ? "true" : "false"}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `users=${users}\n`);
           NODE
 
       - name: Post Discord star update
@@ -67,6 +93,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ env.DISCORD_STARS_WEBHOOK }}
           STAR_COUNT: ${{ steps.stars.outputs.current }}
           PREVIOUS_STAR_COUNT: ${{ steps.stars.outputs.previous }}
+          STAR_USERS: ${{ steps.stars.outputs.users }}
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: node .github/scripts/discord-notify.mjs
 
