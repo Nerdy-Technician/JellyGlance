@@ -3,7 +3,7 @@ name: Discord Star Notifications
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   actions: write
@@ -24,6 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore star state
+        id: star-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .discord-star-state
+          key: discord-stars-${{ github.run_id }}
+          restore-keys: |
+            discord-stars-
+
       - name: Read star state
         id: stars
         env:
@@ -37,18 +46,18 @@ jobs:
           const repo = process.env.REPO;
           const repoData = JSON.parse(execFileSync("gh", ["api", `repos/${repo}`], { encoding: "utf8" }));
           const current = Number(repoData.stargazers_count || 0);
+          const stateFile = ".discord-star-state/count.txt";
+          const hasState = fs.existsSync(stateFile);
 
-          let previous = 0;
-          try {
-            const variable = JSON.parse(execFileSync("gh", ["api", `repos/${repo}/actions/variables/DISCORD_LAST_STAR_COUNT`], { encoding: "utf8" }));
-            previous = Number(variable.value || 0);
-          } catch {
-            previous = current;
+          let previous = current;
+          if (hasState) {
+            previous = Number(fs.readFileSync(stateFile, "utf8").trim() || current);
           }
 
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `current=${current}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous=${previous}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${current > previous ? "true" : "false"}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_state=${hasState ? "true" : "false"}\n`);
           NODE
 
       - name: Post Discord star update
@@ -61,27 +70,17 @@ jobs:
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: node .github/scripts/discord-notify.mjs
 
-      - name: Save star state
-        if: ${{ always() }}
+      - name: Write star state
+        if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
           STAR_COUNT: ${{ steps.stars.outputs.current }}
         run: |
-          if [ -z "${STAR_COUNT}" ]; then
-            echo "No star count was read; skipping state update."
-            exit 0
-          fi
+          mkdir -p .discord-star-state
+          printf "%s\n" "${STAR_COUNT}" > .discord-star-state/count.txt
 
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${REPO}/actions/variables/DISCORD_LAST_STAR_COUNT" \
-            -f name="DISCORD_LAST_STAR_COUNT" \
-            -f value="${STAR_COUNT}" \
-          || gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${REPO}/actions/variables" \
-            -f name="DISCORD_LAST_STAR_COUNT" \
-            -f value="${STAR_COUNT}"
+      - name: Save star state
+        if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
+        uses: actions/cache/save@v4
+        with:
+          path: .discord-star-state
+          key: discord-stars-${{ steps.stars.outputs.current }}

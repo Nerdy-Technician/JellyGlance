@@ -244,17 +244,6 @@ docker compose up -d
 - Documentation: [jellyglance.com](https://jellyglance.com/)
 - Discord: [Join the JellyGlance community](https://discord.gg/dMGhv8j2kx)
 
-## Discord Automation
-
-JellyGlance can announce project activity to different Discord channels with separate webhook secrets:
-
-| Secret | Channel Purpose |
-| --- | --- |
-| `DISCORD_RELEASES_WEBHOOK` | New release announcements |
-| `DISCORD_STARS_WEBHOOK` | GitHub star growth updates |
-
-Star notifications run hourly and remember the last posted count with the repository variable `DISCORD_LAST_STAR_COUNT`.
-
 ## Community
 
 Need help, want to show off a dashboard, or have an idea for the next Jellyfin-friendly feature? Join the JellyGlance Discord:

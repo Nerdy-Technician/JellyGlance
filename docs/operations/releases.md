@@ -34,7 +34,7 @@ Create one Discord webhook per channel, then add the webhook URLs under **GitHub
 
 Release announcements are sent by the release workflow after a GitHub release is created. A separate `Discord Release Notifications` workflow also supports manual re-posting for a specific tag.
 
-Star updates run hourly through `Discord Star Notifications`. The workflow stores the last posted count in the repository variable `DISCORD_LAST_STAR_COUNT`, then posts only when the current GitHub star count increases.
+Star updates run every 5 minutes through `Discord Star Notifications`. The workflow stores the last posted count in the GitHub Actions cache, then posts only when the current GitHub star count increases.
 
 ## Local Checks
 
