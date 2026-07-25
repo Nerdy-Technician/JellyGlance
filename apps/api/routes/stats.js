@@ -91,6 +91,16 @@ router.get("/getHomeDashboard", async (req, res) => {
       activeLibraries,
       topUsers,
       libraryBalance,
+      topItemThisWeek,
+      mostActiveViewerThisWeek,
+      quietUsers,
+      todayTrend,
+      lastWeekTrend,
+      libraryIssues,
+      missingEpisodeSeries,
+      watchPartySuggestions,
+      seasonGaps,
+      automationFeed,
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -154,14 +164,125 @@ router.get("/getHomeDashboard", async (req, res) => {
           COALESCE(sum("Plays"), 0)::int AS "TotalLibraryPlays"
         FROM library_plays
       `),
+      db.query(`
+        SELECT
+          COALESCE(NULLIF("SeriesName", ''), NULLIF("NowPlayingItemName", ''), 'Unknown item') AS "Name",
+          count(*)::int AS "Plays",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "WatchSeconds",
+          max("ActivityDateInserted") AS "LastPlayed"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" >= now() - interval '7 days'
+        GROUP BY COALESCE(NULLIF("SeriesName", ''), NULLIF("NowPlayingItemName", ''), 'Unknown item')
+        ORDER BY count(*) DESC, COALESCE(sum("PlaybackDuration"), 0) DESC
+        LIMIT 1
+      `),
+      db.query(`
+        SELECT
+          "UserId",
+          COALESCE(NULLIF("UserName", ''), 'Unknown user') AS "UserName",
+          count(*)::int AS "Plays",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "WatchSeconds"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" >= now() - interval '7 days'
+        GROUP BY "UserId", COALESCE(NULLIF("UserName", ''), 'Unknown user')
+        ORDER BY count(*) DESC, COALESCE(sum("PlaybackDuration"), 0) DESC, COALESCE(NULLIF("UserName", ''), 'Unknown user') ASC
+        LIMIT 1
+      `),
+      db.query(`
+        SELECT
+          u."Id" AS "UserId",
+          u."Name" AS "UserName",
+          u."PrimaryImageTag",
+          max(a."ActivityDateInserted") AS "LastPlayed"
+        FROM jf_users u
+        LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+        GROUP BY u."Id", u."Name", u."PrimaryImageTag"
+        HAVING max(a."ActivityDateInserted") IS NULL OR max(a."ActivityDateInserted") < now() - interval '14 days'
+        ORDER BY max(a."ActivityDateInserted") ASC NULLS FIRST, u."Name" ASC
+        LIMIT 3
+      `),
+      db.query(`
+        SELECT
+          count(*)::int AS "Plays",
+          count(DISTINCT "UserId")::int AS "ActiveUsers",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "WatchSeconds"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" >= date_trunc('day', now())
+      `),
+      db.query(`
+        SELECT
+          count(*)::int AS "Plays",
+          count(DISTINCT "UserId")::int AS "ActiveUsers",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "WatchSeconds"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" >= date_trunc('day', now()) - interval '7 days'
+          AND "ActivityDateInserted" < date_trunc('day', now()) - interval '6 days'
+      `),
+      db.query(`
+        SELECT
+          count(*) FILTER (WHERE COALESCE("PrimaryImageHash", '') = '')::int AS "MissingPosters",
+          count(*) FILTER (WHERE COALESCE("ImageTagsLogo", '') = '')::int AS "MissingLogos",
+          count(*) FILTER (WHERE COALESCE("RunTimeTicks", 0) = 0)::int AS "MissingRuntime"
+        FROM jf_library_items
+        WHERE archived = false
+      `),
+      db.query(`
+        SELECT count(*)::int AS "MissingEpisodeSeries"
+        FROM jf_library_items i
+        LEFT JOIN jf_library_episodes e ON e."SeriesId" = i."Id" AND COALESCE(e.archived, false) = false
+        WHERE i.archived = false AND i."Type" = 'Series'
+        GROUP BY i."Id"
+        HAVING count(e."EpisodeId") = 0
+      `),
+      db.query(`
+        SELECT
+          COALESCE(NULLIF(a."SeriesName", ''), NULLIF(a."NowPlayingItemName", ''), 'Unknown item') AS "Name",
+          COALESCE(a."NowPlayingItemId", a."EpisodeId") AS "ItemId",
+          count(DISTINCT a."UserId")::int AS "Users",
+          count(*)::int AS "Plays",
+          max(i."PrimaryImageHash") AS "PrimaryImageHash"
+        FROM jf_playback_activity a
+        LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+        WHERE a."ActivityDateInserted" >= now() - interval '30 days'
+        GROUP BY COALESCE(NULLIF(a."SeriesName", ''), NULLIF(a."NowPlayingItemName", ''), 'Unknown item'), COALESCE(a."NowPlayingItemId", a."EpisodeId")
+        HAVING count(DISTINCT a."UserId") > 1
+        ORDER BY count(DISTINCT a."UserId") DESC, count(*) DESC
+        LIMIT 4
+      `),
+      db.query(`
+        SELECT
+          i."Id",
+          i."Name",
+          i."PrimaryImageHash",
+          count(e."EpisodeId")::int AS "Episodes"
+        FROM jf_library_items i
+        LEFT JOIN jf_library_episodes e ON e."SeriesId" = i."Id" AND COALESCE(e.archived, false) = false
+        WHERE i.archived = false AND i."Type" = 'Series'
+        GROUP BY i."Id", i."Name", i."PrimaryImageHash"
+        HAVING count(e."EpisodeId") = 0
+        ORDER BY i."Name" ASC
+        LIMIT 8
+      `),
+      db.query(`
+        SELECT "Id", "Name", "Result", "TimeRun", "Duration"
+        FROM jf_logging
+        ORDER BY "TimeRun" DESC
+        LIMIT 8
+      `),
     ]);
 
     const totals = playbackTotals.rows[0] || {};
     const counts = libraryCounts.rows[0] || {};
     const balance = libraryBalance.rows[0] || {};
+    const topItem = topItemThisWeek.rows[0] || null;
+    const activeViewer = mostActiveViewerThisWeek.rows[0] || null;
+    const today = todayTrend.rows[0] || {};
+    const lastWeek = lastWeekTrend.rows[0] || {};
+    const issueCounts = libraryIssues.rows[0] || {};
     const totalLibraryPlays = Number(balance.TotalLibraryPlays || 0);
     const topLibraryPlays = Number(balance.TopLibraryPlays || 0);
     const concentration = totalLibraryPlays ? (topLibraryPlays / totalLibraryPlays) * 100 : 0;
+    const trendDelta = (current, previous) => Number(current || 0) - Number(previous || 0);
 
     res.send({
       totals: {
@@ -191,6 +312,73 @@ router.get("/getHomeDashboard", async (req, res) => {
         primaryImageTag: user.PrimaryImageTag,
         plays: Number(user.Plays || 0),
         watchSeconds: Number(user.WatchSeconds || 0),
+      })),
+      weekPulse: {
+        topItem: topItem
+          ? {
+              name: topItem.Name,
+              plays: Number(topItem.Plays || 0),
+              watchSeconds: Number(topItem.WatchSeconds || 0),
+              lastPlayed: topItem.LastPlayed,
+            }
+          : null,
+        mostActiveViewer: activeViewer
+          ? {
+              userId: activeViewer.UserId,
+              userName: activeViewer.UserName,
+              plays: Number(activeViewer.Plays || 0),
+              watchSeconds: Number(activeViewer.WatchSeconds || 0),
+            }
+          : null,
+        quietUsers: quietUsers.rows.map((user) => ({
+          userId: user.UserId,
+          userName: user.UserName,
+          primaryImageTag: user.PrimaryImageTag,
+          lastPlayed: user.LastPlayed,
+        })),
+      },
+      trends: {
+        today: {
+          plays: Number(today.Plays || 0),
+          activeUsers: Number(today.ActiveUsers || 0),
+          watchSeconds: Number(today.WatchSeconds || 0),
+        },
+        lastWeek: {
+          plays: Number(lastWeek.Plays || 0),
+          activeUsers: Number(lastWeek.ActiveUsers || 0),
+          watchSeconds: Number(lastWeek.WatchSeconds || 0),
+        },
+        delta: {
+          plays: trendDelta(today.Plays, lastWeek.Plays),
+          activeUsers: trendDelta(today.ActiveUsers, lastWeek.ActiveUsers),
+          watchSeconds: trendDelta(today.WatchSeconds, lastWeek.WatchSeconds),
+        },
+      },
+      libraryIssues: {
+        missingPosters: Number(issueCounts.MissingPosters || 0),
+        missingLogos: Number(issueCounts.MissingLogos || 0),
+        missingRuntime: Number(issueCounts.MissingRuntime || 0),
+        missingEpisodeSeries: Number(missingEpisodeSeries.rowCount || 0),
+      },
+      watchParty: watchPartySuggestions.rows.map((item) => ({
+        itemId: item.ItemId,
+        name: item.Name,
+        users: Number(item.Users || 0),
+        plays: Number(item.Plays || 0),
+        primaryImageHash: item.PrimaryImageHash,
+      })),
+      seasonGaps: seasonGaps.rows.map((item) => ({
+        itemId: item.Id,
+        name: item.Name,
+        episodes: Number(item.Episodes || 0),
+        primaryImageHash: item.PrimaryImageHash,
+      })),
+      automationFeed: automationFeed.rows.map((item) => ({
+        id: item.Id,
+        name: item.Name,
+        result: item.Result,
+        timeRun: item.TimeRun,
+        duration: item.Duration,
       })),
     });
   } catch (error) {

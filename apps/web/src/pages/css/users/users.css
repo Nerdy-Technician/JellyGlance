@@ -584,6 +584,54 @@
   text-transform: uppercase;
 }
 
+.role-preview-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid rgba(215, 141, 240, 0.16);
+  border-radius: 14px;
+  background: rgba(170, 92, 195, 0.08);
+}
+
+.role-preview-panel strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.role-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.role-preview-grid span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.16);
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.role-preview-grid span.is-allowed {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(22, 101, 52, 0.16);
+  color: #bbf7d0;
+}
+
 .local-users-modal-list {
   display: grid;
   gap: 8px;
@@ -803,8 +851,13 @@
 
   .users-title-block,
   .users-header-actions,
-  .users-modal-topline {
+  .users-modal-topline,
+  .role-preview-panel {
     display: grid;
+  }
+
+  .role-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .users-header-actions .users-primary-action {

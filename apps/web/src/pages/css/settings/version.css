@@ -24,6 +24,22 @@
     text-decoration: underline;
 }
 
+.version-backup-row > .col
+{
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+    margin-top: 6px;
+    color: #b9c5d8;
+    font-size: 12px;
+}
+
+.version-backup-row .btn
+{
+    max-width: 100%;
+    white-space: normal;
+}
+
 .nav-pills > .nav-item , .nav-pills > .nav-item > .nav-link
 {
     color: white !important;

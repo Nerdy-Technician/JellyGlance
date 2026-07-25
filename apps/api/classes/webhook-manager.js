@@ -1,6 +1,7 @@
 const axios = require('axios');
 const dbInstance = require('../db');
 const EventEmitter = require('events');
+const { addWebhookDelivery } = require('./admin-history');
 
 class WebhookManager {
     constructor() {
@@ -161,6 +162,8 @@ class WebhookManager {
             const title = this.getDefaultTitle(data);
             const message = this.getDefaultMessage(data);
 
+            let response;
+
             if (isDiscordWebhook) {
                 console.log("[WEBHOOK] Webhook Discord detected");
                 const templatePayload = payloadIsEmpty
@@ -169,7 +172,7 @@ class WebhookManager {
                     }
                     : payload;
 
-                await axios({
+                response = await axios({
                     method: webhook.method || 'POST',
                     url: webhook.url,
                     headers: { 'Content-Type': 'application/json' },
@@ -193,7 +196,7 @@ class WebhookManager {
                     compiledPayload.message = data.message || message || 'JellyGlance webhook test';
                 }
 
-                await axios({
+                response = await axios({
                     method: webhook.method || 'POST',
                     url: webhook.url,
                     headers: { 'Content-Type': 'application/json', ...headers },
@@ -212,7 +215,7 @@ class WebhookManager {
                     : payload;
                 const compiledPayload = this.compileTemplate(templatePayload, data);
 
-                await axios({
+                response = await axios({
                     method: webhook.method || 'POST',
                     url: webhook.url,
                     headers: { 'Content-Type': 'application/json', ...headers },
@@ -229,6 +232,18 @@ class WebhookManager {
                 [webhook.id]
             );
 
+            await addWebhookDelivery({
+                webhookId: webhook.id,
+                name: webhook.name,
+                destination: webhook.url,
+                webhookType: webhook.webhook_type || 'generic',
+                eventType: data.event || webhook.event_type || webhook.trigger_type,
+                ok: true,
+                status: response?.status || null,
+                retryOnFailure: Boolean(webhook.retry_on_failure),
+                maxRetries: webhook.max_retries || 0,
+            });
+
             return true;
         } catch (error) {
             console.error(`[WEBHOOK] Error triggering webhook ${webhook.name}:`, error.message);
@@ -241,6 +256,18 @@ class WebhookManager {
                 status: error.response?.status,
                 data: error.response?.data
             };
+            await addWebhookDelivery({
+                webhookId: webhook.id,
+                name: webhook.name,
+                destination: webhook.url,
+                webhookType: webhook.webhook_type || 'generic',
+                eventType: data.event || webhook.event_type || webhook.trigger_type,
+                ok: false,
+                status: error.response?.status || null,
+                retryOnFailure: Boolean(webhook.retry_on_failure),
+                maxRetries: webhook.max_retries || 0,
+                error: error.response?.data?.message || error.response?.data?.error || error.message,
+            });
             return false;
         }
     }
@@ -545,6 +572,17 @@ class WebhookManager {
             });
 
             console.log(`[WEBHOOK] Discord response: ${response.status}`);
+            await addWebhookDelivery({
+                webhookId: webhook.id,
+                name: webhook.name,
+                destination: webhook.url,
+                webhookType: webhook.webhook_type || 'discord',
+                eventType: data.event || webhook.event_type || 'test',
+                ok: response.status >= 200 && response.status < 300,
+                status: response.status,
+                retryOnFailure: Boolean(webhook.retry_on_failure),
+                maxRetries: webhook.max_retries || 0,
+            });
             return response.status >= 200 && response.status < 300;
         } catch (error) {
             console.error(`[WEBHOOK] Error with Discord webhook ${webhook.name}:`, error.message);
@@ -552,6 +590,18 @@ class WebhookManager {
                 console.error('[WEBHOOK] Response status:', error.response.status);
                 console.error('[WEBHOOK] Response data:', error.response.data);
             }
+            await addWebhookDelivery({
+                webhookId: webhook.id,
+                name: webhook.name,
+                destination: webhook.url,
+                webhookType: webhook.webhook_type || 'discord',
+                eventType: data.event || webhook.event_type || 'test',
+                ok: false,
+                status: error.response?.status || null,
+                retryOnFailure: Boolean(webhook.retry_on_failure),
+                maxRetries: webhook.max_retries || 0,
+                error: error.response?.data?.message || error.response?.data?.error || error.message,
+            });
             return false;
         }
     }

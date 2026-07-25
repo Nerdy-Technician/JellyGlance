@@ -3,6 +3,7 @@ const router = express.Router();
 const dbInstance = require('../db');
 const WebhookManager = require('../classes/webhook-manager');
 const WebhookScheduler = require('../classes/webhook-scheduler');
+const { addAuditEntry, getWebhookDeliveryHistory } = require('../classes/admin-history');
 
 const webhookScheduler = new WebhookScheduler();
 const webhookManager = new WebhookManager();
@@ -74,6 +75,15 @@ router.get('/event-status', async (req, res) => {
     } catch (error) {
         console.error('Error fetching webhook status:', error);
         res.status(500).json({ error: 'Failed to fetch webhook status' });
+    }
+});
+
+router.get('/delivery-history', async (req, res) => {
+    try {
+        res.json(await getWebhookDeliveryHistory());
+    } catch (error) {
+        console.error('Error fetching webhook delivery history:', error);
+        res.status(500).json({ error: 'Failed to fetch webhook delivery history' });
     }
 });
 
@@ -149,6 +159,7 @@ router.post('/', async (req, res) => {
             await webhookScheduler.refreshSchedule();
         }
 
+        await addAuditEntry(req, 'webhook.created', { name, event_type, webhook_type: webhook_type || 'generic' });
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('Error creating webhook:', error);
@@ -210,6 +221,7 @@ router.put('/:id', async (req, res) => {
         // Refresh the schedule if the webhook is scheduled
         await webhookScheduler.refreshSchedule();
 
+        await addAuditEntry(req, 'webhook.updated', { id, name, event_type, webhook_type: webhook_type || 'generic' });
         res.json(result.rows[0]);
     } catch (error) {
         console.error('Error updating webhook:', error);
@@ -230,6 +242,7 @@ router.delete('/:id', async (req, res) => {
         // Refresh the schedule if the webhook was scheduled
         await webhookScheduler.refreshSchedule();
 
+        await addAuditEntry(req, 'webhook.deleted', { id, name: result.rows[0].name });
         res.json({ message: 'Webhook deleted successfully', webhook: result.rows[0] });
     } catch (error) {
         console.error('Error deleting webhook:', error);

@@ -9,6 +9,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Config from "./lib/config";
+import { INTEGRATIONS_STORAGE_KEY } from "./lib/integrations-storage";
 import { prewarmActiveSessions } from "./lib/session-cache";
 
 import Loading from "./pages/components/general/loading";
@@ -27,6 +28,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [errorFlag, seterrorFlag] = useState(false);
   const token = localStorage.getItem("token");
+  const kioskMode = window.location.pathname === "/home/kiosk";
 
   const wsListeners = [
     { task: "PlaybackSyncTask", ref: React.useRef(null) },
@@ -93,7 +95,11 @@ function App() {
           setConfig(newConfig);
         } else {
           if (newConfig.response.status === 403 || newConfig.response.status === 401) {
+            const savedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
             localStorage.clear();
+            if (savedIntegrations) {
+              localStorage.setItem(INTEGRATIONS_STORAGE_KEY, savedIntegrations);
+            }
             window.location.reload();
           } else if (newConfig.response.status !== 403) {
             seterrorFlag(true);
@@ -154,7 +160,7 @@ function App() {
     return (
       <div className="App">
         <div className="d-flex flex-column flex-md-row">
-          <Navbar />
+          {kioskMode ? null : <Navbar />}
           <main className="app-shell-main w-md-100">
             <Routes>
               {routes.map((route, index) => (

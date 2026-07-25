@@ -13,6 +13,7 @@ const taskName = require("../logging/taskName");
 const sanitizeFilename = require("../utils/sanitizer");
 const { getBackupDir } = require("../utils/storage-paths");
 const db = require("../db");
+const { addAuditEntry } = require("../classes/admin-history");
 
 const { sendUpdate } = require("../ws");
 
@@ -212,6 +213,7 @@ router.get("/restore/:filename", async (req, res) => {
 
     const restoreResult = await restore(filePath, refLog);
     Logging.updateLog(uuid, refLog.logData, taskstate.SUCCESS);
+    await addAuditEntry(req, "backup.restored", { filename, restoredRows: restoreResult?.restoredRows || 0 });
 
     res.json({
       message: "Restore completed successfully",
@@ -251,6 +253,43 @@ router.get("/files", (req, res) => {
     });
   } catch (error) {
     console.log(error);
+  }
+});
+
+router.get("/summary", (req, res) => {
+  try {
+    const directoryPath = getBackupDir();
+    if (!fs.existsSync(directoryPath)) {
+      fs.mkdirSync(directoryPath, { recursive: true });
+    }
+
+    fs.readdir(directoryPath, (err, files) => {
+      if (err) {
+        res.status(500).send("Unable to read directory");
+        return;
+      }
+
+      const backupFiles = files
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => {
+          const filePath = path.join(directoryPath, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            size: stats.size,
+            datecreated: getBirthtimeFallback(stats, file),
+          };
+        })
+        .sort((a, b) => new Date(b.datecreated) - new Date(a.datecreated));
+
+      res.json({
+        count: backupFiles.length,
+        latestBackup: backupFiles[0] || null,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Unable to read backup summary");
   }
 });
 

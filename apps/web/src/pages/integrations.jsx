@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AddLineIcon from "remixicon-react/AddLineIcon";
+import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
+import ClipboardLineIcon from "remixicon-react/ClipboardLineIcon";
 import DownloadCloud2FillIcon from "remixicon-react/DownloadCloud2FillIcon";
+import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
+import EyeFillIcon from "remixicon-react/EyeFillIcon";
+import EyeOffFillIcon from "remixicon-react/EyeOffFillIcon";
+import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import Plug2FillIcon from "remixicon-react/Plug2FillIcon";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
+import UploadCloud2LineIcon from "remixicon-react/UploadCloud2LineIcon";
 import axios from "../lib/axios_instance";
 import { loadSavedIntegrations, saveSavedIntegrations } from "../lib/integrations-storage";
 import JellyfinIntegrationSettings from "./components/settings/JellyfinIntegrationSettings";
@@ -15,6 +22,8 @@ const automationApps = [
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
   { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "#00a4dc" },
   { name: "Bazarr", slug: "bazarr", purpose: "Subtitle automation", accent: "#84d160" },
+  { name: "Jellyseerr", slug: "jellyseerr", purpose: "Request management", accent: "#6366f1" },
+  { name: "Overseerr", slug: "overseerr", purpose: "Request management", accent: "#7dd3fc" },
 ];
 
 const downloadClientOptions = [
@@ -34,6 +43,22 @@ const initialAutomationApps = automationApps.map((app, index) => ({
   values: {},
 }));
 
+const seerrAppNames = new Set(["jellyseerr", "overseerr"]);
+
+function isSeerrApp(app) {
+  return seerrAppNames.has(String(app.name || app.slug || "").toLowerCase());
+}
+
+function normalizeAutomationApps(savedApps) {
+  if (!Array.isArray(savedApps) || !savedApps.length) {
+    return initialAutomationApps;
+  }
+
+  const savedNames = new Set(savedApps.map((app) => String(app.name || "").toLowerCase()));
+  const missingDefaults = initialAutomationApps.filter((app) => !savedNames.has(app.name.toLowerCase()));
+  return [...savedApps, ...missingDefaults];
+}
+
 function AppIcon({ app }) {
   if (!app.slug) {
     return <span className="integration-fallback-icon">{app.name.slice(0, 2)}</span>;
@@ -42,13 +67,53 @@ function AppIcon({ app }) {
   return <img src={iconUrl(app.slug)} alt="" loading="lazy" decoding="async" />;
 }
 
-function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, removable = false }) {
+function formatHealthDate(value) {
+  if (!value) return "Never";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function summarizeHealth(entries = []) {
+  if (!entries.length) {
+    return { successRate: "No checks", failingSince: null };
+  }
+
+  const successCount = entries.filter((entry) => entry.ok).length;
+  const successRate = `${Math.round((successCount / entries.length) * 100)}% healthy`;
+  if (entries[0]?.ok) {
+    return { successRate, failingSince: null };
+  }
+
+  const failureStreak = [];
+  for (const entry of entries) {
+    if (entry.ok) break;
+    failureStreak.push(entry);
+  }
+
+  return {
+    successRate,
+    failingSince: failureStreak[failureStreak.length - 1]?.checkedAt || entries[0]?.checkedAt,
+  };
+}
+
+function buildHealthTimeline(entries = []) {
+  return [...entries]
+    .sort((first, second) => new Date(first.checkedAt || 0) - new Date(second.checkedAt || 0))
+    .slice(-24);
+}
+
+function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopySecret, removable = false }) {
   const usesUserPass = type === "download" && app.auth === "userpass";
   const usesPasswordOnly = type === "download" && app.auth === "password";
   const authLabel = usesUserPass || usesPasswordOnly ? "Password" : "API key";
   const connected = Boolean(app.connected);
   const values = app.values || {};
   const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : "Paste API key";
+  const [showSecret, setShowSecret] = useState(false);
 
   return (
     <article className="integration-card" style={{ "--integration-accent": app.accent || "#d78df0" }}>
@@ -88,13 +153,21 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, remova
         ) : null}
         <label>
           {authLabel}
-          <input
-            value={values.secret || ""}
-            onChange={(event) => onChange(app.instanceId, "secret", event.target.value)}
-            placeholder={secretPlaceholder}
-            type="password"
-            autoComplete={usesUserPass || usesPasswordOnly ? "current-password" : "off"}
-          />
+          <span className="integration-secret-field">
+            <input
+              value={values.secret || ""}
+              onChange={(event) => onChange(app.instanceId, "secret", event.target.value)}
+              placeholder={secretPlaceholder}
+              type={showSecret ? "text" : "password"}
+              autoComplete={usesUserPass || usesPasswordOnly ? "current-password" : "off"}
+            />
+            <button type="button" title={showSecret ? "Hide secret" : "Reveal secret"} onClick={() => setShowSecret(!showSecret)}>
+              {showSecret ? <EyeOffFillIcon size={17} /> : <EyeFillIcon size={17} />}
+            </button>
+            <button type="button" title="Copy secret" onClick={() => onCopySecret(values.secret || "")} disabled={!values.secret}>
+              <ClipboardLineIcon size={17} />
+            </button>
+          </span>
         </label>
       </div>
       {app.message ? <p className={`integration-message ${app.messageType === "error" ? "is-error" : ""}`}>{app.message}</p> : null}
@@ -116,11 +189,28 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, remova
 }
 
 export default function Integrations({ embedded = false }) {
+  const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("media-server");
   const [arrApps, setArrApps] = useState(initialAutomationApps);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(downloadClientOptions[0].name);
+  const [healthHistory, setHealthHistory] = useState([]);
+  const [diagnostics, setDiagnostics] = useState([]);
+  const [busyAction, setBusyAction] = useState("");
+  const [notice, setNotice] = useState("");
   const connectorCount = useMemo(() => arrApps.length + clients.length, [arrApps.length, clients.length]);
+  const automationOnlyApps = useMemo(() => arrApps.filter((app) => !isSeerrApp(app)), [arrApps]);
+  const seerrApps = useMemo(() => arrApps.filter(isSeerrApp), [arrApps]);
+  const enabledIntegrations = useMemo(() => [...arrApps, ...clients].filter((item) => item.connected), [arrApps, clients]);
+  const latestHealthById = useMemo(() => {
+    const lookup = new Map();
+    healthHistory.forEach((entry) => {
+      if (entry.instanceId && !lookup.has(entry.instanceId)) {
+        lookup.set(entry.instanceId, entry);
+      }
+    });
+    return lookup;
+  }, [healthHistory]);
 
   useEffect(() => {
     async function loadIntegrations() {
@@ -143,28 +233,33 @@ export default function Integrations({ embedded = false }) {
         }
 
         saveSavedIntegrations(saved);
-        if (Array.isArray(saved.arrApps) && saved.arrApps.length) {
-          setArrApps(saved.arrApps);
-        } else {
-          setArrApps(initialAutomationApps);
-        }
+        setHealthHistory(Array.isArray(saved.healthHistory) ? saved.healthHistory : []);
+        setArrApps(normalizeAutomationApps(saved.arrApps));
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
       } catch {
         const saved = loadSavedIntegrations();
-        if (Array.isArray(saved.arrApps) && saved.arrApps.length) {
-          setArrApps(saved.arrApps);
-        } else {
-          setArrApps(initialAutomationApps);
-        }
+        setArrApps(normalizeAutomationApps(saved.arrApps));
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
       }
     }
     loadIntegrations();
+    loadHealthHistory();
   }, []);
+
+  async function loadHealthHistory() {
+    try {
+      const response = await axios.get("/api/integrations/health-history", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setHealthHistory(response.data || []);
+    } catch (error) {
+      console.log("Unable to load integration health history", error);
+    }
+  }
 
   function persist(nextArrApps = arrApps, nextClients = clients) {
     const payload = { arrApps: nextArrApps, clients: nextClients };
@@ -174,6 +269,71 @@ export default function Integrations({ embedded = false }) {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .catch((error) => console.log("Unable to save integrations", error));
+  }
+
+  function exportIntegrations() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      version: 1,
+      integrations: { arrApps, clients },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `jellyglance-integrations-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    link.remove();
+    setNotice("Integration config exported.");
+  }
+
+  async function importIntegrations(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const imported = parsed.integrations || parsed;
+      const nextArrApps = normalizeAutomationApps(imported.arrApps);
+      const nextClients = Array.isArray(imported.clients) ? imported.clients : [];
+      setArrApps(nextArrApps);
+      setClients(nextClients);
+      persist(nextArrApps, nextClients);
+      setNotice(`${file.name} imported.`);
+    } catch (error) {
+      setNotice("Import failed. Choose a JellyGlance integrations JSON file.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function copySecret(secret) {
+    if (!secret) return;
+    await navigator.clipboard.writeText(secret);
+    setNotice("Secret copied.");
+  }
+
+  async function testAllIntegrations() {
+    try {
+      setBusyAction("test-all");
+      setNotice("");
+      const response = await axios.post(
+        "/api/integrations/test-all",
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setDiagnostics(response.data.results || []);
+      setHealthHistory(response.data.history || []);
+      setNotice("Integration diagnostics complete.");
+    } catch (error) {
+      setNotice(error?.response?.data?.error || "Unable to run integration diagnostics.");
+    } finally {
+      setBusyAction("");
+    }
   }
 
   function updateIntegration(listName, setList, instanceId, field, value) {
@@ -347,6 +507,7 @@ export default function Integrations({ embedded = false }) {
         {[
           ["media-server", "Media Server"],
           ["automation", "Arr Apps"],
+          ["seerr", "Seerr Apps"],
           ["downloads", "Download Clients"],
         ].map(([key, label]) => (
           <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => setActiveTab(key)} key={key}>
@@ -357,6 +518,8 @@ export default function Integrations({ embedded = false }) {
 
       {activeTab === "media-server" ? <JellyfinIntegrationSettings compact /> : null}
 
+      {notice ? <div className="integration-notice">{notice}</div> : null}
+
       {activeTab === "automation" ? (
         <section className="integration-section">
           <div className="integration-section-title">
@@ -366,8 +529,23 @@ export default function Integrations({ embedded = false }) {
             </div>
             <Settings3LineIcon />
           </div>
+          <div className="integration-toolbar">
+            <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+              <HeartPulseLineIcon size={18} />
+              {busyAction === "test-all" ? "Testing" : "Test all"}
+            </button>
+            <button type="button" onClick={exportIntegrations}>
+              <DownloadCloud2FillIcon size={18} />
+              Export
+            </button>
+            <label>
+              <UploadCloud2LineIcon size={18} />
+              Import
+              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+            </label>
+          </div>
           <div className="integration-grid">
-            {arrApps.map((app) => (
+            {automationOnlyApps.map((app) => (
               <IntegrationCard
                 key={app.instanceId}
                 app={app}
@@ -376,6 +554,48 @@ export default function Integrations({ embedded = false }) {
                 onRemove={(instanceId) => removeIntegration("arrApps", setArrApps, instanceId)}
                 onSave={(instanceId) => saveIntegration("arrApps", setArrApps, instanceId)}
                 onTest={(instanceId) => testIntegration("arrApps", setArrApps, instanceId)}
+                onCopySecret={copySecret}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {activeTab === "seerr" ? (
+        <section className="integration-section">
+          <div className="integration-section-title">
+            <div>
+              <h2>Seerr Apps</h2>
+              <span>Jellyseerr and Overseerr request management</span>
+            </div>
+            <Settings3LineIcon />
+          </div>
+          <div className="integration-toolbar">
+            <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+              <HeartPulseLineIcon size={18} />
+              {busyAction === "test-all" ? "Testing" : "Test all"}
+            </button>
+            <button type="button" onClick={exportIntegrations}>
+              <DownloadCloud2FillIcon size={18} />
+              Export
+            </button>
+            <label>
+              <UploadCloud2LineIcon size={18} />
+              Import
+              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+            </label>
+          </div>
+          <div className="integration-grid">
+            {seerrApps.map((app) => (
+              <IntegrationCard
+                key={app.instanceId}
+                app={app}
+                type="automation"
+                onChange={(instanceId, field, value) => updateIntegration("arrApps", setArrApps, instanceId, field, value)}
+                onRemove={(instanceId) => removeIntegration("arrApps", setArrApps, instanceId)}
+                onSave={(instanceId) => saveIntegration("arrApps", setArrApps, instanceId)}
+                onTest={(instanceId) => testIntegration("arrApps", setArrApps, instanceId)}
+                onCopySecret={copySecret}
               />
             ))}
           </div>
@@ -390,6 +610,19 @@ export default function Integrations({ embedded = false }) {
               <span>Add more than one torrent or Usenet client</span>
             </div>
             <div className="client-adder">
+              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                <HeartPulseLineIcon size={18} />
+                {busyAction === "test-all" ? "Testing" : "Test all"}
+              </button>
+              <button type="button" onClick={exportIntegrations}>
+                <DownloadCloud2FillIcon size={18} />
+                Export
+              </button>
+              <label className="integration-import-button">
+                <UploadCloud2LineIcon size={18} />
+                Import
+                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+              </label>
               <select value={selectedClient} onChange={(event) => setSelectedClient(event.target.value)}>
                 {downloadClientOptions.map((client) => (
                   <option key={client.name}>{client.name}</option>
@@ -411,10 +644,60 @@ export default function Integrations({ embedded = false }) {
                 onRemove={(instanceId) => removeIntegration("clients", setClients, instanceId)}
                 onSave={(instanceId) => saveIntegration("clients", setClients, instanceId)}
                 onTest={(instanceId) => testIntegration("clients", setClients, instanceId)}
+                onCopySecret={copySecret}
                 removable
               />
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {activeTab !== "media-server" ? (
+        <section className="integration-section integration-health-panel">
+          <div className="integration-section-title">
+            <div>
+              <h2>Health History</h2>
+              <span>Recent integration checks</span>
+            </div>
+            <HeartPulseLineIcon />
+          </div>
+          <div className="integration-health-grid">
+            {enabledIntegrations.map((item) => {
+              const health = latestHealthById.get(item.instanceId);
+              const healthEntries = healthHistory.filter((entry) => entry.instanceId === item.instanceId);
+              const summary = summarizeHealth(healthEntries);
+              return (
+                <article key={item.instanceId} className={health?.ok ? "is-ok" : "is-error"}>
+                  {health?.ok ? <CheckboxCircleLineIcon size={18} /> : <ErrorWarningLineIcon size={18} />}
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{health?.message || "No health checks recorded"}</span>
+                    <em>{summary.failingSince ? `Failing since ${formatHealthDate(summary.failingSince)}` : summary.successRate}</em>
+                    <div className="integration-uptime-timeline" aria-label={`${item.name} uptime timeline`}>
+                      {buildHealthTimeline(healthEntries).map((entry, index) => (
+                        <i
+                          key={`${entry.checkedAt || index}-${index}`}
+                          className={entry.ok ? "is-ok" : "is-error"}
+                          title={`${formatHealthDate(entry.checkedAt)} · ${entry.ok ? "Healthy" : "Failed"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <small>{formatHealthDate(health?.checkedAt)}</small>
+                </article>
+              );
+            })}
+            {!enabledIntegrations.length ? <div className="integration-empty-state">No enabled integrations yet.</div> : null}
+          </div>
+          {diagnostics.length ? (
+            <div className="integration-diagnostic-list">
+              {diagnostics.filter((result) => enabledIntegrations.some((item) => item.instanceId === result.instanceId)).map((result) => (
+                <span key={`${result.instanceId}-${result.checkedAt}`} className={result.ok ? "is-ok" : "is-error"}>
+                  {result.name}: {result.message}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

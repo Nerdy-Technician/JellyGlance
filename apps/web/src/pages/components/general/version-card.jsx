@@ -4,12 +4,47 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 
 import "../../css/settings/version.css";
-import { Card } from "react-bootstrap";
+import { Button, Card, Spinner } from "react-bootstrap";
+
+function formatBackupDate(value) {
+  if (!value) return "No backup found";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 export default function VersionCard() {
 
   const token = localStorage.getItem('token');
   const [data, setData] = useState({ current_version: "Loading", update_available: false });
+  const [backupSummary, setBackupSummary] = useState({ count: 0, latestBackup: null });
+  const [backupBusy, setBackupBusy] = useState(false);
+
+  async function createBackup() {
+    try {
+      setBackupBusy(true);
+      await axios.get("/backup/beginBackup", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const response = await axios.get("/backup/summary", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      setBackupSummary(response.data || { count: 0, latestBackup: null });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
   useEffect(() => {
 
     const fetchVersion = () => {
@@ -37,6 +72,16 @@ export default function VersionCard() {
             setData(data.data);
           })
           .catch(() => {});
+
+        axios
+          .get("/backup/summary", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          })
+          .then((response) => setBackupSummary(response.data || { count: 0, latestBackup: null }))
+          .catch(() => {});
       }
     };
     fetchVersion();
@@ -55,9 +100,19 @@ export default function VersionCard() {
              
 
             {data.update_available?
-              <Row>
-                   <Col ><a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank"  rel="noreferrer"  style={{color:'#00A4DC'}}>New version available: {data.latest_version}</a></Col>
-               </Row>
+              <>
+                <Row>
+                     <Col ><a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank"  rel="noreferrer"  style={{color:'#00A4DC'}}>New version available: {data.latest_version}</a></Col>
+                 </Row>
+                <Row className="version-backup-row">
+                  <Col>
+                    <span>Latest backup: {formatBackupDate(backupSummary.latestBackup?.datecreated)}</span>
+                    <Button size="sm" variant="outline-info" type="button" onClick={createBackup} disabled={backupBusy || !token}>
+                      {backupBusy ? <Spinner animation="border" size="sm" /> : "Run backup now"}
+                    </Button>
+                  </Col>
+                </Row>
+              </>
                :
                <></>
             }

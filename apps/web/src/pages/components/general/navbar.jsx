@@ -28,6 +28,7 @@ export default function Navbar() {
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
+  const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
@@ -106,6 +107,45 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const setSafeCount = (value) => {
+      const nextCount = Number(value || 0);
+      if (isMounted) {
+        setRequestBadgeCount(Number.isFinite(nextCount) ? nextCount : 0);
+      }
+    };
+
+    const refreshRequestCount = async () => {
+      if (!localStorage.getItem("token")) return;
+      try {
+        const response = await axios.get("/api/requests/summary", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        const nextCount = Number(response.data?.stats?.badgeCount || 0);
+        localStorage.setItem("jellyglance_request_badge_count", String(nextCount));
+        setSafeCount(nextCount);
+      } catch {
+        setSafeCount(localStorage.getItem("jellyglance_request_badge_count"));
+      }
+    };
+
+    const handleRequestCount = (event) => setSafeCount(event.detail ?? localStorage.getItem("jellyglance_request_badge_count"));
+
+    refreshRequestCount();
+    const intervalId = setInterval(refreshRequestCount, 60000);
+    window.addEventListener("jellyglance-request-count", handleRequestCount);
+    window.addEventListener("storage", handleRequestCount);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+      window.removeEventListener("jellyglance-request-count", handleRequestCount);
+      window.removeEventListener("storage", handleRequestCount);
+    };
+  }, []);
+
   const profilePath = `/users/${slugifyUserName(accountName) || "account"}`;
 
   const handleAvatarUpload = (event) => {
@@ -166,6 +206,11 @@ export default function Navbar() {
                   {item.link === "downloads" && activeDownloadCount > 0 ? (
                     <span className="nav-live-count" aria-label={`${activeDownloadCount} active downloads`}>
                       {activeDownloadCount}
+                    </span>
+                  ) : null}
+                  {item.link === "requests" && requestBadgeCount > 0 ? (
+                    <span className="nav-live-count" aria-label={`${requestBadgeCount} pending or failed requests`}>
+                      {requestBadgeCount}
                     </span>
                   ) : null}
                 </span>

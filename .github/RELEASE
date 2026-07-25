@@ -1,12 +1,11 @@
-version: v1.0.6
-title: JellyGlance v1.0.6
+version: v1.1.0
+title: JellyGlance v1.1.0
 ---
-fix(auth): enable OIDC login with Jellyfin account matching
+feat: add requests, health, and customizable home dashboard - Version V1.10 stable
 
-- Add OIDC authorization-code login and callback handling with signed state and PKCE
-- Exchange OIDC codes for tokens and surface provider callback errors on the login page
-- Match OIDC users to Jellyfin accounts using username-style claims, including username, preferred_username, name, email, and email local-part
-- Issue JellyGlance tokens with the matched Jellyfin user, role, permissions, and avatar/profile context
-- Preserve OIDC as the configured default while allowing Jellyfin Quick Connect as a fallback login path
-- Prefer matched Jellyfin profile images for OIDC account display
-
+- add Seerr requests page with actions, posters, filters, availability checks, and nav badge
+- add health dashboard, audit/webhook history support, and integration uptime history
+- add customizable home layout with presets, visibility toggles, kiosk mode, themes, alerts, quick actions, and weekly stats
+- add user profile media rails for favourites, watchlist, continue watching, recent watches, and recommendations
+- improve integration settings, library import cards, request card layout, and persistence for integration config
+- cache Seerr request/detail lookups to improve Requests page speed

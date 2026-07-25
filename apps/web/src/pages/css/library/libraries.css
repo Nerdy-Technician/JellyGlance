@@ -6,6 +6,25 @@
     radial-gradient(circle at 82% 14%, rgba(0, 164, 220, 0.1), transparent 28%);
 }
 
+.libraries > h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px !important;
+  padding: 0 !important;
+  color: #f8fafc;
+  font-size: 38px;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.libraries > h1 svg {
+  width: 20px;
+  height: 20px;
+  color: #dce6f4;
+}
+
 .libraries-header {
   display: flex;
   align-items: end;
@@ -73,8 +92,8 @@
 
 .libraries-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 18px;
   color: white;
 }
 
@@ -112,6 +131,14 @@
 }
 
 @media (max-width: 720px) {
+  .libraries {
+    padding: 22px 14px 36px;
+  }
+
+  .libraries > h1 {
+    font-size: 30px;
+  }
+
   .libraries-header {
     align-items: flex-start;
     flex-direction: column;

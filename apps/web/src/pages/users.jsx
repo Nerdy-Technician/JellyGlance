@@ -88,6 +88,7 @@ export default function Users() {
   const [newLocalUser, setNewLocalUser] = useState({ username: "", password: "", role: "Viewer" });
   const [newRole, setNewRole] = useState("");
   const [resetPassword, setResetPassword] = useState("");
+  const [previewRole, setPreviewRole] = useState("Viewer");
 
   async function fetchAccess() {
     const response = await axios.get("/api/userAccess", {
@@ -137,6 +138,12 @@ export default function Users() {
     const intervalId = setInterval(() => fetchData(), 60000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (access?.roles?.length && !access.roles.includes(previewRole)) {
+      setPreviewRole(access.roles.includes("Viewer") ? "Viewer" : access.roles[0]);
+    }
+  }, [access, previewRole]);
 
   const rows = useMemo(() => {
     if (!data || !access) {
@@ -247,6 +254,16 @@ export default function Users() {
   const totalWatchTime = jellyfinRows.reduce((total, user) => total + Number(user.TotalWatchTime || 0), 0);
   const localAccountCount = rows.filter((user) => user.Source === "Local").length;
   const oidcAccountCount = rows.filter((user) => user.Source === "OIDC").length;
+  const previewPermissions = useMemo(() => {
+    if (!access) return {};
+    return {
+      dashboard: false,
+      users: false,
+      settings: false,
+      apiKeys: false,
+      ...(access.rolePermissions?.[previewRole] || {}),
+    };
+  }, [access, previewRole]);
 
   async function toggleTrackedState(userid) {
     const response = await axios.post(
@@ -730,6 +747,32 @@ export default function Users() {
               <PriceTag3LineIcon size={17} />
               Add New Role
             </Button>
+          </div>
+
+          <div className="role-preview-panel">
+            <div>
+              <strong>Preview as</strong>
+              <FormSelect value={previewRole} onChange={(event) => setPreviewRole(event.target.value)}>
+                {access.roles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </FormSelect>
+            </div>
+            <div className="role-preview-grid">
+              {[
+                ["dashboard", "Dashboard"],
+                ["users", "Users"],
+                ["settings", "Settings"],
+                ["apiKeys", "API Keys"],
+              ].map(([permission, label]) => (
+                <span key={permission} className={previewPermissions[permission] ? "is-allowed" : "is-denied"}>
+                  {previewPermissions[permission] ? <CheckFillIcon size={14} /> : <CloseFillIcon size={14} />}
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="roles-manager">

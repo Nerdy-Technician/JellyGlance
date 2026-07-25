@@ -9,6 +9,7 @@ import UserFillIcon from 'remixicon-react/UserFillIcon';
 import InformationFillIcon from 'remixicon-react/InformationFillIcon';
 import Movie2FillIcon from 'remixicon-react/Movie2FillIcon';
 import CalendarEventFillIcon from 'remixicon-react/CalendarEventFillIcon';
+import ChatCheckFillIcon from 'remixicon-react/ChatCheckFillIcon';
 import DownloadCloud2FillIcon from 'remixicon-react/DownloadCloud2FillIcon';
 import { Trans } from 'react-i18next';
 
@@ -52,19 +53,25 @@ export const navData = [
     },
     {
         id: 6,
+        icon: <ChatCheckFillIcon />,
+        text: "Requests",
+        link: "requests"
+    },
+    {
+        id: 7,
         icon: <DownloadCloud2FillIcon />,
         text: "Downloads",
         link: "downloads"
     },
     {
-        id: 7,
+        id: 8,
         icon: <BarChartFillIcon />,
         text: <Trans i18nKey="MENU_TABS.STATISTICS" />,
         link: "statistics"
     },
 
     {
-        id: 8,
+        id: 9,
         icon: <SettingsFillIcon />,
         text: <Trans i18nKey="MENU_TABS.SETTINGS" />,
         link: "settings"
@@ -72,7 +79,7 @@ export const navData = [
     ,
 
     {
-        id: 9,
+        id: 10,
         icon: <InformationFillIcon />,
         text: <Trans i18nKey="MENU_TABS.ABOUT" />,
         link: "about"

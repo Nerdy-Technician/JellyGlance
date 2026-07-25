@@ -128,6 +128,44 @@ const defaultWebhook = {
 
 const taskEventIds = ["task_started", "task_completed", "task_failed"];
 
+const webhookTemplates = [
+  {
+    id: "discord-ops",
+    name: "Discord Ops",
+    type: "discord",
+    events: ["task_failed", "integration_health_warning", "download_failed"],
+    taskFilters: [],
+  },
+  {
+    id: "gotify-health",
+    name: "Gotify Health",
+    type: "gotify",
+    events: ["integration_health_warning", "task_failed"],
+    taskFilters: [],
+  },
+  {
+    id: "downloads",
+    name: "Download Alerts",
+    type: "generic",
+    events: ["download_added", "download_completed", "download_failed", "download_queue_refreshed"],
+    taskFilters: [],
+  },
+  {
+    id: "media",
+    name: "New Media",
+    type: "discord",
+    events: ["media_recently_added", "calendar_refreshed"],
+    taskFilters: [],
+  },
+  {
+    id: "tasks",
+    name: "Task Watch",
+    type: "generic",
+    events: ["task_started", "task_completed", "task_failed"],
+    taskFilters: [],
+  },
+];
+
 function parsePayload(payload) {
   if (!payload) return {};
   if (typeof payload === "string") {
@@ -224,6 +262,18 @@ export default function WebhooksSettings() {
 
   function resetForm() {
     setCurrentWebhook(defaultWebhook);
+  }
+
+  function applyTemplate(template) {
+    setError(null);
+    setSuccess(false);
+    setCurrentWebhook({
+      ...defaultWebhook,
+      name: template.name,
+      webhook_type: template.type,
+      events: template.events,
+      taskFilters: template.taskFilters,
+    });
   }
 
   function handleInputChange(event) {
@@ -440,6 +490,14 @@ export default function WebhooksSettings() {
                 New webhook
               </Button>
             ) : null}
+          </div>
+
+          <div className="webhook-template-strip">
+            {webhookTemplates.map((template) => (
+              <button type="button" key={template.id} onClick={() => applyTemplate(template)}>
+                {template.name}
+              </button>
+            ))}
           </div>
 
           <div className="webhook-form-grid">

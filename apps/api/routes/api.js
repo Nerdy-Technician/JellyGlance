@@ -1,5 +1,7 @@
 // api.js
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 
 const db = require("../db");
 const dbHelper = require("../classes/db-helper");
@@ -17,17 +19,25 @@ const TaskManager = require("../classes/task-manager-singleton.js");
 const WebhookManager = require("../classes/webhook-manager");
 const { axios } = require("../classes/axios");
 const triggertype = require("../logging/triggertype");
+const { addAuditEntry, getAuditLog, getWebhookDeliveryHistory } = require("../classes/admin-history");
+const { getBackupDir } = require("../utils/storage-paths");
 const {
   getIntegrations,
   saveIntegrations,
   getIntegrationData,
   saveIntegrationData,
+  getIntegrationHealthHistory,
+  saveIntegrationHealthResults,
 } = require("../classes/integration-store");
 
 const dayjs = require("dayjs");
 
 const router = express.Router();
 const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
+const REQUEST_CACHE_TTL_MS = 45000;
+const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
+const requestCache = new Map();
+const seerrMediaDetailCache = new Map();
 const DEFAULT_ROLE_PERMISSIONS = {
   Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
   Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
@@ -46,7 +56,13 @@ function cleanIntegrationUrl(url = "") {
 
 function getAxiosErrorMessage(error) {
   if (error?.response?.status) {
-    return `Request failed with status ${error.response.status}`;
+    const responseData = error.response.data;
+    const detail =
+      responseData?.message ||
+      responseData?.error ||
+      responseData?.errors?.[0]?.message ||
+      (typeof responseData === "string" ? responseData : "");
+    return detail ? `Request failed with status ${error.response.status}: ${detail}` : `Request failed with status ${error.response.status}`;
   }
   return error?.message || "Connection test failed";
 }
@@ -69,13 +85,135 @@ function extractIntegrationVersion(data) {
   );
 }
 
+function getBackupSummary() {
+  const directoryPath = getBackupDir();
+  if (!fs.existsSync(directoryPath)) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+  }
+
+  const backupFiles = fs
+    .readdirSync(directoryPath)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => {
+      const filePath = path.join(directoryPath, file);
+      const stats = fs.statSync(filePath);
+      return {
+        name: file,
+        size: stats.size,
+        datecreated: stats.birthtime && stats.birthtime.getTime() > 0 ? stats.birthtime : stats.mtime,
+      };
+    })
+    .sort((a, b) => new Date(b.datecreated) - new Date(a.datecreated));
+
+  return {
+    count: backupFiles.length,
+    latestBackup: backupFiles[0] || null,
+    writable: (() => {
+      try {
+        const testFile = path.join(directoryPath, ".healthcheck");
+        fs.writeFileSync(testFile, "");
+        fs.unlinkSync(testFile);
+        return true;
+      } catch {
+        return false;
+      }
+    })(),
+  };
+}
+
+async function buildHealthStatus() {
+  const checkedAt = new Date().toISOString();
+  const checks = [];
+
+  try {
+    await db.query("SELECT 1");
+    checks.push({ key: "database", label: "Database", ok: true, message: "Connected" });
+  } catch (error) {
+    checks.push({ key: "database", label: "Database", ok: false, message: error.message });
+  }
+
+  try {
+    const config = await new configClass().getConfig();
+    if (config.error) {
+      checks.push({ key: "jellyfin", label: "Media server", ok: false, message: config.error });
+    } else {
+      const systemInfo = await API.systemInfo();
+      checks.push({ key: "jellyfin", label: "Media server", ok: Boolean(systemInfo), message: systemInfo?.ServerName || "Connected" });
+    }
+  } catch (error) {
+    checks.push({ key: "jellyfin", label: "Media server", ok: false, message: error.message });
+  }
+
+  const integrations = await getIntegrations().catch(() => ({ arrApps: [], clients: [] }));
+  const allIntegrations = [...(integrations.arrApps || []), ...(integrations.clients || [])].filter((integration) => integration.connected);
+  const integrationHealth = await getIntegrationHealthHistory().catch(() => []);
+  const latestFailures = allIntegrations.filter((integration) => {
+    const latest = integrationHealth.find((entry) => entry.instanceId === integration.instanceId);
+    return latest && !latest.ok;
+  });
+  checks.push({
+    key: "integrations",
+    label: "Integrations",
+    ok: latestFailures.length === 0,
+    message: `${allIntegrations.length} configured${latestFailures.length ? `, ${latestFailures.length} failing` : ""}`,
+  });
+
+  const webhookDeliveries = await getWebhookDeliveryHistory().catch(() => []);
+  const recentWebhookFailures = webhookDeliveries.slice(0, 20).filter((entry) => !entry.ok);
+  checks.push({
+    key: "webhooks",
+    label: "Webhooks",
+    ok: recentWebhookFailures.length === 0,
+    message: `${webhookDeliveries.length} recent deliveries${recentWebhookFailures.length ? `, ${recentWebhookFailures.length} failed` : ""}`,
+  });
+
+  const backup = getBackupSummary();
+  checks.push({
+    key: "backups",
+    label: "Backups",
+    ok: backup.writable && Boolean(backup.latestBackup),
+    message: backup.latestBackup ? `Latest ${new Date(backup.latestBackup.datecreated).toISOString()}` : "No backups found",
+  });
+
+  const taskScheduler = new TaskScheduler().getInstance();
+  const runningTasks = Object.keys(new TaskManager().getInstance().tasks || {});
+  checks.push({
+    key: "tasks",
+    label: "Tasks",
+    ok: true,
+    message: `${taskScheduler.taskHistory?.length || 0} task histories, ${runningTasks.length} running`,
+  });
+
+  return {
+    checkedAt,
+    ok: checks.every((check) => check.ok),
+    checks,
+    backup,
+    integrations: {
+      count: allIntegrations.length,
+      failures: latestFailures.map((item) => item.name),
+    },
+    webhooks: {
+      recentDeliveries: webhookDeliveries.length,
+      recentFailures: recentWebhookFailures.length,
+    },
+    tasks: {
+      running: runningTasks,
+      history: taskScheduler.taskHistory || [],
+    },
+  };
+}
+
 async function testArrIntegration(integration) {
   const url = cleanIntegrationUrl(integration.values?.url);
   const apiKey = integration.values?.secret;
   const name = String(integration.name).toLowerCase();
+  const isSeerr = name.includes("jellyseerr") || name.includes("overseerr");
   const isBazarr = name === "bazarr";
   const isLidarr = name === "lidarr";
-  const apiPaths = isBazarr
+  const apiPaths = isSeerr
+    ? ["/api/v1/status"]
+    : isBazarr
     ? ["/api/system/status", "/api/system/status?apikey=:apiKey"]
     : [isLidarr ? "/api/v1/system/status" : "/api/v3/system/status"];
 
@@ -150,6 +288,764 @@ async function testDownloadIntegration(integration) {
     version: "saved credentials",
     message: "Connected to saved credentials",
   };
+}
+
+function isSeerrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name.includes("jellyseerr") || name.includes("overseerr");
+}
+
+function cloneJson(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function clearRequestCache() {
+  requestCache.clear();
+}
+
+async function fetchSeerrMediaDetails(app, media) {
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const mediaType = String(media?.mediaType || "").toLowerCase();
+  const tmdbId = media?.tmdbId || media?.externalServiceSlug;
+
+  if (!url || !apiKey || !tmdbId || !["movie", "tv"].includes(mediaType)) {
+    return {};
+  }
+
+  const cacheKey = `${app.instanceId || app.name}:${mediaType}:${tmdbId}`;
+  const cached = seerrMediaDetailCache.get(cacheKey);
+  if (cached?.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  try {
+    const response = await axios.get(`${url}/api/v1/${mediaType}/${encodeURIComponent(tmdbId)}`, {
+      timeout: 10000,
+      headers: { "X-Api-Key": apiKey },
+    });
+    const data = response.data || {};
+    seerrMediaDetailCache.set(cacheKey, { data, expiresAt: Date.now() + SEERR_MEDIA_DETAIL_CACHE_TTL_MS });
+    return data;
+  } catch (error) {
+    console.log(`[REQUESTS] ${app.name} metadata lookup failed for ${mediaType}:${tmdbId}:`, getAxiosErrorMessage(error));
+    return {};
+  }
+}
+
+function buildSeerrImageUrl(imagePath, size = "w342") {
+  if (!imagePath) return null;
+  const normalizedPath = String(imagePath).startsWith("/") ? imagePath : `/${imagePath}`;
+  return `https://image.tmdb.org/t/p/${size}${normalizedPath}`;
+}
+
+function buildSeerrImageUrls(imagePath) {
+  return ["w342", "w500", "original"].map((size) => buildSeerrImageUrl(imagePath, size)).filter(Boolean);
+}
+
+function buildSeerrOpenUrl(app, request) {
+  const url = cleanIntegrationUrl(app.values?.url);
+  const mediaType = String(request.mediaType || "").toLowerCase();
+  const tmdbId = request.externalIds?.tmdbId;
+  if (!url || !tmdbId || !["movie", "tv"].includes(mediaType)) return url || null;
+  return `${url}/${mediaType}/${encodeURIComponent(tmdbId)}`;
+}
+
+function normalizeRequestedSeasons(seasons = []) {
+  return seasons.map((season) => ({
+    seasonNumber: season.seasonNumber ?? season.season_number ?? season.season,
+    status: season.status,
+    episodes: Array.isArray(season.episodes)
+      ? season.episodes.map((episode) => ({
+          episodeNumber: episode.episodeNumber ?? episode.episode_number ?? episode.episode,
+          title: episode.title || episode.name || `Episode ${episode.episodeNumber ?? episode.episode_number ?? ""}`.trim(),
+          airDate: episode.airDate || episode.air_date || null,
+        }))
+      : [],
+  }));
+}
+
+async function getRequestAvailability(request) {
+  const title = String(request.title || "").trim();
+  const mediaType = String(request.mediaType || "").toLowerCase();
+  const year = Number(request.year);
+
+  if (!title) {
+    return { status: "Unknown", matchedItems: 0, message: "No title to compare" };
+  }
+
+  const typeFilter = mediaType === "tv" ? "Series" : mediaType === "movie" ? "Movie" : null;
+  const values = [title.toLowerCase()];
+  let query = `SELECT "Id", "Name", "Type", "ProductionYear" FROM jf_library_items WHERE archived=false AND lower("Name")=$1`;
+
+  if (typeFilter) {
+    values.push(typeFilter);
+    query += ` AND "Type"=$${values.length}`;
+  }
+
+  if (Number.isFinite(year) && year > 0) {
+    values.push(year);
+    query += ` AND ("ProductionYear"=$${values.length} OR "ProductionYear" IS NULL)`;
+  }
+
+  const matches = await db.query(query, values).then((result) => result.rows || []).catch(() => []);
+  if (!matches.length) {
+    return { status: "Missing", matchedItems: 0, message: "No Jellyfin match" };
+  }
+
+  if (mediaType !== "tv" || !request.requestedSeasons?.length) {
+    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id };
+  }
+
+  const seriesIds = matches.map((item) => item.Id);
+  const requestedEpisodes = request.requestedSeasons.reduce((count, season) => count + (season.episodes?.length || 0), 0);
+  if (!requestedEpisodes) {
+    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id };
+  }
+
+  const conditions = [];
+  const params = [];
+  request.requestedSeasons.forEach((season) => {
+    (season.episodes || []).forEach((episode) => {
+      params.push(Number(season.seasonNumber), Number(episode.episodeNumber));
+      conditions.push(`("ParentIndexNumber"=$${params.length - 1} AND "IndexNumber"=$${params.length})`);
+    });
+  });
+
+  const count = conditions.length
+    ? await db
+        .query(
+          `SELECT COUNT(*)::int AS count
+           FROM jf_library_episodes
+           WHERE archived=false AND "SeriesId" IN (${pgp.as.csv(seriesIds)}) AND (${conditions.join(" OR ")})`,
+          params
+        )
+        .then((result) => Number(result.rows?.[0]?.count || 0))
+        .catch(() => 0)
+    : 0;
+
+  if (count >= requestedEpisodes) {
+    return { status: "Available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id };
+  }
+
+  if (count > 0) {
+    return { status: "Partially available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id };
+  }
+
+  return { status: "Missing", matchedItems: matches.length, availableEpisodes: 0, requestedEpisodes, jellyfinItemId: matches[0].Id };
+}
+
+async function normalizeSeerrRequest(item, source, options = {}) {
+  const media = item.media || item.mediaInfo || {};
+  const requester = item.requestedBy || item.requestedByUser || {};
+  const mediaDetails = options.lightweight ? {} : await fetchSeerrMediaDetails(source, media);
+  const posterPath = mediaDetails.posterPath || mediaDetails.poster_path || media.posterPath || media.poster_path || null;
+  const backdropPath = mediaDetails.backdropPath || mediaDetails.backdrop_path || media.backdropPath || media.backdrop_path || null;
+  const releaseDate = mediaDetails.releaseDate || mediaDetails.firstAirDate || mediaDetails.release_date || mediaDetails.first_air_date || "";
+  const runtime = mediaDetails.runtime || mediaDetails.episodeRunTime?.[0] || mediaDetails.episode_run_time?.[0] || null;
+  const statusMap = {
+    1: "Pending",
+    2: "Approved",
+    3: "Declined",
+    4: "Failed",
+    5: "Available",
+  };
+
+  const normalized = {
+    id: `${source.instanceId}-${item.id}`,
+    requestId: item.id,
+    sourceId: source.instanceId,
+    source: source.name,
+    title:
+      media.title ||
+      media.name ||
+      mediaDetails.title ||
+      mediaDetails.name ||
+      mediaDetails.originalTitle ||
+      mediaDetails.originalName ||
+      item.title ||
+      item.name ||
+      "Unknown request",
+    mediaType: media.mediaType || item.type || item.mediaType || "media",
+    status: statusMap[item.status] || item.statusLabel || item.status || "Unknown",
+    requestedBy: requester.displayName || requester.username || requester.jellyfinUsername || requester.email || "Unknown user",
+    createdAt: item.createdAt || item.updatedAt || null,
+    seasons: Array.isArray(item.seasons) ? item.seasons.length : 0,
+    requestedSeasons: normalizeRequestedSeasons(item.seasons || []),
+    posterPath,
+    posterUrl: buildSeerrImageUrl(posterPath, "w342"),
+    posterUrls: buildSeerrImageUrls(posterPath),
+    backdropUrl: buildSeerrImageUrl(backdropPath, "w780"),
+    overview: mediaDetails.overview || mediaDetails.summary || "",
+    genres: (mediaDetails.genres || []).map((genre) => genre.name || genre).filter(Boolean),
+    runtime,
+    rating: mediaDetails.voteAverage || mediaDetails.vote_average || mediaDetails.rating || null,
+    year: releaseDate.slice(0, 4),
+    releaseDate,
+    externalIds: {
+      tmdbId: media.tmdbId || mediaDetails.id || null,
+      tvdbId: media.tvdbId || mediaDetails.tvdbId || null,
+      imdbId: media.imdbId || mediaDetails.imdbId || mediaDetails.imdb_id || null,
+    },
+    mediaId: media.id || media.mediaId || item.mediaId || null,
+  };
+
+  normalized.openUrl = buildSeerrOpenUrl(source, normalized);
+  normalized.availability = options.lightweight ? { status: "Unknown", matchedItems: 0 } : await getRequestAvailability(normalized);
+  return normalized;
+}
+
+function buildRequestStats(requests = []) {
+  const realRequests = requests.filter((request) => request.status !== "Error");
+  const statusCounts = realRequests.reduce((counts, request) => {
+    const status = request.status || "Unknown";
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
+  const requesterCounts = realRequests.reduce((counts, request) => {
+    const requester = request.requestedBy || "Unknown user";
+    counts[requester] = (counts[requester] || 0) + 1;
+    return counts;
+  }, {});
+  const mediaTypeCounts = realRequests.reduce((counts, request) => {
+    const mediaType = request.mediaType || "media";
+    counts[mediaType] = (counts[mediaType] || 0) + 1;
+    return counts;
+  }, {});
+
+  const topRequesters = Object.entries(requesterCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 5);
+  const mostRequestedMediaType = Object.entries(mediaTypeCounts)
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))[0] || { type: "none", count: 0 };
+  const failed = (statusCounts.Failed || 0) + requests.filter((request) => request.status === "Error").length;
+  const pending = statusCounts.Pending || 0;
+
+  return {
+    total: realRequests.length,
+    pending,
+    approved: statusCounts.Approved || 0,
+    available: statusCounts.Available || 0,
+    partial: statusCounts.Partial || 0,
+    failed,
+    badgeCount: pending + failed,
+    topRequesters,
+    mediaTypeCounts,
+    mostRequestedMediaType,
+  };
+}
+
+async function buildSeerrRequests(options = {}) {
+  const integrations = await getIntegrations();
+  const seerrApps = (integrations.arrApps || []).filter((integration) => integration.connected && isSeerrIntegration(integration));
+  const results = [];
+
+  for (const app of seerrApps) {
+    const url = cleanIntegrationUrl(app.values?.url);
+    const apiKey = app.values?.secret;
+    if (!url || !apiKey) continue;
+
+    try {
+      const response = await axios.get(`${url}/api/v1/request`, {
+        timeout: 10000,
+        headers: { "X-Api-Key": apiKey },
+        params: { take: 50, skip: 0 },
+      });
+      const requests = Array.isArray(response.data?.results) ? response.data.results : Array.isArray(response.data) ? response.data : [];
+      results.push(...(await Promise.all(requests.map((item) => normalizeSeerrRequest(item, app, options)))));
+    } catch (error) {
+      results.push({
+        id: `${app.instanceId}-error`,
+        source: app.name,
+        title: "Unable to load requests",
+        mediaType: "error",
+        status: "Error",
+        requestedBy: getAxiosErrorMessage(error),
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  let sortedRequests = results.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  if (options.includeInterest && !options.lightweight) {
+    sortedRequests = await annotateRequestUserInterest(sortedRequests);
+  }
+
+  return {
+    sources: seerrApps.map((app) => ({ name: app.name, instanceId: app.instanceId, connected: app.connected })),
+    requests: sortedRequests,
+    stats: buildRequestStats(sortedRequests),
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+async function fetchSeerrRequests(options = {}) {
+  const cacheKey = `${options.lightweight ? "lightweight" : "full"}:${options.includeInterest ? "interest" : "plain"}`;
+  const existing = requestCache.get(cacheKey);
+  const now = Date.now();
+
+  if (!options.force && existing?.data && existing.expiresAt > now) {
+    return cloneJson(existing.data);
+  }
+
+  if (!options.force && existing?.promise) {
+    return cloneJson(await existing.promise);
+  }
+
+  const promise = buildSeerrRequests(options);
+  requestCache.set(cacheKey, { ...existing, promise });
+
+  try {
+    const data = await promise;
+    requestCache.set(cacheKey, { data, expiresAt: Date.now() + REQUEST_CACHE_TTL_MS });
+    return cloneJson(data);
+  } catch (error) {
+    requestCache.delete(cacheKey);
+    throw error;
+  }
+}
+
+async function annotateRequestUserInterest(requests = []) {
+  const jellyfinIds = [
+    ...new Set(requests.map((request) => request.availability?.jellyfinItemId).filter(Boolean)),
+  ];
+  if (!jellyfinIds.length) return requests;
+
+  const users = await API.getUsers(true).catch(() => []);
+  const interests = new Map(jellyfinIds.map((id) => [id, { favouritedBy: [], watchlistedBy: [] }]));
+
+  await Promise.all(
+    users.map(async (user) => {
+      const [favourites, watchlist] = await Promise.all([
+        fetchJellyfinUserItems(user.Id, { Filters: "IsFavorite", IncludeItemTypes: "Movie,Series", Limit: 300 }).catch(() => []),
+        fetchJellyfinUserItems(user.Id, { Filters: "Likes", IncludeItemTypes: "Movie,Series", Limit: 300 }).catch(() => []),
+      ]);
+
+      favourites.forEach((item) => {
+        if (interests.has(item.Id)) interests.get(item.Id).favouritedBy.push(user.Name);
+      });
+      watchlist.forEach((item) => {
+        if (interests.has(item.Id)) interests.get(item.Id).watchlistedBy.push(user.Name);
+      });
+    })
+  );
+
+  return requests.map((request) => ({
+    ...request,
+    userInterest: interests.get(request.availability?.jellyfinItemId) || { favouritedBy: [], watchlistedBy: [] },
+  }));
+}
+
+async function runSeerrRequestAction({ requestId, sourceId, action }) {
+  const integrations = await getIntegrations();
+  const app = (integrations.arrApps || []).find((integration) => integration.instanceId === sourceId && isSeerrIntegration(integration));
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const actionPaths = {
+    approve: [`/api/v1/request/${encodeURIComponent(requestId)}/approve`],
+    decline: [`/api/v1/request/${encodeURIComponent(requestId)}/decline`],
+    retry: [`/api/v1/request/${encodeURIComponent(requestId)}/retry`],
+  };
+
+  if (!actionPaths[action]) {
+    const error = new Error("Unsupported request action");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let lastError;
+  for (const path of actionPaths[action]) {
+    try {
+      const response = await axios.post(`${url}${path}`, {}, { timeout: 10000, headers: { "X-Api-Key": apiKey } });
+      return { ok: true, source: app.name, action, status: response.status, data: response.data };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const error = new Error(getAxiosErrorMessage(lastError));
+  error.statusCode = lastError?.response?.status || 503;
+  throw error;
+}
+
+function normalizeJellyfinMediaItem(item) {
+  const mediaType = item.Type === "Series" ? "Series" : item.Type === "Episode" ? "Episode" : item.Type === "Movie" ? "Movie" : item.Type || "Media";
+  const playbackTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
+  const runtimeTicks = Number(item.RunTimeTicks || 0);
+  const progress = runtimeTicks > 0 ? Math.min(100, Math.round((playbackTicks / runtimeTicks) * 100)) : Number(item.UserData?.PlayedPercentage || 0);
+  const imageId = mediaType === "Episode" && item.SeriesId ? item.SeriesId : item.Id;
+  return {
+    id: item.Id,
+    name: item.Name || item.SeriesName || "Untitled",
+    type: mediaType,
+    year: item.ProductionYear || (item.PremiereDate ? String(item.PremiereDate).slice(0, 4) : null),
+    overview: item.Overview || "",
+    seriesName: item.SeriesName || null,
+    seasonNumber: item.ParentIndexNumber ?? null,
+    episodeNumber: item.IndexNumber ?? null,
+    communityRating: item.CommunityRating || null,
+    dateCreated: item.DateCreated || null,
+    datePlayed: item.UserData?.LastPlayedDate || null,
+    genres: Array.isArray(item.Genres) ? item.Genres : [],
+    studios: Array.isArray(item.Studios) ? item.Studios.map((studio) => studio.Name || studio).filter(Boolean) : [],
+    people: Array.isArray(item.People) ? item.People.slice(0, 8).map((person) => person.Name || person).filter(Boolean) : [],
+    progress,
+    played: Boolean(item.UserData?.Played),
+    favourite: Boolean(item.UserData?.IsFavorite),
+    liked: item.UserData?.Likes === true,
+    imageId,
+    hasPrimaryImage: Boolean(item.ImageTags?.Primary || item.PrimaryImageTag || item.SeriesPrimaryImageTag),
+  };
+}
+
+async function fetchJellyfinUserItems(userId, params = {}) {
+  const config = await new configClass().getConfig();
+  if (config.error) {
+    throw new Error(config.error);
+  }
+
+  const response = await axios.get(`${cleanIntegrationUrl(config.JF_HOST)}/Users/${encodeURIComponent(userId)}/Items`, {
+    timeout: 12000,
+    headers: {
+      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      "User-Agent": "JellyGlance/1.0.6",
+    },
+    params: {
+      Recursive: true,
+      Limit: 24,
+      Fields: "DateCreated,Genres,Overview,CommunityRating,PremiereDate,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData,Studios,People",
+      ExcludeLocationTypes: "Virtual",
+      ...params,
+    },
+  });
+
+  return Array.isArray(response.data?.Items) ? response.data.Items : [];
+}
+
+async function jellyfinRequest(path, options = {}) {
+  const config = await new configClass().getConfig();
+  if (config.error) {
+    throw new Error(config.error);
+  }
+
+  return axios({
+    timeout: 12000,
+    method: options.method || "get",
+    url: `${cleanIntegrationUrl(config.JF_HOST)}${path}`,
+    headers: {
+      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      "User-Agent": "JellyGlance/1.0.6",
+      ...(options.headers || {}),
+    },
+    params: options.params,
+    data: options.data,
+  });
+}
+
+function dedupeMediaItems(items = []) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item?.Id || seen.has(item.Id)) return false;
+    seen.add(item.Id);
+    return true;
+  });
+}
+
+function splitMediaTypes(items = []) {
+  return {
+    movies: items.filter((item) => item.type === "Movie"),
+    shows: items.filter((item) => item.type === "Series"),
+    episodes: items.filter((item) => item.type === "Episode"),
+  };
+}
+
+function tallyValues(items = [], getter, limit = 8) {
+  const counts = new Map();
+  items.forEach((item) => {
+    const values = getter(item);
+    (Array.isArray(values) ? values : [values]).filter(Boolean).forEach((value) => {
+      counts.set(value, (counts.get(value) || 0) + 1);
+    });
+  });
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+async function fetchRecentlyWatched(userId) {
+  const rows = await db
+    .query(
+      `
+        SELECT DISTINCT ON (COALESCE(a."EpisodeId", a."NowPlayingItemId"))
+          COALESCE(a."EpisodeId", a."NowPlayingItemId") AS "Id",
+          a."NowPlayingItemId",
+          a."NowPlayingItemName",
+          a."EpisodeId",
+          a."SeriesName",
+          a."ActivityDateInserted",
+          i."Type",
+          i."ProductionYear",
+          i."Genres"
+        FROM jf_playback_activity a
+        LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+        WHERE a."UserId" = $1
+        ORDER BY COALESCE(a."EpisodeId", a."NowPlayingItemId"), a."ActivityDateInserted" DESC
+      `,
+      [userId]
+    )
+    .then((result) => result.rows || [])
+    .catch(() => []);
+
+  return rows
+    .sort((a, b) => new Date(b.ActivityDateInserted || 0) - new Date(a.ActivityDateInserted || 0))
+    .slice(0, 10)
+    .map((item) => ({
+      id: item.Id,
+      name: item.NowPlayingItemName || item.SeriesName || "Untitled",
+      type: item.EpisodeId ? "Episode" : item.Type || "Media",
+      seriesName: item.SeriesName || null,
+      year: item.ProductionYear || null,
+      datePlayed: item.ActivityDateInserted || null,
+      genres: (() => {
+        try {
+          return Array.isArray(item.Genres) ? item.Genres : JSON.parse(item.Genres || "[]");
+        } catch {
+          return [];
+        }
+      })(),
+      imageId: item.NowPlayingItemId,
+      hasPrimaryImage: true,
+    }));
+}
+
+async function fetchNextEpisodes(userId, seriesIds = []) {
+  if (!seriesIds.length) return [];
+
+  const response = await jellyfinRequest("/Shows/NextUp", {
+    params: {
+      UserId: userId,
+      SeriesId: seriesIds.join(","),
+      Limit: 24,
+      Fields: "DateCreated,Genres,Overview,CommunityRating,PremiereDate,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData",
+    },
+  }).catch(() => null);
+
+  return (response?.data?.Items || []).map(normalizeJellyfinMediaItem);
+}
+
+async function buildRecommendations(userId, seedItems = []) {
+  const topGenres = tallyValues(seedItems, (item) => item.genres, 4).map((genre) => genre.name);
+  if (!topGenres.length) return [];
+
+  const rows = await db
+    .query(
+      `SELECT "Id", "Name", "Type", "ProductionYear", "Genres", "DateCreated"
+       FROM jf_library_items
+       WHERE archived=false AND "Type" IN ('Movie', 'Series')
+       ORDER BY "DateCreated" DESC
+       LIMIT 500`
+    )
+    .then((result) => result.rows || [])
+    .catch(() => []);
+
+  const watchedIds = new Set(
+    await db
+      .query(`SELECT DISTINCT "NowPlayingItemId" FROM jf_playback_activity WHERE "UserId"=$1`, [userId])
+      .then((result) => (result.rows || []).map((row) => row.NowPlayingItemId))
+      .catch(() => [])
+  );
+  const seedIds = new Set(seedItems.map((item) => item.id));
+
+  return rows
+    .map((row) => {
+      let genres = [];
+      try {
+        genres = Array.isArray(row.Genres) ? row.Genres : JSON.parse(row.Genres || "[]");
+      } catch {
+        genres = [];
+      }
+      const score = genres.filter((genre) => topGenres.includes(genre)).length;
+      return { row, genres, score };
+    })
+    .filter(({ row, score }) => score > 0 && !watchedIds.has(row.Id) && !seedIds.has(row.Id))
+    .sort((a, b) => b.score - a.score || new Date(b.row.DateCreated || 0) - new Date(a.row.DateCreated || 0))
+    .slice(0, 12)
+    .map(({ row, genres }) => ({
+      id: row.Id,
+      name: row.Name,
+      type: row.Type,
+      year: row.ProductionYear,
+      genres,
+      imageId: row.Id,
+      hasPrimaryImage: true,
+      reason: genres.find((genre) => topGenres.includes(genre)) || topGenres[0],
+    }));
+}
+
+async function fetchUserMediaNetwork(userId, favourites = [], watchlist = []) {
+  const users = await API.getUsers(true).catch(() => []);
+  const otherUsers = users.filter((user) => user.Id && user.Id !== userId);
+
+  const familyResults = await Promise.all(
+    otherUsers.map((user) =>
+      fetchJellyfinUserItems(user.Id, {
+        Filters: "Likes",
+        IncludeItemTypes: "Movie,Series",
+        SortBy: "DateCreated,SortName",
+        SortOrder: "Descending",
+        Limit: 48,
+      })
+        .then((items) => ({ user, items: items.map(normalizeJellyfinMediaItem) }))
+        .catch(() => ({ user, items: [] }))
+    )
+  );
+
+  const sharedLookup = new Map();
+  [...favourites, ...watchlist].forEach((item) => {
+    familyResults.forEach(({ user, items }) => {
+      if (items.some((candidate) => candidate.id === item.id)) {
+        const current = sharedLookup.get(item.id) || { ...item, users: [] };
+        current.users.push(user.Name);
+        sharedLookup.set(item.id, current);
+      }
+    });
+  });
+
+  const familyLookup = new Map();
+  familyResults.forEach(({ user, items }) => {
+    items.forEach((item) => {
+      const current = familyLookup.get(item.id) || { ...item, users: [] };
+      current.users.push(user.Name);
+      familyLookup.set(item.id, current);
+    });
+  });
+
+  return {
+    sharedFavourites: [...sharedLookup.values()].sort((a, b) => b.users.length - a.users.length).slice(0, 12),
+    familyWatchlist: splitMediaTypes([...familyLookup.values()].sort((a, b) => b.users.length - a.users.length).slice(0, 24)),
+  };
+}
+
+async function fetchUserMediaLists(userId) {
+  const includeItemTypes = "Movie,Series,Episode";
+  const favourites = await fetchJellyfinUserItems(userId, {
+    Filters: "IsFavorite",
+    IncludeItemTypes: includeItemTypes,
+    SortBy: "DateCreated,SortName",
+    SortOrder: "Descending",
+    Limit: 24,
+  });
+
+  const jellyfinWatchlist = await fetchJellyfinUserItems(userId, {
+    Filters: "Likes",
+    IncludeItemTypes: "Movie,Series",
+    SortBy: "DateCreated,SortName",
+    SortOrder: "Descending",
+    Limit: 48,
+  }).catch(() => []);
+
+  const taggedWatchlist = await fetchJellyfinUserItems(userId, {
+    Tags: "watchlist,Watchlist",
+    IncludeItemTypes: includeItemTypes,
+    SortBy: "DateCreated,SortName",
+    SortOrder: "Descending",
+    Limit: 24,
+  }).catch(() => []);
+
+  const watchlistContainers = await fetchJellyfinUserItems(userId, {
+    SearchTerm: "Watchlist",
+    IncludeItemTypes: "Playlist,BoxSet",
+    SortBy: "SortName",
+    SortOrder: "Ascending",
+    Limit: 10,
+  }).catch(() => []);
+
+  const containerItems = (
+    await Promise.all(
+      watchlistContainers.map((container) =>
+        fetchJellyfinUserItems(userId, {
+          ParentId: container.Id,
+          IncludeItemTypes: includeItemTypes,
+          SortBy: "DateCreated,SortName",
+          SortOrder: "Descending",
+          Limit: 24,
+        }).catch(() => [])
+      )
+    )
+  ).flat();
+
+  const watchlist = dedupeMediaItems([...jellyfinWatchlist, ...taggedWatchlist, ...containerItems]).slice(0, 48).map(normalizeJellyfinMediaItem);
+  const normalizedFavourites = dedupeMediaItems(favourites).slice(0, 24).map(normalizeJellyfinMediaItem);
+  const continueWatching = await fetchJellyfinUserItems(userId, {
+    Filters: "IsResumable",
+    IncludeItemTypes: "Movie,Episode",
+    SortBy: "DatePlayed",
+    SortOrder: "Descending",
+    Limit: 24,
+  })
+    .then((items) => items.map(normalizeJellyfinMediaItem))
+    .catch(() => []);
+  const recentlyWatched = await fetchRecentlyWatched(userId);
+  const nextEpisodes = await fetchNextEpisodes(
+    userId,
+    watchlist.filter((item) => item.type === "Series").map((item) => item.id)
+  );
+  const recommendations = await buildRecommendations(userId, watchlist);
+  const mediaNetwork = await fetchUserMediaNetwork(userId, normalizedFavourites, watchlist);
+  const allTasteItems = [...normalizedFavourites, ...watchlist, ...recentlyWatched];
+  const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+  return {
+    userId,
+    favourites: normalizedFavourites,
+    watchlist,
+    watchlistByType: splitMediaTypes(watchlist),
+    continueWatching,
+    recentlyWatched,
+    nextEpisodes,
+    recommendations,
+    staleWatchlist: watchlist.filter((item) => item.dateCreated && new Date(item.dateCreated).getTime() < staleThreshold),
+    libraryGaps: nextEpisodes.filter((item) => item.type === "Episode"),
+    taste: {
+      genres: tallyValues(allTasteItems, (item) => item.genres),
+      actors: tallyValues(allTasteItems, (item) => item.people),
+      studios: tallyValues(allTasteItems, (item) => item.studios),
+    },
+    ...mediaNetwork,
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+async function runJellyfinUserMediaAction(userId, itemId, action) {
+  const encodedUserId = encodeURIComponent(userId);
+  const encodedItemId = encodeURIComponent(itemId);
+  const actionMap = {
+    addWatchlist: { method: "post", path: `/Users/${encodedUserId}/Items/${encodedItemId}/Rating`, params: { likes: true } },
+    removeWatchlist: { method: "delete", path: `/Users/${encodedUserId}/Items/${encodedItemId}/Rating` },
+    favourite: { method: "post", path: `/Users/${encodedUserId}/FavoriteItems/${encodedItemId}` },
+    unfavourite: { method: "delete", path: `/Users/${encodedUserId}/FavoriteItems/${encodedItemId}` },
+    markWatched: { method: "post", path: `/Users/${encodedUserId}/PlayedItems/${encodedItemId}` },
+    markUnwatched: { method: "delete", path: `/Users/${encodedUserId}/PlayedItems/${encodedItemId}` },
+  };
+
+  const request = actionMap[action];
+  if (!request) {
+    const error = new Error("Unsupported media action");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await jellyfinRequest(request.path, { method: request.method, params: request.params });
+  return { ok: true, action, userId, itemId };
 }
 
 async function testOidcDiscovery(issuerUrl) {
@@ -448,6 +1344,81 @@ async function purgeLibraryItems(id, withActivity, purgeAll = false) {
 }
 
 //////////////////////////////
+router.get("/health", async (req, res) => {
+  try {
+    res.send(await buildHealthStatus());
+  } catch (error) {
+    console.error("Health check failed:", error);
+    res.status(503).send({ error: "Unable to build health dashboard" });
+  }
+});
+
+router.get("/admin-audit", async (req, res) => {
+  try {
+    res.send(await getAuditLog());
+  } catch (error) {
+    console.error("Audit log failed:", error);
+    res.status(503).send({ error: "Unable to load admin audit log" });
+  }
+});
+
+router.get("/requests", async (req, res) => {
+  try {
+    res.send(
+      await fetchSeerrRequests({
+        force: req.query?.force === "true",
+        includeInterest: req.query?.includeInterest === "true",
+      })
+    );
+  } catch (error) {
+    console.error("Get Seerr requests failed:", error);
+    res.status(503).send({ error: "Unable to load requests" });
+  }
+});
+
+router.get("/requests/summary", async (req, res) => {
+  try {
+    const data = await fetchSeerrRequests({ lightweight: true, force: req.query?.force === "true" });
+    res.send({ stats: data.stats, sources: data.sources, syncedAt: data.syncedAt });
+  } catch (error) {
+    console.error("Get Seerr request summary failed:", error);
+    res.status(503).send({ error: "Unable to load request summary" });
+  }
+});
+
+router.post("/requests/:requestId/actions", async (req, res) => {
+  try {
+    const result = await runSeerrRequestAction({
+      requestId: req.params.requestId,
+      sourceId: req.body?.sourceId,
+      action: req.body?.action,
+    });
+    clearRequestCache();
+    res.send(result);
+  } catch (error) {
+    console.error("Seerr request action failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to update request" });
+  }
+});
+
+router.get("/users/:userId/media-lists", async (req, res) => {
+  try {
+    res.send(await fetchUserMediaLists(req.params.userId));
+  } catch (error) {
+    console.error("Get user media lists failed:", error);
+    res.status(503).send({ error: error.message || "Unable to load user media lists" });
+  }
+});
+
+router.post("/users/:userId/media/:itemId/actions", async (req, res) => {
+  try {
+    res.send(await runJellyfinUserMediaAction(req.params.userId, req.params.itemId, req.body?.action));
+  } catch (error) {
+    console.error("User media action failed:", error);
+    res.status(error.statusCode || error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to update media item" });
+  }
+});
+
 router.get("/getconfig", async (req, res) => {
   try {
     const config = await new configClass().getConfig();
@@ -991,6 +1962,7 @@ router.post("/setAuthMode", async (req, res) => {
     }
 
     await db.query(query, params);
+    await addAuditEntry(req, "auth.mode.updated", { mode });
     res.json({ isValid: true, mode, settings });
   } catch (error) {
     console.log(error);
@@ -1111,6 +2083,7 @@ router.post("/roles", async (req, res) => {
       [cleanRole]: { dashboard: true, users: false, settings: false, apiKeys: false },
     };
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "role.created", { role: cleanRole });
     res.status(201).json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
   } catch (error) {
     console.log(error);
@@ -1144,6 +2117,7 @@ router.delete("/roles/:role", async (req, res) => {
     }));
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "role.deleted", { role });
     res.json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
   } catch (error) {
     console.log(error);
@@ -1183,6 +2157,7 @@ router.patch("/roles/:role/permissions", async (req, res) => {
     };
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "role.permissions.updated", { role, permissions: settings.rolePermissions[role] });
     res.json({ role, permissions: settings.rolePermissions[role] });
   } catch (error) {
     console.log(error);
@@ -1218,6 +2193,7 @@ router.post("/localUsers", async (req, res) => {
 
     settings.localUsers = [...localUsers, nextUser];
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "local_user.created", { username, role: nextUser.role });
     res.status(201).json({ ...nextUser, password: undefined });
   } catch (error) {
     console.log(error);
@@ -1248,6 +2224,7 @@ router.patch("/localUsers/:id", async (req, res) => {
 
     settings.localUsers = localUsers;
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "local_user.updated", { username: localUsers[userIndex].username, role: localUsers[userIndex].role, passwordChanged: Boolean(password) });
     res.json({ ...localUsers[userIndex], password: undefined });
   } catch (error) {
     console.log(error);
@@ -1264,6 +2241,7 @@ router.patch("/primaryLocalPassword", async (req, res) => {
     }
 
     await db.query('UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1', [password]);
+    await addAuditEntry(req, "local_user.primary_password_reset", {});
     res.json({ isValid: true });
   } catch (error) {
     console.log(error);
@@ -1280,6 +2258,7 @@ router.delete("/localUsers/:id", async (req, res) => {
     settings.localUsers = localUsers.filter((user) => user.id !== id);
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "local_user.deleted", { id });
     res.json({ isValid: true });
   } catch (error) {
     console.log(error);
@@ -1305,6 +2284,7 @@ router.patch("/userRoles/:userid", async (req, res) => {
     };
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "jellyfin_user.role.updated", { userid, role });
     res.json({ userid, role });
   } catch (error) {
     console.log(error);
@@ -2652,10 +3632,70 @@ router.get("/integrations", async (req, res) => {
 
 router.post("/integrations", async (req, res) => {
   try {
-    res.send(await saveIntegrations(req.body || {}));
+    const saved = await saveIntegrations(req.body || {});
+    await addAuditEntry(req, "integrations.updated", {
+      arrApps: saved.arrApps?.length || 0,
+      clients: saved.clients?.length || 0,
+    });
+    res.send(saved);
   } catch (error) {
     console.error("Save integrations failed:", error);
     res.status(503).send({ error: "Unable to save integrations" });
+  }
+});
+
+router.get("/integrations/health-history", async (req, res) => {
+  try {
+    res.send(await getIntegrationHealthHistory());
+  } catch (error) {
+    console.error("Get integration health history failed:", error);
+    res.status(503).send({ error: "Unable to load integration health history" });
+  }
+});
+
+router.post("/integrations/test-all", async (req, res) => {
+  try {
+    const integrations = await getIntegrations();
+    const arrApps = (integrations.arrApps || []).filter((integration) => integration.connected);
+    const clients = (integrations.clients || []).filter((integration) => integration.connected);
+    const allIntegrations = [
+      ...arrApps.map((integration) => ({ integration, type: "automation" })),
+      ...clients.map((integration) => ({ integration, type: "download" })),
+    ];
+
+    const checkedAt = new Date().toISOString();
+    const results = await Promise.all(
+      allIntegrations.map(async ({ integration, type }) => {
+        try {
+          const result = type === "download" ? await testDownloadIntegration(integration) : await testArrIntegration(integration);
+          return {
+            instanceId: integration.instanceId,
+            name: integration.name,
+            type,
+            ok: Boolean(result.ok),
+            version: result.version || "",
+            message: result.message || (result.ok ? "Connected" : "Connection failed"),
+            checkedAt,
+          };
+        } catch (error) {
+          return {
+            instanceId: integration.instanceId,
+            name: integration.name,
+            type,
+            ok: false,
+            version: "",
+            message: getAxiosErrorMessage(error),
+            checkedAt,
+          };
+        }
+      })
+    );
+
+    const history = await saveIntegrationHealthResults(results);
+    res.send({ results, history });
+  } catch (error) {
+    console.error("Test all integrations failed:", error);
+    res.status(503).send({ error: "Unable to test integrations" });
   }
 });
 

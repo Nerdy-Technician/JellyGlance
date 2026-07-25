@@ -13,10 +13,12 @@ import ActivityTimeline from "./pages/activity_time_line";
 import RecentlyAddedPage from "./pages/recently-added";
 import Integrations from "./pages/integrations";
 import Calendar from "./pages/calendar";
+import Requests from "./pages/requests";
 import Downloads from "./pages/downloads";
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
+  { path: "/home/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/settings", element: <Settings />, exact: true },
   { path: "/users", element: <Users />, exact: true },
   { path: "/users/:UserId", element: <UserProfilePage />, exact: true },
@@ -26,6 +28,7 @@ const routes = [
   { path: "/recently-added", element: <RecentlyAddedPage />, exact: true },
   { path: "/integrations", element: <Integrations />, exact: true },
   { path: "/calendar", element: <Calendar />, exact: true },
+  { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },
   { path: "/activity", element: <Activity />, exact: true },

@@ -9,6 +9,7 @@ import LibrarySelector from "./library_selector";
 import ActivityMonitorSettings from "./components/settings/ActivityMonitorSettings";
 import WebhooksSettings from "./components/settings/webhooks";
 import Integrations from "./integrations";
+import HealthSettings from "./components/settings/health";
 
 import Logs from "./components/settings/logs";
 
@@ -26,6 +27,7 @@ import Notification3LineIcon from "remixicon-react/Notification3LineIcon";
 import ArchiveLineIcon from "remixicon-react/ArchiveLineIcon";
 import FileList3LineIcon from "remixicon-react/FileList3LineIcon";
 import Plug2LineIcon from "remixicon-react/Plug2LineIcon";
+import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 
 const settingsTabs = [
   "tabGeneral",
@@ -37,6 +39,7 @@ const settingsTabs = [
   "tabKeys",
   "tabWebhooks",
   "tabBackup",
+  "tabHealth",
   "tabLogs",
 ];
 
@@ -156,6 +159,14 @@ export default function Settings() {
           title={tabTitle(ArchiveLineIcon, <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} />)}
         >
           <BackupPage />
+        </Tab>
+
+        <Tab
+          eventKey="tabHealth"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(HeartPulseLineIcon, "Health")}
+        >
+          <HealthSettings />
         </Tab>
 
         <Tab

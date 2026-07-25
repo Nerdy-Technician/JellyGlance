@@ -415,6 +415,7 @@ function authorizeApiRoute(req, res, next) {
             pathName.startsWith("/gettasksettings") ||
             pathName.startsWith("/getactivitymonitorsettings") ||
             pathName.startsWith("/checkforupdates") ||
+            pathName.startsWith("/admin-audit") ||
             pathName.startsWith("/deleteplaybackactivity") ||
             pathName.startsWith("/getbackuptables")
           ? "settings"
