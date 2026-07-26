@@ -165,10 +165,12 @@ function BackupPage() {
           "Content-Type": "multipart/form-data",
         },
         onUploadProgress: (progressEvent) => {
-          setUploadProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
+          if (progressEvent.total) {
+            setUploadProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
+          }
         },
       });
-      setMessage({ type: "success", text: `${file.name} uploaded.` });
+      setMessage({ type: "success", text: `${file.name} uploaded. Restore it from the backup files list when ready.` });
       await fetchData();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data || "Upload failed" });
@@ -185,7 +187,7 @@ function BackupPage() {
         <div>
           <span>Recovery Center</span>
           <h1>Backups</h1>
-          <p>Create portable JSON backups, choose what data is included, and restore uploaded backup files.</p>
+          <p>Create portable JSON backups, choose what data is included, and restore uploaded JellyGlance or legacy Jellystat files.</p>
         </div>
         <div className="backup-hero-actions">
           <Button type="button" variant="primary" onClick={createBackup} disabled={Boolean(busyAction)}>
@@ -194,7 +196,7 @@ function BackupPage() {
           </Button>
           <label className="backup-upload-button">
             {busyAction === "upload" ? <Spinner size="sm" animation="border" /> : <UploadCloud2LineIcon size={18} />}
-            Upload Backup
+            Upload JSON
             <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={uploadBackup} />
           </label>
         </div>
@@ -299,7 +301,7 @@ function BackupPage() {
             <div className="backup-empty-state">
               <ArchiveDrawerFillIcon size={30} />
               <strong>No backups yet</strong>
-              <span>Create a backup or upload an existing JellyGlance JSON backup.</span>
+              <span>Create a backup or upload an existing JellyGlance or Jellystat JSON backup.</span>
             </div>
           ) : null}
         </div>

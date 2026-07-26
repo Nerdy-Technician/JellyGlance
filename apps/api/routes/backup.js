@@ -14,12 +14,14 @@ const sanitizeFilename = require("../utils/sanitizer");
 const { getBackupDir } = require("../utils/storage-paths");
 const db = require("../db");
 const { addAuditEntry } = require("../classes/admin-history");
+const { tables } = require("../global/backup_tables");
 
 const { sendUpdate } = require("../ws");
 
 const router = express.Router();
 const TaskManager = require("../classes/task-manager-singleton");
 const TaskScheduler = require("../classes/task-scheduler-singleton");
+const restorableTables = new Set(tables.map((table) => table.value));
 
 // Database connection parameters
 const postgresUser = process.env.POSTGRES_USER;
@@ -78,12 +80,81 @@ function getBirthtimeFallback(fileStats, fileName) {
   return new Date(matches[1], matches[2]-1, matches[3], matches[4], matches[5], matches[6]);
 }
 
+function quoteIdentifier(identifier) {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+async function getTableColumns(pool, tableName) {
+  const { rows } = await pool.query(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = $1
+    `,
+    [tableName]
+  );
+
+  return new Set(rows.map((row) => row.column_name));
+}
+
+function getBackupTableEntry(table) {
+  if (!table || typeof table !== "object" || Array.isArray(table)) {
+    return null;
+  }
+
+  const keys = Object.keys(table);
+  if (keys.length !== 1) {
+    return null;
+  }
+
+  const tableName = keys[0];
+  const data = table[tableName];
+
+  if (!Array.isArray(data)) {
+    return null;
+  }
+
+  return { tableName, data };
+}
+
 async function restore(file, refLog) {
   refLog.logData.push({ color: "lawngreen", Message: "Starting Restore" });
   refLog.logData.push({
     color: "yellow",
     Message: "Restoring from Backup: " + file,
   });
+
+  let jsonData;
+
+  try {
+    // Use await to wait for the Promise to resolve
+    jsonData = await readFile(file);
+  } catch (err) {
+    refLog.logData.push({
+      color: "red",
+      Message: `Failed to read backup file`,
+    });
+    Logging.updateLog(refLog.uuid, refLog.logData, taskstate.FAILED);
+    console.error(err);
+    throw err;
+  }
+
+  // console.log(jsonData);
+  if (!jsonData) {
+    console.log("No Data");
+    return;
+  }
+
+  if (!Array.isArray(jsonData)) {
+    throw new Error("Backup file must be a JSON array of table exports");
+  }
+
+  const restoredTables = [];
+  const skippedTables = [];
+  const skippedColumns = {};
+  let restoredRows = 0;
+
   const pool = new Pool({
     user: postgresUser,
     password: postgresPassword,
@@ -95,80 +166,89 @@ async function restore(file, refLog) {
       : {}),
   });
 
-  const backupPath = file;
-
-  let jsonData;
-
   try {
-    // Use await to wait for the Promise to resolve
-    jsonData = await readFile(backupPath);
-  } catch (err) {
-    refLog.logData.push({
-      color: "red",
-      Message: `Failed to read backup file`,
-    });
-    Logging.updateLog(refLog.uuid, refLog.logData, taskstate.FAILED);
-    console.error(err);
-  }
+    for (let table of jsonData) {
+      const tableEntry = getBackupTableEntry(table);
 
-  // console.log(jsonData);
-  if (!jsonData) {
-    console.log("No Data");
-    return;
-  }
+      if (!tableEntry) {
+        refLog.logData.push({
+          color: "yellow",
+          Message: "Skipping invalid backup table entry",
+        });
+        continue;
+      }
 
-  const restoredTables = [];
-  let restoredRows = 0;
+      const { data, tableName } = tableEntry;
 
-  for (let table of jsonData) {
-    const data = Object.values(table)[0];
-    const tableName = Object.keys(table)[0];
-    restoredTables.push(tableName);
-    refLog.logData.push({
-      color: "dodgerblue",
-      key: tableName,
-      Message: `Restoring ${tableName}`,
-    });
-    for (let index in data) {
-      const keysWithQuotes = Object.keys(data[index]).map((key) => `"${key}"`);
-      const keyString = keysWithQuotes.join(", ");
+      if (!restorableTables.has(tableName)) {
+        skippedTables.push(tableName);
+        refLog.logData.push({
+          color: "yellow",
+          key: tableName,
+          Message: `Skipping unsupported table ${tableName}`,
+        });
+        continue;
+      }
 
-      const valuesWithQuotes = Object.values(data[index]).map((col) => {
-        if (col === null) {
-          return "NULL";
-        } else if (typeof col === "string") {
-          return `'${col.replace(/'/g, "''")}'`;
-        } else if (typeof col === "object") {
-          return `'${JSON.stringify(col).replace(/'/g, "''")}'`;
-        } else {
-          return `'${col}'`;
-        }
+      const tableColumns = await getTableColumns(pool, tableName);
+      restoredTables.push(tableName);
+      refLog.logData.push({
+        color: "dodgerblue",
+        key: tableName,
+        Message: `Restoring ${tableName}`,
       });
+      for (let index in data) {
+        const row = data[index];
 
-      const valueString = valuesWithQuotes.join(", ");
+        if (!row || typeof row !== "object" || Array.isArray(row)) {
+          continue;
+        }
 
-      const query = `INSERT INTO ${tableName} (${keyString}) VALUES(${valueString})  ON CONFLICT DO NOTHING`;
-      await pool.query(query);
-      restoredRows += 1;
+        const rowKeys = Object.keys(row);
+        const filteredKeys = rowKeys.filter((key) => tableColumns.has(key));
+        const ignoredKeys = rowKeys.filter((key) => !tableColumns.has(key));
+
+        if (ignoredKeys.length > 0) {
+          skippedColumns[tableName] = Array.from(new Set([...(skippedColumns[tableName] || []), ...ignoredKeys]));
+        }
+
+        if (filteredKeys.length === 0) {
+          continue;
+        }
+
+        const keyString = filteredKeys.map(quoteIdentifier).join(", ");
+        const placeholders = filteredKeys.map((_, keyIndex) => `$${keyIndex + 1}`).join(", ");
+        const values = filteredKeys.map((key) => {
+          const value = row[key];
+          return value && typeof value === "object" ? JSON.stringify(value) : value;
+        });
+
+        const query = `INSERT INTO ${quoteIdentifier(tableName)} (${keyString}) VALUES(${placeholders}) ON CONFLICT DO NOTHING`;
+        const result = await pool.query(query, values);
+        restoredRows += result.rowCount;
+      }
     }
+
+    for (const view of db.materializedViews) {
+      const refresh = await db.refreshMaterializedView(view);
+      refLog.logData.push({
+        color: refresh.Result === "SUCCESS" ? "lawngreen" : "red",
+        Message: refresh.message,
+      });
+    }
+
+    refLog.logData.push({ color: "lawngreen", Message: "Restore Complete" });
+
+    return {
+      restoredRows,
+      restoredTables,
+      skippedTables,
+      skippedColumns,
+      refreshedViews: db.materializedViews,
+    };
+  } finally {
+    await pool.end();
   }
-  await pool.end();
-
-  for (const view of db.materializedViews) {
-    const refresh = await db.refreshMaterializedView(view);
-    refLog.logData.push({
-      color: refresh.Result === "SUCCESS" ? "lawngreen" : "red",
-      Message: refresh.message,
-    });
-  }
-
-  refLog.logData.push({ color: "lawngreen", Message: "Restore Complete" });
-
-  return {
-    restoredRows,
-    restoredTables,
-    refreshedViews: db.materializedViews,
-  };
 }
 
 // Route handler for backup endpoint
@@ -203,9 +283,10 @@ router.get("/beginBackup", async (req, res) => {
 });
 
 router.get("/restore/:filename", async (req, res) => {
+  const uuid = randomUUID();
+  let refLog = { logData: [], uuid: uuid };
+
   try {
-    const uuid = randomUUID();
-    let refLog = { logData: [], uuid: uuid };
     Logging.insertLog(uuid, triggertype.Manual, taskName.restore);
 
     const filename = sanitizeFilename(req.params.filename);
@@ -223,7 +304,9 @@ router.get("/restore/:filename", async (req, res) => {
     sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", ...restoreResult });
   } catch (error) {
     console.error(error);
-    res.status(500).send("Restore failed");
+    refLog.logData.push({ color: "red", Message: `Restore failed: ${error.message}` });
+    Logging.updateLog(uuid, refLog.logData, taskstate.FAILED);
+    res.status(500).send(error.message || "Restore failed");
   }
 });
 

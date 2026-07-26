@@ -1,12 +1,7 @@
-version: v1.1.1
-title: JellyGlance v1.1.1
+version: v1.1.2
+title: JellyGlance v1.1.2
 ---
-feat: add Discord community links and automation
 
-- Add Discord invite links to README, docs navigation, docs home, About page, and version card
-- Embed the Discord server widget on the docs home page and in the JellyGlance About page
-- Add Discord release notifications using DISCORD_RELEASES_WEBHOOK
-- Add hourly GitHub star growth notifications using DISCORD_STARS_WEBHOOK
-- Add shared Discord embed notification script for release and star posts
-- Document Discord webhook setup and required GitHub Actions secrets
-- Validate workflows, notifier script, docs build, and web build
+feat: support legacy Jellystat JSON backup restores
+
+Allow uploaded backup JSON files from Jellystat/JellyGlance legacy exports to restore safely by filtering rows through the current schema, skipping unknown columns, and reporting skipped data. Update backup UI copy to make Jellystat JSON migration support clear.
