@@ -30,7 +30,7 @@
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.1em;
-  text-shadow: 0 0 14px rgba(170, 92, 195, 0.2);
+  text-shadow: 0 0 14px rgba(var(--primary-rgb), 0.2);
 }
 
 .session-details-title + .col-auto {
@@ -65,7 +65,7 @@
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 16px !important;
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.12), rgba(255, 255, 255, 0.035)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.035)),
     rgba(11, 14, 20, 0.9) !important;
   color: white;
   width: min(496px, 100%);
@@ -91,7 +91,7 @@
 
 .session-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(170, 92, 195, 0.32) !important;
+  border-color: rgba(var(--primary-rgb), 0.32) !important;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
 }
 
@@ -107,10 +107,10 @@
 .progress-custom {
   height: 100%;
   min-width: 3px;
-  background: #aa5cc3;
+  background: var(--primary-color);
   transition: width 0.2s ease-in-out;
   border-radius: 999px;
-  box-shadow: 0 0 16px rgba(170, 92, 195, 0.42);
+  box-shadow: 0 0 16px rgba(var(--primary-rgb), 0.42);
 }
 
 .card-banner {
@@ -197,8 +197,8 @@
 .card-device-image {
   width: 30px;
   height: 30px;
-  fill: var(--platform-icon-color, #aa5cc3);
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--platform-icon-color, #aa5cc3) 52%, transparent));
+  fill: var(--platform-icon-color, var(--primary-color));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--platform-icon-color, var(--primary-color)) 52%, transparent));
 }
 
 .card-client {
@@ -298,7 +298,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(170, 92, 195, 0.18);
+  background: rgba(var(--primary-rgb), 0.18);
   color: #f8fafc;
 }
 

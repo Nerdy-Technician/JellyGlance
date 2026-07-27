@@ -1,7 +1,11 @@
 :root {
     --primary-color: #AA5CC3;
+    --primary-rgb: 170, 92, 195;
+    --primary-light-color: #d78df0;
+    --primary-light-rgb: 215, 141, 240;
     --primary-dark-color: #75358f;
     --secondary-color: #00A4DC;
+    --secondary-rgb: 0, 164, 220;
     --background-color: #080a0f;
     --secondary-background-color: #11151d;
     --tertiary-background-color: #181d26;

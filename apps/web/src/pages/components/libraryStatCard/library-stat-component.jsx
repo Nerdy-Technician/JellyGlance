@@ -7,7 +7,7 @@ function LibraryStatComponent(props) {
   }
 
   const cardStyle = {
-    backgroundImage: `url(${props.base_url}/Items/${props.data[0].Id}/Images/Backdrop/?fillWidth=300&quality=10), linear-gradient(to right, #00A4DC, #AA5CC3)`,
+    backgroundImage: `url(${props.base_url}/Items/${props.data[0].Id}/Images/Backdrop/?fillWidth=300&quality=10), linear-gradient(to right, var(--secondary-color), var(--primary-color))`,
     height: "100%",
     backgroundSize: "cover",
   };

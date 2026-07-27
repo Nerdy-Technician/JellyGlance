@@ -20,7 +20,7 @@ const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}
 const automationApps = [
   { name: "Sonarr", slug: "sonarr", purpose: "Series automation", accent: "#35c5f4" },
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
-  { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "#00a4dc" },
+  { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "var(--secondary-color)" },
   { name: "Bazarr", slug: "bazarr", purpose: "Subtitle automation", accent: "#84d160" },
   { name: "Jellyseerr", slug: "jellyseerr", purpose: "Request management", accent: "#6366f1" },
   { name: "Overseerr", slug: "overseerr", purpose: "Request management", accent: "#7dd3fc" },
@@ -116,7 +116,7 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   const [showSecret, setShowSecret] = useState(false);
 
   return (
-    <article className="integration-card" style={{ "--integration-accent": app.accent || "#d78df0" }}>
+    <article className="integration-card" style={{ "--integration-accent": app.accent || "var(--primary-light-color)" }}>
       <div className="integration-card-header">
         <span className="integration-icon">
           <AppIcon app={app} />

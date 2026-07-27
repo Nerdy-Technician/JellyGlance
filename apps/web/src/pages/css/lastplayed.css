@@ -14,7 +14,7 @@
   min-height: 326px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.26);
   scroll-snap-type: x proximity;
-  scrollbar-color: rgba(215, 141, 240, 0.32) transparent;
+  scrollbar-color: rgba(var(--primary-light-rgb), 0.32) transparent;
 }
 
 .last-played-container::-webkit-scrollbar {
@@ -26,7 +26,7 @@
 }
 
 .last-played-container::-webkit-scrollbar-thumb {
-  background-color: rgba(215, 141, 240, 0.28);
+  background-color: rgba(var(--primary-light-rgb), 0.28);
   border-radius: 5px; /* round corners */
   width: 5px;
 }
@@ -53,7 +53,7 @@
 
 .last-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(170, 92, 195, 0.36);
+  border-color: rgba(var(--primary-rgb), 0.36);
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.36);
 }
 
@@ -138,6 +138,6 @@
 .last-last-played {
   font-size: 11px;
   margin-bottom: 5px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-weight: 800;
 }

@@ -4,8 +4,8 @@
   min-height: 0;
   padding: 28px clamp(18px, 3vw, 42px) 48px;
   background:
-    radial-gradient(circle at 15% 0%, rgba(170, 92, 195, 0.18), transparent 32%),
-    radial-gradient(circle at 88% 10%, rgba(0, 164, 220, 0.09), transparent 28%);
+    radial-gradient(circle at 15% 0%, rgba(var(--primary-rgb), 0.18), transparent 32%),
+    radial-gradient(circle at 88% 10%, rgba(var(--secondary-rgb), 0.09), transparent 28%);
   color: white;
 }
 
@@ -15,7 +15,7 @@
 
 .settings-eyebrow {
   margin: 0 0 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
@@ -43,7 +43,7 @@
   gap: 7px;
   margin-bottom: 18px;
   padding: 6px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background: rgba(12, 15, 22, 0.72);
 }
@@ -62,7 +62,7 @@
 }
 
 .settings > .nav-pills .nav-link.active {
-  background: linear-gradient(90deg, rgba(170, 92, 195, 0.9), rgba(215, 141, 240, 0.62)) !important;
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.9), rgba(var(--primary-light-rgb), 0.62)) !important;
   color: #fff !important;
 }
 
@@ -210,8 +210,8 @@
 .settings-form .form-control:focus,
 .settings-form .form-select:focus,
 .settings-form .input-group > .form-control:focus {
-  border-color: rgba(215, 141, 240, 0.62) !important;
-  box-shadow: 0 0 0 3px rgba(170, 92, 195, 0.18) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.62) !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
 }
 
 .settings-form .input-group > .btn,
@@ -219,7 +219,7 @@
 .settings .submit {
   border: 0 !important;
   border-radius: 11px !important;
-  background: linear-gradient(90deg, #aa5cc3, #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
   color: #080a0f !important;
   font-weight: 900 !important;
 }
@@ -227,16 +227,16 @@
 .settings-form .btn-outline-success[type="submit"],
 .settings-form button[type="submit"] {
   min-width: 110px;
-  border: 1px solid rgba(215, 141, 240, 0.38) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.38) !important;
   border-radius: 11px !important;
-  background: rgba(170, 92, 195, 0.16) !important;
-  color: #d78df0 !important;
+  background: rgba(var(--primary-rgb), 0.16) !important;
+  color: var(--primary-light-color) !important;
   font-weight: 900 !important;
 }
 
 .settings-form .btn-outline-success[type="submit"]:hover,
 .settings-form button[type="submit"]:hover {
-  background: linear-gradient(90deg, #aa5cc3, #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
   color: #080a0f !important;
 }
 
@@ -246,7 +246,7 @@
   grid-template-columns: repeat(2, minmax(120px, 1fr));
   width: 100%;
   overflow: hidden;
-  border: 1px solid rgba(215, 141, 240, 0.28);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
   border-radius: 12px;
   background: rgba(5, 8, 13, 0.72);
 }
@@ -257,9 +257,9 @@
   width: fit-content;
   min-height: 28px;
   padding: 0 12px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 999px;
-  background: rgba(170, 92, 195, 0.13);
+  background: rgba(var(--primary-rgb), 0.13);
   color: #f0abfc;
   font-size: 12px;
   font-weight: 950;
@@ -297,7 +297,7 @@
 
 .security-auth-header > strong {
   padding: 10px 14px;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 13px;
   background: rgba(5, 8, 13, 0.5);
   color: #f5d0fe;
@@ -327,7 +327,7 @@
 }
 
 .security-auth-card svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .security-auth-card strong,
@@ -348,16 +348,16 @@
 }
 
 .security-auth-card.is-active {
-  border-color: rgba(215, 141, 240, 0.68);
+  border-color: rgba(var(--primary-light-rgb), 0.68);
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.28), rgba(215, 141, 240, 0.08)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.28), rgba(var(--primary-light-rgb), 0.08)),
     rgba(15, 12, 24, 0.84);
-  box-shadow: 0 18px 40px rgba(170, 92, 195, 0.12);
+  box-shadow: 0 18px 40px rgba(var(--primary-rgb), 0.12);
 }
 
 .security-auth-panel {
   padding: 16px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.032);
 }
@@ -367,7 +367,7 @@
   width: fit-content;
   margin-top: 14px;
   padding: 10px 13px;
-  border: 1px solid rgba(215, 141, 240, 0.38);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.38);
   border-radius: 12px;
   color: #f5d0fe;
   font-weight: 950;
@@ -375,7 +375,7 @@
 }
 
 .security-users-link:hover {
-  background: rgba(170, 92, 195, 0.16);
+  background: rgba(var(--primary-rgb), 0.16);
   color: #fff;
 }
 
@@ -389,13 +389,13 @@
 
 .settings-form .btn-group .btn.active,
 .settings-form .btn-group .btn-check:checked + .btn {
-  background: linear-gradient(90deg, #aa5cc3, #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
   color: #080a0f !important;
 }
 
 .settings .btn-outline-primary,
 .settings .btn-outline-secondary {
-  border-color: rgba(215, 141, 240, 0.36) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.36) !important;
   color: #e5edf8 !important;
 }
 
@@ -406,7 +406,7 @@
 }
 
 .settings .dropdown-item:hover {
-  background-color: rgba(170, 92, 195, 0.72) !important;
+  background-color: rgba(var(--primary-rgb), 0.72) !important;
   color: white !important;
 }
 
@@ -421,17 +421,17 @@
   align-items: flex-end;
   gap: 18px;
   padding: 18px;
-  border: 1px solid rgba(215, 141, 240, 0.2);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.2);
   border-radius: 16px;
   background:
-    radial-gradient(circle at top left, rgba(170, 92, 195, 0.22), transparent 34%),
+    radial-gradient(circle at top left, rgba(var(--primary-rgb), 0.22), transparent 34%),
     linear-gradient(135deg, rgba(22, 18, 34, 0.9), rgba(7, 11, 18, 0.92));
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
 }
 
 .tasks-header p {
   margin: 0 0 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.14em;
@@ -465,7 +465,7 @@
   gap: 7px;
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(215, 141, 240, 0.26);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.26);
   border-radius: 999px;
   background: rgba(5, 8, 13, 0.58);
   color: #f3d7ff;
@@ -484,7 +484,7 @@
   gap: 14px;
   min-height: 230px;
   padding: 16px;
-  border: 1px solid rgba(215, 141, 240, 0.15);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.15);
   border-radius: 15px;
   background:
     linear-gradient(150deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
@@ -492,8 +492,8 @@
 }
 
 .task-card.is-running {
-  border-color: rgba(215, 141, 240, 0.55);
-  box-shadow: 0 18px 42px rgba(170, 92, 195, 0.16);
+  border-color: rgba(var(--primary-light-rgb), 0.55);
+  box-shadow: 0 18px 42px rgba(var(--primary-rgb), 0.16);
 }
 
 .task-card-top,
@@ -522,12 +522,12 @@
 }
 
 .task-card-top span {
-  border: 1px solid rgba(215, 141, 240, 0.28);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
   color: #f0abfc;
 }
 
 .task-card-top strong {
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
   color: #dbe8f8;
 }
 
@@ -566,7 +566,7 @@
 }
 
 .task-card-meta .is-enabled {
-  border-color: rgba(215, 141, 240, 0.3);
+  border-color: rgba(var(--primary-light-rgb), 0.3);
   color: #f0abfc;
 }
 
@@ -609,10 +609,10 @@
   gap: 12px;
   min-height: 110px;
   padding: 14px;
-  border: 1px solid rgba(215, 141, 240, 0.17);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.17);
   border-radius: 14px;
   background:
-    radial-gradient(circle at top left, rgba(170, 92, 195, 0.14), transparent 45%),
+    radial-gradient(circle at top left, rgba(var(--primary-rgb), 0.14), transparent 45%),
     rgba(8, 11, 17, 0.76);
 }
 
@@ -642,15 +642,15 @@
   justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 17px;
   background:
-    radial-gradient(circle at 14% 0%, rgba(170, 92, 195, 0.22), transparent 30%),
+    radial-gradient(circle at 14% 0%, rgba(var(--primary-rgb), 0.22), transparent 30%),
     linear-gradient(135deg, rgba(21, 18, 31, 0.92), rgba(7, 10, 16, 0.94));
 }
 
 .webhooks-hero span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.14em;
@@ -682,7 +682,7 @@
   gap: 2px 12px;
   min-width: 220px;
   padding: 13px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 14px;
   background: rgba(5, 8, 13, 0.55);
 }
@@ -705,10 +705,10 @@
   display: grid;
   gap: 16px;
   padding: 16px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.1), rgba(255, 255, 255, 0.025)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.1), rgba(255, 255, 255, 0.025)),
     rgba(8, 11, 17, 0.82);
 }
 
@@ -735,9 +735,9 @@
 .webhook-template-strip button {
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.14);
+  background: rgba(var(--primary-rgb), 0.14);
   color: #f8d6ff;
   font-size: 12px;
   font-weight: 900;
@@ -752,7 +752,7 @@
 .health-panel,
 .health-check-grid article,
 .health-summary-grid article {
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 14px;
   background: rgba(8, 11, 17, 0.82);
 }
@@ -767,7 +767,7 @@
 
 .health-hero span,
 .health-summary-grid span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.12em;
@@ -842,7 +842,7 @@
 }
 
 .health-panel-title svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .health-table {
@@ -910,7 +910,7 @@
 
 .webhook-builder-header svg,
 .webhook-event-picker-title svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .webhook-form-grid {
@@ -927,7 +927,7 @@
 
 .webhook-task-picker {
   padding: 13px;
-  border: 1px solid rgba(215, 141, 240, 0.14);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.025);
 }
@@ -966,10 +966,10 @@
   height: 34px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(215, 141, 240, 0.2);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.2);
   border-radius: 12px;
-  background: rgba(170, 92, 195, 0.1);
-  color: #d78df0;
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary-light-color);
 }
 
 .webhook-event-check strong {
@@ -987,11 +987,11 @@
 }
 
 .webhook-event-check.is-selected {
-  border-color: rgba(215, 141, 240, 0.62);
+  border-color: rgba(var(--primary-light-rgb), 0.62);
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.26), rgba(215, 141, 240, 0.08)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.26), rgba(var(--primary-light-rgb), 0.08)),
     rgba(12, 10, 18, 0.86);
-  box-shadow: 0 16px 34px rgba(170, 92, 195, 0.13);
+  box-shadow: 0 16px 34px rgba(var(--primary-rgb), 0.13);
 }
 
 .webhook-task-check-grid {
@@ -1012,9 +1012,9 @@
 }
 
 .webhook-task-check.is-selected {
-  border-color: rgba(215, 141, 240, 0.56);
+  border-color: rgba(var(--primary-light-rgb), 0.56);
   color: #fff;
-  background: linear-gradient(135deg, rgba(215, 141, 240, 0.82), rgba(170, 92, 195, 0.74));
+  background: linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.82), rgba(var(--primary-rgb), 0.74));
 }
 
 .webhook-builder-actions {
@@ -1029,10 +1029,10 @@
 
 .webhook-destination-card,
 .webhook-empty-state {
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 16px;
   background:
-    radial-gradient(circle at top left, rgba(170, 92, 195, 0.13), transparent 34%),
+    radial-gradient(circle at top left, rgba(var(--primary-rgb), 0.13), transparent 34%),
     rgba(8, 11, 17, 0.84);
 }
 
@@ -1048,7 +1048,7 @@
 }
 
 .webhook-destination-top span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.1em;
@@ -1108,8 +1108,8 @@
 }
 
 .webhook-destination-events span.is-selected {
-  border-color: rgba(215, 141, 240, 0.34);
-  background: rgba(170, 92, 195, 0.14);
+  border-color: rgba(var(--primary-light-rgb), 0.34);
+  background: rgba(var(--primary-rgb), 0.14);
   color: #f3d7ff;
 }
 
@@ -1117,13 +1117,13 @@
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border: 1px solid rgba(215, 141, 240, 0.12);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.12);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.028);
 }
 
 .webhook-destination-tasks strong {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.1em;
@@ -1157,7 +1157,7 @@
 }
 
 .webhook-empty-state svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .webhook-empty-state strong {

@@ -17,6 +17,9 @@ import { initReactI18next } from "react-i18next";
 
 import Loading from "./pages/components/general/loading.jsx";
 import baseUrl from "./lib/baseurl.jsx";
+import { applyTheme } from "./lib/theme";
+
+applyTheme();
 
 i18n
   .use(Backend)

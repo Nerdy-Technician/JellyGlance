@@ -3,8 +3,8 @@
   padding: 28px clamp(18px, 2.4vw, 38px) 56px;
   color: #f8fafc;
   background:
-    radial-gradient(circle at 12% 0%, rgba(0, 164, 220, 0.12), transparent 28%),
-    radial-gradient(circle at 80% 6%, rgba(215, 141, 240, 0.2), transparent 32%),
+    radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.12), transparent 28%),
+    radial-gradient(circle at 80% 6%, rgba(var(--primary-light-rgb), 0.2), transparent 32%),
     linear-gradient(180deg, rgba(12, 15, 22, 0.98), rgba(7, 9, 13, 1) 48%);
 }
 
@@ -31,10 +31,10 @@
   gap: 22px;
   min-height: 138px;
   padding: 26px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 20px;
   background:
-    radial-gradient(circle at 8% 22%, rgba(215, 141, 240, 0.18), transparent 34%),
+    radial-gradient(circle at 8% 22%, rgba(var(--primary-light-rgb), 0.18), transparent 34%),
     linear-gradient(135deg, rgba(13, 19, 29, 0.92), rgba(10, 11, 17, 0.96));
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
 }
@@ -45,13 +45,13 @@
   width: 82px;
   height: 82px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.46);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.46);
   border-radius: 22px;
   color: #f0d6ff;
   background:
-    radial-gradient(circle at 50% 34%, rgba(215, 141, 240, 0.36), transparent 54%),
-    rgba(215, 141, 240, 0.12);
-  box-shadow: 0 18px 42px rgba(215, 141, 240, 0.14);
+    radial-gradient(circle at 50% 34%, rgba(var(--primary-light-rgb), 0.36), transparent 54%),
+    rgba(var(--primary-light-rgb), 0.12);
+  box-shadow: 0 18px 42px rgba(var(--primary-light-rgb), 0.14);
 }
 
 .library-detail-title {
@@ -61,7 +61,7 @@
 .library-detail-title > span {
   display: block;
   margin-bottom: 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -88,7 +88,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 !important;
-  border: 1px solid rgba(215, 141, 240, 0.34) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34) !important;
   border-radius: 12px !important;
   color: #dbe5f2 !important;
   background: rgba(255, 255, 255, 0.035) !important;
@@ -99,14 +99,14 @@
 
 .library-detail-tabs.btn-group > .btn:hover,
 .library-detail-tabs.btn-group > .btn:focus-visible {
-  border-color: rgba(215, 141, 240, 0.78) !important;
-  background: rgba(215, 141, 240, 0.16) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.78) !important;
+  background: rgba(var(--primary-light-rgb), 0.16) !important;
 }
 
 .library-detail-tabs.btn-group > .btn.active {
   color: #130819 !important;
   border-color: transparent !important;
-  background: linear-gradient(135deg, #d78df0, #b75ac8) !important;
+  background: linear-gradient(135deg, var(--primary-light-color), #b75ac8) !important;
 }
 
 .library-detail-overview {
@@ -131,7 +131,7 @@
   height: 3px;
   margin-top: 9px;
   border-radius: 99px;
-  background: linear-gradient(90deg, #d78df0, #00a4dc);
+  background: linear-gradient(90deg, var(--primary-light-color), var(--secondary-color));
 }
 
 .library-detail-overview .global-stats-container {
@@ -139,10 +139,10 @@
   grid-auto-rows: auto;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(215, 141, 240, 0.14);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
   border-radius: 16px;
   background:
-    linear-gradient(135deg, rgba(215, 141, 240, 0.07), transparent 34%),
+    linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.07), transparent 34%),
     rgba(9, 12, 18, 0.78);
 }
 
@@ -170,7 +170,7 @@
 }
 
 .library-detail-overview .stat-value {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 20px;
   font-weight: 950;
 }
@@ -186,10 +186,10 @@
   height: auto;
   min-height: 440px;
   padding: 20px;
-  border: 1px solid rgba(215, 141, 240, 0.14);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
   border-radius: 18px;
   background:
-    radial-gradient(circle at 50% 0%, rgba(215, 141, 240, 0.08), transparent 38%),
+    radial-gradient(circle at 50% 0%, rgba(var(--primary-light-rgb), 0.08), transparent 38%),
     rgba(9, 12, 18, 0.8);
 }
 
@@ -233,10 +233,10 @@
 .library-options-panel {
   margin-top: 26px;
   padding: 22px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(215, 141, 240, 0.08), transparent 38%),
+    linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.08), transparent 38%),
     rgba(9, 12, 18, 0.82);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
 }
@@ -252,7 +252,7 @@
 .library-options-heading span {
   display: block;
   margin-bottom: 5px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;

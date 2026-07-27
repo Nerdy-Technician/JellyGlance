@@ -2,8 +2,8 @@
   min-height: 100vh;
   padding: 28px clamp(18px, 3vw, 42px) 48px;
   background:
-    radial-gradient(circle at 18% 0%, rgba(170, 92, 195, 0.18), transparent 32%),
-    radial-gradient(circle at 82% 14%, rgba(0, 164, 220, 0.1), transparent 28%);
+    radial-gradient(circle at 18% 0%, rgba(var(--primary-rgb), 0.18), transparent 32%),
+    radial-gradient(circle at 82% 14%, rgba(var(--secondary-rgb), 0.1), transparent 28%);
 }
 
 .libraries > h1 {
@@ -35,7 +35,7 @@
 
 .libraries-eyebrow {
   margin: 0 0 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.16em;
@@ -59,7 +59,7 @@
 
 .libraries-summary span,
 .libraries-archive-button {
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 999px;
   background: rgba(12, 15, 22, 0.72);
   color: #d8e0ec;
@@ -80,8 +80,8 @@
 }
 
 .libraries-archive-button:hover {
-  border-color: rgba(215, 141, 240, 0.5);
-  background: rgba(170, 92, 195, 0.18);
+  border-color: rgba(var(--primary-light-rgb), 0.5);
+  background: rgba(var(--primary-rgb), 0.18);
   transform: translateY(-1px);
 }
 
@@ -100,7 +100,7 @@
 .libraries-scan-message {
   margin: -8px 0 18px;
   padding: 11px 14px;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 13px;
   background: rgba(12, 15, 22, 0.82);
   color: #f8fafc;

@@ -3,8 +3,8 @@
   margin: 0;
   padding: 10px clamp(12px, 2vw, 24px) 28px;
   background:
-    radial-gradient(circle at 14% 0%, rgba(170, 92, 195, 0.18), transparent 30%),
-    radial-gradient(circle at 88% 8%, rgba(215, 141, 240, 0.1), transparent 30%),
+    radial-gradient(circle at 14% 0%, rgba(var(--primary-rgb), 0.18), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(var(--primary-light-rgb), 0.1), transparent 30%),
     #050910;
   color: #f8fafc;
 }
@@ -45,12 +45,12 @@
   flex: 0 0 46px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(215, 141, 240, 0.38);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.38);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 35% 20%, rgba(215, 141, 240, 0.28), transparent 48%),
-    rgba(170, 92, 195, 0.16);
-  color: #d78df0;
+    radial-gradient(circle at 35% 20%, rgba(var(--primary-light-rgb), 0.28), transparent 48%),
+    rgba(var(--primary-rgb), 0.16);
+  color: var(--primary-light-color);
 }
 
 .users-header-actions {
@@ -72,7 +72,7 @@
 
 .users-eyebrow {
   margin: 0 0 2px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.16em;
@@ -104,10 +104,10 @@
   padding: 0 13px !important;
   border: 0 !important;
   border-radius: 12px !important;
-  background: linear-gradient(90deg, #aa5cc3, #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
   color: #070a10 !important;
   font-weight: 950 !important;
-  box-shadow: 0 18px 42px rgba(170, 92, 195, 0.2);
+  box-shadow: 0 18px 42px rgba(var(--primary-rgb), 0.2);
 }
 
 .users-stat-grid {
@@ -124,7 +124,7 @@
 .users-modal {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.07), rgba(255, 255, 255, 0.025)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.07), rgba(255, 255, 255, 0.025)),
     rgba(8, 11, 17, 0.9);
   box-shadow: 0 22px 58px rgba(0, 0, 0, 0.25);
 }
@@ -141,7 +141,7 @@
 
 .users-stat-card svg {
   grid-row: span 2;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .users-stat-card span {
@@ -208,7 +208,7 @@
 }
 
 .users-search svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .users-page .form-control,
@@ -226,8 +226,8 @@
 .users-page .form-select:focus,
 .users-modal .form-control:focus,
 .users-modal .form-select:focus {
-  border-color: rgba(215, 141, 240, 0.62) !important;
-  box-shadow: 0 0 0 3px rgba(170, 92, 195, 0.18) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.62) !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.18) !important;
 }
 
 .users-search .form-control {
@@ -254,9 +254,9 @@
 }
 
 .users-row-card.is-account-row {
-  border-color: rgba(215, 141, 240, 0.16);
+  border-color: rgba(var(--primary-light-rgb), 0.16);
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.12), rgba(0, 164, 220, 0.03)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.12), rgba(var(--secondary-rgb), 0.03)),
     rgba(8, 11, 17, 0.9);
 }
 
@@ -271,7 +271,7 @@
 
 .users-avatar {
   flex: 0 0 auto;
-  border: 2px solid rgba(215, 141, 240, 0.42);
+  border: 2px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 50%;
   object-fit: cover;
   overflow: hidden;
@@ -282,9 +282,9 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at 35% 25%, rgba(215, 141, 240, 0.28), transparent 42%),
-    rgba(170, 92, 195, 0.18);
-  color: #d78df0;
+    radial-gradient(circle at 35% 25%, rgba(var(--primary-light-rgb), 0.28), transparent 42%),
+    rgba(var(--primary-rgb), 0.18);
+  color: var(--primary-light-color);
 }
 
 .users-avatar-empty svg {
@@ -353,7 +353,7 @@
 
 .role-owner,
 .role-admin {
-  background: rgba(215, 141, 240, 0.28) !important;
+  background: rgba(var(--primary-light-rgb), 0.28) !important;
 }
 
 .role-manager {
@@ -385,11 +385,11 @@
 }
 
 .source-jellyfin {
-  background: rgba(0, 164, 220, 0.22) !important;
+  background: rgba(var(--secondary-rgb), 0.22) !important;
 }
 
 .source-local {
-  background: rgba(215, 141, 240, 0.26) !important;
+  background: rgba(var(--primary-light-rgb), 0.26) !important;
 }
 
 .source-oidc {
@@ -397,7 +397,7 @@
 }
 
 .role-chip[class*="role-"] {
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
 }
 
 .users-track-button {
@@ -425,17 +425,17 @@
   height: 36px;
   min-height: 36px;
   padding: 0 !important;
-  border: 1px solid rgba(215, 141, 240, 0.32) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.32) !important;
   border-radius: 12px !important;
-  background: rgba(215, 141, 240, 0.12) !important;
+  background: rgba(var(--primary-light-rgb), 0.12) !important;
   color: #f5d2ff !important;
   box-shadow: none !important;
 }
 
 .users-row-action-button:hover,
 .users-row-action-button:focus-visible {
-  border-color: rgba(215, 141, 240, 0.7) !important;
-  background: rgba(215, 141, 240, 0.22) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.7) !important;
+  background: rgba(var(--primary-light-rgb), 0.22) !important;
 }
 
 .users-row-action-button.is-danger {
@@ -505,7 +505,7 @@
 .local-user-card .btn,
 .users-panel-header .btn,
 .users-modal .btn {
-  border-color: rgba(215, 141, 240, 0.35) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.35) !important;
   color: #f8fafc !important;
 }
 
@@ -537,7 +537,7 @@
 .roles-manager {
   margin-bottom: 10px;
   padding: 10px 14px 10px 10px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.032);
 }
@@ -591,9 +591,9 @@
   align-items: center;
   margin-bottom: 12px;
   padding: 12px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 14px;
-  background: rgba(170, 92, 195, 0.08);
+  background: rgba(var(--primary-rgb), 0.08);
 }
 
 .role-preview-panel strong {
@@ -716,13 +716,13 @@
 .permission-toggle-grid .form-check-input {
   flex: 0 0 auto;
   margin: 0;
-  border-color: rgba(215, 141, 240, 0.35);
+  border-color: rgba(var(--primary-light-rgb), 0.35);
   background-color: rgba(255, 255, 255, 0.08);
 }
 
 .permission-toggle-grid .form-check-input:checked {
-  border-color: #d78df0;
-  background-color: #aa5cc3;
+  border-color: var(--primary-light-color);
+  background-color: var(--primary-color);
 }
 
 .local-user-card {
@@ -763,7 +763,7 @@
 .users-empty-state {
   margin-top: 12px;
   padding: 28px;
-  border: 1px dashed rgba(215, 141, 240, 0.26);
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.26);
   border-radius: 15px;
   color: #9aa7bb;
   text-align: center;
@@ -773,7 +773,7 @@
 .users-modal {
   border-radius: 18px !important;
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.12), rgba(255, 255, 255, 0.035)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.035)),
     #11131b !important;
   color: #fff !important;
 }

@@ -11,8 +11,8 @@
   padding: 12px;
   color: #f8fafc;
   background:
-    radial-gradient(circle at 8% 0%, rgba(0, 164, 220, 0.12), transparent 28%),
-    radial-gradient(circle at 74% 0%, rgba(170, 92, 195, 0.24), transparent 34%),
+    radial-gradient(circle at 8% 0%, rgba(var(--secondary-rgb), 0.12), transparent 28%),
+    radial-gradient(circle at 74% 0%, rgba(var(--primary-rgb), 0.24), transparent 34%),
     linear-gradient(180deg, #121524, #07090d 58%);
 }
 
@@ -59,7 +59,7 @@
 .calendar-shell,
 .downloads-summary,
 .downloads-board article {
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background: rgba(9, 12, 19, 0.82);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
@@ -80,17 +80,17 @@
   align-items: center;
   gap: 16px;
   padding: 16px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background:
-    linear-gradient(135deg, rgba(170, 92, 195, 0.12), rgba(255, 255, 255, 0.025)),
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.025)),
     rgba(9, 12, 19, 0.82);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
 }
 
 .integration-page-header p {
   margin: 0;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -115,7 +115,7 @@
 .integration-card p,
 .integration-section-title span {
   margin: 0;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -140,15 +140,15 @@
   justify-items: center;
   gap: 3px;
   padding: 12px;
-  border: 1px solid rgba(170, 92, 195, 0.34);
+  border: 1px solid rgba(var(--primary-rgb), 0.34);
   border-radius: 14px;
-  background: rgba(170, 92, 195, 0.13);
+  background: rgba(var(--primary-rgb), 0.13);
 }
 
 .integrations-status svg {
   width: 24px;
   height: 24px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .integrations-status strong {
@@ -175,10 +175,10 @@
 }
 
 .integration-subtabs button.is-active {
-  border-color: rgba(215, 141, 240, 0.42);
-  background: linear-gradient(90deg, rgba(170, 92, 195, 0.86), rgba(215, 141, 240, 0.56));
+  border-color: rgba(var(--primary-light-rgb), 0.42);
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.86), rgba(var(--primary-light-rgb), 0.56));
   color: #fff;
-  box-shadow: 0 14px 28px rgba(170, 92, 195, 0.18);
+  box-shadow: 0 14px 28px rgba(var(--primary-rgb), 0.18);
 }
 
 .integration-section {
@@ -202,7 +202,7 @@
 .integration-section-title > svg {
   width: 34px;
   height: 34px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .integration-section-title h2,
@@ -231,7 +231,7 @@
   border-radius: 14px;
   background:
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--integration-accent) 24%, transparent), transparent 34%),
-    linear-gradient(135deg, rgba(170, 92, 195, 0.1), rgba(0, 164, 220, 0.04)),
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--secondary-rgb), 0.04)),
     rgba(8, 11, 17, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
@@ -364,9 +364,9 @@
   justify-content: center;
   gap: 8px;
   min-height: 38px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   color: #f8d6ff;
   font-weight: 950;
 }
@@ -432,9 +432,9 @@
   gap: 8px;
   min-height: 38px;
   padding: 0 16px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   color: #f8d6ff;
   font-weight: 950;
 }
@@ -475,7 +475,7 @@
 .integration-health-grid .integration-empty-state {
   grid-column: 1 / -1;
   padding: 18px;
-  border: 1px dashed rgba(215, 141, 240, 0.28);
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.28);
   border-radius: 12px;
   color: #aebbd0;
   font-weight: 850;
@@ -525,7 +525,7 @@
 
 .integration-health-grid em {
   margin-top: 2px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-style: normal;
 }
 
@@ -585,8 +585,8 @@
   color: #f8fafc;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at 10% 0%, rgba(0, 164, 220, 0.14), transparent 28%),
-    radial-gradient(circle at 82% 0%, rgba(215, 141, 240, 0.14), transparent 32%),
+    radial-gradient(circle at 10% 0%, rgba(var(--secondary-rgb), 0.14), transparent 28%),
+    radial-gradient(circle at 82% 0%, rgba(var(--primary-light-rgb), 0.14), transparent 32%),
     #050910;
 }
 
@@ -595,7 +595,7 @@
 .requests-board,
 .requests-control-bar,
 .requests-filter-strip {
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background: rgba(9, 12, 19, 0.82);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.26);
@@ -612,7 +612,7 @@
 .requests-hero p,
 .requests-summary-grid span {
   margin: 0;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.16em;
@@ -640,9 +640,9 @@
   gap: 8px;
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   color: #f8d6ff;
   font-weight: 950;
 }
@@ -663,7 +663,7 @@
 }
 
 .requests-summary-grid svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .requests-summary-grid strong {
@@ -702,15 +702,15 @@
 }
 
 .requests-filter-strip button.is-active {
-  background: linear-gradient(90deg, rgba(170, 92, 195, 0.86), rgba(215, 141, 240, 0.56));
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.86), rgba(var(--primary-light-rgb), 0.56));
   color: #fff;
 }
 
 .requests-action-message {
   padding: 10px 12px;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 12px;
-  background: rgba(170, 92, 195, 0.12);
+  background: rgba(var(--primary-rgb), 0.12);
   color: #f8d6ff;
   font-weight: 850;
 }
@@ -731,7 +731,7 @@
 }
 
 .requests-control-bar label > span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.12em;
@@ -744,7 +744,7 @@
   width: 100%;
   height: 38px;
   min-width: 0;
-  border: 1px solid rgba(215, 141, 240, 0.28);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   color: #f8fafc;
@@ -762,8 +762,8 @@
 
 .requests-control-bar input:focus,
 .requests-control-bar select:focus {
-  border-color: rgba(215, 141, 240, 0.58);
-  box-shadow: 0 0 0 3px rgba(170, 92, 195, 0.16);
+  border-color: rgba(var(--primary-light-rgb), 0.58);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.16);
 }
 
 .requests-control-bar > strong {
@@ -772,9 +772,9 @@
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.12);
+  background: rgba(var(--primary-rgb), 0.12);
   color: #f8d6ff;
   white-space: nowrap;
 }
@@ -813,8 +813,8 @@
 
 .requests-board article:hover,
 .requests-board article:focus-visible {
-  border-color: rgba(215, 141, 240, 0.42);
-  background: rgba(170, 92, 195, 0.09);
+  border-color: rgba(var(--primary-light-rgb), 0.42);
+  background: rgba(var(--primary-rgb), 0.09);
   outline: none;
   transform: translateY(-1px);
 }
@@ -831,10 +831,10 @@
   aspect-ratio: 2 / 3;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(215, 141, 240, 0.2);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.2);
   border-radius: 7px;
-  background: rgba(170, 92, 195, 0.14);
-  color: #d78df0;
+  background: rgba(var(--primary-rgb), 0.14);
+  color: var(--primary-light-color);
 }
 
 .requests-card-poster img {
@@ -929,9 +929,9 @@
   min-width: 34px;
   height: 32px;
   padding: 0 9px;
-  border: 1px solid rgba(215, 141, 240, 0.32);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.32);
   border-radius: 9px;
-  background: rgba(170, 92, 195, 0.16);
+  background: rgba(var(--primary-rgb), 0.16);
   color: #f8d6ff;
   font-weight: 900;
 }
@@ -979,7 +979,7 @@
 }
 
 .requests-modal {
-  border: 1px solid rgba(215, 141, 240, 0.22) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22) !important;
   border-radius: 16px !important;
   background: #090c13 !important;
   color: #f8fafc !important;
@@ -1005,10 +1005,10 @@
   aspect-ratio: 2 / 3;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 14px;
-  background: rgba(170, 92, 195, 0.14);
-  color: #d78df0;
+  background: rgba(var(--primary-rgb), 0.14);
+  color: var(--primary-light-color);
 }
 
 .requests-detail-art img {
@@ -1035,9 +1035,9 @@
 .requests-detail-meta span,
 .requests-detail-tags span {
   padding: 7px 10px;
-  border: 1px solid rgba(215, 141, 240, 0.26);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.26);
   border-radius: 999px;
-  background: rgba(170, 92, 195, 0.13);
+  background: rgba(var(--primary-rgb), 0.13);
   color: #f8d6ff;
   font-size: 12px;
   font-weight: 900;
@@ -1067,7 +1067,7 @@
 
 .requests-detail-copy dt,
 .requests-episode-list > strong {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.1em;
@@ -1103,7 +1103,7 @@
   gap: 12px;
   padding: 14px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(170, 92, 195, 0.16), transparent 34%),
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-rgb), 0.16), transparent 34%),
     rgba(9, 12, 19, 0.82);
 }
 
@@ -1116,7 +1116,7 @@
 
 .jellyfin-integration-header p {
   margin: 0 0 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -1163,9 +1163,9 @@
   gap: 8px;
   min-height: 38px;
   padding: 0 16px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 10px;
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   color: #f8d6ff;
   font-weight: 950;
   text-decoration: none;
@@ -1186,7 +1186,7 @@
   gap: 2px 8px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 14px;
   background: rgba(9, 12, 19, 0.76);
   color: inherit;
@@ -1200,20 +1200,20 @@
 .calendar-source-strip button:hover,
 .calendar-source-strip button:focus-visible,
 .calendar-source-strip button.is-selected {
-  border-color: rgba(215, 141, 240, 0.74);
-  background: rgba(170, 92, 195, 0.2);
+  border-color: rgba(var(--primary-light-rgb), 0.74);
+  background: rgba(var(--primary-rgb), 0.2);
   transform: translateY(-1px);
 }
 
 .calendar-source-strip button.is-active {
-  border-color: rgba(215, 141, 240, 0.42);
-  background: rgba(170, 92, 195, 0.12);
+  border-color: rgba(var(--primary-light-rgb), 0.42);
+  background: rgba(var(--primary-rgb), 0.12);
 }
 
 .calendar-source-strip button.is-active.is-selected {
-  border-color: rgba(215, 141, 240, 0.82);
+  border-color: rgba(var(--primary-light-rgb), 0.82);
   background:
-    linear-gradient(135deg, rgba(215, 141, 240, 0.24), rgba(0, 164, 220, 0.07)),
+    linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.24), rgba(var(--secondary-rgb), 0.07)),
     rgba(9, 12, 19, 0.86);
 }
 
@@ -1223,7 +1223,7 @@
   width: 36px;
   height: 36px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.045);
 }
@@ -1266,7 +1266,7 @@
 
 .calendar-layout,
 .calendar-lower-grid article {
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 16px;
   background: rgba(9, 12, 19, 0.82);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
@@ -1299,10 +1299,10 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   background:
-    radial-gradient(circle at 50% 12%, rgba(215, 141, 240, 0.28), transparent 42%),
-    linear-gradient(145deg, rgba(170, 92, 195, 0.22), rgba(0, 164, 220, 0.08)),
+    radial-gradient(circle at 50% 12%, rgba(var(--primary-light-rgb), 0.28), transparent 42%),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.22), rgba(var(--secondary-rgb), 0.08)),
     rgba(5, 8, 13, 0.88);
-  color: rgba(215, 141, 240, 0.74);
+  color: rgba(var(--primary-light-rgb), 0.74);
 }
 
 .calendar-poster-preview img {
@@ -1314,7 +1314,7 @@
 .calendar-poster-preview svg {
   width: 72px;
   height: 72px;
-  color: rgba(215, 141, 240, 0.74);
+  color: rgba(var(--primary-light-rgb), 0.74);
 }
 
 .calendar-poster-preview span {
@@ -1369,11 +1369,11 @@
 
 .calendar-panel-heading svg,
 .calendar-lower-grid h2 svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .calendar-panel-heading span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
 }
@@ -1384,15 +1384,15 @@
   gap: 1px;
   overflow: hidden;
   min-width: 0;
-  border: 1px solid rgba(215, 141, 240, 0.14);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
   border-radius: 14px;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
 }
 
 .calendar-weekday {
   padding: 10px;
   background: rgba(11, 15, 23, 0.96);
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.13em;
@@ -1410,7 +1410,7 @@
   overflow: hidden;
   padding: 8px;
   background:
-    radial-gradient(circle at 50% 0%, rgba(170, 92, 195, 0.07), transparent 40%),
+    radial-gradient(circle at 50% 0%, rgba(var(--primary-rgb), 0.07), transparent 40%),
     rgba(6, 9, 14, 0.96);
 }
 
@@ -1419,7 +1419,7 @@
 }
 
 .calendar-month-cell.is-today {
-  box-shadow: inset 0 0 0 1px rgba(0, 164, 220, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(var(--secondary-rgb), 0.68);
 }
 
 .calendar-cell-date {
@@ -1441,7 +1441,7 @@
   height: 22px;
   place-items: center;
   border-radius: 999px;
-  background: rgba(215, 141, 240, 0.24);
+  background: rgba(var(--primary-light-rgb), 0.24);
   color: #f8d6ff;
   font-size: 11px;
   font-weight: 950;
@@ -1469,7 +1469,7 @@
   padding: 3px 6px;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid rgba(215, 141, 240, 0.7);
+  border-left: 3px solid rgba(var(--primary-light-rgb), 0.7);
   border-radius: 8px;
   background: rgba(5, 8, 13, 0.72);
   color: #fff;
@@ -1478,8 +1478,8 @@
 
 .calendar-event-pill:hover,
 .calendar-event-pill:focus {
-  border-color: rgba(215, 141, 240, 0.52);
-  background: rgba(170, 92, 195, 0.17);
+  border-color: rgba(var(--primary-light-rgb), 0.52);
+  background: rgba(var(--primary-rgb), 0.17);
 }
 
 .calendar-event-pill.is-radarr-movie {
@@ -1513,12 +1513,12 @@
   height: 21px;
   border-radius: 4px;
   object-fit: cover;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .calendar-event-pill span {
   min-width: 0;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 9px;
   font-weight: 950;
   white-space: nowrap;
@@ -1546,9 +1546,9 @@
 
 .calendar-day-more-button {
   height: 27px;
-  border: 1px solid rgba(215, 141, 240, 0.24);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.24);
   border-radius: 8px;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
   color: #f0c6ff;
   font-size: 11px;
   font-weight: 950;
@@ -1557,8 +1557,8 @@
 
 .calendar-day-more-button:hover,
 .calendar-day-more-button:focus {
-  border-color: rgba(215, 141, 240, 0.52);
-  background: rgba(170, 92, 195, 0.22);
+  border-color: rgba(var(--primary-light-rgb), 0.52);
+  background: rgba(var(--primary-rgb), 0.22);
   color: #fff;
 }
 
@@ -1569,7 +1569,7 @@
   place-items: center;
   gap: 8px;
   padding: 20px;
-  border: 1px dashed rgba(215, 141, 240, 0.2);
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.2);
   border-radius: 14px;
   background: rgba(5, 8, 13, 0.48);
   color: #9aa7bb;
@@ -1579,7 +1579,7 @@
 .calendar-empty-state svg {
   width: 42px;
   height: 42px;
-  color: rgba(215, 141, 240, 0.5);
+  color: rgba(var(--primary-light-rgb), 0.5);
 }
 
 .calendar-empty-state strong {
@@ -1636,7 +1636,7 @@
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 50% 40%, rgba(170, 92, 195, 0.16), transparent 38%),
+    radial-gradient(circle at 50% 40%, rgba(var(--primary-rgb), 0.16), transparent 38%),
     rgba(0, 0, 0, 0.74);
   backdrop-filter: blur(10px);
 }
@@ -1660,10 +1660,10 @@
   gap: 22px;
   width: min(840px, 100%);
   padding: 18px;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 20px;
   background:
-    radial-gradient(circle at 20% 0%, rgba(170, 92, 195, 0.22), transparent 34%),
+    radial-gradient(circle at 20% 0%, rgba(var(--primary-rgb), 0.22), transparent 34%),
     rgba(10, 13, 20, 0.96);
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
 }
@@ -1706,7 +1706,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   background: rgba(5, 8, 13, 0.72);
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .calendar-preview-modal.is-radarr-movie .calendar-preview-art {
@@ -1739,7 +1739,7 @@
 }
 
 .calendar-preview-copy > span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.14em;
@@ -1817,10 +1817,10 @@
   position: relative;
   width: min(620px, 100%);
   padding: 20px;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 18px;
   background:
-    radial-gradient(circle at 20% 0%, rgba(215, 141, 240, 0.18), transparent 34%),
+    radial-gradient(circle at 20% 0%, rgba(var(--primary-light-rgb), 0.18), transparent 34%),
     rgba(10, 13, 20, 0.97);
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
 }
@@ -1831,7 +1831,7 @@
 }
 
 .calendar-day-modal-header span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.16em;
@@ -1907,8 +1907,8 @@
 }
 
 .calendar-shell .is-today {
-  border-color: rgba(215, 141, 240, 0.5);
-  background: rgba(170, 92, 195, 0.18);
+  border-color: rgba(var(--primary-light-rgb), 0.5);
+  background: rgba(var(--primary-rgb), 0.18);
 }
 
 .calendar-event {
@@ -1919,7 +1919,7 @@
   padding: 8px;
   border: 1px solid rgba(0, 200, 255, 0.2);
   border-radius: 10px;
-  background: rgba(0, 164, 220, 0.1);
+  background: rgba(var(--secondary-rgb), 0.1);
 }
 
 .calendar-event svg {
@@ -1937,7 +1937,7 @@
 
 .calendar-event small {
   grid-column: 2;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-weight: 850;
 }
 
@@ -1962,7 +1962,7 @@
 .download-summary-card svg {
   width: 28px;
   height: 28px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .download-summary-card span {
@@ -2001,7 +2001,7 @@
 }
 
 .downloads-board span {
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.12em;
@@ -2023,8 +2023,8 @@
   padding: 14px;
   color: #f8fafc;
   background:
-    radial-gradient(circle at 12% 0%, rgba(0, 164, 220, 0.13), transparent 28%),
-    radial-gradient(circle at 76% 0%, rgba(170, 92, 195, 0.18), transparent 30%),
+    radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.13), transparent 28%),
+    radial-gradient(circle at 76% 0%, rgba(var(--primary-rgb), 0.18), transparent 30%),
     linear-gradient(180deg, rgba(12, 15, 22, 0.96), rgba(5, 8, 13, 0.98));
 }
 
@@ -2034,17 +2034,17 @@
   align-items: center;
   gap: 18px;
   padding: 16px 18px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   background:
-    linear-gradient(135deg, rgba(170, 92, 195, 0.14), rgba(0, 164, 220, 0.05)),
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--secondary-rgb), 0.05)),
     rgba(8, 11, 17, 0.82);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
 }
 
 .download-page-header p {
   margin: 0 0 4px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -2073,15 +2073,15 @@
   justify-items: center;
   gap: 3px;
   padding: 12px;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 14px;
-  background: rgba(170, 92, 195, 0.14);
+  background: rgba(var(--primary-rgb), 0.14);
 }
 
 .download-header-stat svg {
   width: 25px;
   height: 25px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .download-header-stat strong {
@@ -2101,7 +2101,7 @@
 .download-add-bar,
 .download-count-grid article,
 .download-panel {
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 14px;
   background: rgba(11, 17, 27, 0.88);
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
@@ -2119,7 +2119,7 @@
 .download-add-bar::before {
   content: "Add download";
   align-self: center;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.16em;
@@ -2206,7 +2206,7 @@
 
 .download-inline-message {
   margin: -6px 2px 0;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 13px;
   font-weight: 900;
 }

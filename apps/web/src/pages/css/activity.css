@@ -7,11 +7,11 @@
 .activity-sessions-panel {
   margin-bottom: 26px;
   padding: 24px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 18px;
   background:
-    radial-gradient(circle at top left, rgba(0, 164, 220, 0.14), transparent 28%),
-    radial-gradient(circle at 82% 0%, rgba(170, 92, 195, 0.18), transparent 34%),
+    radial-gradient(circle at top left, rgba(var(--secondary-rgb), 0.14), transparent 28%),
+    radial-gradient(circle at 82% 0%, rgba(var(--primary-rgb), 0.18), transparent 34%),
     linear-gradient(135deg, rgba(9, 13, 20, 0.9), rgba(12, 10, 17, 0.9));
   box-shadow: 0 20px 54px rgba(0, 0, 0, 0.22);
 }
@@ -70,13 +70,13 @@
 }
 
 .activity-control-button {
-  border: 1px solid rgba(215, 141, 240, 0.52) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.52) !important;
   border-radius: 10px !important;
   padding: 0 16px !important;
   color: #090d14 !important;
-  background: linear-gradient(135deg, #d78df0, #ae5fc1) !important;
+  background: linear-gradient(135deg, var(--primary-light-color), #ae5fc1) !important;
   font-weight: 900 !important;
-  box-shadow: 0 14px 32px rgba(215, 141, 240, 0.18);
+  box-shadow: 0 14px 32px rgba(var(--primary-light-rgb), 0.18);
 }
 
 .activity-control-field {
@@ -84,7 +84,7 @@
   grid-template-columns: auto minmax(110px, 1fr);
   overflow: hidden;
   align-items: stretch;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 10px;
   background: rgba(10, 15, 23, 0.88);
 }
@@ -98,7 +98,7 @@
   align-items: center;
   padding: 0 12px;
   color: #f4c9ff;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.04em;
@@ -120,7 +120,7 @@
 
 .activity-search-input {
   width: min(220px, 100%) !important;
-  border: 1px solid rgba(215, 141, 240, 0.12) !important;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.12) !important;
   border-radius: 10px !important;
   padding: 0 14px !important;
 }

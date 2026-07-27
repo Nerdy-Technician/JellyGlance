@@ -63,7 +63,7 @@ function SessionCard(props) {
       props.data.session.NowPlayingItem.SeriesId
         ? props.data.session.NowPlayingItem.SeriesId
         : props.data.session.NowPlayingItem.Id
-    }&fillHeight=320&fillWidth=213&quality=80), linear-gradient(to right, #00A4DC, #AA5CC3)`,
+    }&fillHeight=320&fillWidth=213&quality=80), linear-gradient(to right, var(--secondary-color), var(--primary-color))`,
     height: "100%",
     backgroundSize: "cover",
   };

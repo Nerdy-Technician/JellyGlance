@@ -2,9 +2,9 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend } f
 
 function Chart({ stats, libraries, viewName }) {
   const colors = [
-    "#d78df0",
-    "#aa5cc3",
-    "#00a4dc",
+    "var(--primary-light-color)",
+    "var(--primary-color)",
+    "var(--secondary-color)",
     "#55d6be",
     "#f3b562",
     "#f06c9b",

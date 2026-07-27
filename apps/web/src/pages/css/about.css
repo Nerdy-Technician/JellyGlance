@@ -8,8 +8,8 @@
   padding: 12px;
   color: #f8fafc;
   background:
-    radial-gradient(circle at 18% 0%, rgba(170, 92, 195, 0.2), transparent 32%),
-    radial-gradient(circle at 78% 10%, rgba(0, 164, 220, 0.1), transparent 28%),
+    radial-gradient(circle at 18% 0%, rgba(var(--primary-rgb), 0.2), transparent 32%),
+    radial-gradient(circle at 78% 10%, rgba(var(--secondary-rgb), 0.1), transparent 28%),
     linear-gradient(180deg, rgba(13, 15, 26, 0.98), rgba(4, 7, 11, 0.98));
 }
 
@@ -19,10 +19,10 @@
 .about-discord-panel,
 .about-feature-grid article,
 .about-footer-panel {
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 18px;
   background:
-    linear-gradient(145deg, rgba(170, 92, 195, 0.11), rgba(255, 255, 255, 0.025)),
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.11), rgba(255, 255, 255, 0.025)),
     rgba(8, 11, 17, 0.88);
   box-shadow: 0 22px 58px rgba(0, 0, 0, 0.28);
 }
@@ -42,10 +42,10 @@
   justify-items: center;
   gap: 14px;
   padding: 18px;
-  border: 1px solid rgba(215, 141, 240, 0.14);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
   border-radius: 16px;
   background:
-    radial-gradient(circle at 50% 0%, rgba(215, 141, 240, 0.24), transparent 48%),
+    radial-gradient(circle at 50% 0%, rgba(var(--primary-light-rgb), 0.24), transparent 48%),
     rgba(255, 255, 255, 0.035);
 }
 
@@ -53,7 +53,7 @@
   width: 96px;
   height: 96px;
   object-fit: contain;
-  filter: drop-shadow(0 18px 36px rgba(170, 92, 195, 0.34));
+  filter: drop-shadow(0 18px 36px rgba(var(--primary-rgb), 0.34));
 }
 
 .about-wordmark {
@@ -68,7 +68,7 @@
 
 .about-eyebrow {
   margin: 0 0 8px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -110,16 +110,16 @@
   gap: 8px;
   min-height: 42px;
   padding: 0 16px;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 12px;
-  background: rgba(170, 92, 195, 0.2);
+  background: rgba(var(--primary-rgb), 0.2);
   color: #f8d6ff;
   font-weight: 950;
   text-decoration: none;
 }
 
 .about-actions a:first-child {
-  background: linear-gradient(90deg, rgba(170, 92, 195, 0.88), rgba(215, 141, 240, 0.6));
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.88), rgba(var(--primary-light-rgb), 0.6));
   color: #fff;
 }
 
@@ -143,7 +143,7 @@
   grid-row: span 2;
   width: 28px;
   height: 28px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .about-status-grid span {
@@ -167,7 +167,7 @@
 
 .about-status-grid .is-update strong,
 .about-status-grid a {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .about-content-grid {
@@ -209,10 +209,10 @@
   gap: 14px;
   min-width: 0;
   padding: 14px;
-  border: 1px solid rgba(215, 141, 240, 0.28);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
   border-radius: 16px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(215, 141, 240, 0.2), transparent 48%),
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-light-rgb), 0.2), transparent 48%),
     rgba(255, 255, 255, 0.035);
   color: #fff;
   text-decoration: none;
@@ -222,9 +222,9 @@
   width: 58px;
   height: 58px;
   padding: 12px;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 16px;
-  background: rgba(170, 92, 195, 0.18);
+  background: rgba(var(--primary-rgb), 0.18);
   color: #f4c7ff;
 }
 
@@ -260,7 +260,7 @@
   align-items: stretch;
   padding: 20px;
   background:
-    linear-gradient(145deg, rgba(88, 101, 242, 0.14), rgba(170, 92, 195, 0.1)),
+    linear-gradient(145deg, rgba(88, 101, 242, 0.14), rgba(var(--primary-rgb), 0.1)),
     rgba(8, 11, 17, 0.88);
 }
 
@@ -287,9 +287,9 @@
   width: fit-content;
   min-height: 42px;
   padding: 0 16px;
-  border: 1px solid rgba(215, 141, 240, 0.38);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.38);
   border-radius: 12px;
-  background: linear-gradient(90deg, #5865f2, #aa5cc3);
+  background: linear-gradient(90deg, #5865f2, var(--primary-color));
   color: #fff;
   font-weight: 950;
   text-decoration: none;
@@ -305,7 +305,7 @@
   width: 350px;
   max-width: 100%;
   min-height: 500px;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 16px;
   background: rgba(5, 7, 12, 0.7);
 }
@@ -328,7 +328,7 @@
 .about-footer-panel svg {
   width: 36px;
   height: 36px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .about-feature-grid h2,

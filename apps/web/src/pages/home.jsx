@@ -43,6 +43,7 @@ const HOME_SECTION_DEFINITIONS = [
   { id: "hall", label: "Hall of Fame" },
   { id: "library", label: "Library health" },
   { id: "catalog", label: "Catalog totals" },
+  { id: "milestones", label: "Milestones" },
   { id: "week", label: "This week" },
   { id: "attention", label: "Needs attention" },
   { id: "trends", label: "Today vs last week" },
@@ -59,6 +60,7 @@ const CURATED_DEFAULT_HOME_ORDER = [
   "sessions",
   "overview",
   "operations",
+  "milestones",
   "week",
   "hall",
   "trends",
@@ -99,7 +101,7 @@ const HOME_PRESETS = {
   },
   admin: {
     label: "Admin",
-    order: ["attention", "operations", "quickActions", "automation", "sessions", "overview", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
+    order: ["attention", "operations", "quickActions", "automation", "sessions", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
     hidden: ["watchParty"],
     density: "compact",
     sizes: {
@@ -111,7 +113,7 @@ const HOME_PRESETS = {
   },
   family: {
     label: "Family",
-    order: ["sessions", "watchParty", "week", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "automation"],
+    order: ["sessions", "watchParty", "week", "milestones", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "automation"],
     hidden: ["issues", "seasonGaps", "automation"],
     density: "comfortable",
     sizes: {
@@ -123,7 +125,7 @@ const HOME_PRESETS = {
   },
   media: {
     label: "Media Stats",
-    order: ["overview", "trends", "catalog", "library", "issues", "seasonGaps", "week", "watchParty", "hall", "sessions", "operations", "quickActions", "attention", "automation"],
+    order: ["overview", "milestones", "trends", "catalog", "library", "issues", "seasonGaps", "week", "watchParty", "hall", "sessions", "operations", "quickActions", "attention", "automation"],
     hidden: ["automation"],
     density: "comfortable",
     sizes: {
@@ -135,7 +137,7 @@ const HOME_PRESETS = {
   },
   requests: {
     label: "Requests First",
-    order: ["attention", "operations", "quickActions", "automation", "sessions", "week", "overview", "hall", "trends", "library", "catalog", "issues", "seasonGaps", "watchParty"],
+    order: ["attention", "operations", "quickActions", "automation", "sessions", "week", "milestones", "overview", "hall", "trends", "library", "catalog", "issues", "seasonGaps", "watchParty"],
     hidden: ["seasonGaps"],
     density: "compact",
     sizes: {
@@ -248,6 +250,102 @@ function formatDuration(seconds) {
   if (hours >= 1000) return `${formatNumber(hours)} hours`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+function getNextMilestone(value, steps) {
+  const current = Number(value || 0);
+  return steps.find((step) => current < step) || steps[steps.length - 1];
+}
+
+function getMilestoneProgress(value, target) {
+  const nextTarget = Number(target || 1);
+  return Math.max(0, Math.min(100, (Number(value || 0) / nextTarget) * 100));
+}
+
+function buildHomeMilestones(dashboard, operations) {
+  if (!dashboard) return [];
+
+  const totalPlaybacks = Number(dashboard?.totals?.totalPlaybacks || 0);
+  const totalWatchSeconds = Number(dashboard?.totals?.totalWatchSeconds || 0);
+  const totalWatchHours = totalWatchSeconds / 3600;
+  const uniqueViewers = Number(dashboard?.totals?.uniqueViewers || 0);
+  const catalogItems = Number(dashboard?.catalog?.movies || 0) + Number(dashboard?.catalog?.shows || 0) + Number(dashboard?.catalog?.artists || 0);
+  const weeklyTopPlays = Number(dashboard?.weekPulse?.topItem?.plays || 0);
+  const weeklyTopName = dashboard?.weekPulse?.topItem?.name || "No weekly top item yet";
+  const healthOk = Boolean(operations?.health?.ok);
+  const requestStats = operations?.requests?.stats || {};
+  const requestWins = Number(requestStats.available || 0) + Number(requestStats.approved || 0);
+  const issueCount = Object.values(dashboard?.libraryIssues || {}).reduce((total, value) => total + Number(value || 0), 0);
+
+  const playbackTarget = getNextMilestone(totalPlaybacks, [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000]);
+  const hoursTarget = getNextMilestone(totalWatchHours, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]);
+  const catalogTarget = getNextMilestone(catalogItems, [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000]);
+
+  return [
+    {
+      id: "playback-count",
+      title: totalPlaybacks >= 10000 ? "10K Play Club" : "Playback Climber",
+      value: formatNumber(totalPlaybacks),
+      detail: `${formatNumber(Math.max(playbackTarget - totalPlaybacks, 0))} plays to ${formatNumber(playbackTarget)}`,
+      progress: getMilestoneProgress(totalPlaybacks, playbackTarget),
+      icon: PlayCircleLineIcon,
+      unlocked: totalPlaybacks >= 10,
+    },
+    {
+      id: "watch-hours",
+      title: totalWatchHours >= 1000 ? "Thousand-Hour Theatre" : "Time Collector",
+      value: formatDuration(totalWatchSeconds),
+      detail: `${formatDuration(Math.max(hoursTarget * 3600 - totalWatchSeconds, 0))} to ${formatNumber(hoursTarget)} hours`,
+      progress: getMilestoneProgress(totalWatchHours, hoursTarget),
+      icon: TimeLineIcon,
+      unlocked: totalWatchHours >= 10,
+    },
+    {
+      id: "household",
+      title: uniqueViewers >= 5 ? "Full House" : "Household Spark",
+      value: formatNumber(uniqueViewers),
+      detail: uniqueViewers >= 5 ? "Five or more viewers have synced activity." : `${formatNumber(Math.max(5 - uniqueViewers, 0))} more viewers to Full House`,
+      progress: getMilestoneProgress(uniqueViewers, 5),
+      icon: GroupLineIcon,
+      unlocked: uniqueViewers >= 5,
+    },
+    {
+      id: "weekly-binge",
+      title: weeklyTopPlays >= 10 ? "Binge Beacon" : "Weekly Favourite",
+      value: formatNumber(weeklyTopPlays),
+      detail: `${weeklyTopName} leads this week`,
+      progress: getMilestoneProgress(weeklyTopPlays, 10),
+      icon: FireLineIcon,
+      unlocked: weeklyTopPlays >= 10,
+    },
+    {
+      id: "catalog",
+      title: catalogItems >= 1000 ? "Vault Builder" : "Catalog Builder",
+      value: formatNumber(catalogItems),
+      detail: `${formatNumber(Math.max(catalogTarget - catalogItems, 0))} items to ${formatNumber(catalogTarget)}`,
+      progress: getMilestoneProgress(catalogItems, catalogTarget),
+      icon: Database2LineIcon,
+      unlocked: catalogItems >= 50,
+    },
+    {
+      id: "ops-health",
+      title: healthOk && issueCount === 0 ? "Clean Bill" : "Care Package",
+      value: healthOk ? "Healthy" : "Watch",
+      detail: issueCount === 0 ? "No library issues in the current dashboard." : `${formatNumber(issueCount)} library issues tracked`,
+      progress: healthOk && issueCount === 0 ? 100 : healthOk ? 65 : 28,
+      icon: healthOk ? CheckboxCircleLineIcon : ErrorWarningLineIcon,
+      unlocked: healthOk && issueCount === 0,
+    },
+    {
+      id: "requests",
+      title: requestWins >= 25 ? "Request Hero" : "Request Ripple",
+      value: formatNumber(requestWins),
+      detail: `${formatNumber(requestWins)} requests approved or available`,
+      progress: getMilestoneProgress(requestWins, 25),
+      icon: ChatCheckLineIcon,
+      unlocked: requestWins >= 25,
+    },
+  ];
 }
 
 function hourLabel(hour) {
@@ -449,6 +547,7 @@ export default function Home({ kioskMode = false }) {
   ].filter((item) => item && !homeSettings.dismissedAlerts?.[item.key]);
   const seasonGaps = dashboard?.seasonGaps || [];
   const automationFeed = dashboard?.automationFeed || [];
+  const milestones = useMemo(() => buildHomeMilestones(dashboard, operations), [dashboard, operations]);
 
   useEffect(() => {
     localStorage.setItem(getHomeUserStorageKey(), JSON.stringify(homeSettings));
@@ -861,6 +960,41 @@ export default function Home({ kioskMode = false }) {
         />
       </section> : null}
 
+      {shouldRenderSection("milestones") ? (
+        <section className={getHomeSectionClass("milestones", "home-milestones home-glass-card")} aria-label="Achievements and media milestones" style={getHomeSectionStyle("milestones")}>
+          <div className="home-section-title">
+            <StarSmileLineIcon size={20} />
+            <h2>Milestones</h2>
+          </div>
+          <div className="home-milestone-grid">
+            {(dashboard ? milestones : Array.from({ length: 4 })).map((milestone, index) => {
+              const Icon = milestone?.icon || TrophyLineIcon;
+              return (
+                <article
+                  key={milestone?.id || `loading-${index}`}
+                  className={`home-milestone-card ${milestone?.unlocked ? "is-unlocked" : ""}`}
+                  role={milestone ? "button" : undefined}
+                  tabIndex={milestone ? 0 : undefined}
+                  onClick={() => milestone ? setDetailModal({ type: "milestone", title: milestone.title, milestone }) : null}
+                >
+                  <span className="home-milestone-icon">
+                    <Icon size={22} />
+                  </span>
+                  <div>
+                    <strong className={!dashboard ? "home-value-skeleton" : ""}>{milestone?.title || ""}</strong>
+                    {dashboard ? <small>{milestone.detail}</small> : <small className="home-detail-skeleton" />}
+                  </div>
+                  <em className={!dashboard ? "home-value-skeleton" : ""}>{milestone?.value || ""}</em>
+                  <span className="home-milestone-progress" aria-hidden="true">
+                    <i style={{ width: `${milestone?.progress || 0}%` }} />
+                  </span>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       {shouldRenderSection("week") ? <section className={getHomeSectionClass("week", "home-week-pulse home-glass-card")} aria-label="This week pulse" style={getHomeSectionStyle("week")}>
         <div className="home-section-title">
           <FireLineIcon size={20} />
@@ -1057,6 +1191,11 @@ export default function Home({ kioskMode = false }) {
         <Modal.Body>
           {detailModal?.body ? <p>{detailModal.body}</p> : null}
           {detailModal?.item ? <p>{detailModal.item.name} has overlap across {formatNumber(detailModal.item.users)} users and {formatNumber(detailModal.item.plays)} recent plays.</p> : null}
+          {detailModal?.milestone ? (
+            <p>
+              {detailModal.milestone.unlocked ? "Unlocked." : "In progress."} {detailModal.milestone.detail}
+            </p>
+          ) : null}
           {detailModal?.items?.length ? detailModal.items.map((item) => (
             <article key={item.itemId} className="home-detail-row">
               <strong>{item.name}</strong>

@@ -19,7 +19,7 @@
 
 .activity-mrt-paper .MuiTableHead-root .Mui-active,
 .activity-mrt-paper .MuiTableSortLabel-icon {
-  color: #d78df0 !important;
+  color: var(--primary-light-color) !important;
 }
 
 .activity-mrt-paper .MuiTableBody-root .MuiTableRow-root {
@@ -38,7 +38,7 @@
 
 .activity-table-link:hover,
 .activity-title-link:hover {
-  color: #d78df0 !important;
+  color: var(--primary-light-color) !important;
 }
 
 .activity-user-link {
@@ -62,7 +62,7 @@
   border-radius: 999px;
   padding: 5px 9px;
   color: #9ee6ff !important;
-  background: rgba(0, 164, 220, 0.09);
+  background: rgba(var(--secondary-rgb), 0.09);
   font-size: 12px;
   font-weight: 850;
 }
@@ -82,12 +82,12 @@
 
 .activity-method-pill.is-transcode {
   color: #9ee6ff !important;
-  background: rgba(0, 164, 220, 0.14);
+  background: rgba(var(--secondary-rgb), 0.14);
 }
 
 .activity-method-pill.is-stream {
   color: #f0c6ff !important;
-  background: rgba(215, 141, 240, 0.13);
+  background: rgba(var(--primary-light-rgb), 0.13);
 }
 
 .activity-method-pill.is-empty {
@@ -112,10 +112,10 @@
   min-width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.22);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 999px;
   color: #f7d5ff;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
   font-weight: 950;
 }
 
@@ -126,16 +126,16 @@
 
 .activity-mrt-paper + .MuiBox-root .MuiPaginationItem-root,
 .activity-table-shell .MuiPaginationItem-root {
-  border-color: rgba(215, 141, 240, 0.22) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.22) !important;
   color: #dbe6f7 !important;
   background: rgba(8, 12, 18, 0.74) !important;
 }
 
 .activity-mrt-paper + .MuiBox-root .Mui-selected,
 .activity-table-shell .MuiPaginationItem-root.Mui-selected {
-  border-color: rgba(215, 141, 240, 0.72) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.72) !important;
   color: #fff !important;
-  background: rgba(215, 141, 240, 0.22) !important;
+  background: rgba(var(--primary-light-rgb), 0.22) !important;
 }
 
 .activity-table {

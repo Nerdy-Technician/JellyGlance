@@ -49,7 +49,7 @@ function formatTotalWatchTime(seconds) {
 }
 
 const colors = {
-  primary: "#d78df0",
+  primary: "var(--primary-light-color)",
   secondary: "#00c8ff",
   backgroundColor: "#070a10",
   secondaryBackgroundColor: "#0b1018",
@@ -520,10 +520,10 @@ export default function ActivityTable(props) {
       elevation: 0,
       sx: {
         overflow: "hidden",
-        border: "1px solid rgba(215, 141, 240, 0.16)",
+        border: "1px solid rgba(var(--primary-light-rgb), 0.16)",
         borderRadius: "18px",
         background:
-          "radial-gradient(circle at 10% 0%, rgba(0, 164, 220, 0.11), transparent 28%), radial-gradient(circle at 88% 0%, rgba(170, 92, 195, 0.16), transparent 32%), rgba(7, 10, 16, 0.96)",
+          "radial-gradient(circle at 10% 0%, rgba(var(--secondary-rgb), 0.11), transparent 28%), radial-gradient(circle at 88% 0%, rgba(var(--primary-rgb), 0.16), transparent 32%), rgba(7, 10, 16, 0.96)",
         boxShadow: "0 22px 60px rgba(0, 0, 0, 0.28)",
       },
     },

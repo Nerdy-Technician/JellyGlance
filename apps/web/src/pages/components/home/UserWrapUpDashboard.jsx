@@ -5,9 +5,14 @@ import Config from "../../../lib/config";
 import { slugifyUserName } from "../../../lib/userProfile";
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
 import CalendarLineIcon from "remixicon-react/CalendarLineIcon";
+import ComputerLineIcon from "remixicon-react/ComputerLineIcon";
 import FilmLineIcon from "remixicon-react/FilmLineIcon";
+import FireLineIcon from "remixicon-react/FireLineIcon";
+import MoonLineIcon from "remixicon-react/MoonLineIcon";
 import PlayCircleLineIcon from "remixicon-react/PlayCircleLineIcon";
+import StarSmileLineIcon from "remixicon-react/StarSmileLineIcon";
 import StackLineIcon from "remixicon-react/StackLineIcon";
+import SunLineIcon from "remixicon-react/SunLineIcon";
 import TimeLineIcon from "remixicon-react/TimeLineIcon";
 import TrophyLineIcon from "remixicon-react/TrophyLineIcon";
 import UserSettingsLineIcon from "remixicon-react/UserSettingsLineIcon";
@@ -30,6 +35,120 @@ function formatWatchTime(seconds = 0) {
   }
 
   return `${minutes}m`;
+}
+
+function getNextTarget(value, targets) {
+  const current = Number(value || 0);
+  return targets.find((target) => current < target) || targets[targets.length - 1];
+}
+
+function progress(value, target) {
+  return Math.max(0, Math.min(100, (Number(value || 0) / Number(target || 1)) * 100));
+}
+
+function daysSince(value) {
+  if (!value) return Infinity;
+  return Math.floor((Date.now() - new Date(value).getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function buildUserAchievements(user, rank) {
+  const streams = Number(user.TotalStreams || 0);
+  const watchSeconds = Number(user.TotalWatchTime || 0);
+  const watchHours = watchSeconds / 3600;
+  const uniqueTitles = Number(user.UniqueTitles || 0);
+  const uniqueClients = Number(user.UniqueClients || 0);
+  const topHour = Number(user.TopHour?.Hour ?? -1);
+  const topDayCount = Number(user.TopDay?.Count || 0);
+  const topLibraryCount = Number(user.TopLibrary?.Count || 0);
+  const recentDays = daysSince(user.LastActivityDate);
+  const streamTarget = getNextTarget(streams, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000]);
+  const hourTarget = getNextTarget(watchHours, [10, 25, 50, 100, 250, 500, 1000, 2500]);
+  const titleTarget = getNextTarget(uniqueTitles, [5, 10, 25, 50, 100, 250, 500]);
+  const clientTarget = getNextTarget(uniqueClients, [2, 3, 5, 8, 12]);
+
+  return [
+    {
+      id: "rank",
+      title: rank === 1 ? "Household Champion" : "Leaderboard Climber",
+      value: `#${rank}`,
+      detail: rank === 1 ? "Top watch-time rank in the household." : "Ranked by total watch time.",
+      icon: TrophyLineIcon,
+      unlocked: rank === 1,
+      progress: rank === 1 ? 100 : Math.max(12, 100 - rank * 12),
+    },
+    {
+      id: "streams",
+      title: streams >= 1000 ? "Stream Machine" : "Play Counter",
+      value: streams.toLocaleString(),
+      detail: `${Math.max(streamTarget - streams, 0).toLocaleString()} streams to ${streamTarget.toLocaleString()}`,
+      icon: PlayCircleLineIcon,
+      unlocked: streams >= 10,
+      progress: progress(streams, streamTarget),
+    },
+    {
+      id: "watch-time",
+      title: watchHours >= 500 ? "Time Lord" : "Time Collector",
+      value: formatWatchTime(watchSeconds),
+      detail: `${formatWatchTime(Math.max(hourTarget * 3600 - watchSeconds, 0))} to ${hourTarget.toLocaleString()} hours`,
+      icon: TimeLineIcon,
+      unlocked: watchHours >= 10,
+      progress: progress(watchHours, hourTarget),
+    },
+    {
+      id: "unique-titles",
+      title: uniqueTitles >= 100 ? "Taste Explorer" : "Sampler",
+      value: uniqueTitles.toLocaleString(),
+      detail: `${Math.max(titleTarget - uniqueTitles, 0).toLocaleString()} titles to ${titleTarget.toLocaleString()}`,
+      icon: StarSmileLineIcon,
+      unlocked: uniqueTitles >= 5,
+      progress: progress(uniqueTitles, titleTarget),
+    },
+    {
+      id: "clients",
+      title: uniqueClients >= 5 ? "Device Hopper" : "Client Curious",
+      value: uniqueClients.toLocaleString(),
+      detail: user.TopClient?.Name ? `${user.TopClient.Name} is the favourite client.` : "No client history yet.",
+      icon: ComputerLineIcon,
+      unlocked: uniqueClients >= 2,
+      progress: progress(uniqueClients, clientTarget),
+    },
+    {
+      id: "watch-window",
+      title: topHour >= 22 || topHour <= 4 ? "Night Owl" : topHour >= 5 && topHour <= 11 ? "Morning Watcher" : "Prime-Time Regular",
+      value: formatHour(user.TopHour?.Hour),
+      detail: `${user.TopHour?.Count || 0} streams around this time.`,
+      icon: topHour >= 22 || topHour <= 4 ? MoonLineIcon : topHour >= 5 && topHour <= 11 ? SunLineIcon : FireLineIcon,
+      unlocked: topHour >= 0,
+      progress: progress(Number(user.TopHour?.Count || 0), 25),
+    },
+    {
+      id: "favourite-day",
+      title: "Ritual Day",
+      value: user.TopDay?.Name || "N/A",
+      detail: `${topDayCount.toLocaleString()} streams on this day.`,
+      icon: CalendarLineIcon,
+      unlocked: topDayCount >= 3,
+      progress: progress(topDayCount, 25),
+    },
+    {
+      id: "library-loyalty",
+      title: topLibraryCount >= 50 ? "Library Loyalist" : "Library Regular",
+      value: user.TopLibrary?.Name || "N/A",
+      detail: `${topLibraryCount.toLocaleString()} plays in this library.`,
+      icon: StackLineIcon,
+      unlocked: topLibraryCount >= 10,
+      progress: progress(topLibraryCount, 100),
+    },
+    {
+      id: "recent",
+      title: recentDays <= 7 ? "Recently Active" : "Comeback Pending",
+      value: recentDays === Infinity ? "Never" : `${recentDays}d`,
+      detail: recentDays <= 7 ? "Watched within the last week." : "No synced playback in the last week.",
+      icon: FireLineIcon,
+      unlocked: recentDays <= 7,
+      progress: recentDays === Infinity ? 0 : Math.max(0, 100 - recentDays * 8),
+    },
+  ];
 }
 
 function greeting() {
@@ -150,6 +269,42 @@ function Heatmap({ user }) {
   );
 }
 
+function UserAchievements({ user, rank }) {
+  const achievements = buildUserAchievements(user, rank);
+
+  return (
+    <section className="wrap-achievements" aria-label={`${user.UserName} achievements`}>
+      <div className="wrap-achievements-header">
+        <div>
+          <span>Achievements</span>
+          <strong>Personal Badges</strong>
+        </div>
+        <em>{achievements.filter((achievement) => achievement.unlocked).length}/{achievements.length} unlocked</em>
+      </div>
+      <div className="wrap-achievement-grid">
+        {achievements.map((achievement) => {
+          const Icon = achievement.icon;
+          return (
+            <article className={`wrap-achievement-card ${achievement.unlocked ? "is-unlocked" : ""}`} key={achievement.id}>
+              <span className="wrap-achievement-icon">
+                <Icon size={22} />
+              </span>
+              <div>
+                <strong>{achievement.title}</strong>
+                <small>{achievement.detail}</small>
+              </div>
+              <em>{achievement.value}</em>
+              <span className="wrap-achievement-progress" aria-hidden="true">
+                <i style={{ width: `${achievement.progress}%` }} />
+              </span>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function QuickConnectUserWrap({ user, rank }) {
   const heroImageId = user.TopMovie?.ItemId || user.TopSeries?.ItemId || user.TopTitle?.ItemId;
   const posterImageId = user.TopMovie?.ItemId || user.TopTitle?.ItemId || user.TopSeries?.ItemId;
@@ -189,6 +344,8 @@ export function QuickConnectUserWrap({ user, rank }) {
           <WrapMetric icon={FilmLineIcon} label="Top movie" value={user.TopMovie?.Name} detail={`${user.TopMovie?.Count || 0} plays`} imageId={posterImageId} imageType="Primary" />
           <WrapMetric icon={UserSettingsLineIcon} label="Watch style" value={user.TopClient?.Name} detail={`${user.UniqueClients || 0} clients`} imageId={seriesImageId} />
         </div>
+
+        <UserAchievements user={user} rank={rank} />
 
         <Heatmap user={user} />
       </div>

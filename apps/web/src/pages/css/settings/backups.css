@@ -11,10 +11,10 @@
 .backup-summary-grid article,
 .backup-file-card,
 .backup-empty-state {
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   background:
-    radial-gradient(circle at 12% 0%, rgba(0, 164, 220, 0.11), transparent 30%),
-    radial-gradient(circle at 88% 0%, rgba(170, 92, 195, 0.14), transparent 34%),
+    radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.11), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(var(--primary-rgb), 0.14), transparent 34%),
     rgba(7, 10, 16, 0.88);
 }
 
@@ -84,10 +84,10 @@
 
 .backup-upload-button {
   cursor: pointer;
-  border: 1px solid rgba(215, 141, 240, 0.35);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.35);
   padding: 0 14px;
   color: #f8fafc;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
 }
 
 .backup-upload-button input {
@@ -113,7 +113,7 @@
 .backup-summary-grid svg {
   width: 36px;
   height: 36px;
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .backup-summary-grid article > div {
@@ -159,7 +159,7 @@
 }
 
 .backup-panel-heading svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .backup-panel-heading h2 {
@@ -178,11 +178,11 @@
 .backup-table-chip {
   gap: 8px;
   min-height: 42px;
-  border: 1px solid rgba(215, 141, 240, 0.28);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
   border-radius: 999px;
   padding: 0 12px;
   color: #f8fafc;
-  background: rgba(215, 141, 240, 0.12);
+  background: rgba(var(--primary-light-rgb), 0.12);
 }
 
 .backup-table-chip.is-excluded {
@@ -220,10 +220,10 @@
   width: 48px;
   height: 48px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.25);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.25);
   border-radius: 14px;
-  color: #d78df0;
-  background: rgba(215, 141, 240, 0.11);
+  color: var(--primary-light-color);
+  background: rgba(var(--primary-light-rgb), 0.11);
 }
 
 .backup-file-main {
@@ -279,7 +279,7 @@
 }
 
 .backup-empty-state svg {
-  color: #d78df0;
+  color: var(--primary-light-color);
 }
 
 .backup-empty-state strong {

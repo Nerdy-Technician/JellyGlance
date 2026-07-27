@@ -71,8 +71,8 @@ function SessionCard(props) {
 
   const cardStyle = {
     backgroundImage: loadBackdrop
-      ? `url(/proxy/Items/Images/Backdrop?id=${mediaItemId}&fillWidth=560&quality=38), linear-gradient(135deg, #AA5CC3, #0b1119)`
-      : "linear-gradient(135deg, rgba(170, 92, 195, 0.28), #0b1119)",
+      ? `url(/proxy/Items/Images/Backdrop?id=${mediaItemId}&fillWidth=560&quality=38), linear-gradient(135deg, var(--primary-color), #0b1119)`
+      : "linear-gradient(135deg, rgba(var(--primary-rgb), 0.28), #0b1119)",
     backgroundSize: "cover",
   };
 

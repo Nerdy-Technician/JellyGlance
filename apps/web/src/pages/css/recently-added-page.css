@@ -9,7 +9,7 @@
 
 .recently-added-page-header p {
   margin: 0 0 6px;
-  color: #d78df0;
+  color: var(--primary-light-color);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.18em;
@@ -35,10 +35,10 @@
 .recent-library-shelf {
   --recent-shelf-gap: 14px;
   padding: 18px 20px 20px;
-  border: 1px solid rgba(215, 141, 240, 0.16);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
   border-radius: 16px;
   background:
-    linear-gradient(135deg, rgba(215, 141, 240, 0.1), transparent 34%),
+    linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.1), transparent 34%),
     rgba(8, 10, 15, 0.82);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   content-visibility: auto;
@@ -66,10 +66,10 @@
   width: 42px;
   height: 42px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.42);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 14px;
   color: #e38df5;
-  background: rgba(215, 141, 240, 0.13);
+  background: rgba(var(--primary-light-rgb), 0.13);
 }
 
 .recent-library-shelf-title h2 {
@@ -102,10 +102,10 @@
   width: 40px;
   height: 40px;
   place-items: center;
-  border: 1px solid rgba(215, 141, 240, 0.34);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
   border-radius: 12px;
   color: #f5d2ff;
-  background: rgba(215, 141, 240, 0.15);
+  background: rgba(var(--primary-light-rgb), 0.15);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -114,8 +114,8 @@
 
 .recent-library-shelf-controls button:hover,
 .recent-library-shelf-controls button:focus-visible {
-  border-color: rgba(215, 141, 240, 0.82);
-  background: rgba(215, 141, 240, 0.28);
+  border-color: rgba(var(--primary-light-rgb), 0.82);
+  background: rgba(var(--primary-light-rgb), 0.28);
   transform: translateY(-1px);
 }
 
@@ -176,7 +176,7 @@
   width: 100%;
   min-height: 96px;
   padding: 0 18px;
-  border: 1px dashed rgba(215, 141, 240, 0.24);
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.24);
   border-radius: 14px;
   color: #9fb0c7;
   background: rgba(255, 255, 255, 0.025);
@@ -190,7 +190,7 @@
   align-items: center;
   justify-content: center;
   min-height: 220px;
-  border: 1px solid rgba(215, 141, 240, 0.18);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 16px;
   color: #d4deef;
   background: rgba(8, 10, 15, 0.72);

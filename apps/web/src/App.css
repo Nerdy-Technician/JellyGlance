@@ -9,8 +9,8 @@
   padding: 16px;
   overflow: auto;
   background:
-    radial-gradient(circle at 82% 0%, rgba(170, 92, 195, 0.16), transparent 28%),
-    radial-gradient(circle at 14% 12%, rgba(0, 164, 220, 0.1), transparent 28%),
+    radial-gradient(circle at 82% 0%, rgba(var(--primary-rgb), 0.16), transparent 28%),
+    radial-gradient(circle at 14% 12%, rgba(var(--secondary-rgb), 0.1), transparent 28%),
     linear-gradient(135deg, #090b10 0%, var(--background-color) 54%, #05070b 100%);
 }
 
@@ -118,13 +118,13 @@ h2 {
 
 .btn-outline-primary {
   color: white !important;
-  border-color: rgba(0, 164, 220, 0.45) !important;
+  border-color: rgba(var(--secondary-rgb), 0.45) !important;
   background-color: rgba(255, 255, 255, 0.04) !important;
   border-radius: 10px !important;
 }
 
 .btn-outline-primary:hover {
-  background-color: rgba(0, 164, 220, 0.16) !important;
+  background-color: rgba(var(--secondary-rgb), 0.16) !important;
 }
 
 .btn-outline-primary.active {
@@ -138,7 +138,7 @@ h2 {
 .btn-primary {
   color: white !important;
   border-color: var(--primary-color) !important;
-  background: linear-gradient(90deg, var(--primary-color), #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
   border-radius: 10px !important;
 }
 
@@ -206,10 +206,10 @@ h2 {
 .jellyglance-toast {
   min-height: 74px;
   overflow: hidden;
-  border: 1px solid rgba(215, 141, 240, 0.26);
+  border: 1px solid rgba(var(--primary-light-rgb), 0.26);
   border-radius: 16px !important;
   background:
-    radial-gradient(circle at 0% 0%, rgba(170, 92, 195, 0.18), transparent 38%),
+    radial-gradient(circle at 0% 0%, rgba(var(--primary-rgb), 0.18), transparent 38%),
     linear-gradient(135deg, rgba(18, 22, 30, 0.98), rgba(7, 10, 16, 0.96)) !important;
   color: #f8fafc !important;
   box-shadow:
@@ -230,7 +230,7 @@ h2 {
   min-width: 38px;
   margin-inline-end: 14px;
   color: #f1c8ff;
-  filter: drop-shadow(0 0 12px rgba(215, 141, 240, 0.45));
+  filter: drop-shadow(0 0 12px rgba(var(--primary-light-rgb), 0.45));
 }
 
 .jellyglance-toast.Toastify__toast--info .Toastify__toast-icon {
@@ -268,17 +268,17 @@ h2 {
 
 .jellyglance-toast-progress {
   height: 3px !important;
-  background: linear-gradient(90deg, var(--primary-color), #d78df0) !important;
+  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
 }
 
 .Toastify__toast--info .jellyglance-toast-progress {
-  background: linear-gradient(90deg, var(--secondary-color), #d78df0) !important;
+  background: linear-gradient(90deg, var(--secondary-color), var(--primary-light-color)) !important;
 }
 
 .Toastify__toast--success .jellyglance-toast-progress {
-  background: linear-gradient(90deg, #34d399, #d78df0) !important;
+  background: linear-gradient(90deg, #34d399, var(--primary-light-color)) !important;
 }
 
 .Toastify__toast--error .jellyglance-toast-progress {
-  background: linear-gradient(90deg, #fb7185, #d78df0) !important;
+  background: linear-gradient(90deg, #fb7185, var(--primary-light-color)) !important;
 }

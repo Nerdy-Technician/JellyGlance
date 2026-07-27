@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Nav, Navbar as BootstrapNavbar } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
+import axios from "../../../lib/axios_instance";
 import { navData } from "../../../lib/navdata";
 import LogoutBoxLineIcon from "remixicon-react/LogoutBoxLineIcon";
 import AccountCircleLineIcon from "remixicon-react/AccountCircleLineIcon";
@@ -13,6 +14,7 @@ import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
 import { slugifyUserName } from "../../../lib/userProfile";
 import Config from "../../../lib/config";
+import { DEFAULT_THEME, THEME_PRESETS, getStoredTheme, resetTheme, saveTheme } from "../../../lib/theme";
 
 function getCachedConfig() {
   try {
@@ -26,6 +28,7 @@ export default function Navbar() {
   const [showAccount, setShowAccount] = useState(false);
   const [config, setConfig] = useState(() => getCachedConfig());
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
+  const [customTheme, setCustomTheme] = useState(() => getStoredTheme());
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
@@ -148,6 +151,18 @@ export default function Navbar() {
 
   const profilePath = `/users/${slugifyUserName(accountName) || "account"}`;
 
+  const handleThemeChange = (key, value) => {
+    setCustomTheme((currentTheme) => saveTheme({ ...currentTheme, [key]: value }));
+  };
+
+  const handleThemePreset = (preset) => {
+    setCustomTheme(saveTheme(preset));
+  };
+
+  const handleThemeReset = () => {
+    setCustomTheme(resetTheme());
+  };
+
   const handleAvatarUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -170,9 +185,9 @@ export default function Navbar() {
           <img src={logo_dark} alt="" />
           <img src={projectText} alt="JellyGlance" />
         </Link>
-        <Link className="mobile-app-account" to={profilePath} aria-label="Open account dashboard">
+        <button className="mobile-app-account" type="button" onClick={() => setShowAccount(true)} aria-label="Open account settings">
           {avatarSrc ? <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} /> : <AccountCircleLineIcon />}
-        </Link>
+        </button>
       </div>
 
       <BootstrapNavbar variant="dark" className=" d-flex flex-column py-0 text-center sticky-top">
@@ -218,7 +233,7 @@ export default function Navbar() {
             );
           })}
           <div className="navbar-inline-footer">
-            <Link className="navitem account-navitem p-2" to={profilePath}>
+            <button className="navitem account-navitem p-2" type="button" onClick={() => setShowAccount(true)}>
               <span className="account-nav-avatar">
                 {avatarSrc ? (
                   <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} />
@@ -230,7 +245,7 @@ export default function Navbar() {
                 <strong>{accountName}</strong>
                 <small>{accountRole}</small>
               </span>
-            </Link>
+            </button>
             <button className="navitem footer-logout p-2" type="button" onClick={handleLogout}>
               <LogoutBoxLineIcon />
               <span className="nav-text">
@@ -265,8 +280,79 @@ export default function Navbar() {
               <input type="file" accept="image/*" onChange={handleAvatarUpload} />
             </label>
           ) : null}
+
+          <section className="profile-theme-panel" aria-labelledby="profile-theme-heading">
+            <div className="profile-theme-header">
+              <div>
+                <h3 id="profile-theme-heading">Custom colours</h3>
+                <span>Theme JellyGlance from this account.</span>
+              </div>
+              <button className="profile-theme-reset" type="button" onClick={handleThemeReset}>
+                Reset
+              </button>
+            </div>
+
+            <div className="profile-theme-presets" aria-label="Colour theme presets">
+              {THEME_PRESETS.map((preset) => {
+                const isActive =
+                  customTheme.primary === preset.primary &&
+                  customTheme.secondary === preset.secondary &&
+                  customTheme.background === preset.background &&
+                  customTheme.surface === preset.surface;
+
+                return (
+                  <button
+                    className={`profile-theme-preset${isActive ? " active" : ""}`}
+                    type="button"
+                    key={preset.name}
+                    onClick={() => handleThemePreset(preset)}
+                    aria-pressed={isActive}
+                  >
+                    <span className="profile-theme-preset-swatches" aria-hidden="true">
+                      <i style={{ backgroundColor: preset.primary }} />
+                      <i style={{ backgroundColor: preset.secondary }} />
+                      <i style={{ backgroundColor: preset.background }} />
+                    </span>
+                    <span>{preset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="profile-theme-fields">
+              {[
+                ["primary", "Primary"],
+                ["secondary", "Secondary"],
+                ["background", "Background"],
+                ["surface", "Surface"],
+              ].map(([key, label]) => (
+                <label className="profile-theme-field" key={key}>
+                  <span>{label}</span>
+                  <div className="profile-theme-input">
+                    <input
+                      type="color"
+                      value={customTheme[key] || DEFAULT_THEME[key]}
+                      onChange={(event) => handleThemeChange(key, event.target.value)}
+                      aria-label={`${label} colour`}
+                    />
+                    <input
+                      type="text"
+                      value={customTheme[key] || DEFAULT_THEME[key]}
+                      aria-label={`${label} hex colour`}
+                      maxLength={7}
+                      readOnly
+                      spellCheck="false"
+                    />
+                  </div>
+                </label>
+              ))}
+            </div>
+          </section>
         </Modal.Body>
         <Modal.Footer>
+          <Button as={Link} to={profilePath} variant="outline-secondary" onClick={() => setShowAccount(false)}>
+            View profile
+          </Button>
           <Button variant="outline-secondary" onClick={() => setShowAccount(false)}>
             Close
           </Button>

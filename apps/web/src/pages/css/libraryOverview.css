@@ -23,7 +23,7 @@
     display: flex;
     color: white;
     background:
-      linear-gradient(135deg, rgba(170, 92, 195, 0.78), rgba(215, 141, 240, 0.16)),
+      linear-gradient(135deg, rgba(var(--primary-rgb), 0.78), rgba(var(--primary-light-rgb), 0.16)),
       rgba(7, 9, 13, 0.92);
     background-size: cover;
     box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
@@ -76,7 +76,7 @@
   .library-item-count {
     width: 60%;
     text-align: right;
-    color: #d78df0;
+    color: var(--primary-light-color);
     font-weight: 850;
     font-size: 1.1em;
 
