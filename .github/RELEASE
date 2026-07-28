@@ -1,12 +1,9 @@
-version: v1.1.3
-title: JellyGlance v1.1.3
+version: v1.1.4
+title: JellyGlance v1.1.4
 ---
 
-feat(web): add custom theming and achievement milestones
+fix(web): resolve themed activity table colors for MUI
 
-- add profile modal custom colour theming with saved presets
-- apply theme variables across JellyGlance app colours
-- remove navbar backup status and backup-now action
-- add expanded theme preset list
-- add Home dashboard milestones section with progress cards
-- add per-user profile achievement badges
+- resolve CSS theme variables before passing colours into MUI createTheme
+- keep activity table accents synced when custom theme changes
+- fixes activity page crash after custom theming release
