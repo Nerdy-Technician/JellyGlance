@@ -10,6 +10,8 @@ import ActivityMonitorSettings from "./components/settings/ActivityMonitorSettin
 import WebhooksSettings from "./components/settings/webhooks";
 import Integrations from "./integrations";
 import HealthSettings from "./components/settings/health";
+import TautulliImport from "./components/settings/TautulliImport";
+import NewsletterSettings from "./components/settings/NewsletterSettings";
 
 import Logs from "./components/settings/logs";
 
@@ -28,6 +30,8 @@ import ArchiveLineIcon from "remixicon-react/ArchiveLineIcon";
 import FileList3LineIcon from "remixicon-react/FileList3LineIcon";
 import Plug2LineIcon from "remixicon-react/Plug2LineIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
+import Database2LineIcon from "remixicon-react/Database2LineIcon";
+import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
 
 const settingsTabs = [
   "tabGeneral",
@@ -39,6 +43,8 @@ const settingsTabs = [
   "tabKeys",
   "tabWebhooks",
   "tabBackup",
+  "tabImports",
+  "tabNewsletter",
   "tabHealth",
   "tabLogs",
 ];
@@ -159,6 +165,22 @@ export default function Settings() {
           title={tabTitle(ArchiveLineIcon, <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} />)}
         >
           <BackupPage />
+        </Tab>
+
+        <Tab
+          eventKey="tabImports"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(Database2LineIcon, "Imports")}
+        >
+          <TautulliImport />
+        </Tab>
+
+        <Tab
+          eventKey="tabNewsletter"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(MailSettingsLineIcon, "Newsletter")}
+        >
+          <NewsletterSettings />
         </Tab>
 
         <Tab

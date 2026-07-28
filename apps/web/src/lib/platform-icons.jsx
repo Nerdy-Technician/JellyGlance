@@ -44,19 +44,19 @@ const iconMap = [
   { match: ["kodi"], icon: siKodi },
   { match: ["plex"], icon: siPlex },
   { match: ["emby"], icon: siEmby },
-  { match: ["jellyfin"], icon: siJellyfin },
+  { match: ["jellyfin"], icon: siJellyfin, color: "#AA5CC3" },
 ];
 
-function getPlatformIcon(client = "", deviceName = "") {
+function getPlatformIconMeta(client = "", deviceName = "") {
   const haystack = `${client} ${deviceName}`.toLowerCase();
   const matched = iconMap.find((entry) => entry.match.some((term) => haystack.includes(term)));
 
-  return matched?.icon ?? siJellyfin;
+  return matched ?? { icon: siJellyfin, color: "#AA5CC3" };
 }
 
 export function PlatformIcon({ client, deviceName, className = "" }) {
-  const icon = getPlatformIcon(client, deviceName);
-  const color = `#${icon.hex}`;
+  const { icon, color: overrideColor } = getPlatformIconMeta(client, deviceName);
+  const color = overrideColor || `#${icon.hex}`;
 
   return (
     <svg

@@ -20,6 +20,7 @@ import Login from "./pages/login";
 
 import Navbar from "./pages/components/general/navbar";
 import ErrorPage from "./pages/components/general/error";
+import WhatsNewModal from "./pages/components/general/WhatsNewModal";
 import routes from "./routes";
 
 function App() {
@@ -180,6 +181,7 @@ function App() {
           bodyClassName="jellyglance-toast-body"
           progressClassName="jellyglance-toast-progress"
         />
+        <WhatsNewModal enabled={!kioskMode} />
       </div>
     );
   }

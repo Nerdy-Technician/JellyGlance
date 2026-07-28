@@ -25,9 +25,11 @@ const proxyRouter = require("./routes/proxy");
 const { router: syncRouter } = require("./routes/sync");
 const statsRouter = require("./routes/stats");
 const backupRouter = require("./routes/backup");
+const tautulliRouter = require("./routes/tautulli");
 const logRouter = require("./routes/logging");
 const utilsRouter = require("./routes/utils");
 const webhooksRouter = require("./routes/webhooks");
+const newsletterRouter = require("./routes/newsletter");
 
 // tasks
 const ActivityMonitor = require("./tasks/ActivityMonitor");
@@ -174,6 +176,9 @@ app.use("/stats", authenticate, statsRouter, () => {
 app.use("/backup", authenticate, requirePermission("settings"), backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
+app.use("/tautulli", authenticate, requirePermission("settings"), tautulliRouter, () => {
+  /*  #swagger.tags = ['Tautulli']*/
+}); // mount the Tautulli import router with settings permission
 app.use("/logs", authenticate, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
@@ -183,6 +188,9 @@ app.use("/utils", authenticate, requirePermission("settings"), utilsRouter, () =
 app.use("/webhooks", authenticate, requirePermission("settings"), webhooksRouter, () => {
   /*  #swagger.tags = ['Webhooks']*/
 }); // mount the API router at /webhooks, with JWT middleware
+app.use("/newsletter", authenticate, requirePermission("settings"), newsletterRouter, () => {
+  /*  #swagger.tags = ['Newsletter']*/
+}); // mount the newsletter router with settings permission
 
 app.get("/backup-download/:filename", (req, res) => {
   try {

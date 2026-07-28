@@ -25,7 +25,7 @@ export function groupAdjacentSeasons(timelineEntries) {
             const potentialNextSeason = entryArray[potentialNextSeasonIndex];
             if (entry.Title === potentialNextSeason?.Title) {
               lastSeasonInSession = potentialNextSeason;
-              totalEpisodeCount += +potentialNextSeason.EpisodeCount ?? 0;
+              totalEpisodeCount += Number(potentialNextSeason.EpisodeCount ?? 0);
               //remove season from list after usage
               entryArray[potentialNextSeasonIndex] = undefined;
 

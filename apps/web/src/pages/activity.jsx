@@ -73,14 +73,23 @@ function Activity() {
     setTypeFilterParam(filter);
   }
 
-  const updateLibraryFilterParams = (libraries) => {
+  const updateLibraryFilterParams = (selectedLibraries) => {
     const params = [...filterParams];
-    if (libraries.length != 0) {
+    const selectedAllLibraries =
+      libraries.length > 0 &&
+      selectedLibraries.length === libraries.length &&
+      libraries.every((library) => selectedLibraries.includes(library.Id));
+    if (selectedAllLibraries) {
+      setFilterParams(params.filter((filter) => filter.field !== "ParentId"));
+      return;
+    }
+
+    if (selectedLibraries.length != 0) {
       const libraryFilterIndex = params.findIndex((filter) => filter.field === "ParentId");
       if (libraryFilterIndex !== -1) {
-        params[libraryFilterIndex].in = libraries.join(",");
+        params[libraryFilterIndex].in = selectedLibraries.join(",");
       } else {
-        params.push({ field: "ParentId", in: libraries.join(",") });
+        params.push({ field: "ParentId", in: selectedLibraries.join(",") });
       }
     } else {
       const libraryFilterIndex = params.findIndex((filter) => filter.field === "ParentId");
@@ -98,6 +107,11 @@ function Activity() {
     localStorage.setItem("PREF_ACTIVITY_libraryFilters", JSON.stringify(selectedOptions));
     updateLibraryFilterParams(selectedOptions);
   };
+
+  const allLibrariesSelected =
+    libraries.length > 0 &&
+    libraryFilters.length === libraries.length &&
+    libraries.every((library) => libraryFilters.includes(library.Id));
 
   const toggleSelectAll = () => {
     if (libraryFilters.length > 0) {
@@ -138,11 +152,18 @@ function Activity() {
         .catch((error) => console.log(error));
     };
 
+    const handleImportedData = () => {
+      setCurrentPage(1);
+      setData(undefined);
+    };
+
     window.addEventListener("jellyglance-backup-restored", handleRestoredData);
+    window.addEventListener("jellyglance-history-imported", handleImportedData);
     socket.on("BackupRestore", handleRestoredData);
 
     return () => {
       window.removeEventListener("jellyglance-backup-restored", handleRestoredData);
+      window.removeEventListener("jellyglance-history-imported", handleImportedData);
       socket.off("BackupRestore", handleRestoredData);
     };
   }, []);
@@ -165,21 +186,22 @@ function Activity() {
       if (filterParams) {
         console.log(JSON.stringify(filterParams));
       }
-      if (libraryFilters.length != 0) {
-        const libraryFilterIndex = filterParams.findIndex((filter) => filter.field === "ParentId");
+      const requestFilters = [...filterParams].filter((filter) => filter.field !== "ParentId");
+      if (libraries.length > 0 && libraryFilters.length != 0 && !allLibrariesSelected) {
+        const libraryFilterIndex = requestFilters.findIndex((filter) => filter.field === "ParentId");
         if (libraryFilterIndex !== -1) {
-          filterParams[libraryFilterIndex].in = libraryFilters.join(",");
+          requestFilters[libraryFilterIndex].in = libraryFilters.join(",");
         } else {
-          filterParams.push({ field: "ParentId", in: libraryFilters.join(",") });
+          requestFilters.push({ field: "ParentId", in: libraryFilters.join(",") });
         }
       }
 
       if (streamTypeFilter != "All") {
-        const streamTypeFilterIndex = filterParams.findIndex((filter) => filter.field === "PlayMethod");
+        const streamTypeFilterIndex = requestFilters.findIndex((filter) => filter.field === "PlayMethod");
         if (streamTypeFilterIndex !== -1) {
-          filterParams[streamTypeFilterIndex].value = streamTypeFilter;
+          requestFilters[streamTypeFilterIndex].value = streamTypeFilter;
         } else {
-          filterParams.push({ field: "PlayMethod", value: streamTypeFilter });
+          requestFilters.push({ field: "PlayMethod", value: streamTypeFilter });
         }
       }
 
@@ -191,7 +213,7 @@ function Activity() {
             search: debouncedSearchQuery,
             sort: sorting.column,
             desc: sorting.desc,
-            filters: filterParams != undefined ? JSON.stringify(filterParams) : null,
+            filters: requestFilters != undefined ? JSON.stringify(requestFilters) : null,
           },
           headers: {
             Authorization: `Bearer ${config.token}`,
@@ -262,7 +284,7 @@ function Activity() {
 
     const intervalId = setInterval(fetchHistory, 60000 * 60);
     return () => clearInterval(intervalId);
-  }, [data, config, itemCount, currentPage, debouncedSearchQuery, sorting, filterParams]);
+  }, [data, config, itemCount, currentPage, debouncedSearchQuery, sorting, filterParams, libraries, allLibrariesSelected]);
 
   if (!data) {
     return <Loading />;

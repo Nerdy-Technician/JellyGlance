@@ -1,0 +1,49 @@
+{
+  "1.1.5": [
+    {
+      "icon": "upload",
+      "title": "Tautulli history imports",
+      "body": "Upload old Tautulli backups, preview them, append watch history safely, and repair unmatched media links."
+    },
+    {
+      "icon": "movie",
+      "title": "Active session popouts",
+      "body": "Click a live session card for a richer playback inspector with stream, device, user, progress, and transcode details."
+    },
+    {
+      "icon": "palette",
+      "title": "Custom profile theming",
+      "body": "New theme controls and presets let JellyGlance feel more personal across the dashboard."
+    },
+    {
+      "icon": "speed",
+      "title": "Faster profile pages",
+      "body": "Profile stats and media sections now load with targeted requests, cache reuse, and clearer loading counts."
+    },
+    {
+      "icon": "magic",
+      "title": "What's new popup",
+      "body": "JellyGlance now shows update notes once per version, with a manual button in the profile menu whenever you want to revisit them."
+    },
+    {
+      "icon": "speed",
+      "title": "Activity refresh fixes",
+      "body": "Activity pages now refresh after imports and handle imported history more reliably."
+    },
+    {
+      "icon": "movie",
+      "title": "Better session readability",
+      "body": "Active session timing and playback text have been tightened up so live cards are easier to scan."
+    },
+    {
+      "icon": "magic",
+      "title": "Repair Hub",
+      "body": "A new navbar page pulls media repair work into one place, including missing artwork, runtime gaps, empty series, orphaned activity, and unmatched imported history."
+    },
+    {
+      "icon": "mail",
+      "title": "Newsletter generator",
+      "body": "Configure SMTP, preview a JellyGlance digest, send test emails, and manually email recently added media, top watched items, active viewers, and repair status."
+    }
+  ]
+}

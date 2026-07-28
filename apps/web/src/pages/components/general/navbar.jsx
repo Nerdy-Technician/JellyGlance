@@ -5,10 +5,12 @@ import axios from "../../../lib/axios_instance";
 import { navData } from "../../../lib/navdata";
 import LogoutBoxLineIcon from "remixicon-react/LogoutBoxLineIcon";
 import AccountCircleLineIcon from "remixicon-react/AccountCircleLineIcon";
+import MagicLineIcon from "remixicon-react/MagicLineIcon";
 import logo_dark from "../../images/icon-b-512.png";
 import projectText from "../../images/project-text.png";
 import "../../css/navbar.css";
 import VersionCard from "./version-card";
+import { OPEN_WHATS_NEW_EVENT } from "./WhatsNewModal";
 import { Trans } from "react-i18next";
 import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
@@ -178,6 +180,11 @@ export default function Navbar() {
     reader.readAsDataURL(file);
   };
 
+  const openWhatsNew = () => {
+    window.dispatchEvent(new Event(OPEN_WHATS_NEW_EVENT));
+    setShowAccount(false);
+  };
+
   return (
     <>
       <div className="mobile-app-topbar d-md-none">
@@ -280,6 +287,14 @@ export default function Navbar() {
               <input type="file" accept="image/*" onChange={handleAvatarUpload} />
             </label>
           ) : null}
+
+          <button className="profile-whats-new-button" type="button" onClick={openWhatsNew}>
+            <MagicLineIcon size={18} />
+            <span>
+              <strong>What&apos;s new</strong>
+              <small>Open the latest JellyGlance update notes.</small>
+            </span>
+          </button>
 
           <section className="profile-theme-panel" aria-labelledby="profile-theme-heading">
             <div className="profile-theme-header">

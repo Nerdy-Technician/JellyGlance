@@ -668,6 +668,10 @@
   font-weight: 950;
 }
 
+.user-profile-subnav strong.is-loading {
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .user-profile-media-section {
   display: grid;
   gap: 14px;

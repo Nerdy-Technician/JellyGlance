@@ -15,6 +15,7 @@ import Integrations from "./pages/integrations";
 import Calendar from "./pages/calendar";
 import Requests from "./pages/requests";
 import Downloads from "./pages/downloads";
+import RepairHub from "./pages/repair-hub";
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
@@ -30,6 +31,7 @@ const routes = [
   { path: "/calendar", element: <Calendar />, exact: true },
   { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
+  { path: "/repair", element: <RepairHub />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },
   { path: "/activity", element: <Activity />, exact: true },
   { path: "/timeline", element: <ActivityTimeline />, exact: true },

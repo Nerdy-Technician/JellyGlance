@@ -1,0 +1,278 @@
+.repair-hub {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 1.25rem;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.repair-hero,
+.repair-panel,
+.repair-metric,
+.repair-queue-card {
+  background: rgba(17, 21, 29, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+.repair-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: 8px;
+}
+
+.repair-hero span,
+.repair-panel-title span,
+.repair-metric span,
+.repair-queue-card span {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.repair-hero h1 {
+  margin: 0.15rem 0 0.25rem;
+  font-size: clamp(1.75rem, 2.4vw, 2.6rem);
+  font-weight: 850;
+}
+
+.repair-hero p {
+  max-width: 780px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.repair-hero .btn,
+.repair-queue-card a,
+.repair-panel-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  white-space: nowrap;
+}
+
+.repair-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.9rem;
+}
+
+.repair-metric {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  min-height: 118px;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.repair-metric > svg,
+.repair-queue-card > svg {
+  color: var(--secondary-color);
+}
+
+.repair-metric.is-danger > svg,
+.repair-queue-card.is-danger > svg {
+  color: #ff6978;
+}
+
+.repair-metric.is-warning > svg,
+.repair-queue-card.is-warning > svg {
+  color: #ffc45c;
+}
+
+.repair-metric.is-ok > svg {
+  color: #60d394;
+}
+
+.repair-metric strong {
+  display: block;
+  margin: 0.25rem 0;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.repair-metric small,
+.repair-queue-card small,
+.repair-sample-row span,
+.repair-unmatched-grid span,
+.repair-unmatched-grid small,
+.repair-task-list span,
+.repair-task-list time {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.repair-queue {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.repair-queue-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.repair-queue-card strong {
+  display: block;
+  margin: 0.25rem 0;
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.repair-queue-card a {
+  grid-column: 2;
+  width: fit-content;
+  margin-top: 0.35rem;
+  color: var(--secondary-color);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.repair-panel {
+  margin-top: 0.9rem;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.repair-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.repair-panel-title h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.repair-panel-title a {
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.repair-unmatched-grid,
+.repair-sample-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.repair-unmatched-grid article,
+.repair-task-list article,
+.repair-sample-row {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.repair-unmatched-grid article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+
+.repair-unmatched-grid strong,
+.repair-sample-row strong,
+.repair-task-list strong {
+  display: block;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repair-unmatched-grid small {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.repair-sample-list,
+.repair-task-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.repair-sample-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 62px;
+  padding: 0.7rem 0.8rem;
+  text-decoration: none;
+}
+
+.repair-sample-row:hover {
+  border-color: rgba(var(--secondary-rgb), 0.45);
+  background: rgba(var(--secondary-rgb), 0.1);
+}
+
+.repair-sample-row > div,
+.repair-task-list article > div,
+.repair-unmatched-grid article > div {
+  min-width: 0;
+}
+
+.repair-task-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.repair-empty {
+  padding: 0.9rem;
+  color: rgba(255, 255, 255, 0.58);
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .repair-overview,
+  .repair-queue {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .repair-hub {
+    padding: 0.75rem;
+  }
+
+  .repair-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .repair-overview,
+  .repair-queue,
+  .repair-unmatched-grid,
+  .repair-sample-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .repair-task-list article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .repair-task-list time {
+    grid-column: 2;
+  }
+}

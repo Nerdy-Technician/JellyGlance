@@ -545,6 +545,50 @@
   font-size: 12px;
 }
 
+.profile-whats-new-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 12px;
+  background: rgba(var(--primary-rgb), 0.1);
+  color: #f8fafc;
+  text-align: left;
+}
+
+.profile-whats-new-button svg {
+  color: var(--primary-light-color);
+}
+
+.profile-whats-new-button strong,
+.profile-whats-new-button small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-whats-new-button strong {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.profile-whats-new-button small {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.profile-whats-new-button:hover {
+  border-color: rgba(var(--primary-light-rgb), 0.38);
+  background: rgba(var(--primary-rgb), 0.16);
+}
+
 .profile-theme-panel {
   display: grid;
   gap: 14px;

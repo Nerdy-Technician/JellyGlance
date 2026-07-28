@@ -935,72 +935,84 @@ async function fetchUserMediaNetwork(userId, favourites = [], watchlist = []) {
   };
 }
 
+const USER_MEDIA_LISTS_CACHE_TTL_MS = 2 * 60 * 1000;
+const userMediaListsCache = new Map();
+const userMediaListsInflight = new Map();
+
+function clearUserMediaListsCache(userId) {
+  if (userId) {
+    userMediaListsCache.delete(userId);
+    userMediaListsInflight.delete(userId);
+  }
+}
+
 async function fetchUserMediaLists(userId) {
   const includeItemTypes = "Movie,Series,Episode";
-  const favourites = await fetchJellyfinUserItems(userId, {
-    Filters: "IsFavorite",
-    IncludeItemTypes: includeItemTypes,
-    SortBy: "DateCreated,SortName",
-    SortOrder: "Descending",
-    Limit: 24,
-  });
+  const [favourites, jellyfinWatchlist, taggedWatchlist, watchlistContainers, continueWatching, recentlyWatched] = await Promise.all([
+    fetchJellyfinUserItems(userId, {
+      Filters: "IsFavorite",
+      IncludeItemTypes: includeItemTypes,
+      SortBy: "DateCreated,SortName",
+      SortOrder: "Descending",
+      Limit: 24,
+    }).catch(() => []),
+    fetchJellyfinUserItems(userId, {
+      Filters: "Likes",
+      IncludeItemTypes: "Movie,Series",
+      SortBy: "DateCreated,SortName",
+      SortOrder: "Descending",
+      Limit: 48,
+    }).catch(() => []),
+    fetchJellyfinUserItems(userId, {
+      Tags: "watchlist,Watchlist",
+      IncludeItemTypes: includeItemTypes,
+      SortBy: "DateCreated,SortName",
+      SortOrder: "Descending",
+      Limit: 24,
+    }).catch(() => []),
+    fetchJellyfinUserItems(userId, {
+      SearchTerm: "Watchlist",
+      IncludeItemTypes: "Playlist,BoxSet",
+      SortBy: "SortName",
+      SortOrder: "Ascending",
+      Limit: 10,
+    }).catch(() => []),
+    fetchJellyfinUserItems(userId, {
+      Filters: "IsResumable",
+      IncludeItemTypes: "Movie,Episode",
+      SortBy: "DatePlayed",
+      SortOrder: "Descending",
+      Limit: 24,
+    })
+      .then((items) => items.map(normalizeJellyfinMediaItem))
+      .catch(() => []),
+    fetchRecentlyWatched(userId),
+  ]);
 
-  const jellyfinWatchlist = await fetchJellyfinUserItems(userId, {
-    Filters: "Likes",
-    IncludeItemTypes: "Movie,Series",
-    SortBy: "DateCreated,SortName",
-    SortOrder: "Descending",
-    Limit: 48,
-  }).catch(() => []);
-
-  const taggedWatchlist = await fetchJellyfinUserItems(userId, {
-    Tags: "watchlist,Watchlist",
-    IncludeItemTypes: includeItemTypes,
-    SortBy: "DateCreated,SortName",
-    SortOrder: "Descending",
-    Limit: 24,
-  }).catch(() => []);
-
-  const watchlistContainers = await fetchJellyfinUserItems(userId, {
-    SearchTerm: "Watchlist",
-    IncludeItemTypes: "Playlist,BoxSet",
-    SortBy: "SortName",
-    SortOrder: "Ascending",
-    Limit: 10,
-  }).catch(() => []);
-
-  const containerItems = (
-    await Promise.all(
-      watchlistContainers.map((container) =>
-        fetchJellyfinUserItems(userId, {
-          ParentId: container.Id,
-          IncludeItemTypes: includeItemTypes,
-          SortBy: "DateCreated,SortName",
-          SortOrder: "Descending",
-          Limit: 24,
-        }).catch(() => [])
-      )
-    )
-  ).flat();
+  const containerItems = watchlistContainers.length
+    ? (
+        await Promise.all(
+          watchlistContainers.map((container) =>
+            fetchJellyfinUserItems(userId, {
+              ParentId: container.Id,
+              IncludeItemTypes: includeItemTypes,
+              SortBy: "DateCreated,SortName",
+              SortOrder: "Descending",
+              Limit: 24,
+            }).catch(() => [])
+          )
+        )
+      ).flat()
+    : [];
 
   const watchlist = dedupeMediaItems([...jellyfinWatchlist, ...taggedWatchlist, ...containerItems]).slice(0, 48).map(normalizeJellyfinMediaItem);
   const normalizedFavourites = dedupeMediaItems(favourites).slice(0, 24).map(normalizeJellyfinMediaItem);
-  const continueWatching = await fetchJellyfinUserItems(userId, {
-    Filters: "IsResumable",
-    IncludeItemTypes: "Movie,Episode",
-    SortBy: "DatePlayed",
-    SortOrder: "Descending",
-    Limit: 24,
-  })
-    .then((items) => items.map(normalizeJellyfinMediaItem))
-    .catch(() => []);
-  const recentlyWatched = await fetchRecentlyWatched(userId);
-  const nextEpisodes = await fetchNextEpisodes(
-    userId,
-    watchlist.filter((item) => item.type === "Series").map((item) => item.id)
-  );
-  const recommendations = await buildRecommendations(userId, watchlist);
-  const mediaNetwork = await fetchUserMediaNetwork(userId, normalizedFavourites, watchlist);
+  const watchlistedSeriesIds = watchlist.filter((item) => item.type === "Series").map((item) => item.id);
+  const [nextEpisodes, recommendations, mediaNetwork] = await Promise.all([
+    fetchNextEpisodes(userId, watchlistedSeriesIds),
+    buildRecommendations(userId, watchlist),
+    fetchUserMediaNetwork(userId, normalizedFavourites, watchlist),
+  ]);
   const allTasteItems = [...normalizedFavourites, ...watchlist, ...recentlyWatched];
   const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
@@ -1403,7 +1415,26 @@ router.post("/requests/:requestId/actions", async (req, res) => {
 
 router.get("/users/:userId/media-lists", async (req, res) => {
   try {
-    res.send(await fetchUserMediaLists(req.params.userId));
+    const { userId } = req.params;
+    const cached = userMediaListsCache.get(userId);
+    if (cached && Date.now() - cached.createdAt < USER_MEDIA_LISTS_CACHE_TTL_MS) {
+      return res.send(cached.data);
+    }
+
+    let request = userMediaListsInflight.get(userId);
+    if (!request) {
+      request = fetchUserMediaLists(userId)
+        .then((data) => {
+          userMediaListsCache.set(userId, { createdAt: Date.now(), data });
+          return data;
+        })
+        .finally(() => {
+          userMediaListsInflight.delete(userId);
+        });
+      userMediaListsInflight.set(userId, request);
+    }
+
+    res.send(await request);
   } catch (error) {
     console.error("Get user media lists failed:", error);
     res.status(503).send({ error: error.message || "Unable to load user media lists" });
@@ -1412,7 +1443,9 @@ router.get("/users/:userId/media-lists", async (req, res) => {
 
 router.post("/users/:userId/media/:itemId/actions", async (req, res) => {
   try {
-    res.send(await runJellyfinUserMediaAction(req.params.userId, req.params.itemId, req.body?.action));
+    const result = await runJellyfinUserMediaAction(req.params.userId, req.params.itemId, req.body?.action);
+    clearUserMediaListsCache(req.params.userId);
+    res.send(result);
   } catch (error) {
     console.error("User media action failed:", error);
     res.status(error.statusCode || error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to update media item" });

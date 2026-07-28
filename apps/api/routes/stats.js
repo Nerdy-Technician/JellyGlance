@@ -71,6 +71,122 @@ const filterFields = [
 
 //endpoints
 
+router.get("/repair-hub", async (req, res) => {
+  try {
+    const [
+      issueCounts,
+      missingPosters,
+      missingLogos,
+      missingRuntime,
+      emptySeries,
+      orphanedActivity,
+      importedUnmatched,
+      recentTaskFailures,
+    ] = await Promise.all([
+      db.query(`
+        SELECT
+          count(*) FILTER (WHERE COALESCE("PrimaryImageHash", '') = '')::int AS "MissingPosters",
+          count(*) FILTER (WHERE COALESCE("ImageTagsLogo", '') = '')::int AS "MissingLogos",
+          count(*) FILTER (WHERE COALESCE("RunTimeTicks", 0) = 0)::int AS "MissingRuntime"
+        FROM jf_library_items
+        WHERE archived = false
+      `),
+      db.query(`
+        SELECT "Id", "Name", "Type", "ProductionYear", "ParentId"
+        FROM jf_library_items
+        WHERE archived = false
+          AND COALESCE("PrimaryImageHash", '') = ''
+        ORDER BY "Name" ASC
+        LIMIT 8
+      `),
+      db.query(`
+        SELECT "Id", "Name", "Type", "ProductionYear", "ParentId"
+        FROM jf_library_items
+        WHERE archived = false
+          AND COALESCE("ImageTagsLogo", '') = ''
+        ORDER BY "Name" ASC
+        LIMIT 8
+      `),
+      db.query(`
+        SELECT "Id", "Name", "Type", "ProductionYear", "ParentId"
+        FROM jf_library_items
+        WHERE archived = false
+          AND COALESCE("RunTimeTicks", 0) = 0
+        ORDER BY "Name" ASC
+        LIMIT 8
+      `),
+      db.query(`
+        SELECT i."Id", i."Name", i."Type", i."ProductionYear", i."ParentId", count(e."EpisodeId")::int AS "EpisodeCount"
+        FROM jf_library_items i
+        LEFT JOIN jf_library_episodes e ON e."SeriesId" = i."Id" AND COALESCE(e.archived, false) = false
+        WHERE i.archived = false
+          AND i."Type" = 'Series'
+        GROUP BY i."Id", i."Name", i."Type", i."ProductionYear", i."ParentId"
+        HAVING count(e."EpisodeId") = 0
+        ORDER BY i."Name" ASC
+        LIMIT 8
+      `),
+      db.query(`
+        SELECT
+          count(*)::int AS "Count",
+          max(a."ActivityDateInserted") AS "LastSeen"
+        FROM jf_playback_activity a
+        LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+        LEFT JOIN jf_library_episodes e ON e."EpisodeId" = a."EpisodeId"
+        WHERE a."NowPlayingItemId" IS NOT NULL
+          AND a."NowPlayingItemId" NOT LIKE 'tautulli:%'
+          AND i."Id" IS NULL
+          AND (a."EpisodeId" IS NULL OR e."EpisodeId" IS NULL)
+      `),
+      db.query(`
+        SELECT count(*)::int AS "Count", max("ActivityDateInserted") AS "LastSeen"
+        FROM jf_playback_activity
+        WHERE imported = true
+          AND "Id" LIKE 'tautulli:%'
+          AND "NowPlayingItemId" LIKE 'tautulli:%'
+      `),
+      db.query(`
+        SELECT "Id", "Name", "Result", "TimeRun", "Duration"
+        FROM jf_logging
+        WHERE lower(COALESCE("Result", '')) NOT IN ('success', 'completed', 'ok')
+        ORDER BY "TimeRun" DESC
+        LIMIT 6
+      `),
+    ]);
+
+    const counts = issueCounts.rows[0] || {};
+    const orphaned = orphanedActivity.rows[0] || {};
+    const unmatched = importedUnmatched.rows[0] || {};
+
+    res.send({
+      checkedAt: new Date().toISOString(),
+      counts: {
+        missingPosters: Number(counts.MissingPosters || 0),
+        missingLogos: Number(counts.MissingLogos || 0),
+        missingRuntime: Number(counts.MissingRuntime || 0),
+        emptySeries: emptySeries.rowCount,
+        orphanedActivity: Number(orphaned.Count || 0),
+        unmatchedImports: Number(unmatched.Count || 0),
+        taskFailures: recentTaskFailures.rowCount,
+      },
+      samples: {
+        missingPosters: missingPosters.rows,
+        missingLogos: missingLogos.rows,
+        missingRuntime: missingRuntime.rows,
+        emptySeries: emptySeries.rows,
+        taskFailures: recentTaskFailures.rows,
+      },
+      activityLinks: {
+        orphanedLastSeen: orphaned.LastSeen || null,
+        unmatchedLastSeen: unmatched.LastSeen || null,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(503).send({ error: "Unable to build repair hub" });
+  }
+});
+
 router.get("/getLibraryOverview", async (req, res) => {
   try {
     const { rows } = await db.query("SELECT * FROM jf_library_count_view");
@@ -593,6 +709,120 @@ router.get("/getAllUserActivity", async (req, res) => {
   }
 });
 
+async function enrichUserWrapUp(user) {
+  const params = [user.UserId];
+  const [topTitle, topMovie, topSeries, topClient, topLibrary, topDay, topHour, dailyActivity] = await Promise.all([
+    db.query(
+      `
+        SELECT
+          COALESCE("SeriesName", "NowPlayingItemName") AS "Name",
+          (array_agg("NowPlayingItemId" ORDER BY "ActivityDateInserted" DESC))[1] AS "ItemId",
+          count(*)::int AS "Count",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "Duration"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1
+        GROUP BY COALESCE("SeriesName", "NowPlayingItemName")
+        ORDER BY count(*) DESC, COALESCE(sum("PlaybackDuration"), 0) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT "NowPlayingItemName" AS "Name", "NowPlayingItemId" AS "ItemId", count(*)::int AS "Count"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1 AND "SeriesName" IS NULL
+        GROUP BY "NowPlayingItemName", "NowPlayingItemId"
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT "SeriesName" AS "Name", "NowPlayingItemId" AS "ItemId", count(*)::int AS "Count"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1 AND "SeriesName" IS NOT NULL
+        GROUP BY "SeriesName", "NowPlayingItemId"
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT COALESCE("Client", 'Unknown') AS "Name", count(*)::int AS "Count"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1
+        GROUP BY COALESCE("Client", 'Unknown')
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT COALESCE(l."Name", 'Unknown library') AS "Name", count(*)::int AS "Count"
+        FROM jf_playback_activity a
+        LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+        LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
+        WHERE a."UserId" = $1
+        GROUP BY COALESCE(l."Name", 'Unknown library')
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT trim(to_char("ActivityDateInserted", 'Day')) AS "Name", count(*)::int AS "Count"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1
+        GROUP BY trim(to_char("ActivityDateInserted", 'Day')), extract(dow from "ActivityDateInserted")
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT extract(hour from "ActivityDateInserted")::int AS "Hour", count(*)::int AS "Count"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1
+        GROUP BY extract(hour from "ActivityDateInserted")
+        ORDER BY count(*) DESC
+        LIMIT 1
+      `,
+      params
+    ),
+    db.query(
+      `
+        SELECT
+          "ActivityDateInserted"::date AS "Date",
+          count(*)::int AS "Streams",
+          COALESCE(sum("PlaybackDuration"), 0)::bigint AS "Duration"
+        FROM jf_playback_activity
+        WHERE "UserId" = $1
+        GROUP BY "ActivityDateInserted"::date
+        ORDER BY "ActivityDateInserted"::date ASC
+      `,
+      params
+    ),
+  ]);
+
+  return {
+    ...user,
+    TopTitle: topTitle.rows[0] || null,
+    TopMovie: topMovie.rows[0] || null,
+    TopSeries: topSeries.rows[0] || null,
+    TopClient: topClient.rows[0] || null,
+    TopLibrary: topLibrary.rows[0] || null,
+    TopDay: topDay.rows[0] || null,
+    TopHour: topHour.rows[0] || null,
+    DailyActivity: dailyActivity.rows,
+  };
+}
+
 router.get("/getUserWrapUp", async (req, res) => {
   try {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -614,123 +844,62 @@ router.get("/getUserWrapUp", async (req, res) => {
       ORDER BY COALESCE(sum(a."PlaybackDuration"), 0) DESC, u."Name" ASC
     `);
 
-    const enrichedUsers = await Promise.all(
-      users.map(async (user) => {
-        const params = [user.UserId];
-        const [topTitle, topMovie, topSeries, topClient, topLibrary, topDay, topHour, dailyActivity] = await Promise.all([
-          db.query(
-            `
-              SELECT
-                COALESCE("SeriesName", "NowPlayingItemName") AS "Name",
-                (array_agg("NowPlayingItemId" ORDER BY "ActivityDateInserted" DESC))[1] AS "ItemId",
-                count(*)::int AS "Count",
-                COALESCE(sum("PlaybackDuration"), 0)::bigint AS "Duration"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1
-              GROUP BY COALESCE("SeriesName", "NowPlayingItemName")
-              ORDER BY count(*) DESC, COALESCE(sum("PlaybackDuration"), 0) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT "NowPlayingItemName" AS "Name", "NowPlayingItemId" AS "ItemId", count(*)::int AS "Count"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1 AND "SeriesName" IS NULL
-              GROUP BY "NowPlayingItemName", "NowPlayingItemId"
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT "SeriesName" AS "Name", "NowPlayingItemId" AS "ItemId", count(*)::int AS "Count"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1 AND "SeriesName" IS NOT NULL
-              GROUP BY "SeriesName", "NowPlayingItemId"
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT COALESCE("Client", 'Unknown') AS "Name", count(*)::int AS "Count"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1
-              GROUP BY COALESCE("Client", 'Unknown')
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT COALESCE(l."Name", 'Unknown library') AS "Name", count(*)::int AS "Count"
-              FROM jf_playback_activity a
-              LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
-              LEFT JOIN jf_libraries l ON l."Id" = i."ParentId"
-              WHERE a."UserId" = $1
-              GROUP BY COALESCE(l."Name", 'Unknown library')
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT trim(to_char("ActivityDateInserted", 'Day')) AS "Name", count(*)::int AS "Count"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1
-              GROUP BY trim(to_char("ActivityDateInserted", 'Day')), extract(dow from "ActivityDateInserted")
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT extract(hour from "ActivityDateInserted")::int AS "Hour", count(*)::int AS "Count"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1
-              GROUP BY extract(hour from "ActivityDateInserted")
-              ORDER BY count(*) DESC
-              LIMIT 1
-            `,
-            params
-          ),
-          db.query(
-            `
-              SELECT
-                "ActivityDateInserted"::date AS "Date",
-                count(*)::int AS "Streams",
-                COALESCE(sum("PlaybackDuration"), 0)::bigint AS "Duration"
-              FROM jf_playback_activity
-              WHERE "UserId" = $1
-              GROUP BY "ActivityDateInserted"::date
-              ORDER BY "ActivityDateInserted"::date ASC
-            `,
-            params
-          ),
-        ]);
-
-        return {
-          ...user,
-          TopTitle: topTitle.rows[0] || null,
-          TopMovie: topMovie.rows[0] || null,
-          TopSeries: topSeries.rows[0] || null,
-          TopClient: topClient.rows[0] || null,
-          TopLibrary: topLibrary.rows[0] || null,
-          TopDay: topDay.rows[0] || null,
-          TopHour: topHour.rows[0] || null,
-          DailyActivity: dailyActivity.rows,
-        };
-      })
-    );
+    const enrichedUsers = await Promise.all(users.map(enrichUserWrapUp));
 
     res.json(enrichedUsers);
+  } catch (error) {
+    console.log(error);
+    res.status(503).send(error);
+  }
+});
+
+router.get("/getUserProfileWrapUp", async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    const userKey = String(req.query.user || "").trim().toLowerCase();
+    if (!userKey) {
+      return res.status(400).json({ error: "Missing user query parameter" });
+    }
+
+    const { rows } = await db.query(
+      `
+        WITH user_totals AS (
+          SELECT
+            u."Id" AS "UserId",
+            u."Name" AS "UserName",
+            u."PrimaryImageTag",
+            u."IsAdministrator",
+            COALESCE(count(a."Id"), 0)::int AS "TotalStreams",
+            COALESCE(sum(a."PlaybackDuration"), 0)::bigint AS "TotalWatchTime",
+            min(a."ActivityDateInserted") AS "FirstActivityDate",
+            max(a."ActivityDateInserted") AS "LastActivityDate",
+            count(DISTINCT COALESCE(a."SeriesName", a."NowPlayingItemName"))::int AS "UniqueTitles",
+            count(DISTINCT a."Client")::int AS "UniqueClients"
+          FROM jf_users u
+          LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+          GROUP BY u."Id", u."Name", u."PrimaryImageTag", u."IsAdministrator"
+        ),
+        ranked_users AS (
+          SELECT
+            *,
+            row_number() OVER (ORDER BY "TotalWatchTime" DESC, "UserName" ASC) AS "Rank",
+            regexp_replace(regexp_replace(lower("UserName"), '[^a-z0-9]+', '-', 'g'), '(^-|-$)', '', 'g') AS "Slug"
+          FROM user_totals
+        )
+        SELECT *
+        FROM ranked_users
+        WHERE lower("UserId") = $1 OR lower("UserName") = $1 OR "Slug" = $1
+        LIMIT 1
+      `,
+      [userKey]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = await enrichUserWrapUp(rows[0]);
+    return res.json({ user, rank: Number(rows[0].Rank || 1) });
   } catch (error) {
     console.log(error);
     res.status(503).send(error);

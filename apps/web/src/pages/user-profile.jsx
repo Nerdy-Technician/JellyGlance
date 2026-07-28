@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "../lib/axios_instance";
 import Config from "../lib/config";
@@ -91,10 +91,12 @@ function UserMediaRail({ title, subtitle, items = [], onAction, actions = [], va
 
 export default function UserProfilePage() {
   const { UserId: userKey = "" } = useParams();
-  const [users, setUsers] = useState([]);
+  const [profileUser, setProfileUser] = useState(null);
+  const [profileRank, setProfileRank] = useState(0);
   const [access, setAccess] = useState(null);
   const [config, setConfig] = useState(null);
   const [mediaLists, setMediaLists] = useState({ favourites: [], watchlist: [] });
+  const [mediaListsLoading, setMediaListsLoading] = useState(false);
   const [mediaSearch, setMediaSearch] = useState("");
   const [mediaMessage, setMediaMessage] = useState("");
   const [activeProfileSection, setActiveProfileSection] = useState("overview");
@@ -103,14 +105,38 @@ export default function UserProfilePage() {
   useEffect(() => {
     async function fetchProfileData() {
       try {
-        const [configResponse, userResponse, accessResponse] = await Promise.all([
+        const [configResponse, profileResponse, accessResponse] = await Promise.all([
           Config.getConfig(),
-          axios.get("/stats/getUserWrapUp", { headers: { Authorization: `Bearer ${token}` } }),
+          axios
+            .get("/stats/getUserProfileWrapUp", {
+              params: { user: decodeURIComponent(userKey) },
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .catch(async (error) => {
+              if (error.response?.status !== 404) {
+                const fallback = await axios.get("/stats/getUserWrapUp", { headers: { Authorization: `Bearer ${token}` } });
+                const rankedUsers = [...(fallback.data || [])].sort((a, b) => Number(b.TotalWatchTime || 0) - Number(a.TotalWatchTime || 0));
+                const normalizedKey = decodeURIComponent(userKey).toLowerCase();
+                const matchedUser = rankedUsers.find((user) => {
+                  return user.UserId?.toLowerCase?.() === normalizedKey || slugifyUserName(user.UserName) === normalizedKey;
+                });
+
+                return {
+                  data: {
+                    user: matchedUser || null,
+                    rank: matchedUser ? rankedUsers.findIndex((user) => user.UserId === matchedUser.UserId) + 1 : 0,
+                  },
+                };
+              }
+
+              return { data: { user: null, rank: 0 } };
+            }),
           axios.get("/api/userAccess", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         setConfig(configResponse);
-        setUsers(userResponse.data || []);
+        setProfileUser(profileResponse.data?.user || null);
+        setProfileRank(Number(profileResponse.data?.rank || 0));
         setAccess(accessResponse.data);
       } catch (error) {
         console.log(error);
@@ -122,19 +148,10 @@ export default function UserProfilePage() {
     fetchProfileData();
     const intervalId = setInterval(fetchProfileData, 60000 * 5);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [userKey]);
 
-  const rankedUsers = useMemo(
-    () => [...users].sort((a, b) => Number(b.TotalWatchTime || 0) - Number(a.TotalWatchTime || 0)),
-    [users]
-  );
-
-  const matchedUser = rankedUsers.find((user) => {
-    const normalizedKey = decodeURIComponent(userKey).toLowerCase();
-    return user.UserId?.toLowerCase?.() === normalizedKey || slugifyUserName(user.UserName) === normalizedKey;
-  });
-
-  const rank = matchedUser ? rankedUsers.findIndex((user) => user.UserId === matchedUser.UserId) + 1 : 0;
+  const matchedUser = profileUser;
+  const rank = profileRank;
   const localUsers = access?.localUsers || [];
   const localUser = localUsers.find((user) => slugifyUserName(user.username) === decodeURIComponent(userKey).toLowerCase());
 
@@ -144,9 +161,11 @@ export default function UserProfilePage() {
     async function fetchMediaLists() {
       if (!matchedUser?.UserId) {
         setMediaLists({ favourites: [], watchlist: [] });
+        setMediaListsLoading(false);
         return;
       }
 
+      setMediaListsLoading(true);
       try {
         const response = await axios.get(`/api/users/${encodeURIComponent(matchedUser.UserId)}/media-lists`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -159,6 +178,10 @@ export default function UserProfilePage() {
         if (active) {
           setMediaLists({ favourites: [], watchlist: [] });
         }
+      } finally {
+        if (active) {
+          setMediaListsLoading(false);
+        }
       }
     }
 
@@ -170,10 +193,15 @@ export default function UserProfilePage() {
 
   const reloadMediaLists = async () => {
     if (!matchedUser?.UserId) return;
-    const response = await axios.get(`/api/users/${encodeURIComponent(matchedUser.UserId)}/media-lists`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setMediaLists(response.data || { favourites: [], watchlist: [] });
+    setMediaListsLoading(true);
+    try {
+      const response = await axios.get(`/api/users/${encodeURIComponent(matchedUser.UserId)}/media-lists`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMediaLists(response.data || { favourites: [], watchlist: [] });
+    } finally {
+      setMediaListsLoading(false);
+    }
   };
 
   async function runMediaAction(item, action) {
@@ -239,7 +267,9 @@ export default function UserProfilePage() {
               aria-pressed={activeProfileSection === section.id}
             >
               <span>{section.label}</span>
-              <strong>{sectionCounts[section.id] || 0}</strong>
+              <strong className={mediaListsLoading && section.id !== "overview" ? "is-loading" : ""}>
+                {mediaListsLoading && section.id !== "overview" ? "..." : sectionCounts[section.id] || 0}
+              </strong>
             </button>
           ))}
         </nav>
