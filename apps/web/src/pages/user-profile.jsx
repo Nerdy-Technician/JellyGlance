@@ -9,6 +9,12 @@ import { AccountDashboard, QuickConnectUserWrap } from "./components/home/UserWr
 import "./css/home-user-wrap.css";
 
 const token = localStorage.getItem("token");
+const PROFILE_SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "media", label: "Media" },
+  { id: "taste", label: "Taste" },
+  { id: "household", label: "Household" },
+];
 
 function MediaPoster({ item }) {
   const [failed, setFailed] = useState(!item?.hasPrimaryImage);
@@ -91,6 +97,7 @@ export default function UserProfilePage() {
   const [mediaLists, setMediaLists] = useState({ favourites: [], watchlist: [] });
   const [mediaSearch, setMediaSearch] = useState("");
   const [mediaMessage, setMediaMessage] = useState("");
+  const [activeProfileSection, setActiveProfileSection] = useState("overview");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -200,52 +207,108 @@ export default function UserProfilePage() {
   }
 
   if (matchedUser) {
+    const sectionCounts = {
+      overview: Number(matchedUser.TotalStreams || 0),
+      media:
+        (mediaLists.continueWatching || []).length +
+        (mediaLists.recentlyWatched || []).length +
+        (mediaLists.favourites || []).length +
+        (mediaLists.watchlist || []).length,
+      taste:
+        (mediaLists.taste?.genres || []).length +
+        (mediaLists.taste?.actors || []).length +
+        (mediaLists.taste?.studios || []).length,
+      household:
+        (mediaLists.sharedFavourites || []).length +
+        (mediaLists.familyWatchlist?.movies || []).length +
+        (mediaLists.familyWatchlist?.shows || []).length +
+        (mediaLists.staleWatchlist || []).length +
+        (mediaLists.libraryGaps || []).length,
+    };
+
     return (
       <div className="user-profile-page">
         <QuickConnectUserWrap user={matchedUser} rank={rank || 1} />
+        <nav className="user-profile-subnav" aria-label="Profile sections">
+          {PROFILE_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              className={activeProfileSection === section.id ? "is-active" : ""}
+              onClick={() => setActiveProfileSection(section.id)}
+              aria-pressed={activeProfileSection === section.id}
+            >
+              <span>{section.label}</span>
+              <strong>{sectionCounts[section.id] || 0}</strong>
+            </button>
+          ))}
+        </nav>
         <div className="user-profile-media-section">
-          <section className="user-media-toolbar">
+          {activeProfileSection !== "overview" ? <section className="user-media-toolbar">
             <div>
-              <h2>Media profile</h2>
-              <p>Favourites, watchlist, progress, recommendations, and shared household picks.</p>
+              <h2>{PROFILE_SECTIONS.find((section) => section.id === activeProfileSection)?.label} profile</h2>
+              <p>
+                {activeProfileSection === "media"
+                  ? "Favourites, watchlist, progress, and recommendations."
+                  : activeProfileSection === "taste"
+                    ? "Genres, people, studios, and profile overlap."
+                    : "Shared picks, stale watchlists, and household gaps."}
+              </p>
             </div>
             <input type="search" value={mediaSearch} onChange={(event) => setMediaSearch(event.target.value)} placeholder="Search this profile..." />
-          </section>
+          </section> : null}
           {mediaMessage ? <div className="user-media-message">{mediaMessage}</div> : null}
-          <UserMediaRail
-            title="Continue Watching"
-            subtitle="In-progress Jellyfin media for this user."
-            items={filterMedia(mediaLists.continueWatching || [])}
-            onAction={runMediaAction}
-            actions={[{ label: "Watched", action: "markWatched" }]}
-          />
-          <UserMediaRail title="Recently Watched" subtitle="Last 10 synced plays for this user." items={filterMedia(mediaLists.recentlyWatched || [])} />
-          <UserMediaRail
-            title="Favourites"
-            subtitle="Jellyfin favourites for this user."
-            items={filterMedia(mediaLists.favourites || [])}
-            onAction={runMediaAction}
-            actions={[{ label: "Unfavourite", action: "unfavourite" }, { label: "Watched", action: "markWatched" }]}
-          />
-          <UserMediaRail
-            title="Watchlist Movies"
-            subtitle="Movies pulled from Jellyfin Watchlist."
-            items={filterMedia(mediaLists.watchlistByType?.movies || [])}
-            onAction={runMediaAction}
-            actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }, { label: "Watched", action: "markWatched" }]}
-            variant="featured"
-          />
-          <UserMediaRail
-            title="Watchlist Shows"
-            subtitle="Shows pulled from Jellyfin Watchlist."
-            items={filterMedia(mediaLists.watchlistByType?.shows || [])}
-            onAction={runMediaAction}
-            actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }]}
-            variant="featured"
-          />
-          <UserMediaRail title="Next Episodes" subtitle="Next unwatched episodes for watchlisted shows." items={filterMedia(mediaLists.nextEpisodes || [])} onAction={runMediaAction} actions={[{ label: "Watched", action: "markWatched" }]} />
-          <UserMediaRail title="Recommended" subtitle="Suggestions based on watchlist genres." items={filterMedia(mediaLists.recommendations || [])} onAction={runMediaAction} actions={[{ label: "Watchlist", action: "addWatchlist" }, { label: "Favourite", action: "favourite" }]} />
-          <section className="user-media-taste">
+
+          {activeProfileSection === "overview" ? (
+            <section className="user-profile-overview-note">
+              <div>
+                <h2>Profile at a glance</h2>
+                <p>Use the section switcher above for watchlists, taste data, and household overlap.</p>
+              </div>
+              <button type="button" onClick={() => setActiveProfileSection("media")}>Open media</button>
+            </section>
+          ) : null}
+
+          {activeProfileSection === "media" ? (
+            <>
+              <UserMediaRail
+                title="Continue Watching"
+                subtitle="In-progress Jellyfin media for this user."
+                items={filterMedia(mediaLists.continueWatching || [])}
+                onAction={runMediaAction}
+                actions={[{ label: "Watched", action: "markWatched" }]}
+              />
+              <UserMediaRail title="Recently Watched" subtitle="Last 10 synced plays for this user." items={filterMedia(mediaLists.recentlyWatched || [])} />
+              <UserMediaRail
+                title="Favourites"
+                subtitle="Jellyfin favourites for this user."
+                items={filterMedia(mediaLists.favourites || [])}
+                onAction={runMediaAction}
+                actions={[{ label: "Unfavourite", action: "unfavourite" }, { label: "Watched", action: "markWatched" }]}
+              />
+              <UserMediaRail
+                title="Watchlist Movies"
+                subtitle="Movies pulled from Jellyfin Watchlist."
+                items={filterMedia(mediaLists.watchlistByType?.movies || [])}
+                onAction={runMediaAction}
+                actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }, { label: "Watched", action: "markWatched" }]}
+                variant="featured"
+              />
+              <UserMediaRail
+                title="Watchlist Shows"
+                subtitle="Shows pulled from Jellyfin Watchlist."
+                items={filterMedia(mediaLists.watchlistByType?.shows || [])}
+                onAction={runMediaAction}
+                actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }]}
+                variant="featured"
+              />
+              <UserMediaRail title="Next Episodes" subtitle="Next unwatched episodes for watchlisted shows." items={filterMedia(mediaLists.nextEpisodes || [])} onAction={runMediaAction} actions={[{ label: "Watched", action: "markWatched" }]} />
+              <UserMediaRail title="Recommended" subtitle="Suggestions based on watchlist genres." items={filterMedia(mediaLists.recommendations || [])} onAction={runMediaAction} actions={[{ label: "Watchlist", action: "addWatchlist" }, { label: "Favourite", action: "favourite" }]} />
+            </>
+          ) : null}
+
+          {activeProfileSection === "taste" ? <>
+            <section className="user-media-taste">
             <div>
               <h2>Taste profile</h2>
               <p>Built from favourites, watchlist, and recent plays.</p>
@@ -255,11 +318,15 @@ export default function UserProfilePage() {
               {(mediaLists.taste?.actors || []).slice(0, 6).map((item) => <span key={`actor-${item.name}`}>{item.name} · {item.count}</span>)}
               {(mediaLists.taste?.studios || []).slice(0, 6).map((item) => <span key={`studio-${item.name}`}>{item.name} · {item.count}</span>)}
             </div>
-          </section>
-          <UserMediaRail title="Shared Favourites" subtitle="Items this user and others overlap on." items={filterMedia(mediaLists.sharedFavourites || [])} />
-          <UserMediaRail title="Family Watchlist" subtitle="Combined household watchlist, grouped by popularity." items={filterMedia([...(mediaLists.familyWatchlist?.movies || []), ...(mediaLists.familyWatchlist?.shows || [])])} />
-          <UserMediaRail title="Stale Watchlist" subtitle="Watchlisted for 30+ days and not cleared yet." items={filterMedia(mediaLists.staleWatchlist || [])} onAction={runMediaAction} actions={[{ label: "Remove", action: "removeWatchlist" }]} />
-          <UserMediaRail title="Library Gaps" subtitle="Watchlisted shows with an unwatched next episode to catch up on." items={filterMedia(mediaLists.libraryGaps || [])} />
+            </section>
+            <UserMediaRail title="Shared Favourites" subtitle="Items this user and others overlap on." items={filterMedia(mediaLists.sharedFavourites || [])} />
+          </> : null}
+
+          {activeProfileSection === "household" ? <>
+            <UserMediaRail title="Family Watchlist" subtitle="Combined household watchlist, grouped by popularity." items={filterMedia([...(mediaLists.familyWatchlist?.movies || []), ...(mediaLists.familyWatchlist?.shows || [])])} />
+            <UserMediaRail title="Stale Watchlist" subtitle="Watchlisted for 30+ days and not cleared yet." items={filterMedia(mediaLists.staleWatchlist || [])} onAction={runMediaAction} actions={[{ label: "Remove", action: "removeWatchlist" }]} />
+            <UserMediaRail title="Library Gaps" subtitle="Watchlisted shows with an unwatched next episode to catch up on." items={filterMedia(mediaLists.libraryGaps || [])} />
+          </> : null}
         </div>
       </div>
     );
