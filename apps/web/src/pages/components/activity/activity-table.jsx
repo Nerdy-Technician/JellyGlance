@@ -49,13 +49,22 @@ function formatTotalWatchTime(seconds) {
 }
 
 const colors = {
-  primary: "var(--primary-light-color)",
+  primary: "#d78df0",
   secondary: "#00c8ff",
   backgroundColor: "#070a10",
   secondaryBackgroundColor: "#0b1018",
   tertiaryBackgroundColor: "#101620",
 };
 const token = localStorage.getItem("token");
+
+function getCssVariableColor(variableName, fallback) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  return value || fallback;
+}
 
 export default function ActivityTable(props) {
   const twelve_hr = JSON.parse(localStorage.getItem("12hr"));
@@ -75,6 +84,21 @@ export default function ActivityTable(props) {
 
   const [modalState, setModalState] = React.useState(false);
   const [modalData, setModalData] = React.useState();
+  const [themeTick, setThemeTick] = React.useState(0);
+  const muiColors = useMemo(
+    () => ({
+      primary: getCssVariableColor("--primary-light-color", colors.primary),
+      secondary: getCssVariableColor("--secondary-color", colors.secondary),
+      tertiaryBackgroundColor: colors.tertiaryBackgroundColor,
+    }),
+    [themeTick]
+  );
+
+  useEffect(() => {
+    const handleThemeUpdate = () => setThemeTick((current) => current + 1);
+    window.addEventListener("jellyglance-theme-updated", handleThemeUpdate);
+    return () => window.removeEventListener("jellyglance-theme-updated", handleThemeUpdate);
+  }, []);
 
   const handlePageChange = (updater) => {
     setPagination((old) => {
@@ -451,7 +475,7 @@ export default function ActivityTable(props) {
         },
         "&:hover .MuiCheckbox-root": {
           opacity: 1,
-          color: colors.primary,
+          color: muiColors.primary,
         },
       },
     },
@@ -541,7 +565,7 @@ export default function ActivityTable(props) {
     },
     muiFilterAutocompleteProps: {
       sx: {
-        color: colors.primary,
+        color: muiColors.primary,
       },
     },
 
@@ -556,16 +580,16 @@ export default function ActivityTable(props) {
           palette: {
             mode: "dark",
             primary: {
-              main: colors.secondary,
+              main: muiColors.secondary,
             },
             secondary: {
-              main: colors.primary,
+              main: muiColors.primary,
             },
             info: {
-              main: colors.primary,
+              main: muiColors.primary,
             },
             warning: {
-              main: colors.primary,
+              main: muiColors.primary,
             },
           },
           components: {
@@ -580,7 +604,7 @@ export default function ActivityTable(props) {
         },
         enUS
       ),
-    []
+    [muiColors]
   );
 
   return (
