@@ -18,7 +18,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends wget \
+  && apt-get install -y --no-install-recommends python3 wget \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /app/config /app/backups
 

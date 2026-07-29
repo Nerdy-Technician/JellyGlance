@@ -10,6 +10,12 @@ const db = require("../db");
 const router = express.Router();
 const DEFAULT_TAUTULLI_DIR = process.env.JS_TAUTULLI_BACKUP_DIR || "/mnt/Archive/Docker/Media/Tautulli";
 const UPLOAD_DIR = path.join(__dirname, "..", "backup-data", "tautulli-uploads");
+const PYTHON_CANDIDATES = [
+  process.env.JS_PYTHON_BIN,
+  process.env.PYTHON_BIN,
+  "python3",
+  "python",
+].filter(Boolean);
 const IMPORT_COLUMNS = [
   "Id",
   "IsPaused",
@@ -142,24 +148,41 @@ function resolveImportSource(body = {}) {
 
 function runTautulliExport(sourcePath, summary = false) {
   const scriptPath = path.join(__dirname, "..", "scripts", "tautulli_history_export.py");
-  const args = [scriptPath, sourcePath];
-  if (summary) args.push("--summary");
+  const scriptArgs = [scriptPath, sourcePath];
+  if (summary) scriptArgs.push("--summary");
 
   return new Promise((resolve, reject) => {
-    execFile("python3", args, { maxBuffer: 1024 * 1024 * 64 }, (error, stdout, stderr) => {
-      if (error) {
-        error.message = stderr || error.message;
-        reject(error);
-        return;
-      }
+    const candidates = [...PYTHON_CANDIDATES];
 
-      try {
-        resolve(JSON.parse(stdout));
-      } catch (parseError) {
-        parseError.message = `Unable to parse Tautulli export output: ${parseError.message}`;
-        reject(parseError);
-      }
-    });
+    const runCandidate = (index) => {
+      const command = candidates[index];
+      const args = scriptArgs;
+
+      execFile(command, args, { maxBuffer: 1024 * 1024 * 64 }, (error, stdout, stderr) => {
+        if (error?.code === "ENOENT" && index < candidates.length - 1) {
+          runCandidate(index + 1);
+          return;
+        }
+
+        if (error) {
+          error.message =
+            error.code === "ENOENT"
+              ? `Unable to run the Tautulli importer because Python was not found. Install python3 or set JS_PYTHON_BIN to the Python executable.`
+              : stderr || error.message;
+          reject(error);
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseError) {
+          parseError.message = `Unable to parse Tautulli export output: ${parseError.message}`;
+          reject(parseError);
+        }
+      });
+    };
+
+    runCandidate(0);
   });
 }
 

@@ -1,29 +1,8 @@
-version: v1.1.5
-title: JellyGlance v1.1.5
+version: v1.1.6
+title: JellyGlance v1.1.6
 ---
-feat: add legacy imports, repair workflows, newsletters, and release notes
+fix: make Tautulli importer find Python reliably
 
-feat: add Tautulli backup upload/import flow
-feat: add unmatched imported media review and manual Jellyfin linking
-feat: add Repair Hub page for media/library issues
-feat: add Newsletter Generator with SMTP config, preview, test send, manual send, and send history
-feat: add branded newsletter email template with JellyGlance logo
-feat: add versioned What’s New modal and profile-menu launcher
-feat: add custom profile colour theming and extra presets
-feat: add active session detail popout
-
-improve: speed up user profile stats/media loading
-improve: refresh Activity after imported history changes
-improve: improve imported media matching/repair handling
-improve: improve active session text sizing
-improve: improve Jellyfin Desktop platform colour handling
-improve: make What’s New modal handle longer release notes in columns
-improve: clean up activity timeline episode count warning
-
-fix: fix Activity page not updating after import
-fix: fix imported media linking when Jellyfin data exists
-fix: fix delayed profile counters showing zero
-fix: fix Jellyfin Desktop app colour display
-
-
-chore: bump app/API/web metadata to v1.1.5
+fix: avoid spawn python3 ENOENT during Tautulli backup uploads
+improve: allow JS_PYTHON_BIN/PYTHON_BIN overrides for importer runtime
+chore: install python3 in Docker runtime image
