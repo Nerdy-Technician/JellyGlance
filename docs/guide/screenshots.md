@@ -1,6 +1,6 @@
 # Screenshots
 
-The gallery shows the primary JellyGlance surfaces: the customizable home dashboard, Jellyfin activity, library views, user access, statistics, release calendars, download queues, and operations settings.
+The gallery shows the primary JellyGlance surfaces: the customizable home dashboard, Jellyfin activity, library views, user access, statistics, release calendars, requests, download queues, repair workflows, imports, newsletters, and operations settings.
 
 ## Dashboard
 
@@ -57,7 +57,7 @@ Profile pages can include favourites, Movie and Show watchlists, Continue Watchi
   </figure>
 </div>
 
-The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, with poster cards, status filters, availability checks, request actions, and direct links back to the source app.
+The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, with poster cards, status filters, availability checks, request actions, and direct links back to the source app. Downloads covers active queue monitoring plus magnet links, torrent URLs, and torrent uploads.
 
 ## Operations
 
@@ -84,4 +84,14 @@ The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, 
   </figure>
 </div>
 
-Operations settings also cover the health dashboard, integration history, webhook delivery history, admin audit log, backup freshness, and automation activity feed.
+Operations settings also cover the health dashboard, integration history, webhook delivery history, admin audit log, backup freshness, Tautulli import tools, newsletter digest settings, and automation activity feed.
+
+## Repair And Imports
+
+The Repair page highlights missing posters, missing logos, missing runtime values, empty series, orphaned playback activity, unmatched Tautulli imports, and recent task failures. It links back to the relevant settings or content pages so maintenance work can move from signal to fix quickly.
+
+Settings includes an **Imports** tab for Tautulli backups. Upload a backup, preview the row count and date range, import safely without overwriting current playback data, and manually link unmatched media to Jellyfin movies or episodes.
+
+## Newsletter
+
+The **Newsletter** settings tab configures SMTP, sender identity, recipients, frequency, preview generation, test sends, manual sends, and send history. Digest content includes recently added media, weekly watch stats, active viewers, and repair status.

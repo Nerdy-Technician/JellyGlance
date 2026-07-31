@@ -1,12 +1,12 @@
 # Integrations
 
-JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sessions, favourites, watchlists, and watch history. Integrations extend that core into request management, release planning, download monitoring, automation, notifications, and access control.
+JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sessions, favourites, watchlists, and watch history. Integrations extend that core into request management, release planning, download monitoring, legacy history imports, digest email, automation, notifications, and access control.
 
 <div class="integration-hero">
   <div>
     <p class="integration-kicker">Media stack control center</p>
     <h2>Connect the tools around Jellyfin.</h2>
-    <p>Bring Jellyfin, Seerr apps, Arr apps, download clients, webhooks, and account access into one operational view for your homeserver.</p>
+    <p>Bring Jellyfin, Seerr apps, Arr apps, download clients, imports, newsletters, webhooks, and account access into one operational view for your homeserver.</p>
   </div>
   <div class="integration-orbit" aria-label="Supported integration logos">
     <img src="/icons/selfhst/jellyfin.svg" alt="Jellyfin">
@@ -44,6 +44,16 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
     <img src="/icons/selfhst/discord.svg" alt="">
     <strong>Notifications</strong>
     <span>Discord-compatible and Gotify-style webhooks for task, sync, import, health, and download events.</span>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Db</span>
+    <strong>Legacy Imports</strong>
+    <span>Tautulli backup upload, preview, safe append, duplicate skipping, and manual matching to Jellyfin media.</span>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Em</span>
+    <strong>Email Digest</strong>
+    <span>SMTP-backed newsletters with previews, test sends, send history, and recent media/watch-stat summaries.</span>
   </article>
 </div>
 
@@ -141,6 +151,45 @@ Download clients live under **Settings > Integrations > Download Clients** and f
 
 The Downloads page supports magnet links, torrent URLs, and torrent file uploads. The queue sync task refreshes active, queued, completed, and failed download state.
 
+## Tautulli Imports
+
+Tautulli imports live under **Settings > Imports**. They are designed for JellyGlance installs that want to keep older Plex/Tautulli watch history without overwriting current Jellyfin playback data.
+
+- upload `.db`, `.db.zip`, or `.zip` Tautulli backups
+- preview playable rows and history date range before importing
+- append new rows while skipping previously imported rows
+- match imported history to Jellyfin media where possible
+- manually link unmatched groups to current Jellyfin movies or episodes
+- refresh Activity and Repair Hub views after import/link actions
+
+Imported rows that cannot be matched automatically are surfaced in both **Settings > Imports** and the **Repair Hub**.
+
+## Newsletter Digest
+
+Newsletter settings live under **Settings > Newsletter**. Configure SMTP once, then generate and send a JellyGlance digest manually or prepare it for weekly/monthly workflows.
+
+- sender name and sender email settings
+- SMTP host, port, username, password, implicit TLS, and TLS verification options
+- recipient list with newline, comma, or semicolon separation
+- preview generation with an open-in-tab action
+- test sends to a single recipient
+- manual sends to the configured recipient list
+- send history for successful and failed newsletter attempts
+
+Newsletter content includes recently added media, weekly watch stats, active viewers, and repair status.
+
+## Repair Hub
+
+The **Repair** page brings the maintenance state of the media stack into one triage surface.
+
+- missing posters and logos
+- missing runtime metadata
+- empty series with no active episodes
+- orphaned playback activity
+- unmatched Tautulli imports
+- recent task failures
+- links back to imports, library settings, activity, and logs
+
 ## Calendar
 
 The **Calendar** page is powered by Arr app calendar data. It is designed to behave like a real release calendar:
@@ -222,4 +271,6 @@ You can add one or many webhook destinations, then choose which JellyGlance even
 6. Add one or more download clients.
 7. Run Download Queue Sync.
 8. Add webhook destinations and tick the events each destination should receive.
-9. Use Tasks to schedule the sync jobs you care about.
+9. Import legacy Tautulli history if you want older watch activity in JellyGlance.
+10. Configure the newsletter digest if you want email summaries.
+11. Use Tasks to schedule the sync jobs you care about.

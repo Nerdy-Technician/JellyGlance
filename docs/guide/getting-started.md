@@ -66,6 +66,8 @@ Once Jellyfin is connected, the most useful follow-up configuration lives in **S
 | Webhooks | One or many webhook destinations with event toggles, test delivery, and delivery history |
 | API Key | Scoped JellyGlance access tokens for automation or dashboards |
 | Library Settings | Library sync behavior and manual scan options |
+| Imports | Tautulli backup upload, preview, safe import, and manual media linking for unmatched history |
+| Newsletter | SMTP settings, recipients, preview generation, test sends, manual digest sends, and send history |
 | Backup | Backup export options for JellyGlance data |
 | Logs | Task, sync, webhook, health, and audit history |
 
@@ -78,6 +80,9 @@ After the first Jellyfin sync, these areas are worth opening first:
 | Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. |
 | Requests | Connect Jellyseerr or Overseerr to review request cards, posters, availability, requester info, status filters, and actions. |
 | Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. |
+| Repair | Review missing artwork, missing runtime, empty series, orphaned activity, unmatched imports, and recent task failures. |
+| Settings > Imports | Bring old Tautulli watch history into JellyGlance and link unmatched legacy media to current Jellyfin items. |
+| Settings > Newsletter | Build and send a JellyGlance digest with recently added media, weekly watch stats, active viewers, and repair status. |
 | Settings > Health | Check Jellyfin, database, tasks, webhooks, integrations, and backup freshness from one compact operations view. |
 
 ## Integrations Quick List
@@ -85,10 +90,12 @@ After the first Jellyfin sync, these areas are worth opening first:
 JellyGlance can connect to:
 
 - Jellyfin for media, users, sessions, activity, and artwork
+- Tautulli backup files for legacy Plex watch-history imports
 - Jellyseerr and Overseerr for media requests and availability checks
 - Sonarr, Radarr, Lidarr, and Bazarr for automation status and release calendars
 - qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet for download queues and torrent/magnet submission
 - Discord-compatible and Gotify-style webhook endpoints for notifications and delivery history
+- SMTP servers for manual, weekly, or monthly newsletter digest delivery
 
 See [Integrations](./integrations.md) for the complete setup map.
 

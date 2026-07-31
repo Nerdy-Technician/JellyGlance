@@ -1,7 +1,45 @@
 import { defineConfig } from "vitepress";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const siteBase = "/";
 const withBase = (path) => `${siteBase}${path.replace(/^\//, "")}`;
+const configDir = dirname(fileURLToPath(import.meta.url));
+const rootPackage = JSON.parse(readFileSync(resolve(configDir, "../../package.json"), "utf8"));
+const packageVersion = rootPackage.version;
+const fallbackRelease = {
+  version: `v${packageVersion}`,
+  url: "https://github.com/Nerdy-Technician/JellyGlance/releases/latest"
+};
+
+async function getCurrentRelease() {
+  try {
+    const response = await fetch("https://api.github.com/repos/Nerdy-Technician/JellyGlance/releases/latest", {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "JellyGlance-docs"
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub latest release request failed: ${response.status}`);
+    }
+
+    const release = await response.json();
+
+    return {
+      version: release.tag_name || fallbackRelease.version,
+      url: release.html_url || fallbackRelease.url
+    };
+  } catch (error) {
+    console.warn(`[docs] Using package.json release fallback: ${error.message}`);
+    return fallbackRelease;
+  }
+}
+
+const currentRelease = await getCurrentRelease();
 
 export default defineConfig({
   title: "JellyGlance",
@@ -9,6 +47,18 @@ export default defineConfig({
   base: siteBase,
   sitemap: {
     hostname: "https://jellyglance.com"
+  },
+  transformPageData(pageData) {
+    if (pageData.relativePath !== "index.md") return;
+
+    const actions = pageData.frontmatter?.hero?.actions;
+    if (!Array.isArray(actions)) return;
+
+    const releaseAction = actions.find((action) => action.release === true);
+    if (releaseAction) {
+      releaseAction.text = `Current Release ${currentRelease.version}`;
+      releaseAction.link = currentRelease.url;
+    }
   },
   cleanUrls: true,
   head: [
@@ -70,6 +120,8 @@ export default defineConfig({
     },
     outline: {
       level: [2, 3]
-    }
+    },
+    currentVersion: currentRelease.version,
+    latestReleaseUrl: currentRelease.url
   }
 });

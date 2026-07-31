@@ -38,6 +38,51 @@
   background: linear-gradient(90deg, #aa5cc3, #d78df0);
 }
 
+.release-cta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 22px 0 28px;
+  padding: 18px;
+  border: 1px solid rgba(215, 141, 240, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(215, 141, 240, 0.12), rgba(0, 164, 220, 0.06)),
+    rgba(10, 14, 22, 0.82);
+}
+
+.release-cta span {
+  display: block;
+  color: var(--vp-c-brand-1);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.release-cta strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--vp-c-text-1);
+  font-size: 1.3rem;
+}
+
+.release-cta a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(215, 141, 240, 0.34);
+  border-radius: 8px;
+  background: linear-gradient(90deg, #aa5cc3, #d78df0);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .VPDoc h1,
 .VPDoc h2,
 .VPDoc h3 {
@@ -330,6 +375,15 @@
 }
 
 @media (max-width: 760px) {
+  .release-cta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .release-cta a {
+    width: 100%;
+  }
+
   .integration-hero,
   .integration-area-grid,
   .integration-card-grid,

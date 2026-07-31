@@ -4,7 +4,7 @@ layout: home
 hero:
   name: JellyGlance
   text: Modern Jellyfin command center
-  tagline: A self-hosted Jellyfin companion for sessions, requests, users, libraries, statistics, Seerr apps, Arr calendars, download queues, health, and webhooks.
+  tagline: A self-hosted Jellyfin companion for sessions, requests, users, libraries, statistics, imports, repair workflows, newsletters, calendars, downloads, health, and webhooks.
   image:
     src: /full-logo-transparent.png
     alt: JellyGlance
@@ -19,6 +19,10 @@ hero:
       text: Integrations
       link: /guide/integrations
     - theme: alt
+      text: Current Release
+      link: https://github.com/Nerdy-Technician/JellyGlance/releases/latest
+      release: true
+    - theme: alt
       text: Discord
       link: https://discord.gg/dMGhv8j2kx
     - theme: alt
@@ -29,7 +33,7 @@ features:
   - title: Jellyfin Native
     details: Connect Jellyfin, approve Quick Connect logins, sync libraries, and use cached posters, backdrops, favourites, watchlists, and profile media throughout the UI.
   - title: Playback Intelligence
-    details: Explore active sessions, recently added media, library metrics, user wrap-ups, activity history, and watch-time trends.
+    details: Explore active sessions, popout stream inspectors, recently added media, library metrics, user wrap-ups, imported history, activity timelines, and watch-time trends.
   - title: Request Center
     details: Pull Jellyseerr and Overseerr requests into poster cards with filters, availability checks, actions, retry controls, and direct links.
   - title: Media Control Center
@@ -37,7 +41,7 @@ features:
   - title: Custom Home
     details: Reorder sections, hide widgets, pin important panels, pick presets, adjust density, use kiosk mode, and tune alert rules.
   - title: Operations Ready
-    details: Configure health checks, audit history, webhook delivery history, API keys, tasks, logs, backups, and event-driven notifications.
+    details: Configure health checks, repair queues, Tautulli imports, newsletter digests, audit history, webhook delivery history, API keys, tasks, logs, backups, and event-driven notifications.
 ---
 
 ## Product Tour
@@ -58,14 +62,24 @@ JellyGlance brings the daily admin surfaces for a Jellyfin homeserver into one p
   <section>
     <p class="feature-kicker">Profiles with media context</p>
     <h2>Every user gets a little Jellyfin cockpit.</h2>
-    <p>Profile pages can show favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, recommendations, and watchlist actions.</p>
+    <p>Profile pages can show favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, recommendations, profile media search, custom themes, and watchlist actions.</p>
   </section>
   <section>
     <p class="feature-kicker">Ops layer</p>
     <h2>Health, history, and attention signals.</h2>
-    <p>Use the health dashboard, integration uptime, webhook delivery history, admin audit log, backup freshness, automation feed, and needs-attention alerts to spot trouble faster.</p>
+    <p>Use the Repair Hub, health dashboard, Tautulli import linker, newsletter generator, integration uptime, webhook delivery history, admin audit log, backup freshness, automation feed, and needs-attention alerts to spot trouble faster.</p>
   </section>
 </div>
+
+## Latest Additions
+
+| Feature | What It Adds |
+| --- | --- |
+| Repair Hub | One page for missing posters, missing logos, runtime gaps, empty series, orphaned activity, unmatched imported history, and recent task failures. |
+| Tautulli Imports | Upload legacy Tautulli backups, preview playable rows, safely append watch history, skip duplicates, and manually link unmatched media to Jellyfin items. |
+| Newsletter Generator | Configure SMTP, preview digest emails, send tests, and email recently added media, watch stats, active viewers, and repair status. |
+| Session Popouts | Open richer live playback inspectors with user, device, stream, progress, codec, bitrate, and transcode context. |
+| Profile Theming | Use theme controls and presets to make JellyGlance feel personal across the dashboard and profile experience. |
 
 ## Community
 
