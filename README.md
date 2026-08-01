@@ -21,6 +21,8 @@
   <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance"><img alt="GHCR" src="https://img.shields.io/badge/container-ghcr.io-2f3136"></a>
 </p>
 
+
+
 <p align="center">
   <a href="https://jellyglance.com/"><strong>Docs</strong></a>
   ·
