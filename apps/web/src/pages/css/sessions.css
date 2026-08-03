@@ -12,20 +12,35 @@
   color: #e5edf8;
   font-size: 11px;
   line-height: 1.28;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.session-details .row {
+.session-details-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 8px;
   align-items: baseline;
-  width: fit-content;
+  width: min(100%, 360px);
   margin: 0 0 3px !important;
   padding: 0;
   border-radius: 999px;
   background: transparent;
 }
 
+.session-details-list {
+  display: flex;
+  min-width: 0;
+  max-height: 136px;
+  flex: 0 1 100% !important;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
 .session-details-title {
   color: #d6a3f1 !important;
-  min-width: 72px;
+  min-width: 0;
   padding: 0 8px 0 0 !important;
   font-size: 9px;
   font-weight: 900;
@@ -33,7 +48,7 @@
   text-shadow: 0 0 14px rgba(var(--primary-rgb), 0.2);
 }
 
-.session-details-title + .col-auto {
+.session-details-title + .session-details-value {
   color: #f8fafc;
   font-size: 11px;
   font-weight: 750;
@@ -41,7 +56,30 @@
 }
 
 .session-details .ellipse {
+  display: block !important;
   padding: 0 !important;
+  white-space: nowrap;
+}
+
+.session-details-value {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0;
+  max-width: min(270px, 100%);
+}
+
+.session-details-value-short {
+  max-width: min(200px, 100%);
+}
+
+.session-details-value > span,
+.session-details-value > a,
+.session-details-value .MuiTooltip-popper + span {
+  display: block !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
 }
 
 .card-device-image-overlay {
@@ -91,8 +129,8 @@
 }
 
 .session-card-body {
-  padding: 0 50px 10px 0 !important;
-  transform: translateX(-14px);
+  min-width: 0;
+  padding: 0 54px 10px 0 !important;
 }
 
 .session-card:hover {
@@ -278,7 +316,7 @@
 }
 
 .session-timecode {
-  margin: 0 !important;
+  margin: 4px 0 0 !important;
   color: #f8fafc;
   font-size: 12px;
   font-weight: 700;
@@ -325,7 +363,9 @@
 }
 
 .session-title-copy {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .session-title,
@@ -336,7 +376,7 @@
 
 .session-title a {
   display: block;
-  max-width: 290px;
+  max-width: 100%;
   overflow: hidden;
   color: #f8fafc !important;
   font-size: 14px;
@@ -348,7 +388,7 @@
 
 .session-subtitle {
   display: block;
-  max-width: 310px;
+  max-width: 100%;
   overflow: hidden;
   color: #c7a4df;
   font-size: 12px;
@@ -360,9 +400,10 @@
 
 .session-card-user {
   display: flex;
-  flex: 0 0 auto !important;
+  flex: 0 1 128px !important;
   width: auto !important;
-  max-width: max-content;
+  min-width: 0;
+  max-width: 128px;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -374,7 +415,8 @@
 
 .session-user-name {
   display: block;
-  max-width: 90px;
+  min-width: 0;
+  max-width: 82px;
   overflow: hidden;
   color: #cbd5e1 !important;
   font-size: 12px;
@@ -563,7 +605,139 @@
   white-space: nowrap;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
+  .sessions-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .session-card {
+    width: 100%;
+    border-radius: 12px !important;
+  }
+
+  .session-card-main > .row > .col {
+    min-width: 0;
+  }
+
+  .session-card-banner-image {
+    display: block !important;
+    flex: 0 0 76px !important;
+    width: 76px !important;
+    max-width: 76px !important;
+  }
+
+  .session-card-item-image,
+  .stat-card-image-audio.session-card-item-image,
+  .stat-card-image-audio.rounded-0.rounded-start {
+    width: 76px !important;
+    height: 138px;
+    border-radius: 12px 0 0 0 !important;
+  }
+
+  .session-card-body {
+    padding-right: 48px !important;
+  }
+
+  .session-card-main {
+    height: 138px;
+    min-height: 138px;
+  }
+
+  .session-details {
+    padding: 8px 0 0 9px !important;
+    font-size: 10px;
+  }
+
+  .session-details-list {
+    max-height: 104px;
+  }
+
+  .session-details-row {
+    width: 100%;
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 6px;
+    margin-bottom: 1px !important;
+  }
+
+  .session-details-title {
+    padding-right: 0 !important;
+    font-size: 7px;
+    letter-spacing: 0.08em;
+  }
+
+  .session-details-title + .session-details-value {
+    font-size: 9px;
+    font-weight: 750;
+  }
+
+  .session-details-row:nth-child(5),
+  .session-details-row:nth-child(7) {
+    display: none;
+  }
+
+  .session-details-value,
+  .session-details-value-short {
+    max-width: 100%;
+  }
+
+  .card-device-image-overlay {
+    top: 12px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .card-device-image {
+    width: 26px;
+    height: 26px;
+  }
+
+  .session-timecode {
+    margin-top: 0 !important;
+    font-size: 10px;
+  }
+
+  .progress-bar {
+    height: 5px;
+    margin: 8px 12px 0;
+  }
+
+  .session-card-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(60px, auto);
+    gap: 8px;
+    min-height: 50px;
+    padding: 7px 9px 8px !important;
+  }
+
+  .session-card-now-playing {
+    gap: 8px;
+  }
+
+  .session-play-state {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+
+  .session-card-user {
+    flex-basis: auto !important;
+    max-width: 92px;
+  }
+
+  .session-user-name {
+    max-width: 54px;
+  }
+
+  .session-title a {
+    font-size: 13px;
+  }
+
+  .session-subtitle {
+    font-size: 11px;
+  }
+
   .session-popout-hero {
     grid-template-columns: 96px minmax(0, 1fr);
     gap: 16px;

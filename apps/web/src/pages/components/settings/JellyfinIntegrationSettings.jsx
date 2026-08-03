@@ -15,6 +15,7 @@ export default function JellyfinIntegrationSettings({ compact = false, firstRun 
   const [config, setConfig] = useState(null);
   const [showKey, setKeyState] = useState(false);
   const [formValues, setFormValues] = useState({});
+  const [isEditingConnection, setIsEditingConnection] = useState(!firstRun);
   const [isSubmitted, setIsSubmitted] = useState("");
   const [loadState, setLoadState] = useState("Loading");
   const [submissionMessage, setSubmissionMessage] = useState("");
@@ -22,7 +23,7 @@ export default function JellyfinIntegrationSettings({ compact = false, firstRun 
   useEffect(() => {
     Config.getConfig()
       .then((nextConfig) => {
-        setFormValues(firstRun ? {} : { JF_HOST: nextConfig.hostUrl });
+        setFormValues({ JF_HOST: nextConfig.hostUrl });
         setConfig(nextConfig);
         setLoadState("Loaded");
       })
@@ -53,6 +54,9 @@ export default function JellyfinIntegrationSettings({ compact = false, firstRun 
         setIsSubmitted("Success");
         setSubmissionMessage("Successfully updated Jellyfin connection");
         Config.setConfig();
+        if (firstRun) {
+          setIsEditingConnection(false);
+        }
       })
       .catch((error) => {
         const errorMessage = error.response?.data?.errorMessage || error.message;
@@ -69,6 +73,8 @@ export default function JellyfinIntegrationSettings({ compact = false, firstRun 
   if (loadState === "Critical") {
     return <div className="submit critical">{submissionMessage}</div>;
   }
+
+  const hasSavedConnection = Boolean(config?.hostUrl);
 
   return (
     <section className={`jellyfin-integration-card${compact ? " is-compact" : ""}`}>
@@ -87,52 +93,69 @@ export default function JellyfinIntegrationSettings({ compact = false, firstRun 
         </div>
       </div>
 
-      <Form onSubmit={handleFormSubmit} className="settings-form integration-settings-form">
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column>{config?.IS_JELLYFIN ? "Jellyfin URL" : "Emby URL"}</Form.Label>
-          <Col sm="10">
-            <Form.Control
-              id="JF_HOST"
-              name="JF_HOST"
-              value={formValues.JF_HOST || ""}
-              onChange={handleFormChange}
-              placeholder="http://127.0.0.1:8096 or https://media.example.com"
-              autoComplete="off"
-            />
-          </Col>
-        </Form.Group>
-
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column>API Key</Form.Label>
-          <Col sm="10">
-            <InputGroup>
-              <Form.Control
-                id="JF_API_KEY"
-                name="JF_API_KEY"
-                value={formValues.JF_API_KEY || ""}
-                onChange={handleFormChange}
-                type={showKey ? "text" : "password"}
-                autoComplete="off"
-              />
-              <Button variant="outline-primary" type="button" onClick={() => setKeyState(!showKey)}>
-                {showKey ? <EyeFillIcon /> : <EyeOffFillIcon />}
-              </Button>
-            </InputGroup>
-          </Col>
-        </Form.Group>
-
-        {isSubmitted !== "" ? (
-          <Alert bg="dark" data-bs-theme="dark" variant={isSubmitted === "Failed" ? "danger" : "success"}>
-            {submissionMessage}
-          </Alert>
-        ) : null}
-
-        <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center">
-          <Button variant="outline-success" type="submit">
-            Update
+      {firstRun && hasSavedConnection && !isEditingConnection ? (
+        <div className="settings-form integration-settings-form jellyfin-connected-summary">
+          <div>
+            <span>Connected server</span>
+            <strong>{config.hostUrl}</strong>
+          </div>
+          <Button variant="outline-success" type="button" onClick={() => setIsEditingConnection(true)}>
+            Replace connection
           </Button>
         </div>
-      </Form>
+      ) : (
+        <Form onSubmit={handleFormSubmit} className="settings-form integration-settings-form">
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column>{config?.IS_JELLYFIN ? "Jellyfin URL" : "Emby URL"}</Form.Label>
+            <Col sm="10">
+              <Form.Control
+                id="JF_HOST"
+                name="JF_HOST"
+                value={formValues.JF_HOST || ""}
+                onChange={handleFormChange}
+                placeholder="http://127.0.0.1:8096 or https://media.example.com"
+                autoComplete="off"
+              />
+            </Col>
+          </Form.Group>
+
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column>API Key</Form.Label>
+            <Col sm="10">
+              <InputGroup>
+                <Form.Control
+                  id="JF_API_KEY"
+                  name="JF_API_KEY"
+                  value={formValues.JF_API_KEY || ""}
+                  onChange={handleFormChange}
+                  type={showKey ? "text" : "password"}
+                  autoComplete="off"
+                />
+                <Button variant="outline-primary" type="button" onClick={() => setKeyState(!showKey)}>
+                  {showKey ? <EyeFillIcon /> : <EyeOffFillIcon />}
+                </Button>
+              </InputGroup>
+            </Col>
+          </Form.Group>
+
+          {isSubmitted !== "" ? (
+            <Alert bg="dark" data-bs-theme="dark" variant={isSubmitted === "Failed" ? "danger" : "success"}>
+              {submissionMessage}
+            </Alert>
+          ) : null}
+
+          <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center gap-2">
+            {firstRun && hasSavedConnection ? (
+              <Button variant="outline-secondary" type="button" onClick={() => setIsEditingConnection(false)}>
+                Cancel
+              </Button>
+            ) : null}
+            <Button variant="outline-success" type="submit">
+              Update
+            </Button>
+          </div>
+        </Form>
+      )}
     </section>
   );
 }

@@ -70,6 +70,15 @@ function SessionDetailItem({ label, value, wide = false }) {
   );
 }
 
+function SessionCardDetailRow({ label, children, className = "" }) {
+  return (
+    <div className={`session-details-row ${className}`.trim()}>
+      <span className="session-details-title text-end text-uppercase">{label}</span>
+      <div className="ellipse session-details-value">{children}</div>
+    </div>
+  );
+}
+
 function SessionCard(props) {
   const session = props.data.session;
   const nowPlaying = session.NowPlayingItem;
@@ -242,7 +251,7 @@ function SessionCard(props) {
       </Modal>
       <div style={cardBgStyle} className="session-card-main rounded-top">
         <Row className="h-100 p-0 m-0">
-          <Col className="d-none d-lg-block session-card-banner-image">
+          <Col className="session-card-banner-image">
             <Card.Img
               variant="top"
               className={
@@ -264,17 +273,8 @@ function SessionCard(props) {
             <Card.Body className="session-card-body w-100 h-100">
               <Container className="h-100 d-flex flex-column justify-content-between g-0">
                 <Row className="d-flex justify-content-start session-details">
-                  <Col className="col-auto">
-                    <Row>
-                      <Col className="col-auto session-details-title text-end text-uppercase">
-                        <Trans i18nKey="ACTIVITY_TABLE.DEVICE" />
-                      </Col>
-                      <Col
-                        className="col-auto ellipse"
-                        style={{
-                          maxWidth: "200px",
-                        }}
-                      >
+                  <Col className="session-details-list">
+                    <SessionCardDetailRow label={<Trans i18nKey="ACTIVITY_TABLE.DEVICE" />} className="session-details-row-short">
                         <Tooltip title={props.data.session.DeviceName}>
                           <span
                             style={{
@@ -286,18 +286,8 @@ function SessionCard(props) {
                             {props.data.session.DeviceName}
                           </span>
                         </Tooltip>
-                      </Col>
-                    </Row>
-                    <Row>
-                      <Col className="col-auto session-details-title text-end text-uppercase">
-                        <Trans i18nKey="ACTIVITY_TABLE.CLIENT" />
-                      </Col>
-                      <Col
-                        className="col-auto ellipse"
-                        style={{
-                          maxWidth: "200px",
-                        }}
-                      >
+                    </SessionCardDetailRow>
+                    <SessionCardDetailRow label={<Trans i18nKey="ACTIVITY_TABLE.CLIENT" />} className="session-details-row-short">
                         <Tooltip title={props.data.session.Client + " " + props.data.session.ApplicationVersion}>
                           <span
                             style={{
@@ -309,19 +299,9 @@ function SessionCard(props) {
                             {props.data.session.Client + " " + props.data.session.ApplicationVersion}
                           </span>
                         </Tooltip>
-                      </Col>
-                    </Row>
+                    </SessionCardDetailRow>
                     {props.data.session.NowPlayingItem.ContainerStream !== "" && (
-                      <Row className="mt-2">
-                        <Col className="col-auto session-details-title text-end text-uppercase">
-                          <Trans i18nKey="CONTAINER" />
-                        </Col>
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label={<Trans i18nKey="CONTAINER" />} className="mt-2">
                           <Tooltip title={props.data.session.NowPlayingItem.ContainerStream}>
                             <span
                               style={{
@@ -333,20 +313,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.ContainerStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.VideoStream !== "" && (
-                      <Row>
-                        <Col className="col-auto session-details-title text-end text-uppercase">
-                          <Trans i18nKey="VIDEO" />
-                        </Col>
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label={<Trans i18nKey="VIDEO" />}>
                           <Tooltip title={props.data.session.NowPlayingItem.VideoStream}>
                             <span
                               style={{
@@ -358,18 +328,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.VideoStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.VideoBitrateStream !== "" && (
-                      <Row>
-                        <Col className="col-auto session-details-title text-end text-uppercase" />
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label="">
                           <Tooltip title={props.data.session.NowPlayingItem.VideoBitrateStream}>
                             <span
                               style={{
@@ -381,20 +343,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.VideoBitrateStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.AudioStream !== "" && (
-                      <Row>
-                        <Col className="col-auto session-details-title text-end text-uppercase">
-                          <Trans i18nKey="AUDIO" />
-                        </Col>
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label={<Trans i18nKey="AUDIO" />}>
                           <Tooltip title={props.data.session.NowPlayingItem.AudioStream}>
                             <span
                               style={{
@@ -406,18 +358,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.AudioStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.AudioBitrateStream !== "" && (
-                      <Row>
-                        <Col className="col-auto session-details-title text-end text-uppercase" />
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label="">
                           <Tooltip title={props.data.session.NowPlayingItem.AudioBitrateStream}>
                             <span
                               style={{
@@ -429,20 +373,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.AudioBitrateStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.SubtitleStream !== "" && (
-                      <Row>
-                        <Col className="col-auto session-details-title text-end text-uppercase">
-                          <Trans i18nKey="SUBTITLES" />
-                        </Col>
-                        <Col
-                          className="col-auto ellipse"
-                          style={{
-                            maxWidth: "270px",
-                          }}
-                        >
+                      <SessionCardDetailRow label={<Trans i18nKey="SUBTITLES" />}>
                           <Tooltip title={props.data.session.NowPlayingItem.SubtitleStream}>
                             <span
                               style={{
@@ -454,20 +388,10 @@ function SessionCard(props) {
                               {props.data.session.NowPlayingItem.SubtitleStream}
                             </span>
                           </Tooltip>
-                        </Col>
-                      </Row>
+                      </SessionCardDetailRow>
                     )}
 
-                    <Row className="mt-2">
-                      <Col className="col-auto session-details-title text-end text-uppercase">
-                        <Trans i18nKey="ACTIVITY_TABLE.IP_ADDRESS" />
-                      </Col>
-                      <Col
-                        className="col-auto ellipse"
-                        style={{
-                          maxWidth: "270px",
-                        }}
-                      >
+                    <SessionCardDetailRow label={<Trans i18nKey="ACTIVITY_TABLE.IP_ADDRESS" />} className="mt-2">
                         {isRemoteSession(props.data.session.RemoteEndPoint) &&
                         (window.env?.JS_GEOLITE_ACCOUNT_ID ?? import.meta.env.JS_GEOLITE_ACCOUNT_ID) ? (
                           <Link
@@ -479,20 +403,16 @@ function SessionCard(props) {
                         ) : (
                           <span>{props.data.session.RemoteEndPoint}</span>
                         )}
-                      </Col>
-                    </Row>
+                    </SessionCardDetailRow>
 
-                    <Row>
-                      <Col className="col-auto session-details-title text-end text-uppercase">ETA</Col>
-                      <Col className="col-auto ellipse">
+                    <SessionCardDetailRow label="ETA">
                         {props.data.session.NowPlayingItem.RunTimeTicks ||
                         props.data.session.NowPlayingItem.ChannelType === "TV" ? (
                           getETA(props.data.session.NowPlayingItem, props.data.session.PlayState)
                         ) : (
                           <Trans i18nKey="ERROR_MESSAGES.N/A" />
                         )}
-                      </Col>
-                    </Row>
+                    </SessionCardDetailRow>
                   </Col>
                 </Row>
 

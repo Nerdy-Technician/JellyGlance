@@ -34,22 +34,6 @@ import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
 
-const settingsTabs = [
-  "tabGeneral",
-  "tabSecurity",
-  "tabActivityMonitor",
-  "tabTasks",
-  "tabLibraries",
-  "tabIntegrations",
-  "tabKeys",
-  "tabWebhooks",
-  "tabBackup",
-  "tabImports",
-  "tabNewsletter",
-  "tabHealth",
-  "tabLogs",
-];
-
 function tabTitle(Icon, label) {
   return (
     <span className="settings-tab-title">
@@ -58,6 +42,24 @@ function tabTitle(Icon, label) {
     </span>
   );
 }
+
+const settingsTabItems = [
+  { key: "tabGeneral", Icon: Settings3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.SETTINGS"} /> },
+  { key: "tabSecurity", Icon: ShieldKeyholeLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.SECURITY"} /> },
+  { key: "tabActivityMonitor", Icon: PulseLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.ACTIVITY_MONITOR"} defaults="Activity Monitor" /> },
+  { key: "tabTasks", Icon: TaskLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.TASKS"} /> },
+  { key: "tabLibraries", Icon: GalleryLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LIBRARY_SETTINGS"} /> },
+  { key: "tabIntegrations", Icon: Plug2LineIcon, label: "Integrations" },
+  { key: "tabKeys", Icon: Key2LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.API_KEY"} /> },
+  { key: "tabWebhooks", Icon: Notification3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.WEBHOOKS"} /> },
+  { key: "tabBackup", Icon: ArchiveLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} /> },
+  { key: "tabImports", Icon: Database2LineIcon, label: "Imports" },
+  { key: "tabNewsletter", Icon: MailSettingsLineIcon, label: "Newsletter" },
+  { key: "tabHealth", Icon: HeartPulseLineIcon, label: "Health" },
+  { key: "tabLogs", Icon: FileList3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LOGS"} /> },
+];
+
+const settingsTabs = settingsTabItems.map((item) => item.key);
 
 export default function Settings() {
   const requestedTab = new URLSearchParams(window.location.search).get("tab");
@@ -74,7 +76,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="settings">
+    <div className="settings has-mobile-settings-menu">
       <div className="settings-page-header">
         <div>
           <p className="settings-eyebrow">Control center</p>
@@ -82,6 +84,23 @@ export default function Settings() {
             <Trans i18nKey={"SETTINGS_PAGE.SETTINGS"} />
           </h1>
           <p>Configure JellyGlance sync, security, libraries, keys, backups, and logs.</p>
+        </div>
+      </div>
+
+      <div className="settings-mobile-menu">
+        <div className="settings-mobile-menu-list" role="tablist" aria-label="Settings sections">
+          {settingsTabItems.map(({ key, Icon, label }) => (
+            <button
+              key={key}
+              type="button"
+              className={activeTab === key ? "is-active" : ""}
+              onClick={() => setTab(key)}
+              role="tab"
+              aria-selected={activeTab === key}
+            >
+              {tabTitle(Icon, label)}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -97,7 +116,7 @@ export default function Settings() {
         <Tab
           eventKey="tabGeneral"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Settings3LineIcon, <Trans i18nKey={"SETTINGS_PAGE.SETTINGS"} />)}
+          title={tabTitle(Settings3LineIcon, settingsTabItems[0].label)}
         >
           <SettingsConfig />
         </Tab>
@@ -105,7 +124,7 @@ export default function Settings() {
         <Tab
           eventKey="tabSecurity"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(ShieldKeyholeLineIcon, <Trans i18nKey={"SETTINGS_PAGE.SECURITY"} />)}
+          title={tabTitle(ShieldKeyholeLineIcon, settingsTabItems[1].label)}
         >
           <SecuritySettings />
         </Tab>
@@ -113,7 +132,7 @@ export default function Settings() {
         <Tab
           eventKey="tabActivityMonitor"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(PulseLineIcon, <Trans i18nKey={"SETTINGS_PAGE.ACTIVITY_MONITOR"} defaults="Activity Monitor" />)}
+          title={tabTitle(PulseLineIcon, settingsTabItems[2].label)}
         >
           <ActivityMonitorSettings />
         </Tab>
@@ -121,7 +140,7 @@ export default function Settings() {
         <Tab
           eventKey="tabTasks"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(TaskLineIcon, <Trans i18nKey={"SETTINGS_PAGE.TASKS"} />)}
+          title={tabTitle(TaskLineIcon, settingsTabItems[3].label)}
         >
           <Tasks />
         </Tab>
@@ -129,7 +148,7 @@ export default function Settings() {
         <Tab
           eventKey="tabLibraries"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(GalleryLineIcon, <Trans i18nKey={"SETTINGS_PAGE.LIBRARY_SETTINGS"} />)}
+          title={tabTitle(GalleryLineIcon, settingsTabItems[4].label)}
         >
           <LibrarySelector />
         </Tab>
@@ -137,7 +156,7 @@ export default function Settings() {
         <Tab
           eventKey="tabIntegrations"
           className="settings-tab-pane bg-transparent integrations-settings-tab"
-          title={tabTitle(Plug2LineIcon, "Integrations")}
+          title={tabTitle(Plug2LineIcon, settingsTabItems[5].label)}
         >
           <Integrations embedded />
         </Tab>
@@ -145,7 +164,7 @@ export default function Settings() {
         <Tab
           eventKey="tabKeys"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Key2LineIcon, <Trans i18nKey={"SETTINGS_PAGE.API_KEY"} />)}
+          title={tabTitle(Key2LineIcon, settingsTabItems[6].label)}
         >
           <ApiKeys />
         </Tab>
@@ -153,7 +172,7 @@ export default function Settings() {
         <Tab
           eventKey="tabWebhooks"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Notification3LineIcon, <Trans i18nKey={"SETTINGS_PAGE.WEBHOOKS"} />)}
+          title={tabTitle(Notification3LineIcon, settingsTabItems[7].label)}
         >
           <ErrorBoundary>
             <WebhooksSettings />
@@ -163,7 +182,7 @@ export default function Settings() {
         <Tab
           eventKey="tabBackup"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(ArchiveLineIcon, <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} />)}
+          title={tabTitle(ArchiveLineIcon, settingsTabItems[8].label)}
         >
           <BackupPage />
         </Tab>
@@ -171,7 +190,7 @@ export default function Settings() {
         <Tab
           eventKey="tabImports"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Database2LineIcon, "Imports")}
+          title={tabTitle(Database2LineIcon, settingsTabItems[9].label)}
         >
           <JellystatImport />
           <TautulliImport />
@@ -180,7 +199,7 @@ export default function Settings() {
         <Tab
           eventKey="tabNewsletter"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(MailSettingsLineIcon, "Newsletter")}
+          title={tabTitle(MailSettingsLineIcon, settingsTabItems[10].label)}
         >
           <NewsletterSettings />
         </Tab>
@@ -188,7 +207,7 @@ export default function Settings() {
         <Tab
           eventKey="tabHealth"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(HeartPulseLineIcon, "Health")}
+          title={tabTitle(HeartPulseLineIcon, settingsTabItems[11].label)}
         >
           <HealthSettings />
         </Tab>
@@ -196,7 +215,7 @@ export default function Settings() {
         <Tab
           eventKey="tabLogs"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(FileList3LineIcon, <Trans i18nKey={"SETTINGS_PAGE.LOGS"} />)}
+          title={tabTitle(FileList3LineIcon, settingsTabItems[12].label)}
         >
           <Logs />
         </Tab>

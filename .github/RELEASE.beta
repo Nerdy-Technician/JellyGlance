@@ -1,4 +1,14 @@
-version: v1.1.7-beta.1
-title: JellyGlance v1.1.7 Beta 1
+version: v1.1.7-beta.2
+title: JellyGlance v1.1.7 Beta 2
 ---
-beta: first dedicated beta branch image
+## Features
+
+- feat: add a full-screen mobile app launcher from the JellyGlance header
+- feat: keep Jellystat history import available in the beta setup/import flow
+
+## Fixes
+
+- fix: remove the persistent mobile bottom navigation in favour of the launcher menu
+- fix: improve mobile Settings spacing, sticky section navigation, forms, and task cards
+- fix: keep active session posters visible on mobile and reduce text overlap in playback details
+- fix: recognize an already connected Jellyfin server during first-run setup

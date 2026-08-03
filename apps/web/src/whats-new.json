@@ -1,4 +1,38 @@
 {
+  "1.1.7-beta.2": [
+    {
+      "icon": "magic",
+      "title": "Mobile app navigation",
+      "body": "The mobile bottom dock has been replaced with a full-screen app launcher opened from the JellyGlance header."
+    },
+    {
+      "icon": "upload",
+      "title": "Jellystat history imports",
+      "body": "The beta build keeps Jellystat and Tautulli history import work available for testing before the next stable release."
+    }
+  ],
+  "1.1.7-beta.1": [
+    {
+      "icon": "magic",
+      "title": "Beta channel",
+      "body": "This build is published from the BETA branch with its own prerelease versioning and Docker beta tags."
+    },
+    {
+      "icon": "upload",
+      "title": "Jellystat history imports",
+      "body": "First-run setup can import Jellystat history alongside Tautulli so legacy watch data can come across before the first sync."
+    },
+    {
+      "icon": "speed",
+      "title": "Smoother first-run setup",
+      "body": "After Jellyfin is connected, setup now moves into integrations, optional history import, and first sync without asking for the server again."
+    },
+    {
+      "icon": "movie",
+      "title": "Active session readability",
+      "body": "Long stream, subtitle, title, and user values now truncate more cleanly, especially on mobile session cards."
+    }
+  ],
   "1.1.6": [
     {
       "icon": "upload",

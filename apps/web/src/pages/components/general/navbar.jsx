@@ -6,6 +6,7 @@ import { navData } from "../../../lib/navdata";
 import LogoutBoxLineIcon from "remixicon-react/LogoutBoxLineIcon";
 import AccountCircleLineIcon from "remixicon-react/AccountCircleLineIcon";
 import MagicLineIcon from "remixicon-react/MagicLineIcon";
+import MenuLineIcon from "remixicon-react/MenuLineIcon";
 import logo_dark from "../../images/icon-b-512.png";
 import projectText from "../../images/project-text.png";
 import "../../css/navbar.css";
@@ -34,6 +35,7 @@ export default function Navbar() {
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
@@ -185,9 +187,26 @@ export default function Navbar() {
     setShowAccount(false);
   };
 
+  const getNavBadgeCount = (link) => {
+    if (link === "") return activeStreamCount;
+    if (link === "downloads") return activeDownloadCount;
+    if (link === "requests") return requestBadgeCount;
+    return 0;
+  };
+
   return (
     <>
-      <div className="mobile-app-topbar d-md-none">
+      <div className="mobile-app-topbar">
+        <button
+          className="mobile-app-menu"
+          type="button"
+          onClick={() => setIsMobileNavOpen((isOpen) => !isOpen)}
+          aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-controls="mobile-app-navigation"
+          aria-expanded={isMobileNavOpen}
+        >
+          <MenuLineIcon size={24} />
+        </button>
         <Link className="mobile-app-brand" to="/">
           <img src={logo_dark} alt="" />
           <img src={projectText} alt="JellyGlance" />
@@ -197,7 +216,66 @@ export default function Navbar() {
         </button>
       </div>
 
-      <BootstrapNavbar variant="dark" className=" d-flex flex-column py-0 text-center sticky-top">
+      <div id="mobile-app-navigation" className={`mobile-app-menu-panel${isMobileNavOpen ? " is-open" : ""}`} aria-hidden={!isMobileNavOpen}>
+        <nav className="mobile-app-menu-shell" aria-label="Mobile navigation">
+          <div className="mobile-app-menu-grid">
+            {navData.map((item) => {
+              const locationString = location.pathname.toLocaleLowerCase();
+              const isActive =
+                locationString.includes(("/" + item.link).toLocaleLowerCase()) &&
+                ((locationString.length > 0 && item.link.length > 0) || (locationString.length === 1 && item.link.length === 0));
+              const badgeCount = getNavBadgeCount(item.link);
+
+              return (
+                <Link
+                  key={item.id}
+                  className={`mobile-app-menu-tile${isActive ? " active" : ""}`}
+                  to={item.link}
+                  onClick={() => setIsMobileNavOpen(false)}
+                >
+                  <span className="mobile-app-menu-icon">{item.icon}</span>
+                  <span className="mobile-app-menu-label">{item.text}</span>
+                  {badgeCount > 0 ? <span className="mobile-app-menu-badge">{badgeCount}</span> : null}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mobile-app-menu-footer">
+            <button
+              className="mobile-app-menu-account"
+              type="button"
+              onClick={() => {
+                setIsMobileNavOpen(false);
+                setShowAccount(true);
+              }}
+            >
+              <span className="account-nav-avatar">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} />
+                ) : (
+                  <AccountCircleLineIcon />
+                )}
+              </span>
+              <span className="account-nav-copy">
+                <strong>{accountName}</strong>
+                <small>{accountRole}</small>
+              </span>
+            </button>
+            <button className="mobile-app-menu-logout" type="button" onClick={handleLogout}>
+              <LogoutBoxLineIcon size={22} />
+              <span>
+                <Trans i18nKey="MENU_TABS.LOGOUT" />
+              </span>
+            </button>
+            <div className="mobile-app-menu-version">
+              <VersionCard />
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <BootstrapNavbar variant="dark" className="desktop-navigation d-flex flex-column py-0 text-center sticky-top" id="primary-navigation">
       <div className="sticky-top py-md-3">
         <BootstrapNavbar.Brand as={Link} to={"/"} className="d-none d-md-inline">
           <img src={logo_dark} style={{ height: "52px" }} className="px-2" alt="" />
@@ -216,9 +294,10 @@ export default function Navbar() {
                 key={item.id}
                 className={`navitem${isActive ? " active" : ""} p-2`} // add the "active" class if the link is active
                 to={item.link}
+                onClick={() => setIsMobileNavOpen(false)}
               >
                 {item.icon}
-                <span className="d-none d-md-flex nav-text">
+                <span className="nav-text">
                   <span>{item.text}</span>
                   {item.link === "" && activeStreamCount > 0 ? (
                     <span className="nav-live-count" aria-label={`${activeStreamCount} active streams`}>
