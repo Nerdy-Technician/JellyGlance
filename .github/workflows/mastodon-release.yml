@@ -17,7 +17,7 @@ permissions:
 jobs:
   post:
     name: Publish Mastodon release post
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'BETA')
+    if: (github.event_name == 'release' && github.event.release.prerelease != true) || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'BETA') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
