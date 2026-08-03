@@ -14,6 +14,7 @@ node_modules/
 !/backups/.gitkeep
 /config/*
 !/config/.gitkeep
+/postgres-data/
 .vscode
 .idea
 .env

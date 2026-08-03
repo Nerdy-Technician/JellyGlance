@@ -160,6 +160,7 @@ async function getQuickConnectConfig() {
   return {
     host: normalizeJellyfinUrl(config.JF_HOST),
     settings: config.settings || {},
+    state: config.state,
   };
 }
 
@@ -489,6 +490,7 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     }
 
     const isFirstRunApproval = config.state < 2;
+    console.log(`[SETUP-AUTH] Quick Connect complete. firstRun=${isFirstRunApproval} user=${jellyfinUser.Name || jellyfinUser.Id}`);
 
     if (isFirstRunApproval && !jellyfinUser?.Policy?.IsAdministrator) {
       res.status(403).json({ errorMessage: "Approve Quick Connect with a Jellyfin administrator account" });
@@ -511,12 +513,14 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     };
 
     if (isFirstRunApproval) {
+      settings.firstRunExtrasPending = true;
       await db.query('UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1', [
         "jellyfin-quick-connect",
         null,
         true,
         settings,
       ]);
+      console.log("[SETUP-AUTH] Quick Connect saved first-run admin auth");
     }
 
     const token = await signAuthToken({
@@ -877,6 +881,7 @@ router.post("/setup-auth", async (req, res) => {
   try {
     const { mode, username, password, issuerUrl, clientId, clientSecret, redirectUri } = req.body;
     const config = await new configClass().getConfig();
+    console.log(`[SETUP-AUTH] setup-auth requested mode=${mode} state=${config.state}`);
 
     if (config.state == null || config.state >= 2) {
       res.sendStatus(403);
@@ -894,6 +899,7 @@ router.post("/setup-auth", async (req, res) => {
         mode: "quick-connect",
         label: "Jellyfin Login / Quick Connect",
       };
+      settings.firstRunExtrasPending = true;
 
       query =
         'UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1';
@@ -909,6 +915,7 @@ router.post("/setup-auth", async (req, res) => {
         mode: "local",
         label: "Local JellyGlance login",
       };
+      settings.firstRunExtrasPending = true;
       settings.localUsers = [
         ...(settings.localUsers || []).filter((user) => user.username !== username),
         {
@@ -945,6 +952,7 @@ router.post("/setup-auth", async (req, res) => {
         redirectUri: redirectUri || null,
         discovery: oidcTest.discovery,
       };
+      settings.firstRunExtrasPending = true;
 
       query =
         'UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1';
@@ -956,6 +964,7 @@ router.post("/setup-auth", async (req, res) => {
     }
 
     await db.query(query, params);
+    console.log(`[SETUP-AUTH] setup-auth saved mode=${mode}`);
     const token = await signSetupToken(tokenUsername);
     res.json({ token, mode });
   } catch (error) {
@@ -1031,7 +1040,6 @@ router.post("/configSetup", async (req, res) => {
         }
       }
 
-      queueSetupJellyfinTasks();
       res.send(rows);
     } else {
       res.sendStatus(500);

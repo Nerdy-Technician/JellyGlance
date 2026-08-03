@@ -14,7 +14,7 @@ import EyeOffFillIcon from "remixicon-react/EyeOffFillIcon";
 import i18next from "i18next";
 import { Trans } from "react-i18next";
 import SetupShell from "./components/setup/SetupShell";
-import baseUrl from "../lib/baseurl";
+import { FIRST_RUN_EXTRAS_KEY } from "../lib/first-run";
 
 function Signup() {
   const [config, setConfig] = useState(null);
@@ -25,7 +25,6 @@ function Signup() {
   const [authMode, setAuthMode] = useState("quick-connect");
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
-  const [openIntegrationsAfterSetup, setOpenIntegrationsAfterSetup] = useState(true);
 
   function handleFormChange(event) {
     setFormValues({ ...formValues, [event.target.name]: event.target.value });
@@ -45,6 +44,10 @@ function Signup() {
     event.preventDefault();
 
     if (authMode === "quick-connect") {
+      if (quickConnect?.secret) {
+        await checkQuickConnectApproval();
+        return;
+      }
       startQuickConnect();
       return;
     }
@@ -75,8 +78,7 @@ function Signup() {
       .then(async (response) => {
         localStorage.setItem("token", response.data.token);
         setsubmitButtonText("Settings Saved");
-        setProcessing(false);
-        finishSetupNavigation();
+        await finishSetupNavigation();
         return;
       })
       .catch((error) => {
@@ -111,10 +113,8 @@ function Signup() {
 
       localStorage.setItem("token", response.data.token);
       localStorage.removeItem("config");
-      await Config.setConfig();
       window.dispatchEvent(new Event("jellyglance-config-updated"));
-      setProcessing(false);
-      finishSetupNavigation();
+      await finishSetupNavigation();
     } catch (error) {
       const errorMessage = error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`;
       setQuickConnectStatus(errorMessage);
@@ -147,6 +147,28 @@ function Signup() {
     }
   }
 
+  async function checkQuickConnectApproval() {
+    if (!quickConnect?.secret) return;
+
+    try {
+      setQuickConnectStatus("Checking Jellyfin Quick Connect approval...");
+      const response = await axios.get("/auth/jellyfin-quick-connect/status", {
+        params: { secret: quickConnect.secret },
+      });
+
+      if (response.data.authenticated) {
+        await finishQuickConnect(quickConnect.secret);
+        return;
+      }
+
+      setQuickConnectStatus("Still waiting for approval in Jellyfin.");
+      setProcessing(false);
+    } catch (error) {
+      setQuickConnectStatus(error.response?.data?.errorMessage || "Still waiting for Jellyfin approval...");
+      setProcessing(false);
+    }
+  }
+
   async function copyQuickConnectCode(code) {
     if (!code || !navigator.clipboard?.writeText) {
       return false;
@@ -161,13 +183,23 @@ function Signup() {
     }
   }
 
-  function finishSetupNavigation() {
-    if (openIntegrationsAfterSetup) {
-      localStorage.setItem("PREF_SETTINGS_LAST_SELECTED_TAB", "tabIntegrations");
-      window.location.assign(`${baseUrl || ""}/settings?tab=tabIntegrations`);
+  async function finishSetupNavigation() {
+    try {
+      const response = await axios.get("/auth/isConfigured");
+      if (response.data?.state !== 2) {
+        setsubmitButtonText("Unable to finish setup. Please try again.");
+        setQuickConnectStatus("");
+        setProcessing(false);
+        return;
+      }
+    } catch (error) {
+      setsubmitButtonText(error.response?.data?.errorMessage || "Unable to confirm setup state");
+      setProcessing(false);
       return;
     }
 
+    localStorage.setItem(FIRST_RUN_EXTRAS_KEY, "true");
+    localStorage.removeItem("config");
     window.location.reload();
   }
 
@@ -250,19 +282,6 @@ function Signup() {
         </div>
 
         <Form onSubmit={handleFormSubmit} className="setup-form">
-          <label className="setup-followup-option">
-            <Form.Check
-              type="checkbox"
-              checked={openIntegrationsAfterSetup}
-              onChange={(event) => setOpenIntegrationsAfterSetup(event.target.checked)}
-              aria-label="Open integration setup after first-run setup"
-            />
-            <span>
-              <strong>Open integration setup next</strong>
-              <small>Jump straight to Jellyfin, Arr apps, webhooks, and download client setup.</small>
-            </span>
-          </label>
-
           {authMode === "quick-connect" && (
             <div className="setup-auth-summary">
               <strong>Jellyfin Quick Connect</strong>
@@ -377,7 +396,7 @@ function Signup() {
               ? `${i18next.t("VALIDATING")}...`
               : authMode === "quick-connect"
                 ? quickConnect?.code
-                  ? "Get New Quick Connect Code"
+                  ? "Check Quick Connect Approval"
                   : "Start Jellyfin Quick Connect"
                 : authMode === "oidc"
                   ? "Test & Save OIDC"

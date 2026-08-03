@@ -37,6 +37,9 @@ export default function TautulliImport() {
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [unmatched, setUnmatched] = useState([]);
+  const [unmatchedUsers, setUnmatchedUsers] = useState([]);
+  const [jellyfinUsers, setJellyfinUsers] = useState([]);
+  const [selectedUserMatch, setSelectedUserMatch] = useState({});
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [mediaSearch, setMediaSearch] = useState("");
   const [mediaResults, setMediaResults] = useState([]);
@@ -53,8 +56,19 @@ export default function TautulliImport() {
     }
   }
 
+  async function loadUnmatchedUsers() {
+    try {
+      const response = await axios.get("/tautulli/unmatched-users", { headers: authHeader() });
+      setUnmatchedUsers(response.data?.unmatched || []);
+      setJellyfinUsers(response.data?.users || []);
+    } catch (error) {
+      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to load unmatched Tautulli users." });
+    }
+  }
+
   useEffect(() => {
     loadUnmatched();
+    loadUnmatchedUsers();
   }, []);
 
   async function uploadAndPreview(event) {
@@ -108,6 +122,7 @@ export default function TautulliImport() {
         text: `Imported ${response.data.insertedRows} new Tautulli plays. Matched ${response.data.matchedJellyfinRows} rows to Jellyfin media and repaired ${response.data.repairedRows} existing imported rows.`,
       });
       await loadUnmatched();
+      await loadUnmatchedUsers();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to import Tautulli history." });
     } finally {
@@ -149,8 +164,31 @@ export default function TautulliImport() {
       setMediaSearch("");
       window.dispatchEvent(new CustomEvent("jellyglance-history-imported", { detail: response.data }));
       await loadUnmatched();
+      await loadUnmatchedUsers();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to link imported rows." });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function linkUser(sourceUserId) {
+    const targetId = selectedUserMatch[sourceUserId];
+    const target = jellyfinUsers.find((user) => user.Id === targetId);
+    if (!target) return;
+
+    try {
+      setBusyAction(`link-user-${sourceUserId}`);
+      const response = await axios.post(
+        "/tautulli/link-user",
+        { sourceUserId, target },
+        { headers: { ...authHeader(), "Content-Type": "application/json" } }
+      );
+      setMessage({ type: "success", text: `Linked ${response.data.updatedRows} imported plays to ${target.Name}.` });
+      window.dispatchEvent(new CustomEvent("jellyglance-history-imported", { detail: response.data }));
+      await loadUnmatchedUsers();
+    } catch (error) {
+      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to link Tautulli user." });
     } finally {
       setBusyAction("");
     }
@@ -239,6 +277,54 @@ export default function TautulliImport() {
           ) : null}
         </section>
       ) : null}
+
+      <section className="legacy-import-review">
+        <div className="legacy-import-review-header">
+          <div>
+            <span>User matching</span>
+            <h3>Unmatched Tautulli Users</h3>
+            <p>Map legacy Tautulli users to Jellyfin users so imported plays land on the right profile.</p>
+          </div>
+          <Button type="button" variant="outline-primary" onClick={loadUnmatchedUsers} disabled={Boolean(busyAction)}>
+            Refresh
+          </Button>
+        </div>
+
+        <div className="legacy-import-user-list">
+          {unmatchedUsers.length ? unmatchedUsers.map((user) => (
+            <article key={user.UserId} className="legacy-import-user-row">
+              <div>
+                <strong>{user.UserName}</strong>
+                <span>{user.PlayCount} plays · last {formatDate(user.LastActivityDate)}</span>
+              </div>
+              <select
+                value={selectedUserMatch[user.UserId] || ""}
+                onChange={(event) =>
+                  setSelectedUserMatch((current) => ({ ...current, [user.UserId]: event.target.value }))
+                }
+              >
+                <option value="">Choose Jellyfin user...</option>
+                {jellyfinUsers.map((jellyfinUser) => (
+                  <option value={jellyfinUser.Id} key={jellyfinUser.Id}>
+                    {jellyfinUser.Name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => linkUser(user.UserId)}
+                disabled={!selectedUserMatch[user.UserId] || Boolean(busyAction)}
+              >
+                {busyAction === `link-user-${user.UserId}` ? <Spinner size="sm" animation="border" /> : <UploadCloud2LineIcon size={18} />}
+                Link user
+              </Button>
+            </article>
+          )) : (
+            <div className="legacy-import-empty">No unmatched imported users found.</div>
+          )}
+        </div>
+      </section>
 
       <section className="legacy-import-review">
         <div className="legacy-import-review-header">

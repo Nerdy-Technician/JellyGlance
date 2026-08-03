@@ -188,7 +188,7 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   );
 }
 
-export default function Integrations({ embedded = false }) {
+export default function Integrations({ embedded = false, firstRun = false }) {
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("media-server");
   const [arrApps, setArrApps] = useState(initialAutomationApps);
@@ -198,6 +198,8 @@ export default function Integrations({ embedded = false }) {
   const [diagnostics, setDiagnostics] = useState([]);
   const [busyAction, setBusyAction] = useState("");
   const [notice, setNotice] = useState("");
+  const [savedIntegrationsAvailable, setSavedIntegrationsAvailable] = useState(false);
+  const [loadedSavedIntegrations, setLoadedSavedIntegrations] = useState(!firstRun);
   const connectorCount = useMemo(() => arrApps.length + clients.length, [arrApps.length, clients.length]);
   const automationOnlyApps = useMemo(() => arrApps.filter((app) => !isSeerrApp(app)), [arrApps]);
   const seerrApps = useMemo(() => arrApps.filter(isSeerrApp), [arrApps]);
@@ -214,6 +216,14 @@ export default function Integrations({ embedded = false }) {
 
   useEffect(() => {
     async function loadIntegrations() {
+      if (firstRun && !loadedSavedIntegrations) {
+        setArrApps(initialAutomationApps);
+        setClients([]);
+        setHealthHistory([]);
+        setSavedIntegrationsAvailable(true);
+        return;
+      }
+
       try {
         const response = await axios.get("/api/integrations", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -247,8 +257,10 @@ export default function Integrations({ embedded = false }) {
       }
     }
     loadIntegrations();
-    loadHealthHistory();
-  }, []);
+    if (!firstRun || loadedSavedIntegrations) {
+      loadHealthHistory();
+    }
+  }, [firstRun, loadedSavedIntegrations]);
 
   async function loadHealthHistory() {
     try {
@@ -269,6 +281,11 @@ export default function Integrations({ embedded = false }) {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
       .catch((error) => console.log("Unable to save integrations", error));
+  }
+
+  function loadExistingIntegrations() {
+    setLoadedSavedIntegrations(true);
+    setNotice("Loaded saved integrations into first-run setup.");
   }
 
   function exportIntegrations() {
@@ -516,7 +533,7 @@ export default function Integrations({ embedded = false }) {
         ))}
       </nav>
 
-      {activeTab === "media-server" ? <JellyfinIntegrationSettings compact /> : null}
+      {activeTab === "media-server" ? <JellyfinIntegrationSettings compact firstRun={firstRun} /> : null}
 
       {notice ? <div className="integration-notice">{notice}</div> : null}
 
@@ -530,10 +547,18 @@ export default function Integrations({ embedded = false }) {
             <Settings3LineIcon />
           </div>
           <div className="integration-toolbar">
-            <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
-              <HeartPulseLineIcon size={18} />
-              {busyAction === "test-all" ? "Testing" : "Test all"}
-            </button>
+            {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
+              <button type="button" onClick={loadExistingIntegrations}>
+                <DownloadCloud2FillIcon size={18} />
+                Load saved integrations
+              </button>
+            ) : null}
+            {!firstRun || loadedSavedIntegrations ? (
+              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                <HeartPulseLineIcon size={18} />
+                {busyAction === "test-all" ? "Testing" : "Test all"}
+              </button>
+            ) : null}
             <button type="button" onClick={exportIntegrations}>
               <DownloadCloud2FillIcon size={18} />
               Export
@@ -571,10 +596,18 @@ export default function Integrations({ embedded = false }) {
             <Settings3LineIcon />
           </div>
           <div className="integration-toolbar">
-            <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
-              <HeartPulseLineIcon size={18} />
-              {busyAction === "test-all" ? "Testing" : "Test all"}
-            </button>
+            {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
+              <button type="button" onClick={loadExistingIntegrations}>
+                <DownloadCloud2FillIcon size={18} />
+                Load saved integrations
+              </button>
+            ) : null}
+            {!firstRun || loadedSavedIntegrations ? (
+              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                <HeartPulseLineIcon size={18} />
+                {busyAction === "test-all" ? "Testing" : "Test all"}
+              </button>
+            ) : null}
             <button type="button" onClick={exportIntegrations}>
               <DownloadCloud2FillIcon size={18} />
               Export
@@ -610,10 +643,18 @@ export default function Integrations({ embedded = false }) {
               <span>Add more than one torrent or Usenet client</span>
             </div>
             <div className="client-adder">
-              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
-                <HeartPulseLineIcon size={18} />
-                {busyAction === "test-all" ? "Testing" : "Test all"}
-              </button>
+              {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
+                <button type="button" onClick={loadExistingIntegrations}>
+                  <DownloadCloud2FillIcon size={18} />
+                  Load saved integrations
+                </button>
+              ) : null}
+              {!firstRun || loadedSavedIntegrations ? (
+                <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                  <HeartPulseLineIcon size={18} />
+                  {busyAction === "test-all" ? "Testing" : "Test all"}
+                </button>
+              ) : null}
               <button type="button" onClick={exportIntegrations}>
                 <DownloadCloud2FillIcon size={18} />
                 Export

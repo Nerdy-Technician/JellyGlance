@@ -26,6 +26,7 @@ const { router: syncRouter } = require("./routes/sync");
 const statsRouter = require("./routes/stats");
 const backupRouter = require("./routes/backup");
 const tautulliRouter = require("./routes/tautulli");
+const jellystatRouter = require("./routes/jellystat");
 const logRouter = require("./routes/logging");
 const utilsRouter = require("./routes/utils");
 const webhooksRouter = require("./routes/webhooks");
@@ -179,6 +180,9 @@ app.use("/backup", authenticate, requirePermission("settings"), backupRouter, ()
 app.use("/tautulli", authenticate, requirePermission("settings"), tautulliRouter, () => {
   /*  #swagger.tags = ['Tautulli']*/
 }); // mount the Tautulli import router with settings permission
+app.use("/jellystat", authenticate, requirePermission("settings"), jellystatRouter, () => {
+  /*  #swagger.tags = ['Jellystat']*/
+}); // mount the Jellystat import router with settings permission
 app.use("/logs", authenticate, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
@@ -417,6 +421,7 @@ function authorizeApiRoute(req, res, next) {
         : pathName.startsWith("/set") ||
             pathName.includes("/purge") ||
             pathName.startsWith("/integrations") ||
+            pathName.startsWith("/first-run") ||
             pathName.startsWith("/downloads/add") ||
             pathName.startsWith("/starttask") ||
             pathName.startsWith("/stoptask") ||

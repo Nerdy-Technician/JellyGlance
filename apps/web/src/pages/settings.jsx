@@ -10,6 +10,7 @@ import ActivityMonitorSettings from "./components/settings/ActivityMonitorSettin
 import WebhooksSettings from "./components/settings/webhooks";
 import Integrations from "./integrations";
 import HealthSettings from "./components/settings/health";
+import JellystatImport from "./components/settings/JellystatImport";
 import TautulliImport from "./components/settings/TautulliImport";
 import NewsletterSettings from "./components/settings/NewsletterSettings";
 
@@ -172,6 +173,7 @@ export default function Settings() {
           className="settings-tab-pane bg-transparent"
           title={tabTitle(Database2LineIcon, "Imports")}
         >
+          <JellystatImport />
           <TautulliImport />
         </Tab>
 

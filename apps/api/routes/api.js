@@ -46,6 +46,46 @@ const DEFAULT_ROLE_PERMISSIONS = {
   Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
 };
 
+function queueFirstRunJellyfinTasks() {
+  const taskManager = new TaskManager().getInstance();
+  const taskQueue = ["JellyfinSync", "PartialJellyfinSync", "JellyfinPlaybackReportingPluginSync", "RefreshDashboardStats"];
+  let index = 0;
+
+  const startNextTask = () => {
+    const taskKey = taskQueue[index];
+    index += 1;
+
+    if (!taskKey) {
+      return;
+    }
+
+    const task = taskManager.taskList[taskKey];
+    if (!task || taskManager.isTaskRunning(task.name)) {
+      startNextTask();
+      return;
+    }
+
+    const added = taskManager.addTask({
+      task,
+      onComplete: startNextTask,
+      onError: (error) => {
+        console.log(`[FIRST-RUN] ${task.name} failed: ${error.message}`);
+        startNextTask();
+      },
+      onExit: startNextTask,
+    });
+
+    if (!added) {
+      startNextTask();
+      return;
+    }
+
+    taskManager.startTask(task, triggertype.Automatic);
+  };
+
+  startNextTask();
+}
+
 function normalizeIssuerUrl(url) {
   return url?.trim()?.replace(/\/+$/, "");
 }
@@ -3674,6 +3714,45 @@ router.post("/integrations", async (req, res) => {
   } catch (error) {
     console.error("Save integrations failed:", error);
     res.status(503).send({ error: "Unable to save integrations" });
+  }
+});
+
+router.post("/first-run/extras-complete", async (req, res) => {
+  try {
+    const completedAt = new Date().toISOString();
+    await db.query(
+      `
+        UPDATE app_config
+        SET settings = (COALESCE(settings, '{}'::json)::jsonb || $1::jsonb)::json
+        WHERE "ID" = 1
+      `,
+      [{ firstRunExtrasPending: false, firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt }]
+    );
+    await addAuditEntry(req, "first_run.extras_completed", { completedAt });
+    res.send({ firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt });
+  } catch (error) {
+    console.error("Complete first-run extras failed:", error);
+    res.status(503).send({ error: "Unable to complete first-run setup" });
+  }
+});
+
+router.post("/first-run/start-sync", async (req, res) => {
+  try {
+    const completedAt = new Date().toISOString();
+    await db.query(
+      `
+        UPDATE app_config
+        SET settings = (COALESCE(settings, '{}'::json)::jsonb || $1::jsonb)::json
+        WHERE "ID" = 1
+      `,
+      [{ firstRunExtrasPending: false, firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt, firstRunSyncStartedAt: completedAt }]
+    );
+    queueFirstRunJellyfinTasks();
+    await addAuditEntry(req, "first_run.sync_started", { completedAt });
+    res.send({ firstRunExtrasCompleted: true, firstRunSyncStartedAt: completedAt });
+  } catch (error) {
+    console.error("Start first-run sync failed:", error);
+    res.status(503).send({ error: "Unable to start first sync" });
   }
 });
 

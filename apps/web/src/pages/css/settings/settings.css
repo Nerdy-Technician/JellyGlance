@@ -1658,6 +1658,57 @@
   font-weight: 800;
 }
 
+.legacy-import-user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.legacy-import-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.legacy-import-user-row strong,
+.legacy-import-user-row span {
+  display: block;
+}
+
+.legacy-import-user-row strong {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legacy-import-user-row span {
+  overflow: hidden;
+  margin-top: 4px;
+  color: #9fadbf;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legacy-import-user-row select {
+  min-height: 40px;
+  min-width: 0;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-weight: 800;
+}
+
 @media (max-width: 760px) {
   .settings .tab-content {
     padding: 0;
@@ -1746,7 +1797,8 @@
 
   .legacy-import-review-header,
   .legacy-import-review-layout,
-  .legacy-import-search {
+  .legacy-import-search,
+  .legacy-import-user-row {
     display: grid;
   }
 

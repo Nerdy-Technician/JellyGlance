@@ -513,6 +513,35 @@ router.get("/unmatched", async (req, res) => {
   }
 });
 
+router.get("/unmatched-users", async (req, res) => {
+  try {
+    const [unmatchedResult, usersResult] = await Promise.all([
+      db.pool.query(`
+        SELECT
+          "UserId",
+          COALESCE("UserName", 'Tautulli User') AS "UserName",
+          count(*)::int AS "PlayCount",
+          min("ActivityDateInserted") AS "FirstActivityDate",
+          max("ActivityDateInserted") AS "LastActivityDate"
+        FROM jf_playback_activity
+        WHERE imported = true
+        AND "Id" LIKE 'tautulli:%'
+        AND "UserId" LIKE 'tautulli-user:%'
+        GROUP BY "UserId", COALESCE("UserName", 'Tautulli User')
+        ORDER BY count(*) DESC, max("ActivityDateInserted") DESC
+      `),
+      db.query('SELECT "Id", "Name" FROM jf_users ORDER BY "Name"'),
+    ]);
+
+    res.json({
+      unmatched: unmatchedResult.rows || [],
+      users: usersResult.rows || [],
+    });
+  } catch (error) {
+    res.status(503).json({ error: error.message || "Unable to load unmatched Tautulli users" });
+  }
+});
+
 router.get("/search-media", async (req, res) => {
   try {
     const search = String(req.query.search || "").trim().toLowerCase();
@@ -618,6 +647,39 @@ router.post("/link-media", async (req, res) => {
     res.json({ updatedRows: result.rowCount });
   } catch (error) {
     res.status(503).json({ error: error.message || "Unable to link Tautulli rows" });
+  }
+});
+
+router.post("/link-user", async (req, res) => {
+  try {
+    const sourceUserId = String(req.body?.sourceUserId || "");
+    const target = req.body?.target || {};
+
+    if (!sourceUserId.startsWith("tautulli-user:")) {
+      return res.status(400).json({ error: "No unmatched Tautulli user selected" });
+    }
+
+    if (!target.Id || !target.Name) {
+      return res.status(400).json({ error: "No Jellyfin user target selected" });
+    }
+
+    const result = await db.pool.query(
+      `
+        UPDATE jf_playback_activity
+        SET
+          "UserId" = $2,
+          "UserName" = $3
+        WHERE imported = true
+        AND "Id" LIKE 'tautulli:%'
+        AND "UserId" = $1
+      `,
+      [sourceUserId, target.Id, target.Name]
+    );
+
+    await Promise.all(db.materializedViews.map((view) => db.refreshMaterializedView(view)));
+    res.json({ updatedRows: result.rowCount });
+  } catch (error) {
+    res.status(503).json({ error: error.message || "Unable to link Tautulli user" });
   }
 });
 

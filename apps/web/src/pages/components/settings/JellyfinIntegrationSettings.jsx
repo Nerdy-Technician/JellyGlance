@@ -11,7 +11,7 @@ import axios from "../../../lib/axios_instance";
 import Config from "../../../lib/config";
 import Loading from "../general/loading";
 
-export default function JellyfinIntegrationSettings({ compact = false }) {
+export default function JellyfinIntegrationSettings({ compact = false, firstRun = false }) {
   const [config, setConfig] = useState(null);
   const [showKey, setKeyState] = useState(false);
   const [formValues, setFormValues] = useState({});
@@ -22,7 +22,7 @@ export default function JellyfinIntegrationSettings({ compact = false }) {
   useEffect(() => {
     Config.getConfig()
       .then((nextConfig) => {
-        setFormValues({ JF_HOST: nextConfig.hostUrl });
+        setFormValues(firstRun ? {} : { JF_HOST: nextConfig.hostUrl });
         setConfig(nextConfig);
         setLoadState("Loaded");
       })
@@ -79,7 +79,11 @@ export default function JellyfinIntegrationSettings({ compact = false }) {
         <div>
           <p>Media server</p>
           <h2>{config?.IS_JELLYFIN ? "Jellyfin" : "Emby"} Connection</h2>
-          <span>Primary media server used for sessions, library scans, artwork, users, and statistics.</span>
+          <span>
+            {firstRun
+              ? "Already connected for setup. Re-enter details only if you want to replace the saved media server connection."
+              : "Primary media server used for sessions, library scans, artwork, users, and statistics."}
+          </span>
         </div>
       </div>
 
