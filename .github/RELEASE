@@ -1,8 +1,37 @@
-version: v1.1.6
-title: JellyGlance v1.1.6
+version: v1.1.7
+title: JellyGlance v1.1.7
 ---
-fix: make Tautulli importer find Python reliably
+## Features
 
-fix: avoid spawn python3 ENOENT during Tautulli backup uploads
-improve: allow JS_PYTHON_BIN/PYTHON_BIN overrides for importer runtime
-chore: install python3 in Docker runtime image
+- feat: add configurable in-app notification controls under Settings
+- feat: add notification modes for all, warnings/errors, errors-only, and muted background toasts
+- feat: keep manually triggered task notifications visible even when background toast noise is reduced
+- feat: add persistent toast position and display-duration preferences
+- feat: add a theme preset dropdown in the profile modal with visible palette swatches
+- feat: keep custom profile colour controls available below the theme preset picker
+- feat: add a dedicated Newsletter Preview tab with a full email-document preview frame
+- feat: add separate Newsletter Settings and Preview views for cleaner configuration
+- feat: add Jellystat and Tautulli tabs inside Settings imports
+- feat: make the default homepage layout start with Active Sessions
+
+## Fixes
+
+- fix: proxy newsletter API calls through the Vite dev server so mobile testing reaches the backend
+- fix: prevent empty Newsletter Preview success states when the backend does not return usable HTML
+- fix: keep newsletter settings usable when preview generation fails during page load
+- fix: render newsletter preview HTML in an iframe instead of injecting a full document into a div
+- fix: improve mobile account modal sizing, footer actions, avatar scale, and theme controls
+- fix: improve mobile header logo and account avatar scaling
+- fix: improve active session poster and client icon sizing on mobile
+- fix: improve mobile library import card image sizing and brightness
+- fix: remove duplicate library title text from library import images
+- fix: make the Home Order panel wrap controls cleanly on desktop and stack sections on mobile
+- fix: make Settings navigation a vertical desktop rail with better mobile section handling
+- fix: harden Jellystat and Tautulli import screens against empty or malformed API payloads
+- fix: keep nested Settings tabs from being hidden by top-level tab CSS
+- fix: tag manual backup, restore, and generic task events for notification filtering
+
+## Notes
+
+- This release rolls up the mobile/navigation beta cycle into the stable channel.
+- Notification controls reduce noisy automatic sync-complete messages while preserving manual task feedback.

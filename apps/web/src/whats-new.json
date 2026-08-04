@@ -1,4 +1,36 @@
 {
+  "1.1.7": [
+    {
+      "icon": "magic",
+      "title": "Quieter task notifications",
+      "body": "Choose how much background task chatter you want to see, from every update to errors only, while manual actions still report back clearly."
+    },
+    {
+      "icon": "palette",
+      "title": "Cleaner profile theming",
+      "body": "The account modal now has a compact theme picker with colour previews, plus custom colour controls when you want a more personal dashboard."
+    },
+    {
+      "icon": "mail",
+      "title": "Better newsletter previews",
+      "body": "Newsletter setup now separates configuration from preview, renders the email in its own frame, and handles preview errors more gracefully."
+    },
+    {
+      "icon": "upload",
+      "title": "Organized history imports",
+      "body": "Jellystat and Tautulli import tools now live in clear Settings tabs, making legacy watch-history imports easier to find and manage."
+    },
+    {
+      "icon": "movie",
+      "title": "Smoother mobile layouts",
+      "body": "Headers, account controls, active session cards, import screens, and Settings navigation have all been tightened up for smaller screens."
+    },
+    {
+      "icon": "speed",
+      "title": "Home starts with activity",
+      "body": "New default home layouts now lead with Active Sessions, putting the live state of your Jellyfin server front and center."
+    }
+  ],
   "1.1.7-beta.3": [
     {
       "icon": "magic",
