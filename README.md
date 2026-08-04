@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-white.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-transparent.png">
     <img src="docs/public/full-logo-transparent.png" alt="JellyGlance" width="280">
   </picture>
 </p>
