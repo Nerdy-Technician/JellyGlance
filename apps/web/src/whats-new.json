@@ -1,4 +1,26 @@
 {
+  "1.1.7-beta.3": [
+    {
+      "icon": "magic",
+      "title": "Notification controls",
+      "body": "Settings now includes in-app notification controls so automatic task noise can be reduced while manual task feedback stays visible."
+    },
+    {
+      "icon": "palette",
+      "title": "Profile theme picker",
+      "body": "The account modal now uses a compact theme dropdown with colour previews, with custom colours still available underneath."
+    },
+    {
+      "icon": "mail",
+      "title": "Newsletter preview tabs",
+      "body": "Newsletter settings now separates configuration from preview, with the email preview rendered in its own document frame."
+    },
+    {
+      "icon": "upload",
+      "title": "Import tabs",
+      "body": "Jellystat and Tautulli import tools now sit behind clear tabs inside Settings for easier testing."
+    }
+  ],
   "1.1.7-beta.2": [
     {
       "icon": "magic",

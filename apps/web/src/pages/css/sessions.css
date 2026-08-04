@@ -622,17 +622,18 @@
 
   .session-card-banner-image {
     display: block !important;
-    flex: 0 0 76px !important;
-    width: 76px !important;
-    max-width: 76px !important;
+    flex: 0 0 clamp(72px, 18vw, 96px) !important;
+    width: clamp(72px, 18vw, 96px) !important;
+    max-width: clamp(72px, 18vw, 96px) !important;
   }
 
   .session-card-item-image,
   .stat-card-image-audio.session-card-item-image,
   .stat-card-image-audio.rounded-0.rounded-start {
-    width: 76px !important;
-    height: 138px;
+    width: clamp(72px, 18vw, 96px) !important;
+    height: clamp(124px, 31vw, 154px);
     border-radius: 12px 0 0 0 !important;
+    object-fit: cover;
   }
 
   .session-card-body {
@@ -640,8 +641,8 @@
   }
 
   .session-card-main {
-    height: 138px;
-    min-height: 138px;
+    height: clamp(124px, 31vw, 154px);
+    min-height: clamp(124px, 31vw, 154px);
   }
 
   .session-details {
@@ -682,15 +683,15 @@
   }
 
   .card-device-image-overlay {
-    top: 12px;
-    right: 14px;
-    width: 30px;
-    height: 30px;
+    top: 10px;
+    right: 12px;
+    width: clamp(26px, 7vw, 34px);
+    height: clamp(26px, 7vw, 34px);
   }
 
   .card-device-image {
-    width: 26px;
-    height: 26px;
+    width: clamp(22px, 6vw, 30px);
+    height: clamp(22px, 6vw, 30px);
   }
 
   .session-timecode {

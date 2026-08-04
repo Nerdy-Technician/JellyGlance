@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Form, Spinner } from "react-bootstrap";
+import { Alert, Button, Form, Spinner, Tab, Tabs } from "react-bootstrap";
 import ArticleLineIcon from "remixicon-react/ArticleLineIcon";
 import ExternalLinkLineIcon from "remixicon-react/ExternalLinkLineIcon";
 import MailCheckLineIcon from "remixicon-react/MailCheckLineIcon";
@@ -56,35 +56,53 @@ function textToRecipients(value) {
     .filter(Boolean);
 }
 
+function normalizePreviewPayload(payload) {
+  const data = payload?.data && typeof payload.data === "object" ? payload.data : payload;
+  const html = typeof data === "string" ? data : data?.html;
+  if (!html || typeof html !== "string") return null;
+  return {
+    ...(typeof data === "object" ? data : {}),
+    html,
+    generatedAt: data?.generatedAt || new Date().toISOString(),
+    subject: data?.subject || "JellyGlance newsletter preview",
+  };
+}
+
 export default function NewsletterSettings() {
   const [settings, setSettings] = useState(emptySettings);
   const [recipientText, setRecipientText] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
   const [preview, setPreview] = useState(null);
+  const [activeTab, setActiveTab] = useState("settings");
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [message, setMessage] = useState(null);
 
   const recipientCount = useMemo(() => textToRecipients(recipientText).length, [recipientText]);
+  const previewHtml = preview?.html || "";
 
   async function loadNewsletter() {
     try {
       setLoading(true);
-      const [settingsResponse, previewResponse] = await Promise.all([
-        axios.get("/newsletter/settings", { headers: headers() }),
-        axios.get("/newsletter/preview", { headers: headers() }),
-      ]);
+      const settingsResponse = await axios.get("/newsletter/settings", { headers: headers() });
       setSettings({
         ...emptySettings,
         ...settingsResponse.data,
         smtp: { ...emptySettings.smtp, ...(settingsResponse.data?.smtp || {}) },
       });
       setRecipientText(recipientsToText(settingsResponse.data?.recipients || []));
-      setPreview(previewResponse.data);
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to load newsletter settings." });
     } finally {
       setLoading(false);
+    }
+
+    try {
+      const previewResponse = await axios.get("/newsletter/preview", { headers: headers() });
+      const nextPreview = normalizePreviewPayload(previewResponse.data);
+      if (nextPreview) setPreview(nextPreview);
+    } catch (error) {
+      setPreview((current) => current);
     }
   }
 
@@ -131,10 +149,15 @@ export default function NewsletterSettings() {
     try {
       setBusyAction("preview");
       const response = await axios.get("/newsletter/preview", { headers: headers() });
-      setPreview(response.data);
+      const nextPreview = normalizePreviewPayload(response.data);
+      if (!nextPreview) {
+        throw new Error("Preview endpoint did not return newsletter HTML.");
+      }
+      setPreview(nextPreview);
+      setActiveTab("preview");
       setMessage({ type: "success", text: "Newsletter preview refreshed." });
     } catch (error) {
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to generate newsletter preview." });
+      setMessage({ type: "danger", text: error.response?.data?.error || error.message || "Unable to generate newsletter preview." });
     } finally {
       setBusyAction("");
     }
@@ -172,7 +195,7 @@ export default function NewsletterSettings() {
   }
 
   function openPreviewTab() {
-    if (!preview?.html) return;
+    if (!previewHtml) return;
     const previewWindow = window.open("", "_blank");
     if (!previewWindow) {
       setMessage({ type: "warning", text: "Browser blocked the preview tab. Allow popups for JellyGlance and try again." });
@@ -180,7 +203,7 @@ export default function NewsletterSettings() {
     }
     previewWindow.opener = null;
     previewWindow.document.open();
-    previewWindow.document.write(preview.html);
+    previewWindow.document.write(previewHtml);
     previewWindow.document.close();
   }
 
@@ -212,132 +235,144 @@ export default function NewsletterSettings() {
         </Alert>
       ) : null}
 
-      <div className="newsletter-layout">
-        <Form className="newsletter-form" onSubmit={saveSettings}>
-          <section className="newsletter-panel">
-            <div className="newsletter-panel-title">
-              <MailSettingsLineIcon size={19} />
-              <h3>SMTP Options</h3>
-            </div>
-            <div className="newsletter-form-grid">
-              <Form.Group>
-                <Form.Label>SMTP host</Form.Label>
-                <Form.Control value={settings.smtp.host} onChange={(event) => updateSmtp("host", event.target.value)} placeholder="smtp.example.com" />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Port</Form.Label>
-                <Form.Control type="number" min="1" value={settings.smtp.port} onChange={(event) => updateSmtp("port", Number(event.target.value))} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Username</Form.Label>
-                <Form.Control value={settings.smtp.username} onChange={(event) => updateSmtp("username", event.target.value)} autoComplete="username" />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  value={settings.smtp.password}
-                  onChange={(event) => updateSmtp("password", event.target.value)}
-                  placeholder={settings.smtp.hasPassword ? "Stored password unchanged" : "SMTP password"}
-                  autoComplete="new-password"
-                />
-              </Form.Group>
-            </div>
-            <div className="newsletter-toggle-row">
-              <Form.Check type="switch" id="newsletter-secure" label="Use implicit TLS" checked={settings.smtp.secure} onChange={(event) => updateSmtp("secure", event.target.checked)} />
-              <Form.Check type="switch" id="newsletter-tls-verify" label="Verify TLS certificates" checked={settings.smtp.rejectUnauthorized} onChange={(event) => updateSmtp("rejectUnauthorized", event.target.checked)} />
-            </div>
-          </section>
+      <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab(key || "settings")} variant="pills" className="newsletter-tabs" transition={false}>
+        <Tab eventKey="settings" title="Settings" className="newsletter-tab-pane">
+          <div className="newsletter-settings-grid">
+            <Form className="newsletter-form" onSubmit={saveSettings}>
+              <section className="newsletter-panel">
+                <div className="newsletter-panel-title">
+                  <MailSettingsLineIcon size={19} />
+                  <h3>SMTP Options</h3>
+                </div>
+                <div className="newsletter-form-grid">
+                  <Form.Group>
+                    <Form.Label>SMTP host</Form.Label>
+                    <Form.Control value={settings.smtp.host} onChange={(event) => updateSmtp("host", event.target.value)} placeholder="smtp.example.com" />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Port</Form.Label>
+                    <Form.Control type="number" min="1" value={settings.smtp.port} onChange={(event) => updateSmtp("port", Number(event.target.value))} />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Username</Form.Label>
+                    <Form.Control value={settings.smtp.username} onChange={(event) => updateSmtp("username", event.target.value)} autoComplete="username" />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={settings.smtp.password}
+                      onChange={(event) => updateSmtp("password", event.target.value)}
+                      placeholder={settings.smtp.hasPassword ? "Stored password unchanged" : "SMTP password"}
+                      autoComplete="new-password"
+                    />
+                  </Form.Group>
+                </div>
+                <div className="newsletter-toggle-row">
+                  <Form.Check type="switch" id="newsletter-secure" label="Use implicit TLS" checked={settings.smtp.secure} onChange={(event) => updateSmtp("secure", event.target.checked)} />
+                  <Form.Check type="switch" id="newsletter-tls-verify" label="Verify TLS certificates" checked={settings.smtp.rejectUnauthorized} onChange={(event) => updateSmtp("rejectUnauthorized", event.target.checked)} />
+                </div>
+              </section>
 
-          <section className="newsletter-panel">
-            <div className="newsletter-panel-title">
-              <ArticleLineIcon size={19} />
-              <h3>Newsletter</h3>
-            </div>
-            <div className="newsletter-form-grid">
-              <Form.Group>
-                <Form.Label>Sender name</Form.Label>
-                <Form.Control value={settings.senderName} onChange={(event) => updateField("senderName", event.target.value)} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Sender email</Form.Label>
-                <Form.Control type="email" value={settings.senderEmail} onChange={(event) => updateField("senderEmail", event.target.value)} placeholder="jellyglance@example.com" />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Frequency</Form.Label>
-                <Form.Select value={settings.frequency} onChange={(event) => updateField("frequency", event.target.value)}>
-                  <option value="manual">Manual only</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </Form.Select>
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Test recipient</Form.Label>
-                <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
-              </Form.Group>
-            </div>
-            <Form.Group className="newsletter-recipient-box">
-              <Form.Label>Recipients</Form.Label>
-              <Form.Control as="textarea" rows={5} value={recipientText} onChange={(event) => setRecipientText(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
-              <Form.Text>{recipientCount} recipient{recipientCount === 1 ? "" : "s"} configured.</Form.Text>
-            </Form.Group>
-            <div className="newsletter-toggle-row">
-              <Form.Check type="switch" id="newsletter-enabled" label="Enable newsletter config" checked={settings.enabled} onChange={(event) => updateField("enabled", event.target.checked)} />
-            </div>
-            <div className="newsletter-actions">
-              <Button type="submit" disabled={Boolean(busyAction)}>
-                {busyAction === "save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
-                Save settings
-              </Button>
-              <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || Boolean(busyAction)}>
-                {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                Send test
-              </Button>
-              <Button type="button" variant="primary" onClick={sendNewsletter} disabled={!recipientCount || Boolean(busyAction)}>
-                {busyAction === "send" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                Send newsletter
-              </Button>
-            </div>
-          </section>
-        </Form>
+              <section className="newsletter-panel">
+                <div className="newsletter-panel-title">
+                  <ArticleLineIcon size={19} />
+                  <h3>Newsletter</h3>
+                </div>
+                <div className="newsletter-form-grid">
+                  <Form.Group>
+                    <Form.Label>Sender name</Form.Label>
+                    <Form.Control value={settings.senderName} onChange={(event) => updateField("senderName", event.target.value)} />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Sender email</Form.Label>
+                    <Form.Control type="email" value={settings.senderEmail} onChange={(event) => updateField("senderEmail", event.target.value)} placeholder="jellyglance@example.com" />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Frequency</Form.Label>
+                    <Form.Select value={settings.frequency} onChange={(event) => updateField("frequency", event.target.value)}>
+                      <option value="manual">Manual only</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Test recipient</Form.Label>
+                    <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
+                  </Form.Group>
+                </div>
+                <Form.Group className="newsletter-recipient-box">
+                  <Form.Label>Recipients</Form.Label>
+                  <Form.Control as="textarea" rows={5} value={recipientText} onChange={(event) => setRecipientText(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
+                  <Form.Text>{recipientCount} recipient{recipientCount === 1 ? "" : "s"} configured.</Form.Text>
+                </Form.Group>
+                <div className="newsletter-toggle-row">
+                  <Form.Check type="switch" id="newsletter-enabled" label="Enable newsletter config" checked={settings.enabled} onChange={(event) => updateField("enabled", event.target.checked)} />
+                </div>
+                <div className="newsletter-actions">
+                  <Button type="submit" disabled={Boolean(busyAction)}>
+                    {busyAction === "save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
+                    Save settings
+                  </Button>
+                  <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || Boolean(busyAction)}>
+                    {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
+                    Send test
+                  </Button>
+                  <Button type="button" variant="primary" onClick={sendNewsletter} disabled={!recipientCount || Boolean(busyAction)}>
+                    {busyAction === "send" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
+                    Send newsletter
+                  </Button>
+                </div>
+              </section>
+            </Form>
 
-        <aside className="newsletter-preview-column">
-          <section className="newsletter-panel">
+            <section className="newsletter-panel newsletter-history-panel">
+              <div className="newsletter-panel-title">
+                <MailCheckLineIcon size={19} />
+                <h3>Send History</h3>
+              </div>
+              <div className="newsletter-history">
+                {(settings.history || []).map((entry) => (
+                  <article key={`${entry.timestamp}-${entry.mode}-${entry.messageId || entry.error}`} className={entry.ok ? "is-ok" : "is-error"}>
+                    <strong>{entry.mode === "test" ? "Test email" : "Newsletter send"}</strong>
+                    <span>{entry.ok ? `${entry.recipientCount || 0} recipient${entry.recipientCount === 1 ? "" : "s"}` : entry.error}</span>
+                    <time>{formatDate(entry.timestamp)}</time>
+                  </article>
+                ))}
+                {!(settings.history || []).length ? <div className="newsletter-empty">No newsletter sends yet.</div> : null}
+              </div>
+            </section>
+          </div>
+        </Tab>
+
+        <Tab eventKey="preview" title="Newsletter Preview" className="newsletter-tab-pane">
+          <section className="newsletter-panel newsletter-preview-panel">
             <div className="newsletter-panel-title">
               <div>
                 <ArticleLineIcon size={19} />
                 <h3>Preview</h3>
               </div>
-              <Button type="button" variant="outline-primary" size="sm" onClick={openPreviewTab} disabled={!preview?.html}>
-                <ExternalLinkLineIcon size={15} />
-                Open in tab
-              </Button>
+              <div className="newsletter-preview-actions">
+                <Button type="button" variant="outline-primary" size="sm" onClick={generatePreview} disabled={Boolean(busyAction)}>
+                  {busyAction === "preview" ? <Spinner size="sm" animation="border" /> : <RefreshLineIcon size={15} />}
+                  Refresh
+                </Button>
+                <Button type="button" variant="outline-primary" size="sm" onClick={openPreviewTab} disabled={!previewHtml}>
+                  <ExternalLinkLineIcon size={15} />
+                  Open in tab
+                </Button>
+              </div>
             </div>
             <div className="newsletter-preview-meta">
               <strong>{preview?.subject || "Newsletter preview"}</strong>
               <span>Generated {formatDate(preview?.generatedAt)}</span>
             </div>
-            <div className="newsletter-preview-frame" dangerouslySetInnerHTML={{ __html: preview?.html || "" }} />
-          </section>
-
-          <section className="newsletter-panel">
-            <div className="newsletter-panel-title">
-              <MailCheckLineIcon size={19} />
-              <h3>Send History</h3>
-            </div>
-            <div className="newsletter-history">
-              {(settings.history || []).map((entry) => (
-                <article key={`${entry.timestamp}-${entry.mode}-${entry.messageId || entry.error}`} className={entry.ok ? "is-ok" : "is-error"}>
-                  <strong>{entry.mode === "test" ? "Test email" : "Newsletter send"}</strong>
-                  <span>{entry.ok ? `${entry.recipientCount || 0} recipient${entry.recipientCount === 1 ? "" : "s"}` : entry.error}</span>
-                  <time>{formatDate(entry.timestamp)}</time>
-                </article>
-              ))}
-              {!(settings.history || []).length ? <div className="newsletter-empty">No newsletter sends yet.</div> : null}
+            <div className="newsletter-preview-frame">
+              {previewHtml ? <iframe title="Newsletter preview" srcDoc={previewHtml} /> : <div className="newsletter-empty">Generate a preview to see the newsletter.</div>}
             </div>
           </section>
-        </aside>
-      </div>
+        </Tab>
+      </Tabs>
     </div>
   );
 }

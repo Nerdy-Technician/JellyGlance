@@ -13,6 +13,7 @@ import HealthSettings from "./components/settings/health";
 import JellystatImport from "./components/settings/JellystatImport";
 import TautulliImport from "./components/settings/TautulliImport";
 import NewsletterSettings from "./components/settings/NewsletterSettings";
+import NotificationSettings from "./components/settings/NotificationSettings";
 
 import Logs from "./components/settings/logs";
 
@@ -52,6 +53,7 @@ const settingsTabItems = [
   { key: "tabIntegrations", Icon: Plug2LineIcon, label: "Integrations" },
   { key: "tabKeys", Icon: Key2LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.API_KEY"} /> },
   { key: "tabWebhooks", Icon: Notification3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.WEBHOOKS"} /> },
+  { key: "tabNotifications", Icon: Notification3LineIcon, label: "Notifications" },
   { key: "tabBackup", Icon: ArchiveLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} /> },
   { key: "tabImports", Icon: Database2LineIcon, label: "Imports" },
   { key: "tabNewsletter", Icon: MailSettingsLineIcon, label: "Newsletter" },
@@ -180,9 +182,17 @@ export default function Settings() {
         </Tab>
 
         <Tab
+          eventKey="tabNotifications"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(Notification3LineIcon, settingsTabItems[8].label)}
+        >
+          <NotificationSettings />
+        </Tab>
+
+        <Tab
           eventKey="tabBackup"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(ArchiveLineIcon, settingsTabItems[8].label)}
+          title={tabTitle(ArchiveLineIcon, settingsTabItems[9].label)}
         >
           <BackupPage />
         </Tab>
@@ -190,16 +200,26 @@ export default function Settings() {
         <Tab
           eventKey="tabImports"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Database2LineIcon, settingsTabItems[9].label)}
+          title={tabTitle(Database2LineIcon, settingsTabItems[10].label)}
         >
-          <JellystatImport />
-          <TautulliImport />
+          <Tabs defaultActiveKey="jellystat" variant="pills" className="settings-import-tabs" transition={false} mountOnEnter>
+            <Tab eventKey="jellystat" title="Jellystat" className="settings-import-pane">
+              <ErrorBoundary>
+                <JellystatImport />
+              </ErrorBoundary>
+            </Tab>
+            <Tab eventKey="tautulli" title="Tautulli" className="settings-import-pane">
+              <ErrorBoundary>
+                <TautulliImport />
+              </ErrorBoundary>
+            </Tab>
+          </Tabs>
         </Tab>
 
         <Tab
           eventKey="tabNewsletter"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(MailSettingsLineIcon, settingsTabItems[10].label)}
+          title={tabTitle(MailSettingsLineIcon, settingsTabItems[11].label)}
         >
           <NewsletterSettings />
         </Tab>
@@ -207,7 +227,7 @@ export default function Settings() {
         <Tab
           eventKey="tabHealth"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(HeartPulseLineIcon, settingsTabItems[11].label)}
+          title={tabTitle(HeartPulseLineIcon, settingsTabItems[12].label)}
         >
           <HealthSettings />
         </Tab>
@@ -215,7 +235,7 @@ export default function Settings() {
         <Tab
           eventKey="tabLogs"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(FileList3LineIcon, settingsTabItems[12].label)}
+          title={tabTitle(FileList3LineIcon, settingsTabItems[13].label)}
         >
           <Logs />
         </Tab>

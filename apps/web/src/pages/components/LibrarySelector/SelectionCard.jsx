@@ -72,7 +72,6 @@ function SelectionCard(props) {
           default_image
         )}
         <div className="selector-library-overlay" />
-        <h2 title={props.data.Name}>{props.data.Name}</h2>
       </div>
 
       <Card.Body className="library-card-details-inv rounded-bottom">

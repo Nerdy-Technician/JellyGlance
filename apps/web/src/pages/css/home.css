@@ -140,15 +140,15 @@
 
 .home-order-panel {
   margin-bottom: 18px;
-  padding: 15px;
+  padding: 16px;
 }
 
 .home-order-panel-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .home-order-panel-heading p {
@@ -174,9 +174,9 @@
 
 .home-order-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
-  gap: 9px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .home-order-options label {
@@ -196,8 +196,8 @@
 .home-order-options select,
 .home-order-options input {
   min-width: 0;
-  height: 34px;
-  padding: 0 9px;
+  height: 38px;
+  padding: 0 11px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.24);
   border-radius: 9px;
   background: rgba(8, 10, 15, 0.9);
@@ -208,10 +208,12 @@
 
 .home-order-options button {
   align-self: end;
+  min-height: 38px;
+  padding: 0 12px;
 }
 
 .home-order-options.is-alert-rules {
-  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) minmax(170px, 220px);
 }
 
 .home-order-options button.is-enabled {
@@ -229,13 +231,13 @@
 
 .home-order-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 8px;
 }
 
 .home-order-list article {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(120px, 1fr) auto;
   align-items: center;
   gap: 9px;
   min-height: 42px;
@@ -275,6 +277,8 @@
 .home-order-list article > div {
   display: flex;
   gap: 5px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .home-order-list select {
@@ -1363,6 +1367,10 @@
   .home-peak-card {
     grid-column: 1 / -1;
   }
+
+  .home-order-options.is-alert-rules {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -1414,6 +1422,46 @@
   .home-order-toolbar > button,
   .home-order-actions button {
     min-height: 38px;
+  }
+
+  .home-order-panel {
+    padding: 12px;
+  }
+
+  .home-order-panel-heading {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .home-order-panel-heading > div {
+    grid-column: 1 / -1;
+  }
+
+  .home-order-panel-heading button {
+    width: 100%;
+  }
+
+  .home-order-options.is-alert-rules {
+    grid-template-columns: 1fr;
+  }
+
+  .home-order-list {
+    grid-template-columns: 1fr;
+  }
+
+  .home-order-list article {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .home-order-list article > div {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(54px, 1fr) repeat(3, minmax(44px, 1fr));
+  }
+
+  .home-order-list select,
+  .home-order-list button {
+    width: 100%;
   }
 
   .home-active-sessions {

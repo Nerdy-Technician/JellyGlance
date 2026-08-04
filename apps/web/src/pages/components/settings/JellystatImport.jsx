@@ -9,15 +9,27 @@ function authHeader() {
   return { Authorization: `Bearer ${localStorage.getItem("token")}` };
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getErrorMessage(error, fallback) {
+  const data = error.response?.data;
+  if (typeof data === "string") return data;
+  return data?.error || data?.errorMessage || fallback;
+}
+
 function formatDate(value) {
   if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function formatSize(sizeInBytes = 0) {
@@ -45,10 +57,10 @@ export default function JellystatImport() {
   async function loadUnmatchedUsers() {
     try {
       const response = await axios.get("/jellystat/unmatched-users", { headers: authHeader() });
-      setUnmatchedUsers(response.data?.unmatched || []);
-      setJellyfinUsers(response.data?.users || []);
+      setUnmatchedUsers(asArray(response.data?.unmatched));
+      setJellyfinUsers(asArray(response.data?.users));
     } catch (error) {
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to load unmatched Jellystat users." });
+      setMessage({ type: "danger", text: getErrorMessage(error, "Unable to load unmatched Jellystat users.") });
     }
   }
 
@@ -78,7 +90,7 @@ export default function JellystatImport() {
     } catch (error) {
       setUploadedBackup(null);
       setPreview(null);
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to upload Jellystat backup." });
+      setMessage({ type: "danger", text: getErrorMessage(error, "Unable to upload Jellystat backup.") });
     } finally {
       setBusyAction("");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -105,7 +117,7 @@ export default function JellystatImport() {
       setMessage({ type: "success", text: `Imported ${response.data.insertedRows} new Jellystat plays. ${response.data.skippedRows} rows were skipped safely.` });
       await loadUnmatchedUsers();
     } catch (error) {
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to import Jellystat history." });
+      setMessage({ type: "danger", text: getErrorMessage(error, "Unable to import Jellystat history.") });
     } finally {
       setBusyAction("");
     }
@@ -127,7 +139,7 @@ export default function JellystatImport() {
       window.dispatchEvent(new CustomEvent("jellyglance-history-imported", { detail: response.data }));
       await loadUnmatchedUsers();
     } catch (error) {
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to link Jellystat user." });
+      setMessage({ type: "danger", text: getErrorMessage(error, "Unable to link Jellystat user.") });
     } finally {
       setBusyAction("");
     }
@@ -154,7 +166,7 @@ export default function JellystatImport() {
           <Database2LineIcon />
           <div>
             <span>Jellystat backup file</span>
-            <strong>{uploadedBackup?.originalName || result?.sourceFile?.split("/").pop() || "No backup uploaded"}</strong>
+            <strong>{uploadedBackup?.originalName || (result?.sourceFile ? String(result.sourceFile).split("/").pop() : "") || "No backup uploaded"}</strong>
             <small>{uploadedBackup ? `${formatSize(uploadedBackup.size)} · ready to import` : "Accepted format: Jellystat .json backup"}</small>
           </div>
           <label className="legacy-import-upload-button">

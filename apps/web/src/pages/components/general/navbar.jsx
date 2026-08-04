@@ -36,6 +36,7 @@ export default function Navbar() {
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
@@ -46,6 +47,13 @@ export default function Navbar() {
   const accountRole = authMode === "quick-connect" ? "Jellyfin User" : authMode === "oidc" ? "OIDC User" : "Local User";
   const jellyfinAvatar = jellyfinUser?.id ? `${baseUrl}/proxy/Users/Images/Primary?id=${jellyfinUser.id}&fillWidth=160&quality=80` : "";
   const avatarSrc = jellyfinAvatar || (canUploadAvatar ? customAvatar : "");
+  const activeThemePreset = THEME_PRESETS.find(
+    (preset) =>
+      customTheme.primary === preset.primary &&
+      customTheme.secondary === preset.secondary &&
+      customTheme.background === preset.background &&
+      customTheme.surface === preset.surface
+  );
 
   const handleLogout = () => {
     localStorage.setItem("jellyglance_logged_out", "true");
@@ -161,10 +169,12 @@ export default function Navbar() {
 
   const handleThemePreset = (preset) => {
     setCustomTheme(saveTheme(preset));
+    setIsThemeMenuOpen(false);
   };
 
   const handleThemeReset = () => {
     setCustomTheme(resetTheme());
+    setIsThemeMenuOpen(false);
   };
 
   const handleAvatarUpload = (event) => {
@@ -386,31 +396,45 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="profile-theme-presets" aria-label="Colour theme presets">
-              {THEME_PRESETS.map((preset) => {
-                const isActive =
-                  customTheme.primary === preset.primary &&
-                  customTheme.secondary === preset.secondary &&
-                  customTheme.background === preset.background &&
-                  customTheme.surface === preset.surface;
-
-                return (
-                  <button
-                    className={`profile-theme-preset${isActive ? " active" : ""}`}
-                    type="button"
-                    key={preset.name}
-                    onClick={() => handleThemePreset(preset)}
-                    aria-pressed={isActive}
-                  >
-                    <span className="profile-theme-preset-swatches" aria-hidden="true">
-                      <i style={{ backgroundColor: preset.primary }} />
-                      <i style={{ backgroundColor: preset.secondary }} />
-                      <i style={{ backgroundColor: preset.background }} />
-                    </span>
-                    <span>{preset.name}</span>
-                  </button>
-                );
-              })}
+            <div className="profile-theme-select">
+              <span>Theme preset</span>
+              <button
+                className="profile-theme-select-button"
+                type="button"
+                onClick={() => setIsThemeMenuOpen((open) => !open)}
+                aria-expanded={isThemeMenuOpen}
+              >
+                <span className="profile-theme-preset-swatches" aria-hidden="true">
+                  <i style={{ backgroundColor: activeThemePreset?.primary || customTheme.primary }} />
+                  <i style={{ backgroundColor: activeThemePreset?.secondary || customTheme.secondary }} />
+                  <i style={{ backgroundColor: activeThemePreset?.background || customTheme.background }} />
+                </span>
+                <strong>{activeThemePreset?.name || "Custom"}</strong>
+                <span className="profile-theme-select-arrow" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+              {isThemeMenuOpen ? (
+                <div className="profile-theme-select-menu" role="listbox">
+                  {THEME_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      className={activeThemePreset?.name === preset.name ? "is-active" : ""}
+                      onClick={() => handleThemePreset(preset)}
+                      role="option"
+                      aria-selected={activeThemePreset?.name === preset.name}
+                    >
+                      <span className="profile-theme-preset-swatches" aria-hidden="true">
+                        <i style={{ backgroundColor: preset.primary }} />
+                        <i style={{ backgroundColor: preset.secondary }} />
+                        <i style={{ backgroundColor: preset.background }} />
+                      </span>
+                      <span>{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="profile-theme-fields">

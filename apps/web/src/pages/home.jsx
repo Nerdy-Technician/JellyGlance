@@ -57,8 +57,8 @@ const HOME_SECTION_DEFINITIONS = [
 ];
 const DEFAULT_HOME_ORDER = HOME_SECTION_DEFINITIONS.map((section) => section.id);
 const CURATED_DEFAULT_HOME_ORDER = [
-  "attention",
   "sessions",
+  "attention",
   "overview",
   "operations",
   "milestones",
