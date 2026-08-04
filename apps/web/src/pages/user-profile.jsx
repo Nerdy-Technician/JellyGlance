@@ -36,6 +36,21 @@ function MediaPoster({ item }) {
 function UserMediaRail({ title, subtitle, items = [], onAction, actions = [], variant = "" }) {
   const previewItems = items.slice(0, 18);
 
+  function episodeLabel(item) {
+    const hasSeason = item.seasonNumber !== undefined && item.seasonNumber !== null;
+    const hasEpisode = item.episodeNumber !== undefined && item.episodeNumber !== null;
+    const parts = [];
+
+    if (hasSeason || hasEpisode) {
+      parts.push(`S${hasSeason ? item.seasonNumber : "?"}:E${hasEpisode ? item.episodeNumber : "?"}`);
+    }
+    if (item.name) {
+      parts.push(item.name);
+    }
+
+    return parts.join(" · ");
+  }
+
   return (
     <section className={`user-media-rail${variant ? ` is-${variant}` : ""}`}>
       <div className="user-media-rail-heading">
@@ -59,11 +74,7 @@ function UserMediaRail({ title, subtitle, items = [], onAction, actions = [], va
                   {item.year ? ` · ${item.year}` : ""}
                   {item.progress ? ` · ${item.progress}%` : ""}
                 </span>
-                {item.type === "Episode" ? (
-                  <small>
-                    S{item.seasonNumber ?? "?"}:E{item.episodeNumber ?? "?"} · {item.name}
-                  </small>
-                ) : item.reason ? (
+                {item.type === "Episode" ? <small>{episodeLabel(item)}</small> : item.reason ? (
                   <small>Because of {item.reason}</small>
                 ) : item.users?.length ? (
                   <small>{item.users.join(", ")}</small>
@@ -241,7 +252,9 @@ export default function UserProfilePage() {
         (mediaLists.continueWatching || []).length +
         (mediaLists.recentlyWatched || []).length +
         (mediaLists.favourites || []).length +
-        (mediaLists.watchlist || []).length,
+        (mediaLists.watchlist || []).length +
+        (mediaLists.nextEpisodes || []).length +
+        (mediaLists.recommendations || []).length,
       taste:
         (mediaLists.taste?.genres || []).length +
         (mediaLists.taste?.actors || []).length +
@@ -332,7 +345,7 @@ export default function UserProfilePage() {
                 actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }]}
                 variant="featured"
               />
-              <UserMediaRail title="Next Episodes" subtitle="Next unwatched episodes for watchlisted shows." items={filterMedia(mediaLists.nextEpisodes || [])} onAction={runMediaAction} actions={[{ label: "Watched", action: "markWatched" }]} />
+              <UserMediaRail title="Next Episodes" subtitle="Next unwatched episodes from this profile's shows." items={filterMedia(mediaLists.nextEpisodes || [])} onAction={runMediaAction} actions={[{ label: "Watched", action: "markWatched" }]} />
               <UserMediaRail title="Recommended" subtitle="Suggestions based on watchlist genres." items={filterMedia(mediaLists.recommendations || [])} onAction={runMediaAction} actions={[{ label: "Watchlist", action: "addWatchlist" }, { label: "Favourite", action: "favourite" }]} />
             </>
           ) : null}

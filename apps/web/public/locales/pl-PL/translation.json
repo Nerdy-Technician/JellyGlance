@@ -9,7 +9,8 @@
     "SETTINGS": "Ustawienia",
     "ABOUT": "O programie",
     "LOGOUT": "Wyloguj",
-    "TIMELINE": "Oś czasu"
+    "TIMELINE": "Oś czasu",
+    "JELLYFIN_JOBS": "Zadania Jellyfin"
   },
   "HOME_PAGE": {
     "SESSIONS": "Sesje",
@@ -223,6 +224,8 @@
     "POLLING_INFO": "System automatycznie dostosowuje częstotliwość monitorowania: szybko gdy użytkownicy oglądają treści, wolniej gdy serwer jest bezczynny. To zmniejsza obciążenie CPU serwera Jellyfin.",
     "INTERVAL_WARNING": "Interwał aktywnych sesji nie powinien być większy niż interwał bezczynności",
     "REALTIME_UPDATE_INFO": "Zmiany są stosowane w czasie rzeczywistym bez ponownego uruchomienia serwera.",
+    "ACTIVITY_MONITOR_SETTINGS_SUCCESS": "Ustawienia monitora aktywności zostały zaktualizowane",
+    "ACTIVITY_MONITOR_SETTINGS_ERROR": "Błąd podczas aktualizacji ustawień monitora aktywności",
     "SELECT_LIBRARIES_TO_IMPORT": "Wybierz biblioteki do zaimportowania",
     "SELECT_LIBRARIES_TO_IMPORT_TOOLTIP": "Aktywność elementów w tych bibliotekach jest nadal śledzona - nawet gdy nie zostały zaimportowane.",
     "DATE_ADDED": "Data dodania",

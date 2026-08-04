@@ -9,9 +9,8 @@
   padding: 16px;
   overflow: auto;
   background:
-    radial-gradient(circle at 82% 0%, rgba(var(--primary-rgb), 0.16), transparent 28%),
-    radial-gradient(circle at 14% 12%, rgba(var(--secondary-rgb), 0.1), transparent 28%),
-    linear-gradient(135deg, #090b10 0%, var(--background-color) 54%, #05070b 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 180px),
+    var(--background-color);
 }
 
 .App > .d-flex {
@@ -56,12 +55,12 @@
 
 html body {
   background-color: var(--background-color);
-  color: white;
+  color: var(--text-color);
 }
 
 h1 {
-  color: white;
-  font-weight: 800 !important;
+  color: var(--text-color);
+  font-weight: 760 !important;
   margin: 0 !important;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
@@ -69,8 +68,8 @@ h1 {
 }
 
 h2 {
-  color: white;
-  font-weight: 800 !important;
+  color: var(--text-color);
+  font-weight: 720 !important;
   margin: 0 !important;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
@@ -120,13 +119,14 @@ h2 {
 
 .btn-outline-primary {
   color: white !important;
-  border-color: rgba(var(--secondary-rgb), 0.45) !important;
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-radius: 10px !important;
+  border-color: var(--surface-border-color) !important;
+  background-color: rgba(255, 255, 255, 0.035) !important;
+  border-radius: 8px !important;
 }
 
 .btn-outline-primary:hover {
-  background-color: rgba(var(--secondary-rgb), 0.16) !important;
+  border-color: rgba(var(--secondary-rgb), 0.45) !important;
+  background-color: rgba(var(--secondary-rgb), 0.12) !important;
 }
 
 .btn-outline-primary.active {
@@ -140,12 +140,13 @@ h2 {
 .btn-primary {
   color: white !important;
   border-color: var(--primary-color) !important;
-  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
-  border-radius: 10px !important;
+  background: var(--primary-color) !important;
+  border-radius: 8px !important;
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-dark-color) !important;
+  border-color: var(--primary-light-color) !important;
+  background: var(--primary-dark-color) !important;
 }
 
 .btn-primary.active {
@@ -160,7 +161,7 @@ h2 {
   background-color: var(--secondary-background-color) !important;
   border-color: var(--surface-border-color) !important ;
   color: white !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
 }
 
 .form-select:focus {
@@ -190,7 +191,7 @@ h2 {
 }
 
 ::placeholder {
-  color: #a7a7a7 !important; /* Replace with your desired color */
+  color: #9aa4b2 !important;
 }
 
 .text-primary-custom {
@@ -208,16 +209,12 @@ h2 {
 .jellyglance-toast {
   min-height: 74px;
   overflow: hidden;
-  border: 1px solid rgba(var(--primary-light-rgb), 0.26);
-  border-radius: 16px !important;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(var(--primary-rgb), 0.18), transparent 38%),
-    linear-gradient(135deg, rgba(18, 22, 30, 0.98), rgba(7, 10, 16, 0.96)) !important;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 10px !important;
+  background: rgba(17, 22, 30, 0.98) !important;
   color: #f8fafc !important;
-  box-shadow:
-    0 22px 58px rgba(0, 0, 0, 0.44),
-    0 0 0 1px rgba(255, 255, 255, 0.035) inset;
-  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(14px);
 }
 
 .jellyglance-toast::before {
@@ -231,8 +228,7 @@ h2 {
   width: 38px;
   min-width: 38px;
   margin-inline-end: 14px;
-  color: #f1c8ff;
-  filter: drop-shadow(0 0 12px rgba(var(--primary-light-rgb), 0.45));
+  color: var(--primary-light-color);
 }
 
 .jellyglance-toast.Toastify__toast--info .Toastify__toast-icon {
@@ -252,7 +248,7 @@ h2 {
   padding: 8px 8px 8px 2px;
   color: #e8eef8;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1.35;
 }
 
@@ -270,19 +266,19 @@ h2 {
 
 .jellyglance-toast-progress {
   height: 3px !important;
-  background: linear-gradient(90deg, var(--primary-color), var(--primary-light-color)) !important;
+  background: var(--primary-color) !important;
 }
 
 .Toastify__toast--info .jellyglance-toast-progress {
-  background: linear-gradient(90deg, var(--secondary-color), var(--primary-light-color)) !important;
+  background: var(--secondary-color) !important;
 }
 
 .Toastify__toast--success .jellyglance-toast-progress {
-  background: linear-gradient(90deg, #34d399, var(--primary-light-color)) !important;
+  background: #34d399 !important;
 }
 
 .Toastify__toast--error .jellyglance-toast-progress {
-  background: linear-gradient(90deg, #fb7185, var(--primary-light-color)) !important;
+  background: #fb7185 !important;
 }
 
 .whats-new-modal {
@@ -291,14 +287,11 @@ h2 {
 
 .whats-new-modal .modal-content {
   overflow: hidden;
-  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.14), transparent 30%),
-    radial-gradient(circle at 86% 0%, rgba(var(--primary-rgb), 0.2), transparent 36%),
-    rgba(7, 10, 16, 0.98);
+  border: 1px solid var(--surface-border-color);
+  border-radius: 12px;
+  background: rgba(13, 17, 24, 0.98);
   color: #f8fafc;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.56);
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.5);
 }
 
 .whats-new-modal .modal-body {
@@ -335,24 +328,24 @@ h2 {
   gap: 7px;
   color: var(--primary-light-color);
   font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.13em;
+  font-weight: 760;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .whats-new-hero h2 {
   margin: 6px 0 6px !important;
   color: #fff;
-  font-size: 34px;
-  font-weight: 950 !important;
-  line-height: 1;
+  font-size: 30px;
+  font-weight: 780 !important;
+  line-height: 1.05;
 }
 
 .whats-new-hero p {
   margin: 0;
   color: #aab8cc;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .whats-new-list {
@@ -372,9 +365,9 @@ h2 {
   min-width: 0;
   min-height: 112px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .whats-new-list svg {
@@ -389,14 +382,14 @@ h2 {
 .whats-new-list strong {
   color: #fff;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 760;
 }
 
 .whats-new-list span {
   margin-top: 3px;
   color: #aab8cc;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.4;
 }
 

@@ -10,8 +10,38 @@ const rootPackage = JSON.parse(readFileSync(resolve(configDir, "../../package.js
 const packageVersion = rootPackage.version;
 const fallbackRelease = {
   version: `v${packageVersion}`,
-  url: "https://github.com/Nerdy-Technician/JellyGlance/releases/latest"
+  name: `JellyGlance v${packageVersion}`,
+  url: "https://github.com/Nerdy-Technician/JellyGlance/releases/latest",
+  publishedAt: null,
+  body: "Release notes are loaded from the latest GitHub release when the documentation site is built."
 };
+
+function parseReleaseNotes(body = "") {
+  const sections = [];
+  let current = { title: "Notes", items: [] };
+
+  body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const heading = line.match(/^#{1,4}\s+(.+)/);
+      if (heading) {
+        if (current.items.length) sections.push(current);
+        current = { title: heading[1].replace(/[*_`]/g, ""), items: [] };
+        return;
+      }
+
+      const item = line.replace(/^[-*]\s+/, "").replace(/^`([^`]+)`$/, "$1");
+      current.items.push(item);
+    });
+
+  if (current.items.length) sections.push(current);
+  return sections.slice(0, 8).map((section) => ({
+    title: section.title,
+    items: section.items.slice(0, 12)
+  }));
+}
 
 async function getCurrentRelease() {
   try {
@@ -31,11 +61,18 @@ async function getCurrentRelease() {
 
     return {
       version: release.tag_name || fallbackRelease.version,
-      url: release.html_url || fallbackRelease.url
+      name: release.name || release.tag_name || fallbackRelease.name,
+      url: release.html_url || fallbackRelease.url,
+      publishedAt: release.published_at || release.created_at || null,
+      body: release.body || fallbackRelease.body,
+      sections: parseReleaseNotes(release.body || fallbackRelease.body)
     };
   } catch (error) {
     console.warn(`[docs] Using package.json release fallback: ${error.message}`);
-    return fallbackRelease;
+    return {
+      ...fallbackRelease,
+      sections: parseReleaseNotes(fallbackRelease.body)
+    };
   }
 }
 
@@ -84,10 +121,9 @@ export default defineConfig({
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Integrations", link: "/guide/integrations" },
       { text: "Screenshots", link: "/guide/screenshots" },
+      { text: "Press", link: "/press" },
       { text: "Operations", link: "/operations/docker" },
-      { text: "Releases", link: "/operations/releases" },
-      { text: "Discord", link: "https://discord.gg/dMGhv8j2kx" },
-      { text: "GitHub", link: "https://github.com/Nerdy-Technician/JellyGlance" }
+      { text: "Releases", link: "/operations/releases" }
     ],
     sidebar: [
       {
@@ -96,6 +132,7 @@ export default defineConfig({
           { text: "Getting Started", link: "/guide/getting-started" },
           { text: "Integrations", link: "/guide/integrations" },
           { text: "Screenshots", link: "/guide/screenshots" },
+          { text: "Press", link: "/press" },
           { text: "Architecture", link: "/guide/architecture" }
         ]
       },
@@ -122,6 +159,7 @@ export default defineConfig({
       level: [2, 3]
     },
     currentVersion: currentRelease.version,
-    latestReleaseUrl: currentRelease.url
+    latestReleaseUrl: currentRelease.url,
+    latestRelease: currentRelease
   }
 });

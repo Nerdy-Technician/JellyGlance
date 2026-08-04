@@ -12,6 +12,17 @@ function normalizeVersion(version) {
   return String(version || "").trim().replace(/^v/i, "");
 }
 
+function releaseChannel(currentVersion = packageJson.version) {
+  const explicitChannel = String(process.env.JS_RELEASE_CHANNEL || process.env.RELEASE_CHANNEL || "").trim().toLowerCase();
+  const normalizedVersion = normalizeVersion(currentVersion).toLowerCase();
+
+  if (explicitChannel === "beta" || normalizedVersion.includes("beta")) {
+    return "beta";
+  }
+
+  return "stable";
+}
+
 async function fetchLatestReleaseVersion(currentVersion) {
   const headers = {
     Accept: "application/vnd.github+json",
@@ -41,6 +52,46 @@ async function fetchLatestReleaseVersion(currentVersion) {
 
     return latestVersion;
   }
+}
+
+function normalizeRelease(release) {
+  const tagName = release?.tag_name || release?.name || "";
+
+  return {
+    id: release?.id || tagName,
+    version: normalizeVersion(tagName),
+    name: release?.name || tagName,
+    date: release?.published_at || release?.created_at || null,
+    prerelease: Boolean(release?.prerelease),
+    draft: Boolean(release?.draft),
+    url: release?.html_url || RELEASES_URL,
+    body: release?.body || "",
+  };
+}
+
+async function fetchReleaseNotes() {
+  const currentVersion = packageJson.version;
+  const channel = releaseChannel(currentVersion);
+  const response = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": `JellyGlance/${currentVersion}`,
+    },
+    params: {
+      per_page: 20,
+    },
+    timeout: 10000,
+  });
+
+  return {
+    current_version: currentVersion,
+    channel,
+    releases_url: RELEASES_URL,
+    releases: (response.data || [])
+      .filter((release) => !release.draft)
+      .filter((release) => (channel === "beta" ? release.prerelease : !release.prerelease))
+      .map(normalizeRelease),
+  };
 }
 
 async function checkForUpdates() {
@@ -99,4 +150,7 @@ async function checkForUpdates() {
   return result;
 }
 
-module.exports = { checkForUpdates: memoizee(checkForUpdates, { maxAge: 300000, promise: true }) };
+module.exports = {
+  checkForUpdates: memoizee(checkForUpdates, { maxAge: 300000, promise: true }),
+  fetchReleaseNotes: memoizee(fetchReleaseNotes, { maxAge: 300000, promise: true }),
+};

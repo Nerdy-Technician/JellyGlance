@@ -63,6 +63,17 @@ const PORT = 3000;
 const LISTEN_IP = process.env.JS_LISTEN_IP || "0.0.0.0";
 const JWT_SECRET = process.env.JWT_SECRET;
 const BASE_NAME = process.env.JS_BASE_URL ? ensureSlashes(process.env.JS_BASE_URL) : "";
+const DEFAULT_ALLOWED_ORIGINS = [
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+];
+const configuredAllowedOrigins = (process.env.CORS_ORIGINS || process.env.JS_CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredAllowedOrigins]);
 
 if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
@@ -78,11 +89,85 @@ const DEFAULT_ROLE_PERMISSIONS = {
 };
 
 // middlewares
-app.use(express.json()); // middleware to parse JSON request bodies
-app.use(cors());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" })); // middleware to parse JSON request bodies
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
+  })
+);
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(compression());
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' ws: wss: http: https:",
+      "frame-src 'self'",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ")
+  );
+  next();
+});
+
+function createRateLimiter({ windowMs, max, message }) {
+  const hits = new Map();
+
+  return (req, res, next) => {
+    const key = req.ip || req.socket?.remoteAddress || "unknown";
+    const now = Date.now();
+    const current = hits.get(key) || { count: 0, resetAt: now + windowMs };
+
+    if (current.resetAt <= now) {
+      current.count = 0;
+      current.resetAt = now + windowMs;
+    }
+
+    current.count += 1;
+    hits.set(key, current);
+    res.setHeader("RateLimit-Limit", String(max));
+    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - current.count)));
+    res.setHeader("RateLimit-Reset", String(Math.ceil(current.resetAt / 1000)));
+
+    if (current.count > max) {
+      res.status(429).json({ message });
+      return;
+    }
+
+    next();
+  };
+}
+
+const authRateLimit = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
+  message: "Too many authentication requests. Try again later.",
+});
+const taskRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
+  message: "Too many task requests. Try again shortly.",
+});
 
 function typeInferenceMiddleware(req, res, next) {
   Object.keys(req.query).forEach((key) => {
@@ -100,24 +185,25 @@ function typeInferenceMiddleware(req, res, next) {
 
 app.use(typeInferenceMiddleware);
 
-const findFile = (dir, fileName) => {
+const root = process.env.JS_CLIENT_DIST || path.join(__dirname, "..", "web", "dist");
+const staticAssetIndex = new Map();
+
+function indexStaticAssets(dir) {
+  if (!fs.existsSync(dir)) {
+    return;
+  }
+
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      const result = findFile(fullPath, fileName);
-      if (result) {
-        return result;
-      }
-    } else if (file === fileName) {
-      return fullPath;
+      indexStaticAssets(fullPath);
+    } else if (!staticAssetIndex.has(file)) {
+      staticAssetIndex.set(file, fullPath);
     }
   }
-  return null;
-};
-
-const root = process.env.JS_CLIENT_DIST || path.join(__dirname, "..", "web", "dist");
+}
 
 //hacky middleware to handle basename changes for UI
 
@@ -130,7 +216,7 @@ app.use((req, res, next) => {
     return next();
   }
 
-  const fileRegex = /\/([^\/]+\.(css|ico|js|json|png))$/;
+  const fileRegex = /\/([^\/]+\.(css|ico|js|json|png|jpg|jpeg|webp|svg|woff2?|ttf))$/i;
   const match = req.url.match(fileRegex);
   if (match) {
     // Extract the file name
@@ -138,8 +224,7 @@ app.use((req, res, next) => {
 
     //Exclude translation.json from this hack as it messes up the translations by returning the first file regardless of language chosen
     if (fileName != "translation.json") {
-      // Find the file
-      const filePath = findFile(root, fileName);
+      const filePath = staticAssetIndex.get(fileName);
       if (filePath) {
         if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
           res.set("Cache-Control", "no-store");
@@ -159,12 +244,16 @@ app.use((req, res, next) => {
 });
 
 // initiate routes
-app.use(`/auth`, authRouter, () => {
+app.use(`/auth`, authRateLimit, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
 app.use("/proxy", proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
+app.use("/api/startTask", taskRateLimit);
+app.use("/api/server-management/action", taskRateLimit);
+app.use("/sync", taskRateLimit);
+app.use("/backup/beginBackup", taskRateLimit);
 app.use("/api", authenticate, authorizeApiRoute, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
@@ -235,6 +324,8 @@ app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // for deployment of static page
 writeEnvVariables().then(() => {
+  staticAssetIndex.clear();
+  indexStaticAssets(root);
   app.use(
     express.static(root, {
       setHeaders: (res, filePath) => {
@@ -256,7 +347,7 @@ writeEnvVariables().then(() => {
 // JWT middleware
 async function authenticate(req, res, next) {
   const token = req.headers.authorization;
-  const apiKey = req.headers["x-api-token"] || req.query.apiKey;
+  const apiKey = req.headers["x-api-token"];
 
   if (!token && !apiKey) {
     return res.status(401).json({
@@ -406,6 +497,14 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if (pathName.startsWith("/server-management")) {
+    if (!req.permissions?.settings || !["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Admin role required" });
+    }
+    next();
+    return;
+  }
+
   const permission =
     pathName.startsWith("/keys")
       ? "apiKeys"
@@ -421,6 +520,7 @@ function authorizeApiRoute(req, res, next) {
         : pathName.startsWith("/set") ||
             pathName.includes("/purge") ||
             pathName.startsWith("/integrations") ||
+            pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
             pathName.startsWith("/downloads/add") ||
             pathName.startsWith("/starttask") ||

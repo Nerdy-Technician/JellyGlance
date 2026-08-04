@@ -10,7 +10,7 @@ const pgp = require("pg-promise")();
 const { randomUUID } = require("crypto");
 
 const configClass = require("../classes/config");
-const { checkForUpdates } = require("../version-control");
+const { checkForUpdates, fetchReleaseNotes } = require("../version-control");
 const API = require("../classes/api-loader");
 const { sendUpdate } = require("../ws");
 const { tables } = require("../global/backup_tables");
@@ -749,6 +749,8 @@ function normalizeJellyfinMediaItem(item) {
     year: item.ProductionYear || (item.PremiereDate ? String(item.PremiereDate).slice(0, 4) : null),
     overview: item.Overview || "",
     seriesName: item.SeriesName || null,
+    seriesId: item.SeriesId || null,
+    seasonId: item.SeasonId || null,
     seasonNumber: item.ParentIndexNumber ?? null,
     episodeNumber: item.IndexNumber ?? null,
     communityRating: item.CommunityRating || null,
@@ -810,6 +812,71 @@ async function jellyfinRequest(path, options = {}) {
   });
 }
 
+function normalizeJellyfinTask(task = {}) {
+  return {
+    id: task.Id || task.Key || task.Name,
+    key: task.Key || task.Id || task.Name,
+    name: task.Name || task.Key || "Scheduled task",
+    description: task.Description || "",
+    category: task.Category || "Jellyfin",
+    state: task.State || "Idle",
+    lastExecutionResult: task.LastExecutionResult || null,
+    triggers: task.Triggers || [],
+  };
+}
+
+function normalizeJellyfinDevice(device = {}) {
+  return {
+    id: device.Id || device.DeviceId || device.AccessToken || device.Name,
+    name: device.Name || device.DeviceName || "Unknown device",
+    appName: device.AppName || device.Client || "Unknown app",
+    appVersion: device.AppVersion || "",
+    lastUserName: device.LastUserName || device.UserName || "",
+    lastUserId: device.LastUserId || device.UserId || "",
+    dateLastActivity: device.DateLastActivity || device.LastActivityDate || null,
+    capabilities: device.Capabilities || null,
+  };
+}
+
+function normalizeJellyfinPlugin(plugin = {}) {
+  const status = plugin.Status || plugin.State || (plugin.Enabled === false ? "Disabled" : "Enabled");
+  return {
+    id: plugin.Id || plugin.Guid || plugin.Name,
+    name: plugin.Name || plugin.AssemblyFileName || "Unknown plugin",
+    version: plugin.Version || plugin.Versions?.[0]?.version || "",
+    description: plugin.Description || plugin.Overview || "",
+    category: plugin.Category || "",
+    status,
+    enabled: plugin.Enabled !== false && !String(status).toLowerCase().includes("disabled"),
+    canUninstall: plugin.CanUninstall === true,
+    configurationFileName: plugin.ConfigurationFileName || "",
+  };
+}
+
+async function buildServerManagementStatus() {
+  const [systemInfoResponse, tasksResponse] = await Promise.all([
+    jellyfinRequest("/System/Info").catch((error) => ({ error })),
+    jellyfinRequest("/ScheduledTasks").catch((error) => ({ error })),
+  ]);
+
+  const systemInfo = systemInfoResponse.error ? null : systemInfoResponse.data;
+  const jellyfinTasks = Array.isArray(tasksResponse.data) ? tasksResponse.data.map(normalizeJellyfinTask) : [];
+
+  return {
+    checkedAt: new Date().toISOString(),
+    jellyfin: {
+      ok: Boolean(systemInfo),
+      name: systemInfo?.ServerName || "Jellyfin",
+      version: systemInfo?.Version || "",
+      id: systemInfo?.Id || "",
+      operatingSystem: systemInfo?.OperatingSystem || "",
+      startupWizardCompleted: systemInfo?.StartupWizardCompleted ?? null,
+      error: systemInfoResponse.error ? getAxiosErrorMessage(systemInfoResponse.error) : "",
+    },
+    jellyfinTasks,
+  };
+}
+
 function dedupeMediaItems(items = []) {
   const seen = new Set();
   return items.filter((item) => {
@@ -841,29 +908,52 @@ function tallyValues(items = [], getter, limit = 8) {
     .slice(0, limit);
 }
 
+async function queryRecentlyWatchedRows(userId, { includeEpisodeMetadata = true } = {}) {
+  const tableName = includeEpisodeMetadata ? "jf_playback_activity_with_metadata" : "jf_playback_activity";
+  const episodeColumns = includeEpisodeMetadata
+    ? `a."SeasonNumber", a."EpisodeNumber",`
+    : `NULL::integer AS "SeasonNumber", NULL::integer AS "EpisodeNumber",`;
+
+  const result = await db.query(
+    `
+      SELECT DISTINCT ON (COALESCE(a."EpisodeId", a."NowPlayingItemId"))
+        COALESCE(a."EpisodeId", a."NowPlayingItemId") AS "Id",
+        a."NowPlayingItemId",
+        a."NowPlayingItemName",
+        a."EpisodeId",
+        CASE WHEN a."EpisodeId" IS NOT NULL THEN a."NowPlayingItemId" ELSE NULL END AS "SeriesId",
+        a."SeriesName",
+        ${episodeColumns}
+        a."ActivityDateInserted",
+        i."Type",
+        i."ProductionYear",
+        i."Genres"
+      FROM ${tableName} a
+      LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+      WHERE a."UserId" = $1
+      ORDER BY COALESCE(a."EpisodeId", a."NowPlayingItemId"), a."ActivityDateInserted" DESC
+    `,
+    [userId]
+  );
+
+  return result.rows || [];
+}
+
 async function fetchRecentlyWatched(userId) {
-  const rows = await db
-    .query(
-      `
-        SELECT DISTINCT ON (COALESCE(a."EpisodeId", a."NowPlayingItemId"))
-          COALESCE(a."EpisodeId", a."NowPlayingItemId") AS "Id",
-          a."NowPlayingItemId",
-          a."NowPlayingItemName",
-          a."EpisodeId",
-          a."SeriesName",
-          a."ActivityDateInserted",
-          i."Type",
-          i."ProductionYear",
-          i."Genres"
-        FROM jf_playback_activity a
-        LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
-        WHERE a."UserId" = $1
-        ORDER BY COALESCE(a."EpisodeId", a."NowPlayingItemId"), a."ActivityDateInserted" DESC
-      `,
-      [userId]
-    )
-    .then((result) => result.rows || [])
-    .catch(() => []);
+  let rows = [];
+
+  try {
+    rows = await queryRecentlyWatchedRows(userId, { includeEpisodeMetadata: true });
+    if (!rows.length) {
+      rows = await queryRecentlyWatchedRows(userId, { includeEpisodeMetadata: false });
+    }
+  } catch (error) {
+    console.warn("Fetch recently watched metadata failed, falling back to playback table:", error.message);
+    rows = await queryRecentlyWatchedRows(userId, { includeEpisodeMetadata: false }).catch((fallbackError) => {
+      console.error("Fetch recently watched failed:", fallbackError);
+      return [];
+    });
+  }
 
   return rows
     .sort((a, b) => new Date(b.ActivityDateInserted || 0) - new Date(a.ActivityDateInserted || 0))
@@ -873,6 +963,9 @@ async function fetchRecentlyWatched(userId) {
       name: item.NowPlayingItemName || item.SeriesName || "Untitled",
       type: item.EpisodeId ? "Episode" : item.Type || "Media",
       seriesName: item.SeriesName || null,
+      seriesId: item.SeriesId || null,
+      seasonNumber: item.SeasonNumber ?? null,
+      episodeNumber: item.EpisodeNumber ?? null,
       year: item.ProductionYear || null,
       datePlayed: item.ActivityDateInserted || null,
       genres: (() => {
@@ -888,18 +981,32 @@ async function fetchRecentlyWatched(userId) {
 }
 
 async function fetchNextEpisodes(userId, seriesIds = []) {
-  if (!seriesIds.length) return [];
+  const uniqueSeriesIds = [...new Set(seriesIds.filter(Boolean))];
+  const baseParams = {
+    UserId: userId,
+    Limit: 24,
+    Fields: "DateCreated,Genres,Overview,CommunityRating,PremiereDate,ProductionYear,SeriesName,SeriesId,SeasonId,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData",
+  };
 
-  const response = await jellyfinRequest("/Shows/NextUp", {
-    params: {
-      UserId: userId,
-      SeriesId: seriesIds.join(","),
-      Limit: 24,
-      Fields: "DateCreated,Genres,Overview,CommunityRating,PremiereDate,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData",
-    },
-  }).catch(() => null);
+  const scopedResponse = uniqueSeriesIds.length
+    ? await jellyfinRequest("/Shows/NextUp", {
+        params: {
+          ...baseParams,
+          SeriesId: uniqueSeriesIds.join(","),
+        },
+      }).catch(() => null)
+    : null;
 
-  return (response?.data?.Items || []).map(normalizeJellyfinMediaItem);
+  let items = Array.isArray(scopedResponse?.data?.Items) ? scopedResponse.data.Items : [];
+
+  if (!items.length) {
+    const fallbackResponse = await jellyfinRequest("/Shows/NextUp", {
+      params: baseParams,
+    }).catch(() => null);
+    items = Array.isArray(fallbackResponse?.data?.Items) ? fallbackResponse.data.Items : [];
+  }
+
+  return dedupeMediaItems(items).slice(0, 18).map(normalizeJellyfinMediaItem);
 }
 
 async function buildRecommendations(userId, seedItems = []) {
@@ -1067,9 +1174,14 @@ async function fetchUserMediaLists(userId) {
 
   const watchlist = dedupeMediaItems([...jellyfinWatchlist, ...taggedWatchlist, ...containerItems]).slice(0, 48).map(normalizeJellyfinMediaItem);
   const normalizedFavourites = dedupeMediaItems(favourites).slice(0, 24).map(normalizeJellyfinMediaItem);
-  const watchlistedSeriesIds = watchlist.filter((item) => item.type === "Series").map((item) => item.id);
+  const watchlistedSeriesIds = watchlist
+    .map((item) => (item.type === "Series" ? item.id : item.seriesId))
+    .filter(Boolean);
+  const contextualSeriesIds = [...watchlist, ...continueWatching, ...recentlyWatched]
+    .map((item) => (item.type === "Series" ? item.id : item.type === "Episode" ? item.seriesId || item.imageId : null))
+    .filter(Boolean);
   const [nextEpisodes, recommendations, mediaNetwork] = await Promise.all([
-    fetchNextEpisodes(userId, watchlistedSeriesIds),
+    fetchNextEpisodes(userId, watchlistedSeriesIds.length ? watchlistedSeriesIds : contextualSeriesIds),
     buildRecommendations(userId, watchlist),
     fetchUserMediaNetwork(userId, normalizedFavourites, watchlist),
   ]);
@@ -2504,6 +2616,24 @@ router.post("/setExcludedLibraries", async (req, res) => {
   }
 });
 
+router.post("/library-display-settings", async (req, res) => {
+  const { showLibraryCardNames } = req.body || {};
+  const settingsjson = await db.query('SELECT settings FROM app_config where "ID"=1').then((res) => res.rows);
+
+  if (settingsjson.length > 0) {
+    const settings = settingsjson[0].settings || {};
+    settings.ShowLibraryCardNames = showLibraryCardNames !== false;
+
+    await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    await addAuditEntry(req, "library.display_settings.updated", { showLibraryCardNames: settings.ShowLibraryCardNames });
+
+    res.send({ showLibraryCardNames: settings.ShowLibraryCardNames });
+  } else {
+    res.status(404);
+    res.send({ error: "Settings not found" });
+  }
+});
+
 router.get("/UntrackedUsers", async (req, res) => {
   const config = await new configClass().getConfig();
 
@@ -2689,7 +2819,6 @@ router.get("/getActivityMonitorSettings", async (req, res) => {
 
     if (settingsjson.length > 0) {
       const settings = settingsjson[0].settings || {};
-      console.log(settings);
       const pollingSettings = settings.ActivityMonitorPolling || {
         activeSessionsInterval: 1000,
         idleInterval: 5000,
@@ -2766,6 +2895,16 @@ router.get("/CheckForUpdates", async (req, res) => {
     res.send(result);
   } catch (error) {
     console.log(error);
+  }
+});
+
+router.get("/CheckForUpdates/releases", async (req, res) => {
+  try {
+    const result = await fetchReleaseNotes();
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    res.status(503).send({ error: "Unable to load release notes" });
   }
 });
 
@@ -3990,6 +4129,81 @@ router.get("/stopTask", async (req, res) => {
   }
 });
 
+router.get("/server-management/status", async (req, res) => {
+  try {
+    res.send(await buildServerManagementStatus());
+  } catch (error) {
+    console.error("Server management status failed:", error);
+    res.status(503).send({ error: "Unable to load server management status" });
+  }
+});
+
+router.post("/server-management/action", async (req, res) => {
+  const { action, taskId } = req.body || {};
+
+  if (!action) {
+    res.status(400).send({ error: "No action provided" });
+    return;
+  }
+
+  if (action !== "runJellyfinTask") {
+    res.status(400).send({ error: "Unsupported Jellyfin job action" });
+    return;
+  }
+
+  try {
+    if (!taskId) {
+      res.status(400).send({ error: "No Jellyfin task id provided" });
+      return;
+    }
+
+    await jellyfinRequest(`/ScheduledTasks/Running/${encodeURIComponent(taskId)}`, { method: "post" });
+    await addAuditEntry(req, "server-management.action", {
+      action,
+      taskId,
+    });
+    sendUpdate("GeneralAlert", { type: "Success", message: "Jellyfin job started" });
+    res.send({ ok: true, action, taskId });
+  } catch (error) {
+    const statusCode = error.statusCode || error.response?.status || 503;
+    const message = getAxiosErrorMessage(error);
+    console.error("Jellyfin job action failed:", message);
+    sendUpdate("TaskError", { type: "Error", message: "Jellyfin job failed to start" });
+    res.status(statusCode).send({ error: message });
+  }
+});
+
+router.get("/jellyfin/devices", async (req, res) => {
+  try {
+    const response = await jellyfinRequest("/Devices");
+    const devices = Array.isArray(response.data?.Items) ? response.data.Items : Array.isArray(response.data) ? response.data : [];
+    res.send({
+      devices: devices.map(normalizeJellyfinDevice).sort((a, b) => new Date(b.dateLastActivity || 0) - new Date(a.dateLastActivity || 0)),
+      total: Number(response.data?.TotalRecordCount ?? devices.length),
+      syncedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Jellyfin devices load failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Jellyfin devices" });
+  }
+});
+
+router.get("/jellyfin/plugins", async (req, res) => {
+  try {
+    const response = await jellyfinRequest("/Plugins");
+    const plugins = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.Items) ? response.data.Items : [];
+    res.send({
+      plugins: plugins.map(normalizeJellyfinPlugin).sort((a, b) => a.name.localeCompare(b.name)),
+      total: plugins.length,
+      enabled: plugins.filter((plugin) => normalizeJellyfinPlugin(plugin).enabled).length,
+      syncedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Jellyfin plugins load failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Jellyfin plugins" });
+  }
+});
+
 router.get("/startTask", async (req, res) => {
   const { task } = req.query;
 
@@ -4012,6 +4226,9 @@ router.get("/startTask", async (req, res) => {
     onComplete: async () => {
       await taskScheduler.getTaskHistory();
       sendUpdate("GeneralAlert", { type: "Success", message: `${taskConfig.name} completed`, triggerType: triggertype.Manual, taskName: taskConfig.name });
+    },
+    onSkip: async () => {
+      await taskScheduler.getTaskHistory();
     },
     onError: async (error) => {
       await taskScheduler.getTaskHistory();

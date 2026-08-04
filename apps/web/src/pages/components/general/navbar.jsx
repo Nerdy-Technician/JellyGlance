@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Modal, Nav, Navbar as BootstrapNavbar } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import axios from "../../../lib/axios_instance";
@@ -27,6 +27,60 @@ function getCachedConfig() {
   }
 }
 
+const REQUEST_NAV_AVAILABLE_KEY = "jellyglance_request_nav_available";
+const DOWNLOAD_NAV_AVAILABLE_KEY = "jellyglance_download_nav_available";
+
+function getCachedRequestNavAvailable() {
+  return localStorage.getItem(REQUEST_NAV_AVAILABLE_KEY) === "true";
+}
+
+function getCachedDownloadNavAvailable() {
+  return localStorage.getItem(DOWNLOAD_NAV_AVAILABLE_KEY) === "true";
+}
+
+function isConfiguredSeerrApp(app) {
+  const name = String(app?.name || app?.slug || "").toLowerCase();
+  const values = app?.values || {};
+  return (
+    (name.includes("jellyseerr") || name.includes("overseerr")) &&
+    Boolean(app?.connected) &&
+    Boolean(String(values.url || "").trim()) &&
+    Boolean(String(values.secret || "").trim())
+  );
+}
+
+function getRequestAvailabilityFromIntegrations(integrations) {
+  return Array.isArray(integrations?.arrApps) && integrations.arrApps.some(isConfiguredSeerrApp);
+}
+
+function isConfiguredDownloadClient(client) {
+  const values = client?.values || {};
+  return (
+    Boolean(client?.connected) &&
+    (client?.protocol === "Torrent" || client?.protocol === "Usenet") &&
+    Boolean(String(values.url || "").trim()) &&
+    Boolean(String(values.secret || "").trim())
+  );
+}
+
+function getDownloadAvailabilityFromIntegrations(integrations) {
+  return Array.isArray(integrations?.clients) && integrations.clients.some(isConfiguredDownloadClient);
+}
+
+function isNavItemActive(item, location) {
+  const pathname = location.pathname.toLocaleLowerCase();
+  const navPath = String(item.link || "").split("?")[0].toLocaleLowerCase();
+
+  if (item.link === "settings") {
+    return pathname === "/settings";
+  }
+
+  return (
+    pathname.includes(("/" + navPath).toLocaleLowerCase()) &&
+    ((pathname.length > 0 && navPath.length > 0) || (pathname.length === 1 && navPath.length === 0))
+  );
+}
+
 export default function Navbar() {
   const [showAccount, setShowAccount] = useState(false);
   const [config, setConfig] = useState(() => getCachedConfig());
@@ -35,6 +89,8 @@ export default function Navbar() {
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
+  const [showRequestsNav, setShowRequestsNav] = useState(() => getCachedRequestNavAvailable());
+  const [showDownloadsNav, setShowDownloadsNav] = useState(() => getCachedDownloadNavAvailable());
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
@@ -45,6 +101,8 @@ export default function Navbar() {
   const canUploadAvatar = authMode === "local" || authMode === "oidc";
   const accountName = jellyfinUser?.name || config?.username || authLabel;
   const accountRole = authMode === "quick-connect" ? "Jellyfin User" : authMode === "oidc" ? "OIDC User" : "Local User";
+  const currentRole = config?.settings?.auth?.role || "Viewer";
+  const showServerManagementNav = currentRole === "Owner" || currentRole === "Admin";
   const jellyfinAvatar = jellyfinUser?.id ? `${baseUrl}/proxy/Users/Images/Primary?id=${jellyfinUser.id}&fillWidth=160&quality=80` : "";
   const avatarSrc = jellyfinAvatar || (canUploadAvatar ? customAvatar : "");
   const activeThemePreset = THEME_PRESETS.find(
@@ -53,6 +111,16 @@ export default function Navbar() {
       customTheme.secondary === preset.secondary &&
       customTheme.background === preset.background &&
       customTheme.surface === preset.surface
+  );
+  const visibleNavData = useMemo(
+    () =>
+      navData.filter((item) => {
+        if (item.link === "requests") return showRequestsNav;
+        if (item.link === "downloads") return showDownloadsNav;
+        if (item.link === "server-management") return showServerManagementNav;
+        return true;
+      }),
+    [showDownloadsNav, showRequestsNav, showServerManagementNav]
   );
 
   const handleLogout = () => {
@@ -114,10 +182,46 @@ export default function Navbar() {
       setActiveDownloadCount(Number.isFinite(nextCount) ? nextCount : 0);
     };
 
+    const setDownloadAvailability = (integrations) => {
+      const nextAvailable = getDownloadAvailabilityFromIntegrations(integrations);
+      localStorage.setItem(DOWNLOAD_NAV_AVAILABLE_KEY, String(nextAvailable));
+      setShowDownloadsNav(nextAvailable);
+      if (!nextAvailable) {
+        setActiveDownloadCount(0);
+      }
+    };
+
+    const refreshDownloadAvailability = async () => {
+      if (!localStorage.getItem("token")) {
+        setDownloadAvailability({ clients: [] });
+        return;
+      }
+
+      try {
+        const response = await axios.get("/api/integrations", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setDownloadAvailability(response.data || { clients: [] });
+      } catch {
+        setShowDownloadsNav(getCachedDownloadNavAvailable());
+      }
+    };
+
+    const handleIntegrationsUpdated = (event) => {
+      if (event.detail) {
+        setDownloadAvailability(event.detail);
+        return;
+      }
+      refreshDownloadAvailability();
+    };
+
+    refreshDownloadAvailability();
     window.addEventListener("jellyglance-download-count", handleDownloadCount);
+    window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     window.addEventListener("storage", handleDownloadCount);
     return () => {
       window.removeEventListener("jellyglance-download-count", handleDownloadCount);
+      window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
       window.removeEventListener("storage", handleDownloadCount);
     };
   }, []);
@@ -132,31 +236,64 @@ export default function Navbar() {
       }
     };
 
+    const setRequestAvailability = (sources) => {
+      const nextAvailable = Array.isArray(sources) && sources.length > 0;
+      localStorage.setItem(REQUEST_NAV_AVAILABLE_KEY, String(nextAvailable));
+      if (isMounted) {
+        setShowRequestsNav(nextAvailable);
+      }
+    };
+
     const refreshRequestCount = async () => {
-      if (!localStorage.getItem("token")) return;
+      if (!localStorage.getItem("token")) {
+        setRequestAvailability([]);
+        return;
+      }
       try {
         const response = await axios.get("/api/requests/summary", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const nextCount = Number(response.data?.stats?.badgeCount || 0);
         localStorage.setItem("jellyglance_request_badge_count", String(nextCount));
+        setRequestAvailability(response.data?.sources);
         setSafeCount(nextCount);
       } catch {
+        if (isMounted) {
+          setShowRequestsNav(getCachedRequestNavAvailable());
+        }
         setSafeCount(localStorage.getItem("jellyglance_request_badge_count"));
       }
     };
 
     const handleRequestCount = (event) => setSafeCount(event.detail ?? localStorage.getItem("jellyglance_request_badge_count"));
+    const handleIntegrationsUpdated = (event) => {
+      if (event.detail) {
+        const nextAvailable = getRequestAvailabilityFromIntegrations(event.detail);
+        localStorage.setItem(REQUEST_NAV_AVAILABLE_KEY, String(nextAvailable));
+        if (isMounted) {
+          setShowRequestsNav(nextAvailable);
+          if (!nextAvailable) {
+            setRequestBadgeCount(0);
+          }
+        }
+        if (!nextAvailable) {
+          return;
+        }
+      }
+      refreshRequestCount();
+    };
 
     refreshRequestCount();
     const intervalId = setInterval(refreshRequestCount, 60000);
     window.addEventListener("jellyglance-request-count", handleRequestCount);
+    window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     window.addEventListener("storage", handleRequestCount);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
       window.removeEventListener("jellyglance-request-count", handleRequestCount);
+      window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
       window.removeEventListener("storage", handleRequestCount);
     };
   }, []);
@@ -229,11 +366,8 @@ export default function Navbar() {
       <div id="mobile-app-navigation" className={`mobile-app-menu-panel${isMobileNavOpen ? " is-open" : ""}`} aria-hidden={!isMobileNavOpen}>
         <nav className="mobile-app-menu-shell" aria-label="Mobile navigation">
           <div className="mobile-app-menu-grid">
-            {navData.map((item) => {
-              const locationString = location.pathname.toLocaleLowerCase();
-              const isActive =
-                locationString.includes(("/" + item.link).toLocaleLowerCase()) &&
-                ((locationString.length > 0 && item.link.length > 0) || (locationString.length === 1 && item.link.length === 0));
+            {visibleNavData.map((item) => {
+              const isActive = isNavItemActive(item, location);
               const badgeCount = getNavBadgeCount(item.link);
 
               return (
@@ -293,11 +427,8 @@ export default function Navbar() {
         </BootstrapNavbar.Brand>
 
         <Nav className="flex-row flex-md-column w-100">
-          {navData.map((item) => {
-            const locationString = location.pathname.toLocaleLowerCase();
-            const isActive =
-              locationString.includes(("/" + item.link).toLocaleLowerCase()) &&
-              ((locationString.length > 0 && item.link.length > 0) || (locationString.length === 1 && item.link.length === 0)); // check if the link is the current path
+          {visibleNavData.map((item) => {
+            const isActive = isNavItemActive(item, location);
             return (
               <Nav.Link
                 as={Link}

@@ -64,7 +64,7 @@ The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, 
 <div class="screenshot-grid">
   <figure>
     <img src="/screenshots/Settings.png" alt="Settings overview">
-    <figcaption>Settings overview</figcaption>
+    <figcaption>Settings center</figcaption>
   </figure>
   <figure>
     <img src="/screenshots/Settings-Activity.png" alt="Activity monitor settings">
@@ -84,7 +84,7 @@ The Requests page sits alongside Downloads for Jellyseerr and Overseerr triage, 
   </figure>
 </div>
 
-Operations settings also cover the health dashboard, integration history, webhook delivery history, admin audit log, backup freshness, Tautulli import tools, newsletter digest settings, and automation activity feed.
+The refreshed Settings center uses a persistent sidebar for general settings, security, authorised Jellyfin devices, plugins, tasks, integrations, webhooks, notifications, backups, imports, health, repair, and logs. Operations settings also cover the health dashboard, integration history, webhook delivery history, admin audit log, backup freshness, Tautulli import tools, newsletter digest settings, and automation activity feed.
 
 ## Repair And Imports
 

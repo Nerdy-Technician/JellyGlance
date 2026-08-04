@@ -1,14 +1,14 @@
 export const THEME_STORAGE_KEY = "jellyglance_custom_theme";
 
 export const DEFAULT_THEME = {
-  primary: "#AA5CC3",
-  secondary: "#00A4DC",
-  background: "#080a0f",
-  surface: "#11151d",
+  primary: "#9b6ac8",
+  secondary: "#4aa8bc",
+  background: "#0b0d12",
+  surface: "#131820",
 };
 
 export const THEME_PRESETS = [
-  { name: "JellyGlance", primary: "#AA5CC3", secondary: "#00A4DC", background: "#080a0f", surface: "#11151d" },
+  { name: "JellyGlance", primary: "#9b6ac8", secondary: "#4aa8bc", background: "#0b0d12", surface: "#131820" },
   { name: "Ocean", primary: "#2dd4bf", secondary: "#38bdf8", background: "#071015", surface: "#10212a" },
   { name: "Ember", primary: "#f97316", secondary: "#f43f5e", background: "#120b08", surface: "#1f1512" },
   { name: "Forest", primary: "#22c55e", secondary: "#eab308", background: "#08110d", surface: "#111d17" },
@@ -23,6 +23,18 @@ export const THEME_PRESETS = [
   { name: "Lagoon", primary: "#06b6d4", secondary: "#14b8a6", background: "#041115", surface: "#0d2226" },
   { name: "Slate", primary: "#94a3b8", secondary: "#38bdf8", background: "#080b10", surface: "#151b24" },
   { name: "Mono", primary: "#e5e7eb", secondary: "#94a3b8", background: "#07080a", surface: "#15171c" },
+  { name: "Midnight", primary: "#60a5fa", secondary: "#f472b6", background: "#050816", surface: "#101827" },
+  { name: "Citrus", primary: "#84cc16", secondary: "#facc15", background: "#080f05", surface: "#14200d" },
+  { name: "Coral", primary: "#fb7185", secondary: "#2dd4bf", background: "#10090b", surface: "#201316" },
+  { name: "Matrix", primary: "#22c55e", secondary: "#86efac", background: "#020806", surface: "#08140f" },
+  { name: "Nord", primary: "#88c0d0", secondary: "#b48ead", background: "#0b1118", surface: "#17202b" },
+  { name: "Synth", primary: "#ff2bd6", secondary: "#00e5ff", background: "#080510", surface: "#171024" },
+  { name: "Terminal", primary: "#4ade80", secondary: "#f8fafc", background: "#030604", surface: "#0b120d" },
+  { name: "Peacock", primary: "#14b8a6", secondary: "#a3e635", background: "#031014", surface: "#0c2024" },
+  { name: "Crimson", primary: "#dc2626", secondary: "#fbbf24", background: "#100405", surface: "#1f0d0f" },
+  { name: "Iceberg", primary: "#7dd3fc", secondary: "#c4b5fd", background: "#071018", surface: "#121d29" },
+  { name: "Limewire", primary: "#bef264", secondary: "#22d3ee", background: "#050b08", surface: "#101a14" },
+  { name: "Noir", primary: "#fafafa", secondary: "#f43f5e", background: "#050505", surface: "#111111" },
 ];
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
@@ -111,6 +123,7 @@ export function applyTheme(theme = getStoredTheme()) {
   const { r, g, b } = hexToRgb(nextTheme.surface);
   const primaryLightColor = mixHex(nextTheme.primary, "#ffffff");
 
+  root.style.colorScheme = "dark";
   root.style.setProperty("--primary-color", nextTheme.primary);
   root.style.setProperty("--primary-rgb", rgbString(nextTheme.primary));
   root.style.setProperty("--primary-light-color", primaryLightColor);

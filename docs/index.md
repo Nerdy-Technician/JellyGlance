@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: JellyGlance
-  text: Modern Jellyfin command center
-  tagline: A self-hosted Jellyfin companion for sessions, requests, users, libraries, statistics, imports, repair workflows, newsletters, calendars, downloads, health, and webhooks.
+  text: Jellyfin admin, without the tab juggling.
+  tagline: A self-hosted dashboard for live sessions, libraries, users, requests, downloads, Jellyfin jobs, health checks, backups, imports, newsletters, and webhooks.
   image:
     src: /full-logo-transparent.png
     alt: JellyGlance
@@ -16,81 +16,118 @@ hero:
       text: Docker Deploy
       link: /operations/docker
     - theme: alt
-      text: Integrations
-      link: /guide/integrations
+      text: Screenshots
+      link: /guide/screenshots
     - theme: alt
       text: Current Release
       link: https://github.com/Nerdy-Technician/JellyGlance/releases/latest
       release: true
     - theme: alt
-      text: Discord
-      link: https://discord.gg/dMGhv8j2kx
-    - theme: alt
       text: GitHub
       link: https://github.com/Nerdy-Technician/JellyGlance
 
 features:
-  - title: Jellyfin Native
-    details: Connect Jellyfin, approve Quick Connect logins, sync libraries, and use cached posters, backdrops, favourites, watchlists, and profile media throughout the UI.
-  - title: Playback Intelligence
-    details: Explore active sessions, popout stream inspectors, recently added media, library metrics, user wrap-ups, imported history, activity timelines, and watch-time trends.
-  - title: Request Center
-    details: Pull Jellyseerr and Overseerr requests into poster cards with filters, availability checks, actions, retry controls, and direct links.
-  - title: Media Control Center
-    details: Add Sonarr, Radarr, Lidarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet integrations.
-  - title: Custom Home
-    details: Reorder sections, hide widgets, pin important panels, pick presets, adjust density, use kiosk mode, and tune alert rules.
-  - title: Operations Ready
-    details: Configure health checks, repair queues, Tautulli imports, newsletter digests, audit history, webhook delivery history, API keys, tasks, logs, backups, and event-driven notifications.
+  - title: Live Playback
+    details: See who is watching, from where, on which client, with direct play, stream, transcode, bitrate, subtitle, audio, and progress details.
+  - title: Library Insight
+    details: Review library totals, recent additions, search and switch library views, scan individual libraries, and spot metadata gaps.
+  - title: Request Management
+    details: Bring Jellyseerr and Overseerr requests into JellyGlance with poster cards, filters, source badges, request status, and quick actions.
+  - title: Download Awareness
+    details: Connect torrent and Usenet clients for queue visibility, progress, stalled items, and integration health without showing empty download pages.
+  - title: Jellyfin Jobs
+    details: Admins can view Jellyfin scheduled jobs, check last run state, filter by category, and start jobs manually from JellyGlance.
+  - title: Operations Tools
+    details: Manage tasks, logs, backups, API keys, webhooks, imports, newsletters, health checks, authorised devices, plugins, and repair workflows.
 ---
 
-## Product Tour
+## Built For Daily Server Checks
 
-JellyGlance brings the daily admin surfaces for a Jellyfin homeserver into one place: current streams, fresh library additions, request triage, user access, playback history, statistics, release calendars, download queues, webhooks, health, and task settings.
+JellyGlance is not trying to replace Jellyfin. It sits beside it and gathers the routine admin checks into one interface: active sessions, recent library changes, playback history, request queues, download queues, sync jobs, health signals, and operational logs.
 
-<div class="feature-console">
+<div class="home-surface-grid">
   <section>
-    <p class="feature-kicker">Home command center</p>
-    <h2>Make the dashboard match the room.</h2>
-    <p>Drag sections into the order you want, hide anything noisy, pick role-focused presets, switch between compact and comfortable density, and open a sidebar-free kiosk view for wall displays.</p>
+    <span>Now</span>
+    <h2>Playback that is easy to scan.</h2>
+    <p>Open JellyGlance and immediately see current viewers, playback method, device, client, title, runtime progress, and transcode state.</p>
   </section>
   <section>
-    <p class="feature-kicker">Requests that move</p>
-    <h2>Seerr requests with posters, status, and actions.</h2>
-    <p>Jellyseerr and Overseerr requests show as fast poster cards with filters, sorting, availability, retry/open actions, request age, requester, source, and detail modals.</p>
+    <span>Next</span>
+    <h2>Requests and downloads only when useful.</h2>
+    <p>Requests and Downloads disappear from navigation until Jellyseerr, Overseerr, or a download client is configured, keeping clean installs calm.</p>
   </section>
   <section>
-    <p class="feature-kicker">Profiles with media context</p>
-    <h2>Every user gets a little Jellyfin cockpit.</h2>
-    <p>Profile pages can show favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, recommendations, profile media search, custom themes, and watchlist actions.</p>
+    <span>Admin</span>
+    <h2>Jellyfin jobs have their own place.</h2>
+    <p>Admins get a dedicated Jellyfin Jobs page for scheduled task status and manual task runs, separate from general JellyGlance settings.</p>
   </section>
   <section>
-    <p class="feature-kicker">Ops layer</p>
-    <h2>Health, history, and attention signals.</h2>
-    <p>Use the Repair Hub, health dashboard, Tautulli import linker, newsletter generator, integration uptime, webhook delivery history, admin audit log, backup freshness, automation feed, and needs-attention alerts to spot trouble faster.</p>
+    <span>History</span>
+    <h2>Activity, logs, imports, and release notes.</h2>
+    <p>Review watch history, job logs, imported legacy history, About-page release notes, and the operational context behind the dashboard.</p>
   </section>
 </div>
 
-## Latest Additions
+## What You Can Connect
 
-| Feature | What It Adds |
+<div class="home-integration-strip">
+  <img src="/icons/selfhst/jellyfin.svg" alt="Jellyfin" />
+  <img src="/icons/selfhst/sonarr.svg" alt="Sonarr" />
+  <img src="/icons/selfhst/radarr.svg" alt="Radarr" />
+  <img src="/icons/selfhst/lidarr.svg" alt="Lidarr" />
+  <img src="/icons/selfhst/bazarr.svg" alt="Bazarr" />
+  <img src="/icons/selfhst/qbittorrent.svg" alt="qBittorrent" />
+  <img src="/icons/selfhst/transmission.svg" alt="Transmission" />
+  <img src="/icons/selfhst/deluge.svg" alt="Deluge" />
+  <img src="/icons/selfhst/sabnzbd.svg" alt="SABnzbd" />
+  <img src="/icons/selfhst/nzbget.svg" alt="NZBGet" />
+</div>
+
+JellyGlance supports Jellyfin, Jellyseerr, Overseerr, Sonarr, Radarr, Lidarr, Bazarr, qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, Gotify, Discord webhooks, Tautulli imports, and Jellystat imports.
+
+## Admin Surfaces
+
+| Area | What It Helps With |
 | --- | --- |
-| Repair Hub | One page for missing posters, missing logos, runtime gaps, empty series, orphaned activity, unmatched imported history, and recent task failures. |
-| Tautulli Imports | Upload legacy Tautulli backups, preview playable rows, safely append watch history, skip duplicates, and manually link unmatched media to Jellyfin items. |
-| Newsletter Generator | Configure SMTP, preview digest emails, send tests, and email recently added media, watch stats, active viewers, and repair status. |
-| Session Popouts | Open richer live playback inspectors with user, device, stream, progress, codec, bitrate, and transcode context. |
-| Profile Theming | Use theme controls and presets to make JellyGlance feel personal across the dashboard and profile experience. |
+| Home | Reorder dashboard sections, pin important panels, tune density, use kiosk mode, and surface attention counts. |
+| Activity | Search, filter, and review Jellyfin playback history with readable stream method, client, duration, and play counts. |
+| Libraries | Search libraries, choose grid/list view, scan a library, and optionally hide names when artwork already carries them. |
+| Jellyfin Jobs | View Jellyfin scheduled jobs, filter by category, inspect last run state, and manually start jobs as an admin. |
+| Settings | Configure security, integrations, tasks, libraries, API keys, webhooks, notifications, backups, imports, health, repair, logs, devices, and plugins. |
+| About | Check the installed version, update state, project links, and release notes with beta/stable filtering. |
 
-## Community
+## Current Focus
 
-<div class="discord-community">
-  <section>
-    <p class="feature-kicker">JellyGlance Discord</p>
-    <h2>Join the media command center crew.</h2>
-    <p>Ask setup questions, share dashboard ideas, test new features, and help shape the next Jellyfin-friendly tools.</p>
-    <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">Join Discord</a>
-  </section>
-  <iframe src="https://discord.com/widget?id=1530493220805677056&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+<div class="home-release-panel">
+  <div>
+    <span>Latest work</span>
+    <h2>Cleaner admin control surfaces after 1.2.0.</h2>
+    <p>The current branch focuses on Jellyfin Jobs, authorised devices, installed plugins, release-note visibility, reduced notification noise, smarter navigation, better dark-mode tables, and backend security hardening.</p>
+  </div>
+  <ul>
+    <li>Admin-only Jellyfin Jobs page and API actions.</li>
+    <li>Settings tabs for Authorised Devices and Plugins.</li>
+    <li>Hidden Requests/Downloads nav until integrations exist.</li>
+    <li>Better Activity and Logs readability.</li>
+    <li>Translation sync tooling and Dependabot coverage.</li>
+  </ul>
 </div>
 
-See the full interface tour in the [screenshots gallery](/guide/screenshots).
+## Screens At A Glance
+
+<div class="home-screenshot-strip">
+  <a href="/guide/screenshots">
+    <img src="/screenshots/Home.png" alt="JellyGlance home dashboard screenshot" />
+    <span>Home dashboard</span>
+  </a>
+  <a href="/guide/screenshots">
+    <img src="/screenshots/Activity.png" alt="JellyGlance activity screenshot" />
+    <span>Activity history</span>
+  </a>
+  <a href="/guide/screenshots">
+    <img src="/screenshots/Settings.png" alt="JellyGlance settings screenshot" />
+    <span>Settings center</span>
+  </a>
+</div>
+
+See the full interface tour in the [screenshots gallery](/guide/screenshots), or jump straight into [Docker deployment](/operations/docker).

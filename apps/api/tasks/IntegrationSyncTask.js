@@ -261,12 +261,14 @@ async function runIntegrationSyncTask() {
       failedSources,
       message: `Integration sync refreshed ${releases.length} calendar releases.`,
     });
-    await webhookManager.triggerEventWebhooks("download_queue_refreshed", {
-      integrationEvent: "download queue refreshed",
-      clientCount: clients.length,
-      activeCount: syncedDownloadItems.filter((item) => Number(item.progress || 0) < 100).length,
-      message: "Integration sync refreshed download queues.",
-    });
+    if (connectedClients.length) {
+      await webhookManager.triggerEventWebhooks("download_queue_refreshed", {
+        integrationEvent: "download queue refreshed",
+        clientCount: clients.length,
+        activeCount: syncedDownloadItems.filter((item) => Number(item.progress || 0) < 100).length,
+        message: "Integration sync refreshed download queues.",
+      });
+    }
 
     parentPort.postMessage({ status: "complete" });
   } catch (error) {

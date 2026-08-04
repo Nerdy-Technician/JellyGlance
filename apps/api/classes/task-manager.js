@@ -25,7 +25,7 @@ class TaskManager {
     }
   }
 
-  addTask({ task, onComplete, onError, onExit }) {
+  addTask({ task, onComplete, onError, onExit, onSkip }) {
     if (this.tasks[task.name]) {
       console.log(`Task ${task.name} already exists.`);
       return false;
@@ -41,6 +41,14 @@ class TaskManager {
       if (message.status === "complete" && onComplete) {
         this.notifyTaskWebhook("task_completed", task, { status: "completed" });
         onComplete();
+      }
+      if (message.status === "skipped") {
+        db.query(`UPDATE jf_logging SET "Result"=$1 WHERE "Result"=$2 AND "Name"=$3`, [taskstate.SKIPPED, taskstate.RUNNING, task.name]).catch(
+          (error) => console.log("Mark Skipped Task Error: " + error)
+        );
+        if (onSkip) {
+          onSkip(message);
+        }
       }
       if (message.status === "error" && onError) {
         this.notifyTaskWebhook("task_failed", task, { status: "failed", error: message.message });
