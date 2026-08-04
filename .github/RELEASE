@@ -1,6 +1,10 @@
-version: v1.1.7
-title: JellyGlance v1.1.7
+version: v1.2.0
+title: JellyGlance v1.2.0
 ---
+## Major Release Milestone
+
+JellyGlance 1.2.0 is a major milestone update for the project, rolling the latest beta cycle into a stable release with new control surfaces, cleaner mobile layouts, improved imports, better newsletter tooling, and more polished day-to-day dashboard workflows.
+
 ## Features
 
 - feat: add configurable in-app notification controls under Settings
@@ -33,5 +37,6 @@ title: JellyGlance v1.1.7
 
 ## Notes
 
-- This release rolls up the mobile/navigation beta cycle into the stable channel.
+- This release marks the 1.2.0 milestone for JellyGlance.
+- The mobile/navigation beta cycle is now part of the stable channel.
 - Notification controls reduce noisy automatic sync-complete messages while preserving manual task feedback.
