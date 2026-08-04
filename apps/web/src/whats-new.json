@@ -1,4 +1,92 @@
 {
+  "1.1.7": [
+    {
+      "icon": "magic",
+      "title": "Quieter task notifications",
+      "body": "Choose how much background task chatter you want to see, from every update to errors only, while manual actions still report back clearly."
+    },
+    {
+      "icon": "palette",
+      "title": "Cleaner profile theming",
+      "body": "The account modal now has a compact theme picker with colour previews, plus custom colour controls when you want a more personal dashboard."
+    },
+    {
+      "icon": "mail",
+      "title": "Better newsletter previews",
+      "body": "Newsletter setup now separates configuration from preview, renders the email in its own frame, and handles preview errors more gracefully."
+    },
+    {
+      "icon": "upload",
+      "title": "Organized history imports",
+      "body": "Jellystat and Tautulli import tools now live in clear Settings tabs, making legacy watch-history imports easier to find and manage."
+    },
+    {
+      "icon": "movie",
+      "title": "Smoother mobile layouts",
+      "body": "Headers, account controls, active session cards, import screens, and Settings navigation have all been tightened up for smaller screens."
+    },
+    {
+      "icon": "speed",
+      "title": "Home starts with activity",
+      "body": "New default home layouts now lead with Active Sessions, putting the live state of your Jellyfin server front and center."
+    }
+  ],
+  "1.1.7-beta.3": [
+    {
+      "icon": "magic",
+      "title": "Notification controls",
+      "body": "Settings now includes in-app notification controls so automatic task noise can be reduced while manual task feedback stays visible."
+    },
+    {
+      "icon": "palette",
+      "title": "Profile theme picker",
+      "body": "The account modal now uses a compact theme dropdown with colour previews, with custom colours still available underneath."
+    },
+    {
+      "icon": "mail",
+      "title": "Newsletter preview tabs",
+      "body": "Newsletter settings now separates configuration from preview, with the email preview rendered in its own document frame."
+    },
+    {
+      "icon": "upload",
+      "title": "Import tabs",
+      "body": "Jellystat and Tautulli import tools now sit behind clear tabs inside Settings for easier testing."
+    }
+  ],
+  "1.1.7-beta.2": [
+    {
+      "icon": "magic",
+      "title": "Mobile app navigation",
+      "body": "The mobile bottom dock has been replaced with a full-screen app launcher opened from the JellyGlance header."
+    },
+    {
+      "icon": "upload",
+      "title": "Jellystat history imports",
+      "body": "The beta build keeps Jellystat and Tautulli history import work available for testing before the next stable release."
+    }
+  ],
+  "1.1.7-beta.1": [
+    {
+      "icon": "magic",
+      "title": "Beta channel",
+      "body": "This build is published from the BETA branch with its own prerelease versioning and Docker beta tags."
+    },
+    {
+      "icon": "upload",
+      "title": "Jellystat history imports",
+      "body": "First-run setup can import Jellystat history alongside Tautulli so legacy watch data can come across before the first sync."
+    },
+    {
+      "icon": "speed",
+      "title": "Smoother first-run setup",
+      "body": "After Jellyfin is connected, setup now moves into integrations, optional history import, and first sync without asking for the server again."
+    },
+    {
+      "icon": "movie",
+      "title": "Active session readability",
+      "body": "Long stream, subtitle, title, and user values now truncate more cleanly, especially on mobile session cards."
+    }
+  ],
   "1.1.6": [
     {
       "icon": "upload",

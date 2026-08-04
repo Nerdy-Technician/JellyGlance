@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
         "/swagger":  { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/utils":    { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/webhooks": { target: "http://127.0.0.1:3000", changeOrigin: true },
+        "/newsletter": { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/env.js":   { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/socket.io": {
           target: "http://127.0.0.1:3000",

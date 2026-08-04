@@ -5,8 +5,10 @@ on:
   push:
     branches:
       - main
+      - BETA
     paths:
       - ".github/RELEASE"
+      - ".github/RELEASE.beta"
 
 permissions:
   contents: write
@@ -18,7 +20,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build, publish, and release from .github/RELEASE
+    name: Build, publish, and release from release file
     runs-on: ubuntu-latest
     env:
       DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
@@ -35,7 +37,8 @@ jobs:
           node <<'NODE'
           const fs = require("fs");
 
-          const releaseFile = ".github/RELEASE";
+          const isBeta = process.env.GITHUB_REF_NAME === "BETA";
+          const releaseFile = isBeta ? ".github/RELEASE.beta" : ".github/RELEASE";
           const raw = fs.readFileSync(releaseFile, "utf8").replace(/\r\n/g, "\n");
           const parts = raw.split(/^---\s*$/m);
           const header = parts.shift() || "";
@@ -64,6 +67,7 @@ jobs:
           output.write(`version=${version}\n`);
           output.write(`tag=${tag}\n`);
           output.write(`title=${title}\n`);
+          output.write(`is_beta=${isBeta ? "true" : "false"}\n`);
           output.write("notes_file=RELEASE_NOTES.md\n");
           NODE
 
@@ -71,7 +75,7 @@ jobs:
         run: |
           git fetch --tags --force
           if git rev-parse "${{ steps.release.outputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.release.outputs.tag }} already exists. Update .github/RELEASE to a new version."
+            echo "Tag ${{ steps.release.outputs.tag }} already exists. Update the release file to a new version."
             exit 1
           fi
 
@@ -81,7 +85,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Apply .github/RELEASE version to package files
+      - name: Apply release version to package files
         run: npm version "${{ steps.release.outputs.version }}" --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
 
       - name: Verify package versions
@@ -167,7 +171,8 @@ jobs:
           tags: |
             type=raw,value=${{ steps.release.outputs.tag }}
             type=raw,value=${{ steps.release.outputs.version }}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ steps.release.outputs.is_beta != 'true' }}
+            type=raw,value=beta,enable=${{ steps.release.outputs.is_beta == 'true' }}
             type=sha
 
       - name: Build and push Docker image
@@ -175,8 +180,28 @@ jobs:
         with:
           context: .
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Delete untagged GHCR package versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
+          PACKAGE_NAME: jellyglance
+        run: |
+          versions="$(gh api --paginate "/users/${PACKAGE_OWNER}/packages/container/${PACKAGE_NAME}/versions" --jq '.[] | select((.metadata.container.tags | length) == 0) | .id')"
+
+          if [ -z "${versions}" ]; then
+            echo "No untagged GHCR package versions found."
+            exit 0
+          fi
+
+          printf '%s\n' "${versions}" | while IFS= read -r version_id; do
+            echo "Deleting untagged GHCR package version ${version_id}"
+            gh api --method DELETE "/users/${PACKAGE_OWNER}/packages/container/${PACKAGE_NAME}/versions/${version_id}"
+          done
 
       - name: Create and push git tag
         run: |
@@ -187,12 +212,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          prerelease_flag=""
+          if [ "${{ steps.release.outputs.is_beta }}" = "true" ]; then
+            prerelease_flag="--prerelease"
+          fi
+
           gh release create "${{ steps.release.outputs.tag }}" \
             --title "${{ steps.release.outputs.title }}" \
-            --notes-file "${{ steps.release.outputs.notes_file }}"
+            --notes-file "${{ steps.release.outputs.notes_file }}" \
+            ${prerelease_flag}
 
       - name: Post Discord release update
-        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' }}
+        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' && steps.release.outputs.is_beta != 'true' }}
         env:
           DISCORD_EVENT_TYPE: release
           DISCORD_WEBHOOK_URL: ${{ env.DISCORD_RELEASES_WEBHOOK }}

@@ -45,6 +45,66 @@ const DEFAULT_ROLE_PERMISSIONS = {
   Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
   Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
 };
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  mode: "all",
+  manualTaskToasts: true,
+  position: "bottom-right",
+  durationSeconds: 8,
+};
+
+function normalizeNotificationSettings(value = {}) {
+  const settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...(value || {}) };
+  if (!["all", "important", "errors", "off"].includes(settings.mode)) {
+    settings.mode = DEFAULT_NOTIFICATION_SETTINGS.mode;
+  }
+  if (!["top-right", "top-center", "bottom-right", "bottom-center"].includes(settings.position)) {
+    settings.position = DEFAULT_NOTIFICATION_SETTINGS.position;
+  }
+  const durationSeconds = Number(settings.durationSeconds);
+  settings.durationSeconds = Number.isFinite(durationSeconds) ? Math.min(Math.max(durationSeconds, 3), 30) : DEFAULT_NOTIFICATION_SETTINGS.durationSeconds;
+  settings.manualTaskToasts = settings.manualTaskToasts !== false;
+  return settings;
+}
+
+function queueFirstRunJellyfinTasks() {
+  const taskManager = new TaskManager().getInstance();
+  const taskQueue = ["JellyfinSync", "PartialJellyfinSync", "JellyfinPlaybackReportingPluginSync", "RefreshDashboardStats"];
+  let index = 0;
+
+  const startNextTask = () => {
+    const taskKey = taskQueue[index];
+    index += 1;
+
+    if (!taskKey) {
+      return;
+    }
+
+    const task = taskManager.taskList[taskKey];
+    if (!task || taskManager.isTaskRunning(task.name)) {
+      startNextTask();
+      return;
+    }
+
+    const added = taskManager.addTask({
+      task,
+      onComplete: startNextTask,
+      onError: (error) => {
+        console.log(`[FIRST-RUN] ${task.name} failed: ${error.message}`);
+        startNextTask();
+      },
+      onExit: startNextTask,
+    });
+
+    if (!added) {
+      startNextTask();
+      return;
+    }
+
+    taskManager.startTask(task, triggertype.Automatic);
+  };
+
+  startNextTask();
+}
 
 function normalizeIssuerUrl(url) {
   return url?.trim()?.replace(/\/+$/, "");
@@ -1496,6 +1556,35 @@ router.get("/getconfig", async (req, res) => {
     res.send(payload);
   } catch (error) {
     console.log(error);
+  }
+});
+
+router.get("/notification-settings", async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT settings FROM app_config where "ID"=1');
+    res.send(normalizeNotificationSettings(rows[0]?.settings?.notifications));
+  } catch (error) {
+    console.error("Get notification settings failed:", error);
+    res.status(503).send({ error: "Unable to load notification settings" });
+  }
+});
+
+router.post("/notification-settings", async (req, res) => {
+  try {
+    const nextSettings = normalizeNotificationSettings(req.body || {});
+    await db.query(
+      `
+        UPDATE app_config
+        SET settings = (COALESCE(settings, '{}'::json)::jsonb || $1::jsonb)::json
+        WHERE "ID" = 1
+      `,
+      [{ notifications: nextSettings }]
+    );
+    await addAuditEntry(req, "notifications.settings.updated", nextSettings);
+    res.send(nextSettings);
+  } catch (error) {
+    console.error("Save notification settings failed:", error);
+    res.status(503).send({ error: "Unable to save notification settings" });
   }
 });
 
@@ -3677,6 +3766,45 @@ router.post("/integrations", async (req, res) => {
   }
 });
 
+router.post("/first-run/extras-complete", async (req, res) => {
+  try {
+    const completedAt = new Date().toISOString();
+    await db.query(
+      `
+        UPDATE app_config
+        SET settings = (COALESCE(settings, '{}'::json)::jsonb || $1::jsonb)::json
+        WHERE "ID" = 1
+      `,
+      [{ firstRunExtrasPending: false, firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt }]
+    );
+    await addAuditEntry(req, "first_run.extras_completed", { completedAt });
+    res.send({ firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt });
+  } catch (error) {
+    console.error("Complete first-run extras failed:", error);
+    res.status(503).send({ error: "Unable to complete first-run setup" });
+  }
+});
+
+router.post("/first-run/start-sync", async (req, res) => {
+  try {
+    const completedAt = new Date().toISOString();
+    await db.query(
+      `
+        UPDATE app_config
+        SET settings = (COALESCE(settings, '{}'::json)::jsonb || $1::jsonb)::json
+        WHERE "ID" = 1
+      `,
+      [{ firstRunExtrasPending: false, firstRunExtrasCompleted: true, firstRunExtrasCompletedAt: completedAt, firstRunSyncStartedAt: completedAt }]
+    );
+    queueFirstRunJellyfinTasks();
+    await addAuditEntry(req, "first_run.sync_started", { completedAt });
+    res.send({ firstRunExtrasCompleted: true, firstRunSyncStartedAt: completedAt });
+  } catch (error) {
+    console.error("Start first-run sync failed:", error);
+    res.status(503).send({ error: "Unable to start first sync" });
+  }
+});
+
 router.get("/integrations/health-history", async (req, res) => {
   try {
     res.send(await getIntegrationHealthHistory());
@@ -3883,26 +4011,27 @@ router.get("/startTask", async (req, res) => {
     task: taskConfig,
     onComplete: async () => {
       await taskScheduler.getTaskHistory();
-      sendUpdate("GeneralAlert", { type: "Success", message: `${taskConfig.name} completed` });
+      sendUpdate("GeneralAlert", { type: "Success", message: `${taskConfig.name} completed`, triggerType: triggertype.Manual, taskName: taskConfig.name });
     },
     onError: async (error) => {
       await taskScheduler.getTaskHistory();
       console.error(error);
-      sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} failed` });
+      sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} failed`, triggerType: triggertype.Manual, taskName: taskConfig.name });
     },
     onExit: async () => {
       await taskScheduler.getTaskHistory();
-      sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} stopped` });
+      sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} stopped`, triggerType: triggertype.Manual, taskName: taskConfig.name });
     },
   });
 
   if (!success) {
     res.status(409).send(`${taskConfig.name} is already running`);
-    sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} is already running` });
+    sendUpdate("TaskError", { type: "Error", message: `${taskConfig.name} is already running`, triggerType: triggertype.Manual, taskName: taskConfig.name });
     return;
   }
 
   taskManager.startTask(taskConfig, triggertype.Manual);
+  sendUpdate("GeneralAlert", { type: "Start", message: `${taskConfig.name} started`, triggerType: triggertype.Manual, taskName: taskConfig.name });
   res.send(`${taskConfig.name} started`);
 });
 

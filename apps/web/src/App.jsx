@@ -11,24 +11,64 @@ import "react-toastify/dist/ReactToastify.css";
 import Config from "./lib/config";
 import { INTEGRATIONS_STORAGE_KEY } from "./lib/integrations-storage";
 import { prewarmActiveSessions } from "./lib/session-cache";
+import { DEFAULT_THEME, applyTheme } from "./lib/theme";
+import { getStoredNotificationSettings, normalizeNotificationSettings, storeNotificationSettings } from "./lib/notification-settings";
 
 import Loading from "./pages/components/general/loading";
 
 import Signup from "./pages/signup";
 import Setup from "./pages/setup";
+import FirstRunExtras from "./pages/first-run-extras";
 import Login from "./pages/login";
 
 import Navbar from "./pages/components/general/navbar";
 import ErrorPage from "./pages/components/general/error";
 import WhatsNewModal from "./pages/components/general/WhatsNewModal";
 import routes from "./routes";
+import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
+
+function notificationKind(message) {
+  const type = String(message?.type || "").toLowerCase();
+  if (type === "error") return "error";
+  if (type === "warning" || type === "warn") return "warning";
+  if (type === "success") return "success";
+  return "info";
+}
+
+function isManualTaskNotification(message) {
+  const triggerType = String(message?.triggerType || message?.triggertype || "").toLowerCase();
+  const text = String(message?.message || message || "");
+  return message?.manual === true || triggerType === "manual" || /^manual\b/i.test(text);
+}
+
+function shouldShowNotification(message, settings) {
+  if (settings.manualTaskToasts && isManualTaskNotification(message)) return true;
+  const kind = notificationKind(message);
+  if (settings.mode === "all") return true;
+  if (settings.mode === "important") return kind === "warning" || kind === "error";
+  if (settings.mode === "errors") return kind === "error";
+  return false;
+}
+
+function toastOptions(settings, autoCloseOverride) {
+  return {
+    autoClose: autoCloseOverride || settings.durationSeconds * 1000,
+  };
+}
 
 function App() {
   const [setupState, setSetupState] = useState(0);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorFlag, seterrorFlag] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState(getStoredNotificationSettings);
   const token = localStorage.getItem("token");
+  const shouldShowFirstRunExtras =
+    setupState === 2 &&
+    token !== undefined &&
+    token !== null &&
+    config?.settings?.firstRunExtrasCompleted !== true &&
+    (localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true" || config?.settings?.firstRunExtrasPending === true);
   const kioskMode = window.location.pathname === "/home/kiosk";
 
   const wsListeners = [
@@ -43,39 +83,49 @@ function App() {
   useEffect(() => {
     wsListeners.forEach((listener) => {
       socket.on(listener.task, (message) => {
+        if (!shouldShowNotification(message, notificationSettings)) {
+          return;
+        }
+        const options = toastOptions(notificationSettings, message?.type === "Start" || message?.type === "Update" ? 15000 : undefined);
+        const onCloseOptions = {
+          ...options,
+          onClose: () => {
+            listener.ref.current = null;
+          },
+        };
         if (message && message.type === "Start") {
           listener.ref.current = toast.info(message?.message || message, {
-            autoClose: 15000,
+            ...onCloseOptions,
           });
         } else if (message && message.type === "Success" && !listener.ref.current) {
           listener.ref.current = toast.success(message?.message || message, {
-            autoClose: 15000,
+            ...onCloseOptions,
           });
         } else if (message && message.type === "Error" && !listener.ref.current) {
           listener.ref.current = toast.error(message?.message || message, {
-            autoClose: 15000,
+            ...onCloseOptions,
           });
         } else if (message && message.type === "Update" && !listener.ref.current) {
           listener.ref.current = toast.info(message?.message || message, {
-            autoClose: 15000,
+            ...onCloseOptions,
           });
         } else if (message && message.type === "Update") {
           toast.update(listener.ref.current, {
             render: message?.message || message,
             type: toast.TYPE.INFO,
-            autoClose: 15000,
+            ...options,
           });
         } else if (message && message.type === "Error") {
           toast.update(listener.ref.current, {
             render: message?.message || message,
             type: toast.TYPE.ERROR,
-            autoClose: 5000,
+            ...toastOptions(notificationSettings),
           });
         } else if (message && message.type === "Success") {
           toast.update(listener.ref.current, {
             render: message?.message || message,
             type: toast.TYPE.SUCCESS,
-            autoClose: 5000,
+            ...toastOptions(notificationSettings),
           });
         }
       });
@@ -86,20 +136,35 @@ function App() {
         socket.off(listener.task);
       });
     };
-  });
+  }, [notificationSettings]);
+
+  useEffect(() => {
+    function handleNotificationSettings(event) {
+      setNotificationSettings(normalizeNotificationSettings(event.detail));
+    }
+
+    window.addEventListener("jellyglance-notification-settings-updated", handleNotificationSettings);
+    return () => {
+      window.removeEventListener("jellyglance-notification-settings-updated", handleNotificationSettings);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const newConfig = await Config.getConfig();
+        const newConfig = await Config.getConfig(true);
         if (!newConfig.response) {
           setConfig(newConfig);
         } else {
           if (newConfig.response.status === 403 || newConfig.response.status === 401) {
             const savedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+            const firstRunExtras = localStorage.getItem(FIRST_RUN_EXTRAS_KEY);
             localStorage.clear();
             if (savedIntegrations) {
               localStorage.setItem(INTEGRATIONS_STORAGE_KEY, savedIntegrations);
+            }
+            if (firstRunExtras) {
+              localStorage.setItem(FIRST_RUN_EXTRAS_KEY, firstRunExtras);
             }
             window.location.reload();
           } else if (newConfig.response.status !== 403) {
@@ -107,6 +172,9 @@ function App() {
           }
         }
         setLoading(false);
+        if (!newConfig.response) {
+          setNotificationSettings(storeNotificationSettings(newConfig.settings?.notifications));
+        }
       } catch (error) {
         console.log(error);
       }
@@ -127,7 +195,7 @@ function App() {
         });
     }
 
-    if (!config && setupState >= 1 && token !== undefined && token !== null) {
+    if (!config && setupState === 2 && token !== undefined && token !== null) {
       fetchConfig();
     }
   }, [config, setupState, token]);
@@ -137,6 +205,12 @@ function App() {
       prewarmActiveSessions(token);
     }
   }, [setupState, token]);
+
+  useEffect(() => {
+    if (setupState < 2 || shouldShowFirstRunExtras) {
+      applyTheme(DEFAULT_THEME);
+    }
+  }, [setupState, shouldShowFirstRunExtras]);
 
   if (loading) {
     return <Loading />;
@@ -157,6 +231,10 @@ function App() {
     return <Signup />;
   }
 
+  if (config && shouldShowFirstRunExtras) {
+    return <FirstRunExtras />;
+  }
+
   if (config && setupState === 2 && token !== null) {
     return (
       <div className="App">
@@ -172,7 +250,7 @@ function App() {
         </div>
         <ToastContainer
           theme="dark"
-          position="bottom-right"
+          position={notificationSettings.position}
           limit={5}
           pauseOnFocusLoss={false}
           hideProgressBar={false}

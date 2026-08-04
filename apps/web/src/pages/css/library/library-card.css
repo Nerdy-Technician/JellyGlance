@@ -267,15 +267,17 @@
 }
 
 .selector-library-image {
-  height: 132px;
+  height: clamp(116px, 13vw, 148px);
+  aspect-ratio: 16 / 7;
 }
 
 .selector-library-image .library-card-banner,
 .selector-library-image .default_library_image,
 .selector-library-image .default_library_image-inv {
   width: 100%;
-  height: 132px;
+  height: 100%;
   object-fit: cover;
+  filter: saturate(1.12) brightness(1.08) contrast(1.04);
 }
 
 .selector-library-image .default_library_image-inv {
@@ -288,8 +290,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(2, 5, 8, 0.26), rgba(2, 5, 8, 0.72)),
-    radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.42));
+    linear-gradient(180deg, rgba(2, 5, 8, 0.08), rgba(2, 5, 8, 0.34)),
+    radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2));
 }
 
 .selector-library-image h2 {
@@ -376,7 +378,7 @@
 }
 
 .selector-library-card.is-untracked .selector-library-image .library-card-banner {
-  filter: saturate(0.7) brightness(0.72);
+  filter: saturate(0.94) brightness(0.92) contrast(1.02);
 }
 
 @media (max-width: 520px) {
@@ -389,10 +391,10 @@
   .selector-library-image .library-card-banner,
   .selector-library-image .default_library_image,
   .selector-library-image .default_library_image-inv {
-    height: 118px;
+    height: clamp(92px, 28vw, 122px);
   }
 
   .selector-library-image h2 {
-    font-size: 27px;
+    font-size: 0;
   }
 }

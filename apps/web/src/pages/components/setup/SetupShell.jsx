@@ -2,6 +2,7 @@ import CheckLineIcon from "remixicon-react/CheckLineIcon";
 import AdminLineIcon from "remixicon-react/AdminLineIcon";
 import ServerLineIcon from "remixicon-react/ServerLineIcon";
 import PlugLineIcon from "remixicon-react/PlugLineIcon";
+import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import DashboardLineIcon from "remixicon-react/DashboardLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import Key2LineIcon from "remixicon-react/Key2LineIcon";
@@ -27,8 +28,20 @@ const steps = [
   {
     id: 3,
     title: "Integrations",
-    hint: "Optional next step",
+    hint: "Arr, Seerr, downloads",
     icon: PlugLineIcon,
+  },
+  {
+    id: 4,
+    title: "History import",
+    hint: "Tautulli backup",
+    icon: Database2LineIcon,
+  },
+  {
+    id: 5,
+    title: "First sync",
+    hint: "Build dashboard data",
+    icon: RefreshLineIcon,
   },
 ];
 
@@ -54,9 +67,10 @@ const defaultPosterTiles = Array.from({ length: 42 }, (_, index) => index);
 
 export default function SetupShell({ step, eyebrow, title, description, children }) {
   const progress = Math.round((step / steps.length) * 100);
+  const isWideStep = step >= 3;
 
   return (
-    <section className="setup-page">
+    <section className={`setup-page ${isWideStep ? "is-wide-step" : ""}`}>
       <div className="setup-background" />
       {step === 1 && (
         <div className="setup-default-artwork" aria-hidden="true">
@@ -70,7 +84,7 @@ export default function SetupShell({ step, eyebrow, title, description, children
         </div>
       )}
       <AuthArtworkBackground enabled={step > 1} />
-      <div className="setup-card">
+      <div className={`setup-card ${isWideStep ? "is-wide" : ""}`}>
         <aside className="setup-sidebar">
           <div className="setup-brand">
             <div className="setup-logo-mark">

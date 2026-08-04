@@ -17,9 +17,11 @@ import { initReactI18next } from "react-i18next";
 
 import Loading from "./pages/components/general/loading.jsx";
 import baseUrl from "./lib/baseurl.jsx";
-import { applyTheme } from "./lib/theme";
+import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
+import { DEFAULT_THEME, applyTheme } from "./lib/theme";
 
-applyTheme();
+const setupFlowNeedsDefaultTheme = !localStorage.getItem("token") || localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true";
+applyTheme(setupFlowNeedsDefaultTheme ? DEFAULT_THEME : undefined);
 
 i18n
   .use(Backend)

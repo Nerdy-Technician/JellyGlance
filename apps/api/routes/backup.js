@@ -262,20 +262,22 @@ router.get("/beginBackup", async (req, res) => {
         console.log("Backup completed successfully");
         await taskScheduler.getTaskHistory();
         res.send("Backup completed successfully");
+        sendUpdate("BackupTask", { type: "Success", message: "Manual Backup completed", triggerType: triggertype.Manual, taskName: taskName.backup });
       },
       onError: (error) => {
         console.error(error);
         res.status(500).send("Backup failed");
-        sendUpdate("BackupTask", { type: "Error", message: "Error: Backup failed" });
+        sendUpdate("BackupTask", { type: "Error", message: "Error: Backup failed", triggerType: triggertype.Manual, taskName: taskName.backup });
       },
     });
     if (!success) {
       res.status(500).send("Backup already running");
-      sendUpdate("BackupTask", { type: "Error", message: "Backup is already running" });
+      sendUpdate("BackupTask", { type: "Error", message: "Backup is already running", triggerType: triggertype.Manual, taskName: taskName.backup });
       return;
     }
 
     taskManager.startTask(taskManager.taskList.Backup, triggertype.Manual);
+    sendUpdate("BackupTask", { type: "Start", message: "Manual Backup started", triggerType: triggertype.Manual, taskName: taskName.backup });
   } catch (error) {
     console.error(error);
     res.status(500).send("Backup failed");
@@ -300,8 +302,8 @@ router.get("/restore/:filename", async (req, res) => {
       message: "Restore completed successfully",
       ...restoreResult,
     });
-    sendUpdate("GeneralAlert", { type: "Success", message: "Restore completed successfully. Dashboard data refreshed." });
-    sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", ...restoreResult });
+    sendUpdate("GeneralAlert", { type: "Success", message: "Restore completed successfully. Dashboard data refreshed.", triggerType: triggertype.Manual, taskName: taskName.restore });
+    sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", triggerType: triggertype.Manual, taskName: taskName.restore, ...restoreResult });
   } catch (error) {
     console.error(error);
     refLog.logData.push({ color: "red", Message: `Restore failed: ${error.message}` });

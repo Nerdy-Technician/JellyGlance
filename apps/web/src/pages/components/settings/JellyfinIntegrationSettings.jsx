@@ -11,10 +11,11 @@ import axios from "../../../lib/axios_instance";
 import Config from "../../../lib/config";
 import Loading from "../general/loading";
 
-export default function JellyfinIntegrationSettings({ compact = false }) {
+export default function JellyfinIntegrationSettings({ compact = false, firstRun = false }) {
   const [config, setConfig] = useState(null);
   const [showKey, setKeyState] = useState(false);
   const [formValues, setFormValues] = useState({});
+  const [isEditingConnection, setIsEditingConnection] = useState(!firstRun);
   const [isSubmitted, setIsSubmitted] = useState("");
   const [loadState, setLoadState] = useState("Loading");
   const [submissionMessage, setSubmissionMessage] = useState("");
@@ -53,6 +54,9 @@ export default function JellyfinIntegrationSettings({ compact = false }) {
         setIsSubmitted("Success");
         setSubmissionMessage("Successfully updated Jellyfin connection");
         Config.setConfig();
+        if (firstRun) {
+          setIsEditingConnection(false);
+        }
       })
       .catch((error) => {
         const errorMessage = error.response?.data?.errorMessage || error.message;
@@ -70,6 +74,8 @@ export default function JellyfinIntegrationSettings({ compact = false }) {
     return <div className="submit critical">{submissionMessage}</div>;
   }
 
+  const hasSavedConnection = Boolean(config?.hostUrl);
+
   return (
     <section className={`jellyfin-integration-card${compact ? " is-compact" : ""}`}>
       <div className="jellyfin-integration-header">
@@ -79,56 +85,77 @@ export default function JellyfinIntegrationSettings({ compact = false }) {
         <div>
           <p>Media server</p>
           <h2>{config?.IS_JELLYFIN ? "Jellyfin" : "Emby"} Connection</h2>
-          <span>Primary media server used for sessions, library scans, artwork, users, and statistics.</span>
+          <span>
+            {firstRun
+              ? "Already connected for setup. Re-enter details only if you want to replace the saved media server connection."
+              : "Primary media server used for sessions, library scans, artwork, users, and statistics."}
+          </span>
         </div>
       </div>
 
-      <Form onSubmit={handleFormSubmit} className="settings-form integration-settings-form">
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column>{config?.IS_JELLYFIN ? "Jellyfin URL" : "Emby URL"}</Form.Label>
-          <Col sm="10">
-            <Form.Control
-              id="JF_HOST"
-              name="JF_HOST"
-              value={formValues.JF_HOST || ""}
-              onChange={handleFormChange}
-              placeholder="http://127.0.0.1:8096 or https://media.example.com"
-              autoComplete="off"
-            />
-          </Col>
-        </Form.Group>
-
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column>API Key</Form.Label>
-          <Col sm="10">
-            <InputGroup>
-              <Form.Control
-                id="JF_API_KEY"
-                name="JF_API_KEY"
-                value={formValues.JF_API_KEY || ""}
-                onChange={handleFormChange}
-                type={showKey ? "text" : "password"}
-                autoComplete="off"
-              />
-              <Button variant="outline-primary" type="button" onClick={() => setKeyState(!showKey)}>
-                {showKey ? <EyeFillIcon /> : <EyeOffFillIcon />}
-              </Button>
-            </InputGroup>
-          </Col>
-        </Form.Group>
-
-        {isSubmitted !== "" ? (
-          <Alert bg="dark" data-bs-theme="dark" variant={isSubmitted === "Failed" ? "danger" : "success"}>
-            {submissionMessage}
-          </Alert>
-        ) : null}
-
-        <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center">
-          <Button variant="outline-success" type="submit">
-            Update
+      {firstRun && hasSavedConnection && !isEditingConnection ? (
+        <div className="settings-form integration-settings-form jellyfin-connected-summary">
+          <div>
+            <span>Connected server</span>
+            <strong>{config.hostUrl}</strong>
+          </div>
+          <Button variant="outline-success" type="button" onClick={() => setIsEditingConnection(true)}>
+            Replace connection
           </Button>
         </div>
-      </Form>
+      ) : (
+        <Form onSubmit={handleFormSubmit} className="settings-form integration-settings-form">
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column>{config?.IS_JELLYFIN ? "Jellyfin URL" : "Emby URL"}</Form.Label>
+            <Col sm="10">
+              <Form.Control
+                id="JF_HOST"
+                name="JF_HOST"
+                value={formValues.JF_HOST || ""}
+                onChange={handleFormChange}
+                placeholder="http://127.0.0.1:8096 or https://media.example.com"
+                autoComplete="off"
+              />
+            </Col>
+          </Form.Group>
+
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column>API Key</Form.Label>
+            <Col sm="10">
+              <InputGroup>
+                <Form.Control
+                  id="JF_API_KEY"
+                  name="JF_API_KEY"
+                  value={formValues.JF_API_KEY || ""}
+                  onChange={handleFormChange}
+                  type={showKey ? "text" : "password"}
+                  autoComplete="off"
+                />
+                <Button variant="outline-primary" type="button" onClick={() => setKeyState(!showKey)}>
+                  {showKey ? <EyeFillIcon /> : <EyeOffFillIcon />}
+                </Button>
+              </InputGroup>
+            </Col>
+          </Form.Group>
+
+          {isSubmitted !== "" ? (
+            <Alert bg="dark" data-bs-theme="dark" variant={isSubmitted === "Failed" ? "danger" : "success"}>
+              {submissionMessage}
+            </Alert>
+          ) : null}
+
+          <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center gap-2">
+            {firstRun && hasSavedConnection ? (
+              <Button variant="outline-secondary" type="button" onClick={() => setIsEditingConnection(false)}>
+                Cancel
+              </Button>
+            ) : null}
+            <Button variant="outline-success" type="submit">
+              Update
+            </Button>
+          </div>
+        </Form>
+      )}
     </section>
   );
 }

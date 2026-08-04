@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - BETA
   workflow_dispatch:
 
 permissions:
@@ -28,10 +29,31 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=tag
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/BETA' }}
             type=sha
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Delete untagged GHCR package versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
+          PACKAGE_NAME: jellyglance
+        run: |
+          versions="$(gh api --paginate "/users/${PACKAGE_OWNER}/packages/container/${PACKAGE_NAME}/versions" --jq '.[] | select((.metadata.container.tags | length) == 0) | .id')"
+
+          if [ -z "${versions}" ]; then
+            echo "No untagged GHCR package versions found."
+            exit 0
+          fi
+
+          printf '%s\n' "${versions}" | while IFS= read -r version_id; do
+            echo "Deleting untagged GHCR package version ${version_id}"
+            gh api --method DELETE "/users/${PACKAGE_OWNER}/packages/container/${PACKAGE_NAME}/versions/${version_id}"
+          done

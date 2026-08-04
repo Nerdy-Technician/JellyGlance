@@ -29,6 +29,7 @@ import TimeLineIcon from "remixicon-react/TimeLineIcon";
 import TrophyLineIcon from "remixicon-react/TrophyLineIcon";
 import Tv2LineIcon from "remixicon-react/Tv2LineIcon";
 import User3LineIcon from "remixicon-react/User3LineIcon";
+import MenuLineIcon from "remixicon-react/MenuLineIcon";
 
 import Sessions from "./components/sessions/sessions";
 import "./css/home.css";
@@ -56,8 +57,8 @@ const HOME_SECTION_DEFINITIONS = [
 ];
 const DEFAULT_HOME_ORDER = HOME_SECTION_DEFINITIONS.map((section) => section.id);
 const CURATED_DEFAULT_HOME_ORDER = [
-  "attention",
   "sessions",
+  "attention",
   "overview",
   "operations",
   "milestones",
@@ -440,6 +441,7 @@ export default function Home({ kioskMode = false }) {
   const [dashboard, setDashboard] = useState(null);
   const [operations, setOperations] = useState({ requests: null, health: null });
   const [isOrderingHome, setIsOrderingHome] = useState(false);
+  const [isHomeActionsOpen, setIsHomeActionsOpen] = useState(false);
   const [homeSettings, setHomeSettings] = useState(loadHomeSettings);
   const [rotateIndex, setRotateIndex] = useState(0);
   const [actionMessage, setActionMessage] = useState("");
@@ -700,18 +702,49 @@ export default function Home({ kioskMode = false }) {
         <div>
           <strong>{homeSettings.title || (kioskMode ? "JellyGlance Kiosk" : "JellyGlance Home")}</strong>
         </div>
-        <button type="button" onClick={loadDashboardData}>
-          <RefreshLineIcon size={17} />
-          Dashboard
+        <button
+          type="button"
+          className="home-action-menu-trigger"
+          aria-expanded={isHomeActionsOpen}
+          aria-controls="home-action-menu"
+          onClick={() => setIsHomeActionsOpen((current) => !current)}
+        >
+          <MenuLineIcon size={18} />
+          Menu
         </button>
-        <button type="button" onClick={() => loadOperationsData(true)}>
-          <RefreshLineIcon size={17} />
-          Ops
-        </button>
-        <button type="button" onClick={() => setIsOrderingHome((current) => !current)} aria-pressed={isOrderingHome}>
-          <Settings3LineIcon size={17} />
-          Order
-        </button>
+        <div id="home-action-menu" className={`home-order-actions ${isHomeActionsOpen ? "is-open" : ""}`}>
+          <button
+            type="button"
+            onClick={() => {
+              loadDashboardData();
+              setIsHomeActionsOpen(false);
+            }}
+          >
+            <RefreshLineIcon size={17} />
+            Dashboard
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              loadOperationsData(true);
+              setIsHomeActionsOpen(false);
+            }}
+          >
+            <RefreshLineIcon size={17} />
+            Ops
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsOrderingHome((current) => !current);
+              setIsHomeActionsOpen(false);
+            }}
+            aria-pressed={isOrderingHome}
+          >
+            <Settings3LineIcon size={17} />
+            Order
+          </button>
+        </div>
       </div>
 
       {isOrderingHome ? (
