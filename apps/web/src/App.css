@@ -18,8 +18,10 @@
   min-width: 0;
 }
 
-.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .watch-stats, .Home) {
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .watch-stats, .user-profile-page, .Home) {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   align-self: start;
 }
