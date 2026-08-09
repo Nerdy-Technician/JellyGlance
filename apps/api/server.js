@@ -144,7 +144,7 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://track.nerdytech.dev",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
@@ -215,8 +215,9 @@ app.use(typeInferenceMiddleware);
 
 const root = process.env.JS_CLIENT_DIST || path.join(__dirname, "..", "web", "dist");
 const staticAssetIndex = new Map();
+const STATIC_FILE_EXTENSION_REGEX = /\.(css|ico|js|json|png|jpg|jpeg|webp|svg|woff2?|ttf|map)$/i;
 
-function indexStaticAssets(dir) {
+function indexStaticAssets(dir, baseDir = dir) {
   if (!fs.existsSync(dir)) {
     return;
   }
@@ -226,11 +227,40 @@ function indexStaticAssets(dir) {
     const fullPath = path.join(dir, file);
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      indexStaticAssets(fullPath);
+      indexStaticAssets(fullPath, baseDir);
     } else if (!staticAssetIndex.has(file)) {
+      const relativePath = `/${path.relative(baseDir, fullPath).split(path.sep).join("/")}`;
+      staticAssetIndex.set(relativePath, fullPath);
       staticAssetIndex.set(file, fullPath);
     }
   }
+}
+
+function getRequestPathname(req) {
+  try {
+    return decodeURIComponent(new URL(req.originalUrl || req.url, "http://jellyglance.local").pathname);
+  } catch {
+    return req.path || req.url.split("?")[0];
+  }
+}
+
+function getStaticAssetPath(req) {
+  let pathname = getRequestPathname(req);
+  if (BASE_NAME && pathname.startsWith(BASE_NAME)) {
+    pathname = pathname.slice(BASE_NAME.length) || "/";
+  }
+
+  const exactPath = staticAssetIndex.get(pathname);
+  if (exactPath) {
+    return exactPath;
+  }
+
+  const fileName = path.basename(pathname);
+  if (fileName !== "translation.json") {
+    return staticAssetIndex.get(fileName);
+  }
+
+  return null;
 }
 
 //hacky middleware to handle basename changes for UI
@@ -244,24 +274,17 @@ app.use((req, res, next) => {
     return next();
   }
 
-  const fileRegex = /\/([^\/]+\.(css|ico|js|json|png|jpg|jpeg|webp|svg|woff2?|ttf))$/i;
-  const match = req.url.match(fileRegex);
-  if (match) {
-    // Extract the file name
-    const fileName = match[1];
-
-    //Exclude translation.json from this hack as it messes up the translations by returning the first file regardless of language chosen
-    if (fileName != "translation.json") {
-      const filePath = staticAssetIndex.get(fileName);
-      if (filePath) {
-        if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
-          res.set("Cache-Control", "no-store");
-        }
-        return res.sendFile(filePath);
-      } else {
-        return res.status(404).send("File not found");
+  const pathname = getRequestPathname(req);
+  if (STATIC_FILE_EXTENSION_REGEX.test(pathname)) {
+    const filePath = getStaticAssetPath(req);
+    if (filePath) {
+      if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
+        res.set("Cache-Control", "no-store");
       }
+      return res.sendFile(filePath);
     }
+
+    return res.status(404).type("text/plain").send("Static asset not found");
   }
 
   if (BASE_NAME && req.url.startsWith(BASE_NAME) && req.url !== BASE_NAME) {
@@ -366,6 +389,9 @@ writeEnvVariables().then(() => {
   app.get("*", (req, res, next) => {
     if (req.url.includes("socket.io")) {
       return next();
+    }
+    if (STATIC_FILE_EXTENSION_REGEX.test(getRequestPathname(req))) {
+      return res.status(404).type("text/plain").send("Static asset not found");
     }
     res.set("Cache-Control", "no-store");
     res.sendFile(path.join(root, "index.html"));
