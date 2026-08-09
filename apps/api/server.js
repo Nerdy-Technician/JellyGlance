@@ -263,6 +263,28 @@ function getStaticAssetPath(req) {
   return null;
 }
 
+function getTranslationFilePath(req) {
+  let pathname = getRequestPathname(req);
+  if (BASE_NAME && pathname.startsWith(BASE_NAME)) {
+    pathname = pathname.slice(BASE_NAME.length) || "/";
+  }
+
+  const match = pathname.match(/^\/locales\/([^/]+)\/translation\.json$/);
+  if (!match) {
+    return null;
+  }
+
+  const locale = sanitizeFilename(match[1]);
+  const filePath = path.join(root, "locales", locale, "translation.json");
+  const localesRoot = path.join(root, "locales");
+
+  if (!filePath.startsWith(localesRoot) || !fs.existsSync(filePath)) {
+    return null;
+  }
+
+  return filePath;
+}
+
 //hacky middleware to handle basename changes for UI
 
 app.use((req, res, next) => {
@@ -275,6 +297,12 @@ app.use((req, res, next) => {
   }
 
   const pathname = getRequestPathname(req);
+  const translationFilePath = getTranslationFilePath(req);
+  if (translationFilePath) {
+    res.set("Cache-Control", "no-store");
+    return res.type("application/json").sendFile(translationFilePath);
+  }
+
   if (STATIC_FILE_EXTENSION_REGEX.test(pathname)) {
     const filePath = getStaticAssetPath(req);
     if (filePath) {
