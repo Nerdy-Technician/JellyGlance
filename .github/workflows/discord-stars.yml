@@ -26,7 +26,7 @@ jobs:
 
       - name: Restore star state
         id: star-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .discord-star-state
           key: discord-stars-${{ github.run_id }}
@@ -107,7 +107,7 @@ jobs:
 
       - name: Save star state
         if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .discord-star-state
           key: discord-stars-${{ steps.stars.outputs.current }}
