@@ -59,7 +59,8 @@
   "overrides": {
     "@semantic-release/npm": {
       "npm": "^12.0.2"
-    }
+    },
+    "multer": "2.0.0"
   },
   "engines": {
     "node": ">=22"
