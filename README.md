@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-white.png">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-transparent.png">
     <img src="docs/public/full-logo-transparent.png" alt="JellyGlance" width="280">
   </picture>
 </p>
@@ -14,12 +14,49 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=github&label=Stars&color=aa5cc3&labelColor=16111f"></a>
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml"><img alt="Docker" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml/badge.svg"></a>
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-aa5cc3"></a>
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance"><img alt="GHCR" src="https://img.shields.io/badge/container-ghcr.io-2f3136"></a>
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/releases/latest">
+    <img
+      alt="Latest Release"
+      src="https://img.shields.io/github/v/release/Nerdy-Technician/JellyGlance?sort=semver&display_name=tag&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Release&color=aa5cc3&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/releases">
+    <img
+      alt="Latest Beta"
+      src="https://img.shields.io/github/v/tag/Nerdy-Technician/JellyGlance?include_prereleases&filter=*beta*&sort=semver&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Beta&color=7c5cff&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/stargazers">
+    <img
+      alt="GitHub Stars"
+      src="https://img.shields.io/github/stars/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=github&logoColor=white&label=Stars&color=aa5cc3&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml">
+    <img
+      alt="Docker"
+      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml">
+    <img
+      alt="CI"
+      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=3FB950&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE">
+    <img
+      alt="License"
+      src="https://img.shields.io/github/license/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=gnu&logoColor=white&label=License&color=aa5cc3&labelColor=16111f">
+  </a>
+
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance">
+    <img
+      alt="GHCR"
+      src="https://img.shields.io/badge/Container-ghcr.io-2f3136?style=for-the-badge&logo=github&logoColor=white&labelColor=16111f">
+  </a>
 </p>
+
 
 <p align="center">
   <a href="https://jellyglance.com/"><strong>Docs</strong></a>
