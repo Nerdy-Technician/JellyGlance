@@ -75,6 +75,39 @@ const configuredAllowedOrigins = (process.env.CORS_ORIGINS || process.env.JS_COR
   .filter(Boolean);
 const allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredAllowedOrigins]);
 
+function normalizeOrigin(origin = "") {
+  return String(origin).trim().replace(/\/+$/, "");
+}
+
+function getRequestOrigin(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const forwardedHost = String(req.headers["x-forwarded-host"] || "").split(",")[0].trim();
+  const protocol = forwardedProto || req.protocol;
+  const host = forwardedHost || req.headers.host;
+
+  return protocol && host ? `${protocol}://${host}` : "";
+}
+
+function isLocalOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return ["localhost", "127.0.0.1", "::1"].includes(hostname) || /^10\./.test(hostname) || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedCorsOrigin(origin, req) {
+  if (!origin) return true;
+  const normalizedOrigin = normalizeOrigin(origin);
+  return (
+    allowedOrigins.has(normalizedOrigin) ||
+    normalizedOrigin === normalizeOrigin(getRequestOrigin(req)) ||
+    isLocalOrigin(normalizedOrigin) ||
+    process.env.CORS_ALLOW_ALL === "true"
+  );
+}
+
 if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
   process.exit(1); // end the program with error status code
@@ -89,20 +122,15 @@ const DEFAULT_ROLE_PERMISSIONS = {
 };
 
 // middlewares
+app.set("trust proxy", 1);
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" })); // middleware to parse JSON request bodies
-app.use(
+app.use((req, res, next) =>
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error("Not allowed by CORS"));
+      callback(null, isAllowedCorsOrigin(origin, req));
     },
-  })
+  })(req, res, next)
 );
-app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(compression());
 
