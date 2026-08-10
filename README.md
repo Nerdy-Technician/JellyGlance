@@ -276,6 +276,8 @@ docker compose pull
 docker compose up -d
 ```
 
+The published Docker image supports `linux/amd64`, `linux/arm64`, and `linux/arm/v7` (armhf). Docker automatically pulls the matching image for Raspberry Pi and other ARM hosts.
+
 ## Translations
 
 JellyGlance uses `en-GB` as the source locale at `apps/web/public/locales/en-GB/translation.json`.
