@@ -53,13 +53,12 @@ function LibraryOptions(props) {
           },
         }
       )
-      .then((response) => {
-        console.log(response);
+      .then(() => {
         setShow(false);
         navigate(-1);
       })
       .catch((error) => {
-        console.log({ error: error, token: token });
+        console.log("Unable to purge library cache", error);
       });
   }
 

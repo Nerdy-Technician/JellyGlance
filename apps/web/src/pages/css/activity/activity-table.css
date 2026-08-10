@@ -14,7 +14,7 @@
 
 .activity-mrt-paper .MuiTableHead-root .MuiButtonBase-root,
 .activity-mrt-paper .MuiTableHead-root .MuiSvgIcon-root {
-  color: #95a3b8 !important;
+  color: #7f8b9b !important;
 }
 
 .activity-mrt-paper .MuiTableHead-root .Mui-active,
@@ -42,15 +42,16 @@
 }
 
 .activity-user-link {
-  font-weight: 950;
+  color: #dfe7f2 !important;
+  font-weight: 680;
 }
 
 .activity-title-link {
   display: block;
   max-width: 100%;
   overflow: hidden;
-  color: #fff !important;
-  font-weight: 850;
+  color: #e7edf6 !important;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -58,65 +59,65 @@
 .activity-client-link {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgba(0, 200, 255, 0.2);
-  border-radius: 999px;
-  padding: 5px 9px;
-  color: #9ee6ff !important;
-  background: rgba(var(--secondary-rgb), 0.09);
+  border: 1px solid rgba(var(--secondary-rgb), 0.22);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #adddeb !important;
+  background: rgba(var(--secondary-rgb), 0.08);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .activity-method-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  border-radius: 999px;
-  padding: 5px 10px;
-  color: #e9f8ee !important;
-  background: rgba(34, 197, 94, 0.12);
+  min-height: 26px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #c9ead3 !important;
+  background: rgba(34, 197, 94, 0.1);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none !important;
 }
 
 .activity-method-pill.is-transcode {
-  color: #9ee6ff !important;
-  background: rgba(var(--secondary-rgb), 0.14);
+  color: #adddeb !important;
+  background: rgba(var(--secondary-rgb), 0.1);
 }
 
 .activity-method-pill.is-stream {
-  color: #f0c6ff !important;
-  background: rgba(var(--primary-light-rgb), 0.13);
+  color: #e5d7f1 !important;
+  background: rgba(var(--primary-light-rgb), 0.1);
 }
 
 .activity-method-pill.is-empty {
-  color: #78879a !important;
+  color: #8793a3 !important;
   background: rgba(148, 163, 184, 0.08);
 }
 
 .activity-date-cell {
   display: block;
-  color: #d7e4f4;
+  color: #b9c5d4;
   font-size: 12px;
   line-height: 1.35;
 }
 
 .activity-duration-cell {
-  color: #fff;
-  font-weight: 950;
+  color: #dfe7f2;
+  font-weight: 650;
 }
 
 .activity-plays-cell {
   display: inline-grid;
-  min-width: 28px;
-  height: 28px;
+  min-width: 26px;
+  height: 26px;
   place-items: center;
-  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
-  border-radius: 999px;
-  color: #f7d5ff;
-  background: rgba(var(--primary-light-rgb), 0.12);
-  font-weight: 950;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 6px;
+  color: #d9e2ee;
+  background: rgba(255, 255, 255, 0.045);
+  font-weight: 650;
 }
 
 .activity-mrt-paper + .MuiBox-root,
@@ -126,16 +127,16 @@
 
 .activity-mrt-paper + .MuiBox-root .MuiPaginationItem-root,
 .activity-table-shell .MuiPaginationItem-root {
-  border-color: rgba(var(--primary-light-rgb), 0.22) !important;
+  border-color: var(--surface-border-color) !important;
   color: #dbe6f7 !important;
   background: rgba(8, 12, 18, 0.74) !important;
 }
 
 .activity-mrt-paper + .MuiBox-root .Mui-selected,
 .activity-table-shell .MuiPaginationItem-root.Mui-selected {
-  border-color: rgba(var(--primary-light-rgb), 0.72) !important;
+  border-color: rgba(var(--primary-light-rgb), 0.42) !important;
   color: #fff !important;
-  background: rgba(var(--primary-light-rgb), 0.22) !important;
+  background: rgba(var(--primary-rgb), 0.18) !important;
 }
 
 .activity-table {

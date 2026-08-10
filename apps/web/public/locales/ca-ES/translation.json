@@ -9,7 +9,8 @@
     "SETTINGS": "Configuració",
     "ABOUT": "Sobre nosaltres",
     "LOGOUT": "Tancar sessió",
-    "TIMELINE": "Cronologia"
+    "TIMELINE": "Cronologia",
+    "JELLYFIN_JOBS": "Tasques de Jellyfin"
   },
   "HOME_PAGE": {
     "SESSIONS": "Sessions",
@@ -134,7 +135,8 @@
     "INVALID_URL": "Error {STATUS}: no s'ha trobat l'URL sol·licitat.",
     "UNAUTHORIZED": "Error {STATUS}: no autoritzat",
     "PASSWORD_LENGTH": "La contrasenya ha de tenir almenys 6 caràcters",
-    "USERNAME_REQUIRED": "Nom d'usuari obligatori"
+    "USERNAME_REQUIRED": "Nom d'usuari obligatori",
+    "NO_WEBHOOKS": "No s’han trobat webhooks"
   },
   "SHOW_ARCHIVED_LIBRARIES": "Mostrar les biblioteques arxivades",
   "HIDE_ARCHIVED_LIBRARIES": "Amagar les biblioteques arxivades",
@@ -167,7 +169,11 @@
   "STAT_PAGE": {
     "STATISTICS": "Estadístiques",
     "DAILY_PLAY_PER_LIBRARY": "Reproduccions diàries per biblioteca",
-    "PLAY_COUNT_BY": "Comptador de reproduccions per"
+    "DAILY_DURATION_PER_LIBRARY": "Durada diària de reproducció per biblioteca",
+    "PLAY_COUNT_BY": "Comptador de reproduccions per",
+    "PLAY_DURATION_BY": "Durada de reproducció per",
+    "COUNT_VIEW": "Recompte",
+    "DURATION_VIEW": "Durada"
   },
   "SETTINGS_PAGE": {
     "SETTINGS": "Configuració",
@@ -209,9 +215,42 @@
       "1_DAY": "1 Dia",
       "1_WEEK": "1 Setmana"
     },
+    "ACTIVITY_MONITOR": "Monitor d’activitat",
+    "ACTIVE_SESSIONS_INTERVAL": "Interval de sessions actives (ms)",
+    "ACTIVE_SESSIONS_HELP": "Freqüència de comprovació quan els usuaris miren contingut (recomanat: 1000 ms)",
+    "IDLE_INTERVAL": "Interval d’inactivitat (ms)",
+    "IDLE_HELP": "Freqüència de comprovació quan no hi ha sessions actives (recomanat: 5000 ms)",
+    "POLLING_INFO_TITLE": "Sondeig intel·ligent",
+    "POLLING_INFO": "El sistema adapta automàticament la freqüència de monitoratge: ràpida quan els usuaris miren contingut i més lenta quan el servidor està inactiu. Això redueix la càrrega de CPU del servidor Jellyfin.",
+    "INTERVAL_WARNING": "L’interval de sessions actives no hauria de ser més gran que l’interval d’inactivitat",
+    "REALTIME_UPDATE_INFO": "Els canvis s’apliquen en temps real sense reiniciar el servidor.",
+    "ACTIVITY_MONITOR_SETTINGS_SUCCESS": "La configuració del monitor d’activitat s’ha actualitzat correctament",
+    "ACTIVITY_MONITOR_SETTINGS_ERROR": "Error en actualitzar la configuració del monitor d’activitat",
     "SELECT_LIBRARIES_TO_IMPORT": "Seleccionar Biblioteques per Importar",
     "SELECT_LIBRARIES_TO_IMPORT_TOOLTIP": "L'activitat dels elements d'aquestes biblioteques segueix monitoriztat - Encara que no s'importin.",
-    "DATE_ADDED": "Dades afegides"
+    "DATE_ADDED": "Dades afegides",
+    "WEBHOOKS": "Webhooks",
+    "WEBHOOK_TYPE": "Tipus de webhook",
+    "WEBHOOK_TYPES": {
+      "DISCORD": "Discord",
+      "GENERIC": "Genèric"
+    },
+    "TEST_NOW": "Prova-ho ara",
+    "WEBHOOKS_CONFIGURATION": "Configuració de webhooks",
+    "WEBHOOKS_TOOLTIP": "URL del webhook per enviar l’activitat de reproducció",
+    "WEBHOOK_SAVED": "Webhook desat",
+    "WEBHOOK_NAME": "Nom del webhook",
+    "DISCORD_WEBHOOK_URL": "URL del webhook de Discord",
+    "ENABLE_WEBHOOK": "Activa el webhook",
+    "URL": "URL",
+    "TYPE": "Tipus",
+    "TRIGGER": "Activador",
+    "STATUS": "Estat",
+    "EVENT_WEBHOOKS": "Notificacions d’esdeveniments",
+    "EVENT_WEBHOOKS_TOOLTIP": "Activa o desactiva les notificacions d’esdeveniments",
+    "PLAYBACK_STARTED": "Reproducció iniciada",
+    "PLAYBACK_ENDED": "Reproducció aturada",
+    "MEDIA_ADDED": "Contingut afegit"
   },
   "TASK_TYPE": {
     "JOB": "Tasca",
@@ -232,7 +271,8 @@
   },
   "TIMELINE_PAGE": {
     "TIMELINE": "Cronologia",
-    "EPISODES": "Capítols"
+    "EPISODES_one": "Episodi",
+    "EPISODES_other": "Episodis"
   },
   "SEARCH": "Buscar",
   "TOTAL": "Total",

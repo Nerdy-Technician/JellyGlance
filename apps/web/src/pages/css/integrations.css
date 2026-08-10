@@ -2575,3 +2575,124 @@
     flex-direction: column;
   }
 }
+
+.integrations-page,
+.requests-page {
+  background: transparent;
+}
+
+.integrations-hero,
+.integration-page-header,
+.integration-section,
+.integration-events,
+.jellyfin-integration-card,
+.integration-subtabs,
+.calendar-toolbar,
+.calendar-shell,
+.downloads-summary,
+.downloads-board article,
+.requests-hero,
+.requests-summary-grid article,
+.requests-board,
+.requests-control-bar,
+.requests-filter-strip,
+.integration-card {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(17, 22, 30, 0.82);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.integration-page-header p,
+.integrations-hero p,
+.integration-card p,
+.integration-section-title span,
+.requests-hero p,
+.requests-summary-grid span {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.integration-page-header h1,
+.integrations-hero h1,
+.integration-section-title h2,
+.integration-events h2,
+.downloads-board h2,
+.integration-card h2 {
+  font-weight: 760;
+  line-height: 1.08;
+}
+
+.integration-page-header span,
+.integrations-hero span {
+  font-weight: 560;
+}
+
+.integrations-status,
+.integration-icon,
+.integration-health-grid article,
+.integration-health-grid .integration-empty-state,
+.integration-notice {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: none;
+}
+
+.integrations-status strong,
+.integration-health-grid strong,
+.integration-fallback-icon,
+.integration-fields label,
+.integration-message,
+.integration-notice {
+  font-weight: 680;
+}
+
+.integration-subtabs button,
+.integration-secret-field button,
+.integration-toolbar button,
+.integration-toolbar label,
+.client-adder .integration-import-button,
+.integration-actions button,
+.client-adder button,
+.integration-events button,
+.calendar-toolbar button,
+.downloads-board button {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #e9dff4;
+  font-weight: 680;
+}
+
+.integration-subtabs button.is-active,
+.integration-actions button:not(.is-danger):hover,
+.integration-toolbar button:hover,
+.integration-toolbar label:hover,
+.client-adder button:hover,
+.integration-events button:hover,
+.calendar-toolbar button:hover,
+.downloads-board button:hover {
+  background: var(--primary-color);
+  color: #fff;
+  box-shadow: none;
+}
+
+.integration-fields input,
+.client-adder select {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(7, 10, 16, 0.88);
+}
+
+.integration-status-light {
+  box-shadow: none;
+}
+
+.integration-uptime-timeline i.is-ok {
+  background: #34d399;
+}
+
+.integration-uptime-timeline i.is-error {
+  background: #fb7185;
+}

@@ -1,21 +1,24 @@
-import Home from "./pages/home";
-import Settings from "./pages/settings";
-import Users from "./pages/users";
-import UserProfilePage from "./pages/user-profile";
-import Libraries from "./pages/libraries";
-import LibraryInfo from "./pages/components/library-info";
-import ItemInfo from "./pages/components/item-info";
-import About from "./pages/about";
-import TestingRoutes from "./pages/testing";
-import Activity from "./pages/activity";
-import Statistics from "./pages/statistics";
-import ActivityTimeline from "./pages/activity_time_line";
-import RecentlyAddedPage from "./pages/recently-added";
-import Integrations from "./pages/integrations";
-import Calendar from "./pages/calendar";
-import Requests from "./pages/requests";
-import Downloads from "./pages/downloads";
-import RepairHub from "./pages/repair-hub";
+import { lazy } from "react";
+import { Navigate } from "react-router-dom";
+
+const Home = lazy(() => import("./pages/home"));
+const Settings = lazy(() => import("./pages/settings"));
+const Users = lazy(() => import("./pages/users"));
+const UserProfilePage = lazy(() => import("./pages/user-profile"));
+const Libraries = lazy(() => import("./pages/libraries"));
+const LibraryInfo = lazy(() => import("./pages/components/library-info"));
+const ItemInfo = lazy(() => import("./pages/components/item-info"));
+const About = lazy(() => import("./pages/about"));
+const TestingRoutes = lazy(() => import("./pages/testing"));
+const Activity = lazy(() => import("./pages/activity"));
+const Statistics = lazy(() => import("./pages/statistics"));
+const ActivityTimeline = lazy(() => import("./pages/activity_time_line"));
+const RecentlyAddedPage = lazy(() => import("./pages/recently-added"));
+const Integrations = lazy(() => import("./pages/integrations"));
+const Calendar = lazy(() => import("./pages/calendar"));
+const Requests = lazy(() => import("./pages/requests"));
+const Downloads = lazy(() => import("./pages/downloads"));
+const ServerManagement = lazy(() => import("./pages/server-management"));
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
@@ -31,7 +34,8 @@ const routes = [
   { path: "/calendar", element: <Calendar />, exact: true },
   { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
-  { path: "/repair", element: <RepairHub />, exact: true },
+  { path: "/server-management", element: <ServerManagement />, exact: true },
+  { path: "/repair", element: <Navigate to="/settings?tab=tabRepair" replace />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },
   { path: "/activity", element: <Activity />, exact: true },
   { path: "/timeline", element: <ActivityTimeline />, exact: true },

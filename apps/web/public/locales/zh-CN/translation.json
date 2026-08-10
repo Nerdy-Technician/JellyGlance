@@ -9,7 +9,8 @@
     "SETTINGS": "设置",
     "ABOUT": "关于",
     "LOGOUT": "注销",
-    "TIMELINE": "时间线"
+    "TIMELINE": "时间线",
+    "JELLYFIN_JOBS": "Jellyfin 任务"
   },
   "HOME_PAGE": {
     "SESSIONS": "会话",
@@ -134,7 +135,8 @@
     "INVALID_URL": "错误 {STATUS}: 未找到请求的 URL",
     "UNAUTHORIZED": "错误 {STATUS}: 未授权",
     "PASSWORD_LENGTH": "密码必须至少为 6 个字符",
-    "USERNAME_REQUIRED": "用户名是必填项"
+    "USERNAME_REQUIRED": "用户名是必填项",
+    "NO_WEBHOOKS": "未找到 Webhook"
   },
   "SHOW_ARCHIVED_LIBRARIES": "显示已归档媒体库",
   "HIDE_ARCHIVED_LIBRARIES": "隐藏已归档媒体库",
@@ -167,7 +169,11 @@
   "STAT_PAGE": {
     "STATISTICS": "统计",
     "DAILY_PLAY_PER_LIBRARY": "媒体库每日播放次数",
-    "PLAY_COUNT_BY": "播放计数："
+    "DAILY_DURATION_PER_LIBRARY": "按媒体库统计的每日播放时长",
+    "PLAY_COUNT_BY": "播放计数：",
+    "PLAY_DURATION_BY": "播放时长按",
+    "COUNT_VIEW": "数量",
+    "DURATION_VIEW": "时长"
   },
   "SETTINGS_PAGE": {
     "SETTINGS": "设置",
@@ -209,9 +215,42 @@
       "1_DAY": "1 天",
       "1_WEEK": "1 周"
     },
+    "ACTIVITY_MONITOR": "活动监控",
+    "ACTIVE_SESSIONS_INTERVAL": "活跃会话间隔（毫秒）",
+    "ACTIVE_SESSIONS_HELP": "用户正在观看内容时的检查频率（推荐：1000 毫秒）",
+    "IDLE_INTERVAL": "空闲间隔（毫秒）",
+    "IDLE_HELP": "没有活跃会话时的检查频率（推荐：5000 毫秒）",
+    "POLLING_INFO_TITLE": "智能轮询",
+    "POLLING_INFO": "系统会自动调整监控频率：用户正在观看内容时更快，服务器空闲时更慢。这可以降低 Jellyfin 服务器的 CPU 负载。",
+    "INTERVAL_WARNING": "活跃会话间隔不应大于空闲间隔",
+    "REALTIME_UPDATE_INFO": "更改会实时应用，无需重启服务器。",
+    "ACTIVITY_MONITOR_SETTINGS_SUCCESS": "活动监控设置已更新",
+    "ACTIVITY_MONITOR_SETTINGS_ERROR": "更新活动监控设置时出错",
     "SELECT_LIBRARIES_TO_IMPORT": "选择要导入的媒体库",
     "SELECT_LIBRARIES_TO_IMPORT_TOOLTIP": "这些媒体库中的项目活动仍然被追踪——即使它们没有被导入",
-    "DATE_ADDED": "添加日期"
+    "DATE_ADDED": "添加日期",
+    "WEBHOOKS": "Webhook",
+    "WEBHOOK_TYPE": "Webhook 类型",
+    "WEBHOOK_TYPES": {
+      "DISCORD": "Discord",
+      "GENERIC": "通用"
+    },
+    "TEST_NOW": "立即测试",
+    "WEBHOOKS_CONFIGURATION": "Webhook 配置",
+    "WEBHOOKS_TOOLTIP": "用于发送播放活动的 Webhook URL",
+    "WEBHOOK_SAVED": "Webhook 已保存",
+    "WEBHOOK_NAME": "Webhook 名称",
+    "DISCORD_WEBHOOK_URL": "Discord Webhook URL",
+    "ENABLE_WEBHOOK": "启用 Webhook",
+    "URL": "URL",
+    "TYPE": "类型",
+    "TRIGGER": "触发器",
+    "STATUS": "状态",
+    "EVENT_WEBHOOKS": "事件通知",
+    "EVENT_WEBHOOKS_TOOLTIP": "启用或禁用事件通知",
+    "PLAYBACK_STARTED": "播放已开始",
+    "PLAYBACK_ENDED": "播放已停止",
+    "MEDIA_ADDED": "媒体已添加"
   },
   "TASK_TYPE": {
     "JOB": "工作",
@@ -232,7 +271,8 @@
   },
   "TIMELINE_PAGE": {
     "TIMELINE": "时间线",
-    "EPISODES": "集数"
+    "EPISODES_one": "剧集",
+    "EPISODES_other": "剧集"
   },
   "SEARCH": "搜索",
   "TOTAL": "总计",

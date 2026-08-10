@@ -1,8 +1,10 @@
 # Releases
 
-JellyGlance uses Conventional Commits and semantic-release to keep versions, tags, changelog entries, and GitHub releases consistent.
+JellyGlance uses Conventional Commits and semantic-release for release tags, changelog entries, GitHub releases, and Docker publishing.
 
 <CurrentRelease />
+
+<LatestReleaseNotes />
 
 ## Commit Types
 

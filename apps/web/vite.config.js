@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => {
         "/utils":    { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/webhooks": { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/newsletter": { target: "http://127.0.0.1:3000", changeOrigin: true },
+        "/tautulli": { target: "http://127.0.0.1:3000", changeOrigin: true },
+        "/jellystat": { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/env.js":   { target: "http://127.0.0.1:3000", changeOrigin: true },
         "/socket.io": {
           target: "http://127.0.0.1:3000",

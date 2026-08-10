@@ -457,31 +457,31 @@ export default function ActivityTable(props) {
       sx: {
         backgroundColor: "transparent",
         "&:nth-of-type(odd) .MuiTableCell-body": {
-          backgroundColor: "rgba(12, 17, 25, 0.88)",
+          backgroundColor: "rgba(10, 13, 18, 0.92)",
         },
         "&:nth-of-type(even) .MuiTableCell-body": {
-          backgroundColor: "rgba(18, 23, 32, 0.9)",
+          backgroundColor: "rgba(13, 17, 23, 0.92)",
         },
         "& .MuiTableCell-body:first-of-type": {
-          borderTopLeftRadius: "10px",
-          borderBottomLeftRadius: "10px",
+          borderTopLeftRadius: "0",
+          borderBottomLeftRadius: "0",
         },
         "& .MuiTableCell-body:last-of-type": {
-          borderTopRightRadius: "10px",
-          borderBottomRightRadius: "10px",
+          borderTopRightRadius: "0",
+          borderBottomRightRadius: "0",
         },
         "&:hover .MuiTableCell-body": {
-          backgroundColor: "rgba(41, 29, 49, 0.95)",
+          backgroundColor: "rgba(24, 30, 39, 0.96)",
         },
         "&:hover .MuiCheckbox-root": {
           opacity: 1,
-          color: muiColors.primary,
+          color: muiColors.secondary,
         },
       },
     },
     muiSelectCheckboxProps: {
       sx: {
-        opacity: 0,
+        opacity: 0.72,
         "&:hover": {
           opacity: 1,
         },
@@ -519,23 +519,23 @@ export default function ActivityTable(props) {
     paginationDisplayMode: "pages",
     muiTableBodyCellProps: {
       sx: {
-        borderBottom: "6px solid #070a10",
-        color: "#f8fafc",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.045)",
+        color: "#d9e2ee",
         fontSize: "13px",
-        fontWeight: 700,
+        fontWeight: 560,
         lineHeight: 1.35,
-        padding: "13px 14px",
+        padding: "12px 14px",
       },
     },
     muiTableHeadCellProps: {
       sx: {
-        backgroundColor: "rgba(15, 21, 31, 0.98)",
-        borderBottom: "8px solid #070a10",
-        color: "#cbd5e1",
+        backgroundColor: "rgba(8, 11, 16, 0.98)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        color: "#9ca8b8",
         fontSize: "11px",
-        fontWeight: 950,
-        letterSpacing: "0.06em",
-        padding: "14px",
+        fontWeight: 680,
+        letterSpacing: "0.04em",
+        padding: "11px 14px",
         textTransform: "uppercase",
       },
     },
@@ -544,17 +544,16 @@ export default function ActivityTable(props) {
       elevation: 0,
       sx: {
         overflow: "hidden",
-        border: "1px solid rgba(var(--primary-light-rgb), 0.16)",
-        borderRadius: "18px",
-        background:
-          "radial-gradient(circle at 10% 0%, rgba(var(--secondary-rgb), 0.11), transparent 28%), radial-gradient(circle at 88% 0%, rgba(var(--primary-rgb), 0.16), transparent 32%), rgba(7, 10, 16, 0.96)",
-        boxShadow: "0 22px 60px rgba(0, 0, 0, 0.28)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        borderRadius: "8px",
+        background: "rgba(9, 12, 17, 0.96)",
+        boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
       },
     },
     muiTableContainerProps: {
       sx: {
         backgroundColor: "transparent",
-        padding: "10px",
+        padding: "0",
       },
     },
     muiTableProps: {

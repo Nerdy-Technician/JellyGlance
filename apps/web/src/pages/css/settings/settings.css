@@ -2693,3 +2693,720 @@
     min-height: 42px;
   }
 }
+
+.settings {
+  background: transparent;
+}
+
+.settings-page-header h1,
+.settings .tab-pane > div > h1,
+.settings .tasks > h1,
+.tasks-header h1,
+.security-auth-header h2,
+.task-card-main h2 {
+  font-weight: 760;
+  line-height: 1.08;
+}
+
+.settings-eyebrow,
+.jellyfin-connected-summary span,
+.tasks-header p,
+.tasks-summary span,
+.task-card-top span,
+.task-card-top strong,
+.settings-chip {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.settings-page-header p,
+.security-auth-header p,
+.security-auth-panel p,
+.tasks-header span {
+  font-weight: 560;
+}
+
+.settings > .nav-pills,
+.settings-import-tabs,
+.settings-form,
+.tasks-header,
+.task-card,
+.security-auth-card,
+.security-auth-panel,
+.app-error-boundary {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(17, 22, 30, 0.82);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.settings > .nav-pills .nav-link,
+.settings-import-tabs .nav-link,
+.settings-form .form-control,
+.settings-form .form-select,
+.settings-form .input-group > .form-control,
+.settings-form .input-group > .btn,
+.settings .btn-primary,
+.settings .submit,
+.settings-form .btn-outline-success[type="submit"],
+.settings-form button[type="submit"],
+.security-users-link {
+  border-radius: 8px !important;
+  font-weight: 680 !important;
+}
+
+.settings > .nav-pills .nav-link.active,
+.settings-import-tabs .nav-link.active,
+.settings-form .input-group > .btn,
+.settings .btn-primary,
+.settings .submit,
+.settings-form .btn-group .btn.active,
+.settings-form .btn-group .btn-check:checked + .btn {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+}
+
+.settings-form .btn-outline-success[type="submit"],
+.settings-form button[type="submit"],
+.security-users-link {
+  border-color: var(--surface-border-color) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  color: #e9dff4 !important;
+}
+
+.settings-form .btn-outline-success[type="submit"]:hover,
+.settings-form button[type="submit"]:hover,
+.security-users-link:hover {
+  background: rgba(var(--primary-rgb), 0.18) !important;
+  color: #fff !important;
+}
+
+.settings-form .btn-group,
+.settings-form .btn-group-toggle,
+.tasks-summary span,
+.task-card-top span,
+.task-card-top strong,
+.settings-chip,
+.security-auth-header > strong {
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.security-auth-card.is-active,
+.task-card.is-running {
+  border-color: rgba(var(--primary-light-rgb), 0.46);
+  background: rgba(var(--primary-rgb), 0.12);
+  box-shadow: none;
+}
+
+.server-management {
+  display: grid;
+  gap: 16px;
+  color: #f8fafc;
+}
+
+.server-management-page {
+  min-height: 100vh;
+  padding: 28px clamp(18px, 3vw, 42px) 48px;
+  background: transparent;
+}
+
+.server-management-header,
+.server-management-panel,
+.server-management-section {
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(17, 22, 30, 0.82);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.server-management-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.server-management-header p,
+.server-management-section-heading p,
+.server-task-row span,
+.server-management-panel-heading p {
+  margin: 0;
+  color: #9aa7bb;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.server-management-header p,
+.server-task-row span {
+  color: var(--primary-light-color);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.server-management-header h1,
+.server-management-section-heading h2,
+.server-management-panel-heading h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.server-management-header h1 {
+  font-size: clamp(26px, 3vw, 38px);
+}
+
+.server-management-header span {
+  display: block;
+  margin-top: 6px;
+  color: #b6c1d2;
+  font-size: 14px;
+  font-weight: 560;
+}
+
+.server-management .btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+}
+
+.server-management-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 12px;
+}
+
+.server-management-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.server-management-panel-heading {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.server-management-panel-heading svg {
+  flex: 0 0 auto;
+  color: var(--primary-light-color);
+}
+
+.server-management-panel-heading h2,
+.server-management-section-heading h2 {
+  font-size: 18px;
+}
+
+.server-management-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.server-management-facts span {
+  color: #7f8da3;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.server-management-facts strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.server-management-panel small {
+  color: #8b98aa;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.server-management-panel code {
+  color: #d8b4fe;
+}
+
+.server-management-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.server-management-section-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.server-job-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.server-job-filters button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.server-job-filters button.is-active {
+  border-color: rgba(var(--primary-light-rgb), 0.46);
+  background: rgba(var(--primary-rgb), 0.18);
+  color: #fff;
+}
+
+.server-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.server-task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.server-task-row.is-running {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.server-task-row.is-success {
+  border-color: rgba(52, 211, 153, 0.34);
+}
+
+.server-task-row.is-error {
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.12);
+}
+
+.server-task-row strong {
+  display: block;
+  margin-top: 2px;
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.server-task-row p {
+  margin: 4px 0 0;
+  color: #9aa7bb;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.server-task-row small {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  color: #7f8da3;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.server-task-row small svg {
+  color: var(--primary-light-color);
+}
+
+.server-task-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.server-task-actions em {
+  color: #b6c1d2;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.server-management-empty {
+  padding: 14px;
+  border: 1px dashed var(--surface-border-color);
+  border-radius: 8px;
+  color: #9aa7bb;
+  font-size: 13px;
+}
+
+.settings-logs-page {
+  display: grid;
+  gap: 16px;
+  color: #f8fafc;
+}
+
+.settings-logs-page h1 {
+  margin: 0 !important;
+  color: #fff;
+  font-size: clamp(32px, 3.6vw, 48px);
+  font-weight: 820 !important;
+  line-height: 1;
+}
+
+.settings-logs-table {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(8, 11, 16, 0.84);
+}
+
+.settings-logs-table .MuiTable-root {
+  min-width: 940px;
+}
+
+.settings-logs-table .MuiTableHead-root .MuiTableCell-root {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(17, 23, 32, 0.96);
+  color: #b8c4d4 !important;
+  font-size: 11px;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-logs-table .MuiTableBody-root .MuiTableRow-root {
+  background: rgba(8, 11, 16, 0.58);
+}
+
+.settings-logs-table .MuiTableBody-root .MuiTableRow-root:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.settings-logs-table .MuiTableCell-root {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
+  color: #dce5f2 !important;
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.settings-logs-table .MuiIconButton-root {
+  color: #8ea2ba;
+}
+
+.settings-logs-table .MuiIconButton-root:hover {
+  color: var(--primary-light-color);
+  background: rgba(var(--primary-light-rgb), 0.12);
+}
+
+.settings-logs-table .badge {
+  min-width: 58px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.settings-logs-empty {
+  color: #94a3b8 !important;
+  font-style: italic;
+  text-align: center !important;
+}
+
+.settings-logs-page .pagination-buttons {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(8, 11, 16, 0.84);
+}
+
+.settings-logs-page .page-btn {
+  min-height: 34px;
+  border-color: rgba(var(--primary-light-rgb), 0.22) !important;
+  background: rgba(var(--primary-rgb), 0.82) !important;
+  color: #fff !important;
+  font-weight: 760 !important;
+}
+
+.settings-logs-page .page-btn:disabled {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: rgba(226, 232, 240, 0.52) !important;
+  opacity: 1;
+}
+
+.settings-logs-page .page-number {
+  min-width: 92px;
+  margin: 0;
+  padding: 0 10px;
+  border-inline: 1px solid rgba(148, 163, 184, 0.14);
+  color: #dce5f2;
+  font-size: 13px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.jellyfin-admin-settings {
+  display: grid;
+  gap: 16px;
+  color: #f8fafc;
+}
+
+.jellyfin-admin-header,
+.jellyfin-admin-section {
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(17, 22, 30, 0.82);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+.jellyfin-admin-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.jellyfin-admin-header p {
+  margin: 0;
+  color: var(--primary-light-color);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jellyfin-admin-header h1 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 760;
+  line-height: 1.08;
+}
+
+.jellyfin-admin-header span,
+.jellyfin-admin-section-heading p {
+  display: block;
+  margin-top: 6px;
+  color: #9aa7bb;
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.jellyfin-admin-header .btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+}
+
+.jellyfin-admin-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.jellyfin-admin-section-heading > div {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.jellyfin-admin-section-heading svg {
+  color: var(--primary-light-color);
+}
+
+.jellyfin-admin-section-heading h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.jellyfin-device-list {
+  display: grid;
+  gap: 8px;
+}
+
+.jellyfin-device-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(180px, auto);
+  gap: 12px;
+  align-items: center;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.jellyfin-device-icon,
+.jellyfin-plugin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jellyfin-device-icon {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 8px;
+  background: rgba(var(--primary-rgb), 0.12);
+}
+
+.jellyfin-device-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: var(--platform-icon-color, var(--primary-light-color));
+}
+
+.jellyfin-device-row span,
+.jellyfin-plugin-top span {
+  color: var(--primary-light-color);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jellyfin-device-row strong,
+.jellyfin-plugin-card > strong {
+  display: block;
+  margin-top: 2px;
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.jellyfin-device-row p,
+.jellyfin-plugin-card p {
+  margin: 4px 0 0;
+  color: #9aa7bb;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.jellyfin-device-meta {
+  text-align: right;
+}
+
+.jellyfin-device-meta span {
+  color: #9aa7bb;
+}
+
+.jellyfin-plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 10px;
+}
+
+.jellyfin-plugin-card {
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.jellyfin-plugin-card.is-enabled {
+  border-color: rgba(52, 211, 153, 0.26);
+}
+
+.jellyfin-plugin-card.is-disabled {
+  opacity: 0.68;
+}
+
+.jellyfin-plugin-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.jellyfin-plugin-icon {
+  gap: 6px;
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 8px;
+  background: rgba(var(--primary-rgb), 0.12);
+}
+
+.jellyfin-plugin-icon svg {
+  color: var(--primary-light-color);
+}
+
+.jellyfin-plugin-top em,
+.jellyfin-plugin-card small {
+  color: #7f8da3;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.jellyfin-admin-empty {
+  padding: 14px;
+  border: 1px dashed var(--surface-border-color);
+  border-radius: 8px;
+  color: #9aa7bb;
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .server-management-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .server-management-header,
+  .server-management-section-heading,
+  .server-task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .server-management-header {
+    flex-direction: column;
+  }
+
+  .server-task-actions {
+    justify-content: space-between;
+  }
+
+  .jellyfin-admin-header {
+    flex-direction: column;
+  }
+
+  .jellyfin-device-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .jellyfin-device-meta {
+    grid-column: 2;
+    text-align: left;
+  }
+}

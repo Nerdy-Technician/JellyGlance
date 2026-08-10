@@ -119,6 +119,9 @@ export default function Logs() {
     const [data, setData]=React.useState([]);
     const [rowsPerPage] = React.useState(10);
     const [page, setPage] = React.useState(0);
+    const sortedLogs = [...data].sort((a, b) =>new Date(b.TimeRun) - new Date(a.TimeRun));
+    const pageStart = data.length ? page * rowsPerPage + 1 : 0;
+    const pageEnd = Math.min(page * rowsPerPage + rowsPerPage, data.length);
 
 
 
@@ -157,10 +160,10 @@ const handlePreviousPageClick = () => {
 
     
       return (
-        <div>
+        <div className="settings-logs-page">
           <h1 className="my-2"><Trans i18nKey={"SETTINGS_PAGE.LOGS"}/></h1>
 
-            <TableContainer className='rounded-2'>
+            <TableContainer className='settings-logs-table rounded-2'>
                     <Table aria-label="collapsible table" >
                       <TableHead>
                         <TableRow>
@@ -174,11 +177,11 @@ const handlePreviousPageClick = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {data && data.sort((a, b) =>new Date(b.TimeRun) - new Date(a.TimeRun)).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                        {sortedLogs.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                           .map((log,index) => (
                             <Row key={index} data={log} />
                           ))}
-                          {data.length===0 ? <tr><td colSpan="7" style={{ textAlign: "center", fontStyle: "italic" ,color:"grey"}}  className='py-2'><Trans i18nKey={"ERROR_MESSAGES.NO_LOGS"}/></td></tr> :''}
+                          {data.length===0 ? <TableRow><TableCell colSpan="7" className='settings-logs-empty py-2'><Trans i18nKey={"ERROR_MESSAGES.NO_LOGS"}/></TableCell></TableRow> :''}
 
                             
                       </TableBody>
@@ -198,7 +201,7 @@ const handlePreviousPageClick = () => {
                     <Trans i18nKey={"TABLE_NAV_BUTTONS.PREVIOUS"}/>
                     </Button>
 
-                    <div className="page-number d-flex align-items-center justify-content-center">{`${page *rowsPerPage + 1}-${Math.min((page * rowsPerPage+ 1 ) +  (rowsPerPage - 1),data.length)} of ${data.length}`}</div>
+                    <div className="page-number d-flex align-items-center justify-content-center">{`${pageStart}-${pageEnd} of ${data.length}`}</div>
 
                     <Button className="page-btn" onClick={handleNextPageClick}  disabled={page >= Math.ceil(data.length / rowsPerPage) - 1}>
                     <Trans i18nKey={"TABLE_NAV_BUTTONS.NEXT"}/>

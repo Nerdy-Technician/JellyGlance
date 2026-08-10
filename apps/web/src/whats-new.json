@@ -1,4 +1,46 @@
 {
+  "1.2.1": [
+    {
+      "icon": "speed",
+      "title": "Jellyfin Jobs",
+      "body": "Admins now get a dedicated Jellyfin Jobs page for viewing scheduled Jellyfin tasks, checking status, filtering by category, and starting jobs manually."
+    },
+    {
+      "icon": "magic",
+      "title": "Cleaner Settings",
+      "body": "Settings now has separate Authorised Devices and Plugins tabs, per-tab error boundaries, and a clearer embedded Repair section."
+    },
+    {
+      "icon": "movie",
+      "title": "Smarter Navigation",
+      "body": "Requests and Downloads now hide automatically when their services are not configured, while Jellyfin Jobs only appears for admins."
+    },
+    {
+      "icon": "palette",
+      "title": "More Theme Choices",
+      "body": "The profile theme picker includes more colour presets, with dark mode kept as the single supported appearance."
+    },
+    {
+      "icon": "speed",
+      "title": "Activity and Logs Polish",
+      "body": "Activity refreshes are calmer, table contrast is better, duplicate task toasts are reduced, and Logs is readable in the dark UI."
+    },
+    {
+      "icon": "magic",
+      "title": "Release Notes on About",
+      "body": "The About page now includes a release notes panel with a version dropdown and beta/stable release filtering."
+    },
+    {
+      "icon": "upload",
+      "title": "No-Client Download Handling",
+      "body": "Download queue sync now skips cleanly when no download clients are configured and avoids sending misleading completion notifications."
+    },
+    {
+      "icon": "magic",
+      "title": "Security and Stability",
+      "body": "The backend now has tighter CORS handling, security headers, body-size limits, rate limiting, skipped-task handling, and improved static asset lookup."
+    }
+  ],
   "1.2.0": [
     {
       "icon": "magic",

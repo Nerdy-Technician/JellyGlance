@@ -9,7 +9,8 @@
     "SETTINGS": "Configuración",
     "ABOUT": "Acerca de",
     "LOGOUT": "Cerrar sesión",
-    "TIMELINE": "Cronología"
+    "TIMELINE": "Cronología",
+    "JELLYFIN_JOBS": "Tareas de Jellyfin"
   },
   "HOME_PAGE": {
     "SESSIONS": "Sesiones",
@@ -223,6 +224,8 @@
     "POLLING_INFO": "El sistema adapta automáticamente la frecuencia de monitoreo: rápido cuando los usuarios están viendo contenido, más lento cuando el servidor está inactivo. Esto reduce la carga de CPU en tu servidor Jellyfin.",
     "INTERVAL_WARNING": "El intervalo de sesiones activas no debe ser mayor que el intervalo en reposo",
     "REALTIME_UPDATE_INFO": "Los cambios se aplican en tiempo real sin reiniciar el servidor.",
+    "ACTIVITY_MONITOR_SETTINGS_SUCCESS": "La configuración del monitor de actividad se ha actualizado correctamente",
+    "ACTIVITY_MONITOR_SETTINGS_ERROR": "Error al actualizar la configuración del monitor de actividad",
     "SELECT_LIBRARIES_TO_IMPORT": "Seleccionar bibliotecas para importar",
     "SELECT_LIBRARIES_TO_IMPORT_TOOLTIP": "La actividad de los elementos dentro de estas bibliotecas aún se rastrea, incluso cuando no están importadas.",
     "DATE_ADDED": "Fecha de añadido",

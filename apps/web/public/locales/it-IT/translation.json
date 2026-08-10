@@ -8,7 +8,9 @@
     "STATISTICS": "Statistiche",
     "SETTINGS": "Impostazioni",
     "ABOUT": "Informazioni",
-    "LOGOUT": "Disconnetti"
+    "LOGOUT": "Disconnetti",
+    "TIMELINE": "Cronologia",
+    "JELLYFIN_JOBS": "Job Jellyfin"
   },
   "HOME_PAGE": {
     "SESSIONS": "Sessioni",
@@ -17,7 +19,9 @@
     "LIBRARY_OVERVIEW": "Panoramica della libreria"
   },
   "SESSIONS": {
-    "NO_SESSIONS": "Nessuna sessione attiva trovata"
+    "NO_SESSIONS": "Nessuna sessione attiva trovata",
+    "DIRECT_PLAY": "Riproduzione diretta",
+    "TRANSCODE": "Transcodifica"
   },
   "STAT_CARDS": {
     "MOST_VIEWED_MOVIES": "FILM PIÙ VISTI",
@@ -75,7 +79,8 @@
   "TAB_CONTROLS": {
     "OVERVIEW": "Panoramica",
     "ACTIVITY": "Attività",
-    "OPTIONS": "Opzioni"
+    "OPTIONS": "Opzioni",
+    "TIMELINE": "Cronologia"
   },
   "ITEM_ACTIVITY": "Attività elemento",
   "ACTIVITY_TABLE": {
@@ -130,7 +135,8 @@
     "INVALID_URL": "Errore {STATUS}: L'URL richiesto non è stato trovato.",
     "UNAUTHORIZED": "Errore {STATUS}: Non autorizzato",
     "PASSWORD_LENGTH": "La password deve essere lunga almeno 6 caratteri",
-    "USERNAME_REQUIRED": "Il nome utente è obbligatorio"
+    "USERNAME_REQUIRED": "Il nome utente è obbligatorio",
+    "NO_WEBHOOKS": "Nessun webhook trovato"
   },
   "SHOW_ARCHIVED_LIBRARIES": "Mostra librerie archiviate",
   "HIDE_ARCHIVED_LIBRARIES": "Nascondi librerie archiviate",
@@ -163,7 +169,11 @@
   "STAT_PAGE": {
     "STATISTICS": "Statistiche",
     "DAILY_PLAY_PER_LIBRARY": "Numero di riproduzioni giornaliere per libreria",
-    "PLAY_COUNT_BY": "Conteggio riproduzioni per"
+    "DAILY_DURATION_PER_LIBRARY": "Durata giornaliera di riproduzione per libreria",
+    "PLAY_COUNT_BY": "Conteggio riproduzioni per",
+    "PLAY_DURATION_BY": "Durata di riproduzione per",
+    "COUNT_VIEW": "Conteggio",
+    "DURATION_VIEW": "Durata"
   },
   "SETTINGS_PAGE": {
     "SETTINGS": "Impostazioni",
@@ -205,9 +215,42 @@
       "1_DAY": "1 giorno",
       "1_WEEK": "1 settimana"
     },
+    "ACTIVITY_MONITOR": "Monitor attività",
+    "ACTIVE_SESSIONS_INTERVAL": "Intervallo sessioni attive (ms)",
+    "ACTIVE_SESSIONS_HELP": "Frequenza di controllo quando gli utenti guardano contenuti (consigliato: 1000 ms)",
+    "IDLE_INTERVAL": "Intervallo di inattività (ms)",
+    "IDLE_HELP": "Frequenza di controllo quando non ci sono sessioni attive (consigliato: 5000 ms)",
+    "POLLING_INFO_TITLE": "Polling intelligente",
+    "POLLING_INFO": "Il sistema adatta automaticamente la frequenza di monitoraggio: veloce quando gli utenti guardano contenuti, più lenta quando il server è inattivo. Questo riduce il carico CPU sul server Jellyfin.",
+    "INTERVAL_WARNING": "L’intervallo delle sessioni attive non dovrebbe essere maggiore dell’intervallo di inattività",
+    "REALTIME_UPDATE_INFO": "Le modifiche vengono applicate in tempo reale senza riavviare il server.",
+    "ACTIVITY_MONITOR_SETTINGS_SUCCESS": "Impostazioni del monitor attività aggiornate correttamente",
+    "ACTIVITY_MONITOR_SETTINGS_ERROR": "Errore durante l’aggiornamento delle impostazioni del monitor attività",
     "SELECT_LIBRARIES_TO_IMPORT": "Seleziona librerie da importare",
     "SELECT_LIBRARIES_TO_IMPORT_TOOLTIP": "L'attività per gli elementi in queste librerie viene ancora tracciata, anche se non importata.",
-    "DATE_ADDED": "Data aggiunta"
+    "DATE_ADDED": "Data aggiunta",
+    "WEBHOOKS": "Webhooks",
+    "WEBHOOK_TYPE": "Tipo di webhook",
+    "WEBHOOK_TYPES": {
+      "DISCORD": "Discord",
+      "GENERIC": "Generico"
+    },
+    "TEST_NOW": "Prova ora",
+    "WEBHOOKS_CONFIGURATION": "Configurazione webhook",
+    "WEBHOOKS_TOOLTIP": "URL del webhook per inviare l’attività di riproduzione",
+    "WEBHOOK_SAVED": "Webhook salvato",
+    "WEBHOOK_NAME": "Nome webhook",
+    "DISCORD_WEBHOOK_URL": "URL webhook Discord",
+    "ENABLE_WEBHOOK": "Abilita webhook",
+    "URL": "URL",
+    "TYPE": "Tipo",
+    "TRIGGER": "Attivatore",
+    "STATUS": "Stato",
+    "EVENT_WEBHOOKS": "Notifiche eventi",
+    "EVENT_WEBHOOKS_TOOLTIP": "Abilita o disabilita le notifiche degli eventi",
+    "PLAYBACK_STARTED": "Riproduzione avviata",
+    "PLAYBACK_ENDED": "Riproduzione interrotta",
+    "MEDIA_ADDED": "Contenuto aggiunto"
   },
   "TASK_TYPE": {
     "JOB": "Attività",

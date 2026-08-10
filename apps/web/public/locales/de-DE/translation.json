@@ -9,7 +9,8 @@
     "SETTINGS": "Einstellungen",
     "ABOUT": "Über",
     "LOGOUT": "Abmelden",
-    "TIMELINE": "Zeitleiste"
+    "TIMELINE": "Zeitleiste",
+    "JELLYFIN_JOBS": "Jellyfin-Jobs"
   },
   "HOME_PAGE": {
     "SESSIONS": "Sitzungen",
@@ -232,7 +233,7 @@
     "WEBHOOK_TYPE": "Webhook-Typ",
     "WEBHOOK_TYPES": {
       "DISCORD": "Discord",
-      "GENERIC": "Generic"
+      "GENERIC": "Allgemein"
     },
     "TEST_NOW": "Jetzt testen",
     "WEBHOOKS_CONFIGURATION": "Webhook-Konfiguration",
@@ -243,7 +244,7 @@
     "ENABLE_WEBHOOK": "Webhook aktivieren",
     "URL": "URL",
     "TYPE": "Typ",
-    "TRIGGER": "Trigger",
+    "TRIGGER": "Auslöser",
     "STATUS": "Status",
     "EVENT_WEBHOOKS": "Benachrichtigungen",
     "EVENT_WEBHOOKS_TOOLTIP": "Aktiviere oder deaktiviere Benachrichtigungen",

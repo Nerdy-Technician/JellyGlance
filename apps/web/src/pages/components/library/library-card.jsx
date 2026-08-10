@@ -146,9 +146,69 @@ function LibraryCard(props) {
   
     return formattedTime;
   }
+
+  if (props.viewMode === "list") {
+    return (
+      <article className="library-list-row">
+        <Link to={`/libraries/${props.data.Id}`} className="library-list-main">
+          <div className="library-list-thumb">
+            {imageLoaded ? (
+              <img
+                className="library-list-image"
+                src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=320&quality=55"}
+                alt=""
+                onError={() => setImageLoaded(false)}
+              />
+            ) : (
+              default_image
+            )}
+          </div>
+          <span className="library-list-icon">{libraryIcon}</span>
+          <div className="library-list-title">
+            <strong>{props.data.Name}</strong>
+            <span>{typeLabel}</span>
+          </div>
+        </Link>
+
+        <div className="library-list-stats">
+          <div>
+            <span><Trans i18nKey="TOTAL_PLAYS" /></span>
+            <strong>{props.data.Plays?.toLocaleString()}</strong>
+          </div>
+          <div>
+            <span>{primaryItemLabel}</span>
+            <strong>{(primaryItemCount ?? 0).toLocaleString()}</strong>
+          </div>
+          <div>
+            <span><Trans i18nKey="LIBRARY_CARD.LIBRARY_SIZE" /></span>
+            <strong>{formatFileSize(props.metadata && props.metadata.Size ? props.metadata.Size : 0)}</strong>
+          </div>
+          <div>
+            <span><Trans i18nKey="LIBRARY_CARD.TOTAL_TIME" /></span>
+            <strong>{ticksToTimeString(props.data && props.data.total_play_time ? props.data.total_play_time : 0)}</strong>
+          </div>
+        </div>
+
+        <div className="library-list-last-played">
+          <span><Trans i18nKey="LIBRARY_CARD.LAST_PLAYED" /></span>
+          <strong>{props.data.ItemName || `${i18next.t("ERROR_MESSAGES.N/A")}`}</strong>
+          <small>
+            {props.data.LastActivity
+              ? `${i18next.t("USERS_PAGE.AGO_ALT")} ${formatLastActivityTime(props.data.LastActivity)} ${i18next.t("USERS_PAGE.AGO").toLocaleLowerCase()}`
+              : i18next.t("ERROR_MESSAGES.NEVER")}
+          </small>
+        </div>
+
+        <button className="library-scan-button library-list-scan-button" type="button" onClick={props.onScan} disabled={props.scanDisabled || props.scanning}>
+          {props.scanIcon}
+          <span>{props.scanning ? "Scanning..." : "Scan library"}</span>
+        </button>
+      </article>
+    );
+  }
   
   return (
-    <Card className="lib-card">
+    <Card className={`lib-card ${props.showName === false ? "is-library-name-hidden" : ""}`.trim()}>
       <Link to={`/libraries/${props.data.Id}`} className="library-card-link">
         <div className="library-card-image">
           {imageLoaded ? (
@@ -166,7 +226,7 @@ function LibraryCard(props) {
             <span className="library-type-icon">{libraryIcon}</span>
             <div>
               <span className="library-type-label">{typeLabel}</span>
-              <h2>{props.data.Name}</h2>
+              {props.showName !== false ? <h2>{props.data.Name}</h2> : null}
             </div>
           </div>
         </div>

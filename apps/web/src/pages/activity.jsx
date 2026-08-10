@@ -33,15 +33,20 @@ function Activity() {
   const [isBusy, setIsBusy] = useState(false);
 
   const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
+    setCurrentPage((currentPage) => (currentPage === newPage ? currentPage : newPage));
   };
 
   const onSortChange = (sort) => {
-    setSorting({ column: sort.column, desc: sort.desc });
+    setSorting((currentSort) => {
+      if (currentSort.column === sort.column && currentSort.desc === sort.desc) {
+        return currentSort;
+      }
+      return { column: sort.column, desc: sort.desc };
+    });
   };
 
   const onFilterChange = (filter) => {
-    setFilterParams(filter);
+    setFilterParams((currentFilters) => (JSON.stringify(currentFilters) === JSON.stringify(filter) ? currentFilters : filter));
   };
 
   function setItemLimit(limit) {
@@ -180,30 +185,33 @@ function Activity() {
       }
     };
 
+    if (!config) {
+      fetchConfig();
+      return;
+    }
+
+    const requestFilters = [...filterParams].filter((filter) => filter.field !== "ParentId");
+    if (libraries.length > 0 && libraryFilters.length != 0 && !allLibrariesSelected) {
+      const libraryFilterIndex = requestFilters.findIndex((filter) => filter.field === "ParentId");
+      if (libraryFilterIndex !== -1) {
+        requestFilters[libraryFilterIndex].in = libraryFilters.join(",");
+      } else {
+        requestFilters.push({ field: "ParentId", in: libraryFilters.join(",") });
+      }
+    }
+
+    if (streamTypeFilter != "All") {
+      const streamTypeFilterIndex = requestFilters.findIndex((filter) => filter.field === "PlayMethod");
+      if (streamTypeFilterIndex !== -1) {
+        requestFilters[streamTypeFilterIndex].value = streamTypeFilter;
+      } else {
+        requestFilters.push({ field: "PlayMethod", value: streamTypeFilter });
+      }
+    }
+
     const fetchHistory = () => {
       setIsBusy(true);
       const url = `/api/getHistory`;
-      if (filterParams) {
-        console.log(JSON.stringify(filterParams));
-      }
-      const requestFilters = [...filterParams].filter((filter) => filter.field !== "ParentId");
-      if (libraries.length > 0 && libraryFilters.length != 0 && !allLibrariesSelected) {
-        const libraryFilterIndex = requestFilters.findIndex((filter) => filter.field === "ParentId");
-        if (libraryFilterIndex !== -1) {
-          requestFilters[libraryFilterIndex].in = libraryFilters.join(",");
-        } else {
-          requestFilters.push({ field: "ParentId", in: libraryFilters.join(",") });
-        }
-      }
-
-      if (streamTypeFilter != "All") {
-        const streamTypeFilterIndex = requestFilters.findIndex((filter) => filter.field === "PlayMethod");
-        if (streamTypeFilterIndex !== -1) {
-          requestFilters[streamTypeFilterIndex].value = streamTypeFilter;
-        } else {
-          requestFilters.push({ field: "PlayMethod", value: streamTypeFilter });
-        }
-      }
 
       axios
         .get(url, {
@@ -261,30 +269,14 @@ function Activity() {
         });
     };
 
-    if (config) {
-      if (
-        !data ||
-        (data.current_page && data.current_page !== currentPage) ||
-        (data.size && data.size !== itemCount) ||
-        (data?.search ?? "") !== debouncedSearchQuery.trim() ||
-        (data?.sort ?? "") !== sorting.column ||
-        (data?.desc ?? true) !== sorting.desc ||
-        JSON.stringify(data?.filters ?? []) !== JSON.stringify(filterParams ?? [])
-      ) {
-        fetchHistory();
-        if (libraries && libraries.length == 0) {
-          fetchLibraries();
-        }
-      }
-    }
-
-    if (!config) {
-      fetchConfig();
+    fetchHistory();
+    if (libraries.length == 0) {
+      fetchLibraries();
     }
 
     const intervalId = setInterval(fetchHistory, 60000 * 60);
     return () => clearInterval(intervalId);
-  }, [data, config, itemCount, currentPage, debouncedSearchQuery, sorting, filterParams, libraries, allLibrariesSelected]);
+  }, [config, itemCount, currentPage, debouncedSearchQuery, sorting, filterParams, libraries.length, libraryFilters, allLibrariesSelected, streamTypeFilter]);
 
   if (!data) {
     return <Loading />;

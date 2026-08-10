@@ -148,7 +148,7 @@ router.get("/repair-hub", async (req, res) => {
       db.query(`
         SELECT "Id", "Name", "Result", "TimeRun", "Duration"
         FROM jf_logging
-        WHERE lower(COALESCE("Result", '')) NOT IN ('success', 'completed', 'ok')
+        WHERE lower(COALESCE("Result", '')) NOT IN ('success', 'completed', 'ok', 'skipped')
         ORDER BY "TimeRun" DESC
         LIMIT 6
       `),

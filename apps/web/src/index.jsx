@@ -18,6 +18,7 @@ import { initReactI18next } from "react-i18next";
 import Loading from "./pages/components/general/loading.jsx";
 import baseUrl from "./lib/baseurl.jsx";
 import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
+import { languages } from "./lib/languages.jsx";
 import { DEFAULT_THEME, applyTheme } from "./lib/theme";
 
 const setupFlowNeedsDefaultTheme = !localStorage.getItem("token") || localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true";
@@ -29,6 +30,7 @@ i18n
   .use(initReactI18next)
   .init({
     fallbackLng: "en-GB",
+    supportedLngs: languages.map((language) => language.id),
     debug: false,
     backend: {
       loadPath: `${baseUrl}/locales/{{lng}}/{{ns}}.json`,
