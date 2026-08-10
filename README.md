@@ -158,6 +158,8 @@ JellyGlance gives your Jellyfin server a proper dashboard: live sessions, reques
 | --- | --- |
 | <img src="docs/public/screenshots/Settings.png" alt="Settings overview" width="440"> | <img src="docs/public/screenshots/Settings-Activity.png" alt="Activity settings" width="440"> |
 
+The refreshed Settings center uses a persistent sidebar for general settings, security, authorised Jellyfin devices, plugins, tasks, integrations, webhooks, notifications, backups, imports, health, repair, and logs.
+
 | Security | Tasks |
 | --- | --- |
 | <img src="docs/public/screenshots/Settings-Security.png" alt="Security settings" width="440"> | <img src="docs/public/screenshots/Settings-Tasks.png" alt="Task settings" width="440"> |
@@ -272,6 +274,17 @@ JellyGlance is built to sit in the middle of a self-hosted media stack:
 ```sh
 docker compose pull
 docker compose up -d
+```
+
+The published Docker image supports `linux/amd64`, `linux/arm64`, and `linux/arm/v7` (armhf). Docker automatically pulls the matching image for Raspberry Pi and other ARM hosts.
+
+## Translations
+
+JellyGlance uses `en-GB` as the source locale at `apps/web/public/locales/en-GB/translation.json`.
+
+```sh
+npm run i18n:sync
+npm run i18n:check
 ```
 
 ## Project Links

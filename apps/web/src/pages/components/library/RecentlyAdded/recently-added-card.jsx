@@ -71,7 +71,7 @@ function RecentlyAddedCard(props) {
           ) : null}
           {!showFallback ? (
             <img
-              src={`${baseUrl+"/proxy/Items/Images/Primary?id=" + activeImageId + "&fillHeight=320&fillWidth=213&quality=60"}`}
+              src={`${baseUrl+"/proxy/Items/Images/Primary?id=" + activeImageId + "&fillHeight=540&fillWidth=360&quality=70"}`}
               alt=""
               width="213"
               height="320"

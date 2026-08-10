@@ -63,6 +63,50 @@ const PORT = 3000;
 const LISTEN_IP = process.env.JS_LISTEN_IP || "0.0.0.0";
 const JWT_SECRET = process.env.JWT_SECRET;
 const BASE_NAME = process.env.JS_BASE_URL ? ensureSlashes(process.env.JS_BASE_URL) : "";
+const DEFAULT_ALLOWED_ORIGINS = [
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+];
+const configuredAllowedOrigins = (process.env.CORS_ORIGINS || process.env.JS_CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredAllowedOrigins]);
+
+function normalizeOrigin(origin = "") {
+  return String(origin).trim().replace(/\/+$/, "");
+}
+
+function getRequestOrigin(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const forwardedHost = String(req.headers["x-forwarded-host"] || "").split(",")[0].trim();
+  const protocol = forwardedProto || req.protocol;
+  const host = forwardedHost || req.headers.host;
+
+  return protocol && host ? `${protocol}://${host}` : "";
+}
+
+function isLocalOrigin(origin) {
+  try {
+    const { hostname } = new URL(origin);
+    return ["localhost", "127.0.0.1", "::1"].includes(hostname) || /^10\./.test(hostname) || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedCorsOrigin(origin, req) {
+  if (!origin) return true;
+  const normalizedOrigin = normalizeOrigin(origin);
+  return (
+    allowedOrigins.has(normalizedOrigin) ||
+    normalizedOrigin === normalizeOrigin(getRequestOrigin(req)) ||
+    isLocalOrigin(normalizedOrigin) ||
+    process.env.CORS_ALLOW_ALL === "true"
+  );
+}
 
 if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
@@ -78,11 +122,80 @@ const DEFAULT_ROLE_PERMISSIONS = {
 };
 
 // middlewares
-app.use(express.json()); // middleware to parse JSON request bodies
-app.use(cors());
 app.set("trust proxy", 1);
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" })); // middleware to parse JSON request bodies
+app.use((req, res, next) =>
+  cors({
+    origin(origin, callback) {
+      callback(null, isAllowedCorsOrigin(origin, req));
+    },
+  })(req, res, next)
+);
 app.disable("x-powered-by");
 app.use(compression());
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://track.nerdytech.dev",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' ws: wss: http: https:",
+      "frame-src 'self'",
+      "frame-ancestors 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ")
+  );
+  next();
+});
+
+function createRateLimiter({ windowMs, max, message }) {
+  const hits = new Map();
+
+  return (req, res, next) => {
+    const key = req.ip || req.socket?.remoteAddress || "unknown";
+    const now = Date.now();
+    const current = hits.get(key) || { count: 0, resetAt: now + windowMs };
+
+    if (current.resetAt <= now) {
+      current.count = 0;
+      current.resetAt = now + windowMs;
+    }
+
+    current.count += 1;
+    hits.set(key, current);
+    res.setHeader("RateLimit-Limit", String(max));
+    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - current.count)));
+    res.setHeader("RateLimit-Reset", String(Math.ceil(current.resetAt / 1000)));
+
+    if (current.count > max) {
+      res.status(429).json({ message });
+      return;
+    }
+
+    next();
+  };
+}
+
+const authRateLimit = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
+  message: "Too many authentication requests. Try again later.",
+});
+const taskRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
+  message: "Too many task requests. Try again shortly.",
+});
 
 function typeInferenceMiddleware(req, res, next) {
   Object.keys(req.query).forEach((key) => {
@@ -100,24 +213,77 @@ function typeInferenceMiddleware(req, res, next) {
 
 app.use(typeInferenceMiddleware);
 
-const findFile = (dir, fileName) => {
+const root = process.env.JS_CLIENT_DIST || path.join(__dirname, "..", "web", "dist");
+const staticAssetIndex = new Map();
+const STATIC_FILE_EXTENSION_REGEX = /\.(css|ico|js|json|png|jpg|jpeg|webp|svg|woff2?|ttf|map)$/i;
+
+function indexStaticAssets(dir, baseDir = dir) {
+  if (!fs.existsSync(dir)) {
+    return;
+  }
+
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      const result = findFile(fullPath, fileName);
-      if (result) {
-        return result;
-      }
-    } else if (file === fileName) {
-      return fullPath;
+      indexStaticAssets(fullPath, baseDir);
+    } else if (!staticAssetIndex.has(file)) {
+      const relativePath = `/${path.relative(baseDir, fullPath).split(path.sep).join("/")}`;
+      staticAssetIndex.set(relativePath, fullPath);
+      staticAssetIndex.set(file, fullPath);
     }
   }
-  return null;
-};
+}
 
-const root = process.env.JS_CLIENT_DIST || path.join(__dirname, "..", "web", "dist");
+function getRequestPathname(req) {
+  try {
+    return decodeURIComponent(new URL(req.originalUrl || req.url, "http://jellyglance.local").pathname);
+  } catch {
+    return req.path || req.url.split("?")[0];
+  }
+}
+
+function getStaticAssetPath(req) {
+  let pathname = getRequestPathname(req);
+  if (BASE_NAME && pathname.startsWith(BASE_NAME)) {
+    pathname = pathname.slice(BASE_NAME.length) || "/";
+  }
+
+  const exactPath = staticAssetIndex.get(pathname);
+  if (exactPath) {
+    return exactPath;
+  }
+
+  const fileName = path.basename(pathname);
+  if (fileName !== "translation.json") {
+    return staticAssetIndex.get(fileName);
+  }
+
+  return null;
+}
+
+function getTranslationFilePath(req) {
+  let pathname = getRequestPathname(req);
+  if (BASE_NAME && pathname.startsWith(BASE_NAME)) {
+    pathname = pathname.slice(BASE_NAME.length) || "/";
+  }
+
+  const match = pathname.match(/^\/locales\/([^/]+)\/translation\.json$/);
+  if (!match) {
+    return null;
+  }
+
+  const locale = sanitizeFilename(match[1]);
+  const filePath = path.join(root, "locales", locale, "translation.json");
+  const localesRoot = path.join(root, "locales");
+
+  if (!filePath.startsWith(localesRoot) || !fs.existsSync(filePath)) {
+    return null;
+  }
+
+  return filePath;
+}
 
 //hacky middleware to handle basename changes for UI
 
@@ -130,25 +296,23 @@ app.use((req, res, next) => {
     return next();
   }
 
-  const fileRegex = /\/([^\/]+\.(css|ico|js|json|png))$/;
-  const match = req.url.match(fileRegex);
-  if (match) {
-    // Extract the file name
-    const fileName = match[1];
+  const pathname = getRequestPathname(req);
+  const translationFilePath = getTranslationFilePath(req);
+  if (translationFilePath) {
+    res.set("Cache-Control", "no-store");
+    return res.type("application/json").sendFile(translationFilePath);
+  }
 
-    //Exclude translation.json from this hack as it messes up the translations by returning the first file regardless of language chosen
-    if (fileName != "translation.json") {
-      // Find the file
-      const filePath = findFile(root, fileName);
-      if (filePath) {
-        if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
-          res.set("Cache-Control", "no-store");
-        }
-        return res.sendFile(filePath);
-      } else {
-        return res.status(404).send("File not found");
+  if (STATIC_FILE_EXTENSION_REGEX.test(pathname)) {
+    const filePath = getStaticAssetPath(req);
+    if (filePath) {
+      if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
+        res.set("Cache-Control", "no-store");
       }
+      return res.sendFile(filePath);
     }
+
+    return res.status(404).type("text/plain").send("Static asset not found");
   }
 
   if (BASE_NAME && req.url.startsWith(BASE_NAME) && req.url !== BASE_NAME) {
@@ -159,12 +323,16 @@ app.use((req, res, next) => {
 });
 
 // initiate routes
-app.use(`/auth`, authRouter, () => {
+app.use(`/auth`, authRateLimit, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
 app.use("/proxy", proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
+app.use("/api/startTask", taskRateLimit);
+app.use("/api/server-management/action", taskRateLimit);
+app.use("/sync", taskRateLimit);
+app.use("/backup/beginBackup", taskRateLimit);
 app.use("/api", authenticate, authorizeApiRoute, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
@@ -235,6 +403,8 @@ app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // for deployment of static page
 writeEnvVariables().then(() => {
+  staticAssetIndex.clear();
+  indexStaticAssets(root);
   app.use(
     express.static(root, {
       setHeaders: (res, filePath) => {
@@ -248,6 +418,9 @@ writeEnvVariables().then(() => {
     if (req.url.includes("socket.io")) {
       return next();
     }
+    if (STATIC_FILE_EXTENSION_REGEX.test(getRequestPathname(req))) {
+      return res.status(404).type("text/plain").send("Static asset not found");
+    }
     res.set("Cache-Control", "no-store");
     res.sendFile(path.join(root, "index.html"));
   });
@@ -256,7 +429,7 @@ writeEnvVariables().then(() => {
 // JWT middleware
 async function authenticate(req, res, next) {
   const token = req.headers.authorization;
-  const apiKey = req.headers["x-api-token"] || req.query.apiKey;
+  const apiKey = req.headers["x-api-token"];
 
   if (!token && !apiKey) {
     return res.status(401).json({
@@ -406,6 +579,14 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if (pathName.startsWith("/server-management")) {
+    if (!req.permissions?.settings || !["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Admin role required" });
+    }
+    next();
+    return;
+  }
+
   const permission =
     pathName.startsWith("/keys")
       ? "apiKeys"
@@ -421,6 +602,7 @@ function authorizeApiRoute(req, res, next) {
         : pathName.startsWith("/set") ||
             pathName.includes("/purge") ||
             pathName.startsWith("/integrations") ||
+            pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
             pathName.startsWith("/downloads/add") ||
             pathName.startsWith("/starttask") ||

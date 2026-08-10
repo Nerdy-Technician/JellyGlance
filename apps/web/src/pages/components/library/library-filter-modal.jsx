@@ -21,7 +21,7 @@ function LibraryFilterModal(props) {
   };
 
   return (
-    <div className="px-5 py-2">
+    <div className="library-filter-modal px-5 py-2">
       <Form>
         {props.libraries.map((library) => (
           <Form.Check

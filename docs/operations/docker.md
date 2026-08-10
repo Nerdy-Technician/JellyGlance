@@ -50,6 +50,15 @@ docker build -t ghcr.io/nerdy-technician/jellyglance:local .
 docker run --rm -p 3000:3000 ghcr.io/nerdy-technician/jellyglance:local
 ```
 
+To build the same multi-architecture image manifest published by CI, use Docker Buildx:
+
+```sh
+docker buildx build \
+  --platform linux/amd64,linux/arm64,linux/arm/v7 \
+  -t ghcr.io/nerdy-technician/jellyglance:local \
+  .
+```
+
 ## Resetting Setup Data
 
 For a fresh first-run setup, stop the stack and remove the PostgreSQL volume:
@@ -64,7 +73,7 @@ This deletes JellyGlance database state. Keep backups before doing this on a rea
 
 ## Published Images
 
-The Docker workflow publishes GHCR images from `main` and release tags:
+The Docker workflow publishes GHCR images from `main` and release tags for `linux/amd64`, `linux/arm64`, and `linux/arm/v7` (armhf):
 
 ```text
 ghcr.io/nerdy-technician/jellyglance

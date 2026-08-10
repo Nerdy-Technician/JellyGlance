@@ -1,42 +1,49 @@
-version: v1.2.0
-title: JellyGlance v1.2.0
+version: v1.2.1
+title: JellyGlance v1.2.1
 ---
-## Major Release Milestone
+feat: expand JellyGlance admin tools, profile media, docs, and UI polish since v1.2.0
 
-JellyGlance 1.2.0 is a major milestone update for the project, rolling the latest beta cycle into a stable release with new control surfaces, cleaner mobile layouts, improved imports, better newsletter tooling, and more polished day-to-day dashboard workflows.
+Added
+- Standalone admin-only Jellyfin Jobs page with sidebar entry
+- Jellyfin scheduled task status and run-task actions
+- Settings tabs for authorised Jellyfin devices and installed/enabled plugins
+- About release notes section with version selector and GitHub release loading
+- Beta/release-aware release note handling
+- Additional color theme options
+- Dependabot configuration
+- i18n sync tooling and English US locale scaffold
+- Press page with YouTube and selfh.st coverage
+- Updated README/docs Settings screenshot
 
-## Features
+Changed
+- Improved Settings, logs, integrations, repair views, Activity table, and profile media layout
+- Improved VitePress homepage, architecture docs, releases page, press page, and screenshots
+- Updated What's New content, translations, package metadata, release notes, lockfile, and CI/release config
+- Simplified update status copy to “Up to date”
+- Kept app dark-only after removing light mode work
+- Hid Requests and Downloads navigation when related integrations are not configured
+- Suppressed download sync notifications when no download clients are enabled
+- Improved backend route stability, task handling, request errors, caching, and config behavior
 
-- feat: add configurable in-app notification controls under Settings
-- feat: add notification modes for all, warnings/errors, errors-only, and muted background toasts
-- feat: keep manually triggered task notifications visible even when background toast noise is reduced
-- feat: add persistent toast position and display-duration preferences
-- feat: add a theme preset dropdown in the profile modal with visible palette swatches
-- feat: keep custom profile colour controls available below the theme preset picker
-- feat: add a dedicated Newsletter Preview tab with a full email-document preview frame
-- feat: add separate Newsletter Settings and Preview views for cleaner configuration
-- feat: add Jellystat and Tautulli tabs inside Settings imports
-- feat: make the default homepage layout start with Active Sessions
+Fixed
+- Activity table rapid refresh behavior
+- Activity library modal text readability
+- Recently Added poster aspect ratio so posters are not squashed
+- User profile Recently Watched data source, fallback behavior, and episode labels
+- User profile Next Episodes fallback using watchlist, playback context, and Jellyfin NextUp
+- Profile media counts for generated rails like Next Episodes and Recommended
+- Library card layout, poster sizing, and optional library-name display
+- Task skip/history behavior and server-management edge cases
 
-## Fixes
+Security / Stability
+- Add configurable CORS allowlist.
+- Add security headers including CSP, frame, referrer, permissions, and content-type protections.
+- Limit JSON request body size.
+- Add simple rate limiting for auth, task, backup, sync, and Jellyfin job actions.
+- Restrict Jellyfin Jobs page/API access to Owner/Admin users.
+- Expand API permission mapping for Jellyfin admin endpoints.
 
-- fix: proxy newsletter API calls through the Vite dev server so mobile testing reaches the backend
-- fix: prevent empty Newsletter Preview success states when the backend does not return usable HTML
-- fix: keep newsletter settings usable when preview generation fails during page load
-- fix: render newsletter preview HTML in an iframe instead of injecting a full document into a div
-- fix: improve mobile account modal sizing, footer actions, avatar scale, and theme controls
-- fix: improve mobile header logo and account avatar scaling
-- fix: improve active session poster and client icon sizing on mobile
-- fix: improve mobile library import card image sizing and brightness
-- fix: remove duplicate library title text from library import images
-- fix: make the Home Order panel wrap controls cleanly on desktop and stack sections on mobile
-- fix: make Settings navigation a vertical desktop rail with better mobile section handling
-- fix: harden Jellystat and Tautulli import screens against empty or malformed API payloads
-- fix: keep nested Settings tabs from being hidden by top-level tab CSS
-- fix: tag manual backup, restore, and generic task events for notification filtering
-
-## Notes
-
-- This release marks the 1.2.0 milestone for JellyGlance.
-- The mobile/navigation beta cycle is now part of the stable channel.
-- Notification controls reduce noisy automatic sync-complete messages while preserving manual task feedback.
+Closes #9.
+Closes #10.
+Closes #11.
+Closes #14.

@@ -40,12 +40,11 @@ function ItemOptions(props) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }).then((response) => {
-        console.log(response);
+      }).then(() => {
         setShow(false);
         navigate(-1);
       }).catch((error) => {
-        console.log({error:error,token:token});
+        console.log("Unable to purge item cache", error);
       });
   }
 

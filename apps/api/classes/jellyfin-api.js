@@ -592,7 +592,6 @@ class JellyfinAPI {
 
       result.cleanedUrl = _url;
 
-      console.log(_url, this.#isValidUrl(_url));
       if (!this.#isValidUrl(_url)) {
         return result;
       }

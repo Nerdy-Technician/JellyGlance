@@ -301,6 +301,9 @@ class TaskScheduler {
         await this.getTaskHistory();
         sendUpdate("GeneralAlert", { type: "Success", message: `${task.name} completed` });
       },
+      onSkip: async () => {
+        await this.getTaskHistory();
+      },
       onError: async (error) => {
         console.error(error);
         await this.getTaskHistory();

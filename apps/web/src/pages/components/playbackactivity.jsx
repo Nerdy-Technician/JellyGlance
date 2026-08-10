@@ -40,9 +40,7 @@ function PlaybackActivity() {
         axios
           .get('/stats/getPlaybackActivity')
           .then((data) => {
-            console.log("data");
             setData(data.data);
-            console.log(data);
           })
           .catch((error) => {
             console.log(error);

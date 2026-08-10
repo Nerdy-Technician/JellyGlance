@@ -276,10 +276,12 @@ export default function Integrations({ embedded = false, firstRun = false }) {
   function persist(nextArrApps = arrApps, nextClients = clients) {
     const payload = { arrApps: nextArrApps, clients: nextClients };
     saveSavedIntegrations(payload);
+    window.dispatchEvent(new CustomEvent("jellyglance-integrations-updated", { detail: payload }));
     axios
       .post("/api/integrations", payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       })
+      .then(() => window.dispatchEvent(new CustomEvent("jellyglance-integrations-updated", { detail: payload })))
       .catch((error) => console.log("Unable to save integrations", error));
   }
 

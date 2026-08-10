@@ -56,6 +56,39 @@ function toastOptions(settings, autoCloseOverride) {
   };
 }
 
+function isLibrarySyncProgress(message) {
+  const type = String(message?.type || "").toLowerCase();
+  const text = String(message?.message || message || "");
+  return (type === "start" || type === "update") && /\b(?:syncing|fetching) (?:data for )?library\b/i.test(text);
+}
+
+function taskToastId(task) {
+  return `jellyglance-task-toast:${task}`;
+}
+
+const recentTaskNotifications = new Map();
+const TASK_NOTIFICATION_DEDUPE_MS = 30000;
+
+function isDuplicateTaskNotification(task, message) {
+  const key = [
+    task,
+    message?.type || "Info",
+    message?.triggerType || message?.triggertype || "",
+    message?.message || message || "",
+  ].join(":");
+  const now = Date.now();
+  const lastSeen = recentTaskNotifications.get(key) || 0;
+
+  recentTaskNotifications.set(key, now);
+  recentTaskNotifications.forEach((timestamp, notificationKey) => {
+    if (now - timestamp > TASK_NOTIFICATION_DEDUPE_MS) {
+      recentTaskNotifications.delete(notificationKey);
+    }
+  });
+
+  return now - lastSeen < TASK_NOTIFICATION_DEDUPE_MS;
+}
+
 function App() {
   const [setupState, setSetupState] = useState(0);
   const [config, setConfig] = useState(null);
@@ -86,13 +119,26 @@ function App() {
         if (!shouldShowNotification(message, notificationSettings)) {
           return;
         }
-        const options = toastOptions(notificationSettings, message?.type === "Start" || message?.type === "Update" ? 15000 : undefined);
+        if (isDuplicateTaskNotification(listener.task, message)) {
+          return;
+        }
+        const toastId = taskToastId(listener.task);
+        const options = {
+          ...toastOptions(notificationSettings, message?.type === "Start" || message?.type === "Update" ? 15000 : undefined),
+          hideProgressBar: isLibrarySyncProgress(message),
+        };
         const onCloseOptions = {
           ...options,
+          toastId,
           onClose: () => {
-            listener.ref.current = null;
+            if (listener.ref.current === toastId) {
+              listener.ref.current = null;
+            }
           },
         };
+        if (!listener.ref.current && toast.isActive(toastId)) {
+          listener.ref.current = toastId;
+        }
         if (message && message.type === "Start") {
           listener.ref.current = toast.info(message?.message || message, {
             ...onCloseOptions,
@@ -110,19 +156,19 @@ function App() {
             ...onCloseOptions,
           });
         } else if (message && message.type === "Update") {
-          toast.update(listener.ref.current, {
+          toast.update(toastId, {
             render: message?.message || message,
             type: toast.TYPE.INFO,
             ...options,
           });
         } else if (message && message.type === "Error") {
-          toast.update(listener.ref.current, {
+          toast.update(toastId, {
             render: message?.message || message,
             type: toast.TYPE.ERROR,
             ...toastOptions(notificationSettings),
           });
         } else if (message && message.type === "Success") {
-          toast.update(listener.ref.current, {
+          toast.update(toastId, {
             render: message?.message || message,
             type: toast.TYPE.SUCCESS,
             ...toastOptions(notificationSettings),
@@ -211,6 +257,15 @@ function App() {
       applyTheme(DEFAULT_THEME);
     }
   }, [setupState, shouldShowFirstRunExtras]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setConfig(null);
+    };
+
+    window.addEventListener("jellyglance-auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("jellyglance-auth-expired", handleAuthExpired);
+  }, []);
 
   if (loading) {
     return <Loading />;

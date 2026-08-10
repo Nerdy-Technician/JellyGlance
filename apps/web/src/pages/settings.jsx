@@ -9,11 +9,13 @@ import LibrarySelector from "./library_selector";
 import ActivityMonitorSettings from "./components/settings/ActivityMonitorSettings";
 import WebhooksSettings from "./components/settings/webhooks";
 import Integrations from "./integrations";
+import RepairHub from "./repair-hub";
 import HealthSettings from "./components/settings/health";
 import JellystatImport from "./components/settings/JellystatImport";
 import TautulliImport from "./components/settings/TautulliImport";
 import NewsletterSettings from "./components/settings/NewsletterSettings";
 import NotificationSettings from "./components/settings/NotificationSettings";
+import JellyfinAdminSettings from "./components/settings/JellyfinAdminSettings";
 
 import Logs from "./components/settings/logs";
 
@@ -34,6 +36,9 @@ import Plug2LineIcon from "remixicon-react/Plug2LineIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
+import ToolsLineIcon from "remixicon-react/ToolsLineIcon";
+import DeviceLineIcon from "remixicon-react/DeviceLineIcon";
+import AppsLineIcon from "remixicon-react/AppsLineIcon";
 
 function tabTitle(Icon, label) {
   return (
@@ -44,10 +49,16 @@ function tabTitle(Icon, label) {
   );
 }
 
+function SettingsPane({ children }) {
+  return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
 const settingsTabItems = [
   { key: "tabGeneral", Icon: Settings3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.SETTINGS"} /> },
   { key: "tabSecurity", Icon: ShieldKeyholeLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.SECURITY"} /> },
   { key: "tabActivityMonitor", Icon: PulseLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.ACTIVITY_MONITOR"} defaults="Activity Monitor" /> },
+  { key: "tabJellyfinDevices", Icon: DeviceLineIcon, label: "Authorised Devices" },
+  { key: "tabJellyfinPlugins", Icon: AppsLineIcon, label: "Plugins" },
   { key: "tabTasks", Icon: TaskLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.TASKS"} /> },
   { key: "tabLibraries", Icon: GalleryLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LIBRARY_SETTINGS"} /> },
   { key: "tabIntegrations", Icon: Plug2LineIcon, label: "Integrations" },
@@ -58,6 +69,7 @@ const settingsTabItems = [
   { key: "tabImports", Icon: Database2LineIcon, label: "Imports" },
   { key: "tabNewsletter", Icon: MailSettingsLineIcon, label: "Newsletter" },
   { key: "tabHealth", Icon: HeartPulseLineIcon, label: "Health" },
+  { key: "tabRepair", Icon: ToolsLineIcon, label: "Repair" },
   { key: "tabLogs", Icon: FileList3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LOGS"} /> },
 ];
 
@@ -120,7 +132,9 @@ export default function Settings() {
           className="settings-tab-pane bg-transparent"
           title={tabTitle(Settings3LineIcon, settingsTabItems[0].label)}
         >
-          <SettingsConfig />
+          <SettingsPane>
+            <SettingsConfig />
+          </SettingsPane>
         </Tab>
 
         <Tab
@@ -128,7 +142,9 @@ export default function Settings() {
           className="settings-tab-pane bg-transparent"
           title={tabTitle(ShieldKeyholeLineIcon, settingsTabItems[1].label)}
         >
-          <SecuritySettings />
+          <SettingsPane>
+            <SecuritySettings />
+          </SettingsPane>
         </Tab>
 
         <Tab
@@ -136,82 +152,116 @@ export default function Settings() {
           className="settings-tab-pane bg-transparent"
           title={tabTitle(PulseLineIcon, settingsTabItems[2].label)}
         >
-          <ActivityMonitorSettings />
+          <SettingsPane>
+            <ActivityMonitorSettings />
+          </SettingsPane>
+        </Tab>
+
+        <Tab
+          eventKey="tabJellyfinDevices"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(DeviceLineIcon, settingsTabItems[3].label)}
+        >
+          <SettingsPane>
+            <JellyfinAdminSettings view="devices" />
+          </SettingsPane>
+        </Tab>
+
+        <Tab
+          eventKey="tabJellyfinPlugins"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(AppsLineIcon, settingsTabItems[4].label)}
+        >
+          <SettingsPane>
+            <JellyfinAdminSettings view="plugins" />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabTasks"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(TaskLineIcon, settingsTabItems[3].label)}
+          title={tabTitle(TaskLineIcon, settingsTabItems[5].label)}
         >
-          <Tasks />
+          <SettingsPane>
+            <Tasks />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabLibraries"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(GalleryLineIcon, settingsTabItems[4].label)}
+          title={tabTitle(GalleryLineIcon, settingsTabItems[6].label)}
         >
-          <LibrarySelector />
+          <SettingsPane>
+            <LibrarySelector />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabIntegrations"
           className="settings-tab-pane bg-transparent integrations-settings-tab"
-          title={tabTitle(Plug2LineIcon, settingsTabItems[5].label)}
+          title={tabTitle(Plug2LineIcon, settingsTabItems[7].label)}
         >
-          <Integrations embedded />
+          <SettingsPane>
+            <Integrations embedded />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabKeys"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Key2LineIcon, settingsTabItems[6].label)}
+          title={tabTitle(Key2LineIcon, settingsTabItems[8].label)}
         >
-          <ApiKeys />
+          <SettingsPane>
+            <ApiKeys />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabWebhooks"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Notification3LineIcon, settingsTabItems[7].label)}
+          title={tabTitle(Notification3LineIcon, settingsTabItems[9].label)}
         >
-          <ErrorBoundary>
+          <SettingsPane>
             <WebhooksSettings />
-          </ErrorBoundary>
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabNotifications"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Notification3LineIcon, settingsTabItems[8].label)}
+          title={tabTitle(Notification3LineIcon, settingsTabItems[10].label)}
         >
-          <NotificationSettings />
+          <SettingsPane>
+            <NotificationSettings />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabBackup"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(ArchiveLineIcon, settingsTabItems[9].label)}
+          title={tabTitle(ArchiveLineIcon, settingsTabItems[11].label)}
         >
-          <BackupPage />
+          <SettingsPane>
+            <BackupPage />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabImports"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(Database2LineIcon, settingsTabItems[10].label)}
+          title={tabTitle(Database2LineIcon, settingsTabItems[12].label)}
         >
           <Tabs defaultActiveKey="jellystat" variant="pills" className="settings-import-tabs" transition={false} mountOnEnter>
             <Tab eventKey="jellystat" title="Jellystat" className="settings-import-pane">
-              <ErrorBoundary>
+              <SettingsPane>
                 <JellystatImport />
-              </ErrorBoundary>
+              </SettingsPane>
             </Tab>
             <Tab eventKey="tautulli" title="Tautulli" className="settings-import-pane">
-              <ErrorBoundary>
+              <SettingsPane>
                 <TautulliImport />
-              </ErrorBoundary>
+              </SettingsPane>
             </Tab>
           </Tabs>
         </Tab>
@@ -219,25 +269,41 @@ export default function Settings() {
         <Tab
           eventKey="tabNewsletter"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(MailSettingsLineIcon, settingsTabItems[11].label)}
+          title={tabTitle(MailSettingsLineIcon, settingsTabItems[13].label)}
         >
-          <NewsletterSettings />
+          <SettingsPane>
+            <NewsletterSettings />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabHealth"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(HeartPulseLineIcon, settingsTabItems[12].label)}
+          title={tabTitle(HeartPulseLineIcon, settingsTabItems[14].label)}
         >
-          <HealthSettings />
+          <SettingsPane>
+            <HealthSettings />
+          </SettingsPane>
+        </Tab>
+
+        <Tab
+          eventKey="tabRepair"
+          className="settings-tab-pane bg-transparent"
+          title={tabTitle(ToolsLineIcon, settingsTabItems[15].label)}
+        >
+          <SettingsPane>
+            <RepairHub embedded />
+          </SettingsPane>
         </Tab>
 
         <Tab
           eventKey="tabLogs"
           className="settings-tab-pane bg-transparent"
-          title={tabTitle(FileList3LineIcon, settingsTabItems[13].label)}
+          title={tabTitle(FileList3LineIcon, settingsTabItems[16].label)}
         >
-          <Logs />
+          <SettingsPane>
+            <Logs />
+          </SettingsPane>
         </Tab>
       </Tabs>
     </div>

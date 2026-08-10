@@ -1,8 +1,6 @@
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 function PlayMethodChart({ stats, types }) {
-  console.log(stats);
-  console.log(types);
   const colors = [
     "rgb(54, 162, 235)", // blue
     "rgb(255, 99, 132)", // pink

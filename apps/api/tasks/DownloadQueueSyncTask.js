@@ -93,6 +93,27 @@ async function runDownloadQueueSyncTask() {
     const integrations = await getIntegrations();
     const integrationData = await getIntegrationData();
     const connectedClients = (integrations.clients || []).filter((client) => client.connected);
+    if (!connectedClients.length) {
+      await saveIntegrationData({
+        downloads: {
+          ...integrationData.downloads,
+          items: [],
+          clients: (integrations.clients || []).map((client) => ({
+            name: client.name,
+            slug: client.slug,
+            protocol: client.protocol,
+            instanceId: client.instanceId,
+            connected: false,
+            itemCount: 0,
+            message: "Needs setup",
+          })),
+          syncedAt: new Date().toISOString(),
+        },
+      });
+      parentPort.postMessage({ status: "skipped", message: "No download clients configured." });
+      return;
+    }
+
     const queueResults = await Promise.allSettled(connectedClients.map((client) => fetchClientQueue(client)));
     const syncedItems = queueResults.flatMap((result) => (result.status === "fulfilled" ? result.value.items || [] : []));
     const clients = (integrations.clients || []).map((client) => {

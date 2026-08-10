@@ -1,6 +1,6 @@
 {
   "name": "jellyglance",
-  "version": "1.2.0",
+  "version": "1.2.2-beta.1",
   "private": true,
   "description": "JellyGlance - a modern Jellyfin analytics and media control dashboard by Nerdy-Technician.",
   "keywords": [
@@ -41,18 +41,25 @@
     "build": "npm run build -w @jellyglance/web",
     "build:docs": "npm run build -w @jellyglance/docs",
     "docs:dev": "npm run dev -w @jellyglance/docs",
+    "i18n:check": "node scripts/i18n-sync.mjs --check",
+    "i18n:sync": "node scripts/i18n-sync.mjs",
     "lint": "npm run lint -w @jellyglance/web",
     "start": "npm run start -w @jellyglance/api",
     "release": "semantic-release"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.3",
-    "@semantic-release/npm": "^12.0.2",
-    "@semantic-release/release-notes-generator": "^14.0.3",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "concurrently": "^9.2.1",
-    "semantic-release": "^24.2.9"
+    "semantic-release": "^25.0.9"
+  },
+  "overrides": {
+    "@semantic-release/npm": {
+      "npm": "^12.0.2"
+    }
   },
   "engines": {
     "node": ">=22"

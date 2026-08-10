@@ -93,8 +93,8 @@ export default function RepairHub() {
         axios.get("/stats/repair-hub", { headers: authHeaders() }),
         axios.get("/tautulli/unmatched", { params: { limit: 6 }, headers: authHeaders() }),
       ]);
-      setSummary(summaryResponse.data);
-      setUnmatched(unmatchedResponse.data || []);
+      setSummary(summaryResponse.data && typeof summaryResponse.data === "object" ? summaryResponse.data : {});
+      setUnmatched(Array.isArray(unmatchedResponse.data) ? unmatchedResponse.data : []);
     } catch (requestError) {
       setError(requestError.response?.data?.error || "Unable to load the repair hub.");
     } finally {

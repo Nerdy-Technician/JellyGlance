@@ -2,35 +2,68 @@ import { useEffect, useState } from "react";
 import axios from "../lib/axios_instance";
 
 import "./css/about.css";
-import logo from "./images/icon-b-512.png";
-import projectText from "./images/project-text.png";
 import ArchiveLineIcon from "remixicon-react/ArchiveLineIcon";
-import DiscordFillIcon from "remixicon-react/DiscordFillIcon";
+import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
+import CheckLineIcon from "remixicon-react/CheckLineIcon";
+import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import FilmLineIcon from "remixicon-react/FilmLineIcon";
 import GitBranchLineIcon from "remixicon-react/GitBranchLineIcon";
 import GithubFillIcon from "remixicon-react/GithubFillIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import PulseLineIcon from "remixicon-react/PulseLineIcon";
-import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
-import ShieldUserLineIcon from "remixicon-react/ShieldUserLineIcon";
+import PriceTag3LineIcon from "remixicon-react/PriceTag3LineIcon";
+import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
+import TaskLineIcon from "remixicon-react/TaskLineIcon";
 
-const projectHighlights = [
-  {
-    title: "Jellyfin Analytics",
-    description: "Live sessions, recently added media, user watch history, libraries, playback trends, and server activity.",
-    icon: PulseLineIcon,
-  },
-  {
-    title: "Media Control Center",
-    description: "Integrations for Jellyfin, automation apps, download clients, calendar views, webhooks, tasks, backups, and logs.",
-    icon: Settings3LineIcon,
-  },
-  {
-    title: "Flexible Accounts",
-    description: "Built for Jellyfin Quick Connect users, local JellyGlance accounts, admin roles, and OIDC-ready authentication.",
-    icon: ShieldUserLineIcon,
-  },
-];
+function stripMarkdown(value) {
+  return String(value || "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`*_~>#]/g, "")
+    .trim();
+}
+
+function formatReleaseDate(value) {
+  if (!value) return "";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(value));
+  } catch {
+    return "";
+  }
+}
+
+function parseReleaseBody(body) {
+  const sections = [];
+  let current = { title: "Changes", items: [] };
+
+  String(body || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .forEach((line) => {
+      if (!line || /^<!--/.test(line)) return;
+
+      const heading = line.match(/^#{2,6}\s+(.+)/);
+      if (heading) {
+        if (current.items.length) sections.push(current);
+        current = { title: stripMarkdown(heading[1]), items: [] };
+        return;
+      }
+
+      const bullet = line.match(/^[-*]\s+(.+)/);
+      const numbered = line.match(/^\d+\.\s+(.+)/);
+      const text = stripMarkdown(bullet?.[1] || numbered?.[1] || line);
+
+      if (text && !/^full changelog/i.test(text)) {
+        current.items.push(text);
+      }
+    });
+
+  if (current.items.length) sections.push(current);
+  return sections.length ? sections : [{ title: "Notes", items: ["No release notes were provided for this version."] }];
+}
 
 export default function SettingsAbout() {
   const token = localStorage.getItem("token");
@@ -39,6 +72,13 @@ export default function SettingsAbout() {
     message: "Version check pending",
     update_available: false,
   });
+  const [releaseData, setReleaseData] = useState({ releases: [], releases_url: "" });
+  const [releaseMessage, setReleaseMessage] = useState("Loading release notes...");
+  const [selectedReleaseId, setSelectedReleaseId] = useState("");
+  const [releaseMenuOpen, setReleaseMenuOpen] = useState(false);
+  const updateMessage = data.message === "JellyGlance is up to date" ? "Up to date" : data.message;
+  const selectedRelease = releaseData.releases.find((release) => String(release.id) === selectedReleaseId) || releaseData.releases[0];
+  const selectedReleaseSections = parseReleaseBody(selectedRelease?.body);
 
   useEffect(() => {
     const fetchVersion = () => {
@@ -69,136 +109,230 @@ export default function SettingsAbout() {
     return () => clearInterval(intervalId);
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+
+    axios
+      .get("/api/CheckForUpdates/releases", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      .then((response) => {
+        const releases = response.data?.releases || [];
+        setReleaseData({
+          releases,
+          releases_url: response.data?.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases",
+          channel: response.data?.channel || "stable",
+        });
+        setSelectedReleaseId(String(releases[0]?.id || ""));
+        setReleaseMessage(releases.length ? "" : "No release notes were returned.");
+      })
+      .catch((error) => {
+        console.log(error);
+        setReleaseMessage("Unable to load release notes.");
+      });
+  }, [token]);
+
   return (
     <div className="about-page">
-      <section className="about-hero">
-        <div className="about-brand">
-          <img src={logo} alt="" className="about-logo" />
-          <img src={projectText} alt="JellyGlance" className="about-wordmark" />
-        </div>
-        <div className="about-hero-copy">
-          <p className="about-eyebrow">Project dashboard</p>
-          <h1>JellyGlance</h1>
-          <p>
-            JellyGlance is a modern Jellyfin dashboard for live sessions, recently added media, library health, users,
-            downloads, release planning, webhooks, backups, and playback statistics. It gives self-hosted Jellyfin admins
-            a fast, polished control center without digging through server logs.
-          </p>
-          <div className="about-actions">
+      <header className="about-header">
+        <p>About</p>
+        <h1>JellyGlance</h1>
+        <span>Local Jellyfin visibility for sessions, activity, libraries, requests, downloads, and scheduled jobs.</span>
+      </header>
+
+      <main className="about-layout">
+        <section className="about-section">
+          <div className="about-project-grid">
+            <div className="about-project-copy">
+              <h2>Project</h2>
+              <p>
+                JellyGlance is a self-hosted dashboard for people running Jellyfin. It pulls the common admin checks into
+                one interface: current playback, recent library changes, watch history, health signals, integrations, and
+                background tasks.
+              </p>
+
+              <div className="about-feature-grid" aria-label="JellyGlance capabilities">
+                <article>
+                  <PulseLineIcon />
+                  <strong>Live status</strong>
+                  <span>See active streams, playback method, device, client, bitrate, transcoding state, and session history.</span>
+                </article>
+                <article>
+                  <FilmLineIcon />
+                  <strong>Library visibility</strong>
+                  <span>Track recent additions, library totals, missing artwork, item details, user activity, and watch trends.</span>
+                </article>
+                <article>
+                  <TaskLineIcon />
+                  <strong>Operations</strong>
+                  <span>Run syncs, backups, imports, health checks, notification tests, and background maintenance tasks.</span>
+                </article>
+                <article>
+                  <Database2LineIcon />
+                  <strong>Integrations</strong>
+                  <span>Connect request managers, download clients, Arr apps, Tautulli, Jellystat, webhooks, and newsletter tools.</span>
+                </article>
+              </div>
+
+              <section className="about-note">
+                <h2>How it works</h2>
+                <p>
+                  JellyGlance runs beside your Jellyfin server and talks to the configured APIs with your saved settings. The
+                  dashboard keeps local cache and task history so pages can show useful operational context without making
+                  every view feel like a raw API browser.
+                </p>
+              </section>
+
+              <section className="about-note">
+                <h2>What to configure</h2>
+                <ul>
+                  <li>Jellyfin connection and authentication mode for the main dashboard.</li>
+                  <li>Optional Jellyseerr or Overseerr instances for request management.</li>
+                  <li>Optional qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or similar clients for downloads.</li>
+                  <li>Optional backups, webhooks, newsletter delivery, imports, and health monitoring.</li>
+                </ul>
+              </section>
+            </div>
+
+            <section className="about-release-notes">
+              <div className="about-release-head">
+                <div>
+                  <h2>{releaseData.channel === "beta" ? "Beta Notes" : "Release Notes"}</h2>
+                  <p>Choose a version to review previous changes.</p>
+                </div>
+                <div className="about-release-picker">
+                  <span>Version</span>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseMenuOpen((isOpen) => !isOpen)}
+                    disabled={!releaseData.releases.length}
+                    aria-haspopup="listbox"
+                    aria-expanded={releaseMenuOpen}
+                  >
+                    <strong>{selectedRelease?.version || "No releases"}</strong>
+                    {selectedRelease?.date ? <em>{formatReleaseDate(selectedRelease.date)}</em> : null}
+                    <ArrowDownSLineIcon aria-hidden="true" size={16} />
+                  </button>
+                  {releaseMenuOpen ? (
+                    <div className="about-release-menu" role="listbox" aria-label="Release versions">
+                      {releaseData.releases.map((release) => {
+                        const releaseId = String(release.id);
+                        const selected = releaseId === selectedReleaseId;
+                        return (
+                          <button
+                            key={release.id}
+                            type="button"
+                            className={selected ? "is-selected" : ""}
+                            onClick={() => {
+                              setSelectedReleaseId(releaseId);
+                              setReleaseMenuOpen(false);
+                            }}
+                            role="option"
+                            aria-selected={selected}
+                          >
+                            <strong>{release.version}</strong>
+                            <em>{formatReleaseDate(release.date)}</em>
+                            {selected ? <CheckLineIcon aria-hidden="true" size={16} /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {releaseMessage ? <div className="about-release-empty">{releaseMessage}</div> : null}
+
+              {selectedRelease ? (
+                <article className="about-release-card">
+                  <header>
+                    <div>
+                      <PriceTag3LineIcon />
+                      <strong>{selectedRelease.version}</strong>
+                      {selectedRelease.prerelease ? <span>Pre-release</span> : null}
+                    </div>
+                    <time dateTime={selectedRelease.date || undefined}>{formatReleaseDate(selectedRelease.date)}</time>
+                  </header>
+
+                  {selectedReleaseSections.map((section) => (
+                    <section key={section.title}>
+                      <h3>{section.title}</h3>
+                      <ul>
+                        {section.items.map((item, index) => (
+                          <li key={`${section.title}-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+
+                  <a href={selectedRelease.url || releaseData.releases_url} target="_blank" rel="noreferrer">
+                    View full release on GitHub
+                  </a>
+                </article>
+              ) : null}
+            </section>
+          </div>
+        </section>
+
+        <aside className="about-sidebar">
+          <section className="about-install">
+            <h2>Install</h2>
+            <dl>
+              <div>
+                <dt>
+                  <GitBranchLineIcon />
+                  Version
+                </dt>
+                <dd>{data.current_version}</dd>
+              </div>
+              <div className={data.update_available ? "is-update" : ""}>
+                <dt>
+                  <HeartPulseLineIcon />
+                  Updates
+                </dt>
+                <dd>
+                  <a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank" rel="noreferrer">
+                    {updateMessage}
+                  </a>
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <FilmLineIcon />
+                  Media source
+                </dt>
+                <dd>Jellyfin</dd>
+              </div>
+              <div>
+                <dt>
+                  <ShieldCheckLineIcon />
+                  License
+                </dt>
+                <dd>GPL-3.0</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="about-links">
+            <h2>Links</h2>
             <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
-              <GithubFillIcon size={18} />
-              GitHub project
+              <GithubFillIcon />
+              Source code
             </a>
             <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance" target="_blank" rel="noreferrer">
-              <ArchiveLineIcon size={18} />
+              <ArchiveLineIcon />
               Container image
             </a>
-            <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
-              <DiscordFillIcon size={18} />
-              Discord community
+            <a href="https://github.com/Nerdy-Technician" target="_blank" rel="noreferrer">
+              <GithubFillIcon />
+              Maintainer profile
             </a>
-          </div>
-        </div>
-      </section>
-
-      <section className="about-status-grid">
-        <article>
-          <GitBranchLineIcon />
-          <span>Version</span>
-          <strong>{data.current_version}</strong>
-        </article>
-        <article className={data.update_available ? "is-update" : ""}>
-          <HeartPulseLineIcon />
-          <span>Update status</span>
-          <a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank" rel="noreferrer">
-            {data.message}
-          </a>
-        </article>
-        <article>
-          <GithubFillIcon />
-          <span>Repository</span>
-          <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
-            Nerdy-Technician/JellyGlance
-          </a>
-        </article>
-      </section>
-
-      <section className="about-content-grid">
-        <div className="about-panel about-story">
-          <p className="about-eyebrow">Product description</p>
-          <h2>Jellyfin insight at a glance.</h2>
-          <p>
-            JellyGlance focuses on fast answers: who is watching, what changed in the library, which users are active,
-            how libraries are performing, and what automation jobs or integrations need attention.
-          </p>
-          <p>
-            The project is designed for self-hosted setups, with local-first configuration, Docker Compose support,
-            cached artwork, role management, webhooks, task scheduling, and a UI tuned for repeated admin use.
-          </p>
-        </div>
-
-        <div className="about-panel about-maker">
-          <p className="about-eyebrow">Creator</p>
-          <a href="https://github.com/Nerdy-Technician" target="_blank" rel="noreferrer">
-            <GithubFillIcon />
-            <div>
-              <span>Made by</span>
-              <strong>Nerdy-Technician</strong>
-              <small>github.com/Nerdy-Technician</small>
-            </div>
-          </a>
-        </div>
-      </section>
-
-      <section className="about-discord-panel">
-        <div>
-          <p className="about-eyebrow">Community</p>
-          <h2>Join the JellyGlance Discord.</h2>
-          <p>
-            Ask setup questions, share dashboard ideas, follow new features, and help shape the next round of Jellyfin
-            command-center tools.
-          </p>
-          <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
-            <DiscordFillIcon />
-            Join Discord
-          </a>
-        </div>
-        <iframe
-          title="JellyGlance Discord"
-          src="https://discord.com/widget?id=1530493220805677056&theme=dark"
-          width="350"
-          height="500"
-          allowTransparency="true"
-          frameBorder="0"
-          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-        />
-      </section>
-
-      <section className="about-feature-grid">
-        {projectHighlights.map((highlight) => {
-          const Icon = highlight.icon;
-          return (
-            <article key={highlight.title}>
-              <Icon />
-              <div>
-                <h2>{highlight.title}</h2>
-                <p>{highlight.description}</p>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="about-footer-panel">
-        <FilmLineIcon />
-        <div>
-          <h2>Made for Jellyfin libraries.</h2>
-          <p>
-            JellyGlance uses your configured Jellyfin server as the source of truth for artwork, users, sessions, and
-            library metadata, then presents that data in a cleaner admin dashboard.
-          </p>
-        </div>
-      </section>
+          </section>
+        </aside>
+      </main>
     </div>
   );
 }

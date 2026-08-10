@@ -9,7 +9,8 @@
     "SETTINGS": "Paramètres",
     "ABOUT": "À propos",
     "LOGOUT": "Déconnexion",
-    "TIMELINE": "Fil chronologie"
+    "TIMELINE": "Fil chronologie",
+    "JELLYFIN_JOBS": "Tâches Jellyfin"
   },
   "HOME_PAGE": {
     "SESSIONS": "Lecture(s)",
@@ -73,13 +74,13 @@
   },
   "LIBRARY_INFO": {
     "LIBRARY_STATS": "Statistiques de la médiathèque",
-    "LIBRARY_ACTIVITY": "Activité de la médiathèque",
-    "TIMELINE": "Fil chronologique"
+    "LIBRARY_ACTIVITY": "Activité de la médiathèque"
   },
   "TAB_CONTROLS": {
     "OVERVIEW": "Vue d'ensemble",
     "ACTIVITY": "Activité",
-    "OPTIONS": "Options"
+    "OPTIONS": "Options",
+    "TIMELINE": "Chronologie"
   },
   "ITEM_ACTIVITY": "Activité du contenu",
   "ACTIVITY_TABLE": {
@@ -134,7 +135,8 @@
     "INVALID_URL": "Erreur {STATUS}: L'URL demandée n'a pas été trouvée.",
     "UNAUTHORIZED": "Erreur {STATUS}: Non autorisé",
     "PASSWORD_LENGTH": "Le mot de passe doit comporter au moins 6 caractères",
-    "USERNAME_REQUIRED": "Le nom d'utilisateur est requis"
+    "USERNAME_REQUIRED": "Le nom d'utilisateur est requis",
+    "NO_WEBHOOKS": "Aucun webhook trouvé"
   },
   "SHOW_ARCHIVED_LIBRARIES": "Afficher les médiathèques archivées",
   "HIDE_ARCHIVED_LIBRARIES": "Cacher les médiathèques archivées",
@@ -167,7 +169,11 @@
   "STAT_PAGE": {
     "STATISTICS": "Statistiques",
     "DAILY_PLAY_PER_LIBRARY": "Nombre de lecture quotidiennes par médiathèque",
-    "PLAY_COUNT_BY": "Nombre de lecture par"
+    "DAILY_DURATION_PER_LIBRARY": "Durée de lecture quotidienne par médiathèque",
+    "PLAY_COUNT_BY": "Nombre de lecture par",
+    "PLAY_DURATION_BY": "Durée de lecture par",
+    "COUNT_VIEW": "Nombre",
+    "DURATION_VIEW": "Durée"
   },
   "SETTINGS_PAGE": {
     "SETTINGS": "Paramètres",
@@ -225,6 +231,10 @@
     "DATE_ADDED": "Date d'ajout",
     "WEBHOOKS": "Webhooks",
     "WEBHOOK_TYPE": "Type de webhook",
+    "WEBHOOK_TYPES": {
+      "DISCORD": "Discord",
+      "GENERIC": "Générique"
+    },
     "TEST_NOW": "Tester maintenant",
     "WEBHOOKS_CONFIGURATION": "Configuration des webhooks",
     "WEBHOOKS_TOOLTIP": "L'URL des webhooks utiliser pour envoyer des notifications à Discord ou à d'autres services",
@@ -235,7 +245,7 @@
     "URL": "URL",
     "TYPE": "Type",
     "TRIGGER": "Déclencheur",
-    "STATUS":  "Status",
+    "STATUS": "État",
     "EVENT_WEBHOOKS": "Notifications d'événements",
     "EVENT_WEBHOOKS_TOOLTIP": "Activez ou désactivez les notifications pour différents événements du système",
     "PLAYBACK_STARTED": "Lecture commencée",

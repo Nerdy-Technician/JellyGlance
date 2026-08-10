@@ -1,11 +1,9 @@
 @import './variables.css';
 .navbar {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(var(--primary-rgb), 0.08), transparent 34%),
-    rgba(8, 10, 15, 0.96);
+  background: rgba(10, 13, 18, 0.98);
   border-right: 1px solid rgba(255, 255, 255, 0.09) !important;
-  box-shadow: 18px 0 50px rgba(0, 0, 0, 0.28);
+  box-shadow: 12px 0 34px rgba(0, 0, 0, 0.18);
 }
 
 .mobile-app-topbar {
@@ -49,10 +47,8 @@
     margin: 0 0 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
     border-bottom: 1px solid rgba(var(--primary-light-rgb), 0.14);
-    background:
-      linear-gradient(180deg, rgba(7, 9, 15, 0.98), rgba(7, 9, 15, 0.82)),
-      radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--primary-color) 24%, transparent), transparent 38%);
-    backdrop-filter: blur(18px);
+    background: rgba(9, 12, 18, 0.94);
+    backdrop-filter: blur(14px);
   }
 
   .mobile-app-brand {
@@ -71,16 +67,16 @@
     height: 46px;
     place-items: center;
     border: 1px solid rgba(var(--primary-light-rgb), 0.34);
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
-    color: #f5d7ff;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    color: #f3e8ff;
     padding: 0;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   }
 
   .mobile-app-menu[aria-expanded="true"] {
     border-color: rgba(var(--primary-light-rgb), 0.62);
-    background: linear-gradient(180deg, rgba(var(--primary-light-rgb), 0.44), rgba(var(--primary-rgb), 0.28));
+    background: rgba(var(--primary-rgb), 0.22);
     color: #ffffff;
   }
 
@@ -106,7 +102,7 @@
     overflow: hidden;
     border: 1px solid rgba(var(--primary-light-rgb), 0.36);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--primary-color) 13%, transparent);
+    background: rgba(255, 255, 255, 0.045);
     color: var(--primary-color);
     padding: 0;
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
@@ -132,10 +128,7 @@
     min-height: 100dvh;
     padding: var(--mobile-menu-top-offset) 20px calc(env(safe-area-inset-bottom, 0px) + 26px);
     overflow-y: auto;
-    background:
-      linear-gradient(180deg, rgba(4, 7, 12, 0.98), rgba(7, 10, 16, 0.98)),
-      radial-gradient(circle at 50% 6%, color-mix(in srgb, var(--primary-color) 18%, transparent), transparent 38%),
-      radial-gradient(circle at 12% 78%, color-mix(in srgb, var(--secondary-color) 12%, transparent), transparent 34%);
+    background: rgba(7, 10, 16, 0.98);
     opacity: 0;
     pointer-events: none;
     transform: scale(0.985);
@@ -181,12 +174,10 @@
     height: 62px;
     place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 22px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
-      rgba(11, 15, 23, 0.72);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.045);
     color: #cbd5e1;
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
   }
 
   .mobile-app-menu-icon svg {
@@ -208,9 +199,9 @@
 
   .mobile-app-menu-tile.active .mobile-app-menu-icon {
     border-color: rgba(var(--primary-light-rgb), 0.78);
-    background: linear-gradient(180deg, rgba(var(--primary-light-rgb), 0.94), rgba(var(--primary-rgb), 0.72));
+    background: var(--primary-color);
     color: #ffffff;
-    box-shadow: 0 16px 32px rgba(var(--primary-rgb), 0.34);
+    box-shadow: 0 12px 28px rgba(var(--primary-rgb), 0.22);
   }
 
   .mobile-app-menu-badge {
