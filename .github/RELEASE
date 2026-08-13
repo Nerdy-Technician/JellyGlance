@@ -9,6 +9,7 @@ Added
 - Invite webhook event plumbing for invite_created, invite_deleted, and invite_links_refreshed
 - Third-party integration data storage for invite sync state and health checks
 - Direct Settings hash routing support for deep-linkable settings tabs
+- Account profile font-weight preference for default, comfortable, and light UI text density
 
 Changed
 - Improved release metadata handling for stable and beta channels
@@ -17,6 +18,7 @@ Changed
 - Updated webhook event status and test payload handling for new invite events
 - Updated integration sync to include invite integration state alongside calendar and download data
 - Updated What's New and README release metadata for v1.2.2
+- Updated account appearance controls so font-weight preferences apply immediately and persist per browser
 
 Fixed
 - Fixed "update available" notifications so installed stable builds ignore beta/prerelease versions

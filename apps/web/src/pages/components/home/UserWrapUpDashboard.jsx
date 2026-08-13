@@ -176,26 +176,69 @@ function avatar(user, size = 96) {
   return <AccountCircleFillIcon size={size} />;
 }
 
-function buildHeatmap(activity = [], startDate) {
+function startOfDay(date) {
+  const nextDate = new Date(date);
+  nextDate.setHours(0, 0, 0, 0);
+  return nextDate;
+}
+
+function addDays(date, days) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function getHeatmapYears(activity = []) {
+  const years = Array.from(
+    new Set(
+      activity
+        .map((day) => new Date(day.Date).getFullYear())
+        .filter((year) => Number.isFinite(year))
+    )
+  );
+
+  return years.sort((a, b) => b - a);
+}
+
+function getHeatmapRange(activity = [], selectedRange) {
+  const today = startOfDay(new Date());
+  const years = getHeatmapYears(activity);
+
+  if (selectedRange && selectedRange !== "last-year") {
+    const year = Number(selectedRange);
+    const start = startOfDay(new Date(year, 0, 1));
+    const end = year === today.getFullYear() ? today : startOfDay(new Date(year, 11, 31));
+    return { start, end, label: String(year) };
+  }
+
+  return {
+    start: addDays(today, -364),
+    end: today,
+    label: "Last 12 months",
+    years,
+  };
+}
+
+function buildHeatmap(activity = [], selectedRange = "last-year") {
   const activityMap = new Map(activity.map((day) => [new Date(day.Date).toISOString().slice(0, 10), day]));
-  const start = startDate ? new Date(startDate) : new Date();
-  const end = new Date();
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
+  const { start, end, label } = getHeatmapRange(activity, selectedRange);
+  const alignedStart = addDays(start, -start.getDay());
 
   const cells = [];
-  for (const current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+  for (const current = new Date(alignedStart); current <= end; current.setDate(current.getDate() + 1)) {
     const key = current.toISOString().slice(0, 10);
     const item = activityMap.get(key);
+    const isSpacer = current < start;
     cells.push({
       date: key,
-      streams: item?.Streams || 0,
-      duration: Number(item?.Duration || 0),
+      streams: isSpacer ? 0 : item?.Streams || 0,
+      duration: isSpacer ? 0 : Number(item?.Duration || 0),
       day: current.getDay(),
+      isSpacer,
     });
   }
 
-  return cells;
+  return { cells, label, start, end };
 }
 
 function intensity(streams) {
@@ -204,6 +247,14 @@ function intensity(streams) {
   if (streams >= 6) return 3;
   if (streams >= 3) return 2;
   return 1;
+}
+
+function formatHeatmapRange(start, end) {
+  return `${start.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} - ${end.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
 }
 
 function WrapMetric({ icon: Icon, label, value, detail, imageId, imageType = "Backdrop" }) {
@@ -224,11 +275,15 @@ function WrapMetric({ icon: Icon, label, value, detail, imageId, imageType = "Ba
 }
 
 function Heatmap({ user }) {
-  const cells = buildHeatmap(user.DailyActivity, user.FirstActivityDate);
+  const years = getHeatmapYears(user.DailyActivity);
+  const [selectedRange, setSelectedRange] = useState("last-year");
+  const { cells, label, start, end } = buildHeatmap(user.DailyActivity, selectedRange);
   const monthLabels = [];
   let lastMonth = "";
+  const weekCount = Math.max(1, Math.ceil(cells.length / 7));
 
   cells.forEach((cell, index) => {
+    if (cell.isSpacer) return;
     const month = new Date(cell.date).toLocaleString([], { month: "short" });
     if (month !== lastMonth) {
       monthLabels.push({ month, index });
@@ -239,24 +294,47 @@ function Heatmap({ user }) {
   return (
     <div className="wrap-heatmap">
       <div className="wrap-heatmap-header">
-        <span>Activity</span>
-        <strong>{user.FirstActivityDate ? `${new Date(user.FirstActivityDate).toLocaleDateString()} to now` : "No playback yet"}</strong>
+        <div>
+          <span>Activity</span>
+          <strong>{user.FirstActivityDate ? `${label} · ${formatHeatmapRange(start, end)}` : "No playback yet"}</strong>
+        </div>
+        <select value={selectedRange} onChange={(event) => setSelectedRange(event.target.value)} aria-label="Activity heat map range">
+          <option value="last-year">Last 12 months</option>
+          {years.map((year) => (
+            <option value={year} key={year}>
+              {year}
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="wrap-heatmap-months">
-        {monthLabels.map((label) => (
-          <span key={`${label.month}-${label.index}`} style={{ gridColumnStart: Math.max(1, Math.floor(label.index / 7) + 1) }}>
-            {label.month}
-          </span>
-        ))}
-      </div>
-      <div className="wrap-heatmap-grid">
-        {cells.map((cell) => (
-          <span
-            className={`heatmap-cell heat-${intensity(cell.streams)}`}
-            key={cell.date}
-            title={`${cell.date}: ${cell.streams} streams, ${formatWatchTime(cell.duration)}`}
-          />
-        ))}
+      <div className="wrap-heatmap-scroll" style={{ "--heatmap-weeks": weekCount }}>
+        <div className="wrap-heatmap-months">
+          {monthLabels.map((monthLabel) => (
+            <span key={`${monthLabel.month}-${monthLabel.index}`} style={{ gridColumnStart: Math.max(1, Math.floor(monthLabel.index / 7) + 1) }}>
+              {monthLabel.month}
+            </span>
+          ))}
+        </div>
+        <div className="wrap-heatmap-body">
+          <div className="wrap-heatmap-days" aria-hidden="true">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+          </div>
+          <div className="wrap-heatmap-grid">
+            {cells.map((cell) => (
+              <span
+                className={`heatmap-cell ${cell.isSpacer ? "is-spacer" : `heat-${intensity(cell.streams)}`}`}
+                key={cell.date}
+                title={cell.isSpacer ? "" : `${cell.date}: ${cell.streams} streams, ${formatWatchTime(cell.duration)}`}
+              />
+            ))}
+          </div>
+        </div>
       </div>
       <div className="wrap-heatmap-legend">
         <span>Less</span>

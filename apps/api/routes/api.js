@@ -20,6 +20,7 @@ const WebhookManager = require("../classes/webhook-manager");
 const { axios } = require("../classes/axios");
 const triggertype = require("../logging/triggertype");
 const { addAuditEntry, getAuditLog, getWebhookDeliveryHistory } = require("../classes/admin-history");
+const { sendConfiguredMail, validateEmail } = require("../classes/smtp-mailer");
 const { getBackupDir } = require("../utils/storage-paths");
 const {
   getIntegrations,
@@ -438,6 +439,66 @@ function normalizeWizarrUsedBy(value) {
   const text = String(value).trim();
   if (/^<User\s+\d+>$/.test(text)) return "";
   return text;
+}
+
+function escapeWizarrHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function buildWizarrInviteEmail(invite, integration) {
+  const sourceName = integration.name || "Wizarr";
+  const inviteUrl = invite.url || "";
+  const code = invite.code || invite.id || "Invite";
+  const subject = `Your ${sourceName} invite is ready`;
+  const text = [
+    `Your ${sourceName} invite is ready.`,
+    "",
+    inviteUrl ? `Open invite: ${inviteUrl}` : `Invite code: ${code}`,
+    "",
+    "This invite was sent from JellyGlance.",
+  ].join("\n");
+  const html = `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#090d13;color:#edf2f7;font-family:Arial,Helvetica,sans-serif;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#090d13;">
+          <tr>
+            <td align="center" style="padding:28px 12px;">
+              <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="width:100%;max-width:620px;">
+                <tr>
+                  <td style="border-radius:20px;overflow:hidden;background:#101722;border:1px solid #26364a;">
+                    <div style="background:linear-gradient(135deg,#111827 0%,#132436 52%,#351b44 100%);padding:28px;">
+                      <div style="color:#9ee8ff;font-size:12px;font-weight:900;text-transform:uppercase;">JellyGlance Invite</div>
+                      <h1 style="margin:8px 0 10px;color:#ffffff;font-size:32px;line-height:1.05;">Your server invite is ready</h1>
+                      <p style="margin:0;color:#c7d4e6;font-size:14px;line-height:1.5;">Use the link below to accept your ${escapeWizarrHtml(sourceName)} invitation.</p>
+                    </div>
+                    <div style="padding:26px;background:#101722;">
+                      ${
+                        inviteUrl
+                          ? `<a href="${escapeWizarrHtml(inviteUrl)}" style="display:block;background:#8b5cf6;color:#ffffff;text-decoration:none;text-align:center;border-radius:12px;padding:14px 18px;font-size:16px;font-weight:900;">Open invite</a>
+                             <p style="margin:16px 0 0;color:#8fa3bd;font-size:12px;line-height:1.5;word-break:break-all;">${escapeWizarrHtml(inviteUrl)}</p>`
+                          : `<p style="margin:0;color:#ffffff;font-size:18px;font-weight:900;">Invite code: ${escapeWizarrHtml(code)}</p>`
+                      }
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:16px;color:#72839a;font-size:12px;">Sent by JellyGlance</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  return { subject, text, html };
 }
 
 function normalizeWizarrServer(server) {
@@ -4373,6 +4434,8 @@ router.get("/getHistory", async (req, res) => {
         "a.EpisodeNumber",
         "a.SeasonNumber",
         "a.ParentId",
+        "li.ImageTagsPrimary as ActivityPosterTag",
+        "li.PrimaryImageHash as ActivityPosterBlurHash",
         "ar.results",
         "ar.TotalPlays",
         "ar.TotalDuration",
@@ -4395,6 +4458,12 @@ router.get("/getHistory", async (req, res) => {
             { first: "a.EpisodeId", operator: "=", second: "ar.EpisodeId", type: "and" },
             { first: "a.UserId", operator: "=", second: "ar.UserId", type: "and" },
           ],
+        },
+        {
+          type: "left",
+          table: "jf_library_items",
+          alias: "li",
+          conditions: [{ first: "a.NowPlayingItemId", operator: "=", second: "li.Id" }],
         },
       ],
 
@@ -5087,9 +5156,14 @@ router.post("/wizarr/invitations", async (req, res) => {
     const duration = body.duration === "" || body.duration == null ? "unlimited" : String(body.duration);
     const wizardBundleId = body.wizardBundleId === "" || body.wizardBundleId == null ? null : Number(body.wizardBundleId);
     const customCode = String(body.customCode || "").trim().toUpperCase();
+    const sendInviteEmail = Boolean(body.sendEmail);
+    const emailRecipient = String(body.emailRecipient || "").trim();
 
     if (!serverIds.length) {
       return res.status(400).send({ error: "Choose at least one Wizarr server." });
+    }
+    if (sendInviteEmail && !validateEmail(emailRecipient)) {
+      return res.status(400).send({ error: "Enter a valid email recipient for the invite." });
     }
 
     const url = cleanIntegrationUrl(integration.values?.url);
@@ -5117,6 +5191,23 @@ router.post("/wizarr/invitations", async (req, res) => {
     );
 
     const normalizedInvite = normalizeWizarrInvite(response.data?.invitation || response.data, url);
+    let emailResult = null;
+    if (sendInviteEmail) {
+      const email = buildWizarrInviteEmail(normalizedInvite, integration);
+      emailResult = await sendConfiguredMail({
+        to: emailRecipient,
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+      });
+      await addAuditEntry(req, "wizarr.invitation.emailed", {
+        source: integration.name,
+        code: normalizedInvite.code,
+        recipient: emailRecipient,
+        messageId: emailResult.messageId,
+      });
+    }
+
     const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("invite_created", {
       integrationEvent: "invite created",
@@ -5125,13 +5216,15 @@ router.post("/wizarr/invitations", async (req, res) => {
       url: normalizedInvite.url,
       serverIds,
       libraryIds,
+      emailRecipient: sendInviteEmail ? emailRecipient : "",
       message: `Invite ${normalizedInvite.code || normalizedInvite.id || "link"} created from JellyGlance.`,
     });
 
     await addAuditEntry(req, "wizarr.invitation.created", { source: integration.name, serverIds, libraryIds });
     res.status(response.status === 201 ? 201 : 200).send({
-      message: response.data?.message || "Invitation created",
+      message: emailResult ? "Invitation created and emailed" : response.data?.message || "Invitation created",
       invitation: normalizedInvite,
+      email: emailResult,
     });
   } catch (error) {
     console.error("Wizarr invitation create failed:", getAxiosErrorMessage(error));
