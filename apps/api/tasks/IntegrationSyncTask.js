@@ -202,18 +202,80 @@ async function fetchClientQueue(client) {
   return { items: [], error: client.connected ? "Queue polling not implemented for this client yet" : "Needs setup" };
 }
 
+function isWizarrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "wizarr" || name.includes("wizarr");
+}
+
+function getWizarrHeaders(integration) {
+  const apiKey = integration?.values?.secret;
+  return {
+    Accept: "application/json",
+    ...(apiKey ? { "X-API-Key": apiKey } : {}),
+  };
+}
+
+function normalizeInviteUrl(value, sourceUrl, code) {
+  const raw = value || (code ? `/j/${encodeURIComponent(code)}` : "");
+  if (!raw) return "";
+  const text = String(raw).trim();
+  if (/^https?:\/\//i.test(text)) return text;
+  const baseUrl = cleanUrl(sourceUrl);
+  if (!baseUrl) return text;
+
+  try {
+    return new URL(text.startsWith("/") ? text : `/${text}`, `${baseUrl}/`).toString();
+  } catch {
+    return `${baseUrl}/${text.replace(/^\/+/, "")}`;
+  }
+}
+
+function normalizeInvite(integration, invitation) {
+  const url = cleanUrl(integration.values?.url);
+  const code = invitation.code || invitation.token || invitation.invite_code || "";
+  const status = String(invitation.status || (invitation.used_at || invitation.used ? "used" : "pending")).toLowerCase();
+  return {
+    id: `${integration.instanceId || integration.name}-${invitation.id || code}`,
+    sourceId: integration.instanceId,
+    sourceName: integration.name || "Wizarr",
+    code,
+    url: normalizeInviteUrl(invitation.url || invitation.invite_url || invitation.link, url, code),
+    status,
+    created: invitation.created || invitation.created_at || null,
+    expires: invitation.expires || invitation.expires_at || null,
+  };
+}
+
+async function fetchInviteLinks(integration) {
+  const url = cleanUrl(integration.values?.url);
+  const apiKey = integration.values?.secret;
+  if (!url || !apiKey || !isWizarrIntegration(integration)) {
+    return { items: [], error: integration.connected ? "Invite polling not available for this integration" : "Needs setup" };
+  }
+
+  const response = await axios.get(`${url}/api/invitations`, {
+    timeout: 12000,
+    headers: getWizarrHeaders(integration),
+  });
+  const invitations = Array.isArray(response.data?.invitations) ? response.data.invitations : Array.isArray(response.data) ? response.data : [];
+  return { items: invitations.map((invite) => normalizeInvite(integration, invite)) };
+}
+
 async function runIntegrationSyncTask() {
   try {
     const integrations = await getIntegrations();
     const integrationData = await getIntegrationData();
     const sources = (integrations.arrApps || []).filter((app) => app.connected);
     const connectedClients = (integrations.clients || []).filter((client) => client.connected);
+    const inviteIntegrations = (integrations.thirdParty || []).filter((integration) => integration.connected && isWizarrIntegration(integration));
     const calendarResults = await Promise.allSettled(sources.map((app) => fetchArrCalendar(app)));
     const queueResults = await Promise.allSettled(connectedClients.map((client) => fetchClientQueue(client)));
+    const inviteResults = await Promise.allSettled(inviteIntegrations.map((integration) => fetchInviteLinks(integration)));
     const releases = calendarResults
       .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const syncedDownloadItems = queueResults.flatMap((result) => (result.status === "fulfilled" ? result.value.items || [] : []));
+    const syncedInviteItems = inviteResults.flatMap((result) => (result.status === "fulfilled" ? result.value.items || [] : []));
     const failedSources = calendarResults
       .map((result, index) => (result.status === "rejected" ? sources[index]?.name : null))
       .filter(Boolean);
@@ -230,6 +292,20 @@ async function runIntegrationSyncTask() {
         connected: Boolean(client.connected && result?.status !== "rejected" && !queueData?.error),
         itemCount,
         message: queueData?.error || (client.connected ? "Online" : "Needs setup"),
+      };
+    });
+    const inviteSources = inviteIntegrations.map((integration, index) => {
+      const result = inviteResults[index];
+      const inviteData = result?.status === "fulfilled" ? result.value : null;
+      const sourceItems = inviteData?.items || [];
+      return {
+        name: integration.name || "Wizarr",
+        slug: integration.slug,
+        instanceId: integration.instanceId,
+        connected: result?.status === "fulfilled" && !inviteData?.error,
+        itemCount: sourceItems.length,
+        activeCount: sourceItems.filter((invite) => invite.status !== "used" && invite.status !== "expired").length,
+        message: inviteData?.error || (result?.status === "fulfilled" ? "Online" : result?.reason?.message || "Invite sync failed"),
       };
     });
 
@@ -251,6 +327,12 @@ async function runIntegrationSyncTask() {
         clients,
         syncedAt: new Date().toISOString(),
       },
+      invites: {
+        ...integrationData.invites,
+        items: syncedInviteItems,
+        sources: inviteSources,
+        syncedAt: new Date().toISOString(),
+      },
     });
 
     const webhookManager = new WebhookManager();
@@ -267,6 +349,15 @@ async function runIntegrationSyncTask() {
         clientCount: clients.length,
         activeCount: syncedDownloadItems.filter((item) => Number(item.progress || 0) < 100).length,
         message: "Integration sync refreshed download queues.",
+      });
+    }
+    if (inviteIntegrations.length) {
+      await webhookManager.triggerEventWebhooks("invite_links_refreshed", {
+        integrationEvent: "invite links refreshed",
+        sourceCount: inviteIntegrations.length,
+        inviteCount: syncedInviteItems.length,
+        activeCount: syncedInviteItems.filter((invite) => invite.status !== "used" && invite.status !== "expired").length,
+        message: `Integration sync refreshed ${syncedInviteItems.length} invite link${syncedInviteItems.length === 1 ? "" : "s"}.`,
       });
     }
 

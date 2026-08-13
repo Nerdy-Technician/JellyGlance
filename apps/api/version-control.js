@@ -13,6 +13,7 @@ const RELEASES_ATOM_URL = `${RELEASES_URL}.atom`;
 const RELEASE_CACHE_TTL_MS = Number(process.env.JS_RELEASE_CACHE_TTL_MS || 6 * 60 * 60 * 1000);
 const RELEASE_CACHE_MAX_STALE_MS = Number(process.env.JS_RELEASE_CACHE_MAX_STALE_MS || 14 * 24 * 60 * 60 * 1000);
 const RELEASE_CACHE_FILE = path.join(getConfigDir(), "release-notes-cache.json");
+const BUNDLED_RELEASE_NOTES_FILE = path.join(__dirname, "../web/src/whats-new.json");
 
 function normalizeVersion(version) {
   return String(version || "").trim().replace(/^v/i, "");
@@ -22,6 +23,10 @@ function releaseChannel(currentVersion = packageJson.version) {
   const explicitChannel = String(process.env.JS_RELEASE_CHANNEL || process.env.RELEASE_CHANNEL || "").trim().toLowerCase();
   const normalizedVersion = normalizeVersion(currentVersion).toLowerCase();
 
+  if (explicitChannel === "stable" || explicitChannel === "release") {
+    return "stable";
+  }
+
   if (explicitChannel === "beta" || normalizedVersion.includes("beta")) {
     return "beta";
   }
@@ -29,18 +34,38 @@ function releaseChannel(currentVersion = packageJson.version) {
   return "stable";
 }
 
-async function fetchLatestReleaseVersion(currentVersion) {
+function releaseMatchesChannel(release, channel) {
+  const prerelease = Boolean(release?.prerelease) || isPrereleaseVersion(release?.version || release?.tag_name || release?.name);
+  return channel === "beta" ? prerelease : !prerelease;
+}
+
+async function fetchLatestReleaseVersion(currentVersion, channel = releaseChannel(currentVersion)) {
   const headers = {
     Accept: "application/vnd.github+json",
     "User-Agent": `JellyGlance/${currentVersion}`,
+    ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
   };
 
   try {
-    const response = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`, {
+    const response = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases`, {
       headers,
+      params: {
+        per_page: 20,
+      },
       timeout: 10000,
     });
-    return normalizeVersion(response.data?.tag_name || response.data?.name);
+
+    const latestRelease = (response.data || [])
+      .filter((release) => !release.draft)
+      .map(normalizeRelease)
+      .filter((release) => releaseMatchesChannel(release, channel))
+      .sort((a, b) => compareVersions(b.version, a.version))[0];
+
+    if (!latestRelease?.version) {
+      throw new Error(`GitHub did not return any ${channel} releases`);
+    }
+
+    return latestRelease.version;
   } catch (apiError) {
     const response = await axios.get(RELEASES_ATOM_URL, {
       headers: {
@@ -49,8 +74,11 @@ async function fetchLatestReleaseVersion(currentVersion) {
       },
       timeout: 10000,
     });
-    const tagMatch = response.data.match(/\/releases\/tag\/([^"<\s]+)/);
-    const latestVersion = normalizeVersion(tagMatch?.[1]);
+    const latestVersion = [...String(response.data || "").matchAll(/\/releases\/tag\/([^"<\s]+)/g)]
+      .map((match) => normalizeVersion(match[1]))
+      .filter(Boolean)
+      .filter((version) => releaseMatchesChannel({ version }, channel))
+      .sort((a, b) => compareVersions(b, a))[0];
 
     if (!latestVersion) {
       throw apiError;
@@ -72,6 +100,66 @@ function normalizeRelease(release) {
     draft: Boolean(release?.draft),
     url: release?.html_url || RELEASES_URL,
     body: release?.body || "",
+  };
+}
+
+function readBundledReleaseNotes() {
+  try {
+    if (!fs.existsSync(BUNDLED_RELEASE_NOTES_FILE)) {
+      return null;
+    }
+
+    return JSON.parse(fs.readFileSync(BUNDLED_RELEASE_NOTES_FILE, "utf8"));
+  } catch (error) {
+    console.warn(`Unable to read bundled release notes: ${error.message}`);
+    return null;
+  }
+}
+
+function isPrereleaseVersion(version) {
+  return /-(alpha|beta|rc|pre|preview)\b/i.test(normalizeVersion(version));
+}
+
+function bundledNotesToRelease(version, notes) {
+  const normalizedVersion = normalizeVersion(version);
+  const noteItems = Array.isArray(notes) ? notes : [];
+
+  return {
+    id: `bundled-${normalizedVersion}`,
+    version: normalizedVersion,
+    name: `JellyGlance v${normalizedVersion}`,
+    date: null,
+    prerelease: isPrereleaseVersion(normalizedVersion),
+    draft: false,
+    url: `${RELEASES_URL}/tag/v${normalizedVersion}`,
+    body: noteItems.length
+      ? noteItems.map((item) => `## ${item.title || "Changes"}\n\n- ${item.body || "No release notes were provided for this version."}`).join("\n\n")
+      : "No release notes were provided for this version.",
+  };
+}
+
+function getBundledReleaseNotes(currentVersion, channel) {
+  const bundledNotes = readBundledReleaseNotes();
+  if (!bundledNotes || typeof bundledNotes !== "object") {
+    return null;
+  }
+
+  const releases = Object.entries(bundledNotes)
+    .map(([version, notes]) => bundledNotesToRelease(version, notes))
+    .filter((release) => releaseMatchesChannel(release, channel))
+    .sort((a, b) => compareVersions(b.version, a.version));
+
+  if (!releases.length) {
+    return null;
+  }
+
+  return {
+    current_version: currentVersion,
+    channel,
+    releases_url: RELEASES_URL,
+    cached: false,
+    bundled: true,
+    releases,
   };
 }
 
@@ -128,6 +216,11 @@ function getCachedReleaseNotes({ allowStale = false } = {}) {
 }
 
 function getFallbackReleaseNotes(currentVersion, channel) {
+  const bundled = getBundledReleaseNotes(currentVersion, channel);
+  if (bundled) {
+    return bundled;
+  }
+
   const version = normalizeVersion(currentVersion);
 
   return {
@@ -178,15 +271,16 @@ async function fetchReleaseNotes() {
       releases_url: RELEASES_URL,
       releases: (response.data || [])
         .filter((release) => !release.draft)
-        .filter((release) => (channel === "beta" ? release.prerelease : !release.prerelease))
-        .map(normalizeRelease),
+        .map(normalizeRelease)
+        .filter((release) => releaseMatchesChannel(release, channel)),
     };
 
     if (data.releases.length) {
       writeReleaseCache(data);
+      return data;
     }
 
-    return data;
+    return getFallbackReleaseNotes(currentVersion, channel);
   } catch (error) {
     const staleCache = getCachedReleaseNotes({ allowStale: true });
     if (staleCache?.current_version === currentVersion && staleCache?.channel === channel) {
@@ -210,7 +304,8 @@ async function checkForUpdates() {
   };
 
   try {
-    const latestVersion = await fetchLatestReleaseVersion(currentVersion);
+    const channel = releaseChannel(currentVersion);
+    const latestVersion = await fetchLatestReleaseVersion(currentVersion, channel);
 
     if (!latestVersion) {
       throw new Error("GitHub release did not include a version tag");

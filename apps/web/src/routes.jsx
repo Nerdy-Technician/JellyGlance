@@ -19,6 +19,7 @@ const Calendar = lazy(() => import("./pages/calendar"));
 const Requests = lazy(() => import("./pages/requests"));
 const Downloads = lazy(() => import("./pages/downloads"));
 const ServerManagement = lazy(() => import("./pages/server-management"));
+const Wizarr = lazy(() => import("./pages/wizarr"));
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
@@ -34,6 +35,7 @@ const routes = [
   { path: "/calendar", element: <Calendar />, exact: true },
   { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
+  { path: "/wizarr", element: <Wizarr />, exact: true },
   { path: "/server-management", element: <ServerManagement />, exact: true },
   { path: "/repair", element: <Navigate to="/settings?tab=tabRepair" replace />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },

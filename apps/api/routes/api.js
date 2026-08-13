@@ -204,8 +204,8 @@ async function buildHealthStatus() {
     checks.push({ key: "jellyfin", label: "Media server", ok: false, message: error.message });
   }
 
-  const integrations = await getIntegrations().catch(() => ({ arrApps: [], clients: [] }));
-  const allIntegrations = [...(integrations.arrApps || []), ...(integrations.clients || [])].filter((integration) => integration.connected);
+  const integrations = await getIntegrations().catch(() => ({ arrApps: [], clients: [], thirdParty: [] }));
+  const allIntegrations = [...(integrations.arrApps || []), ...(integrations.clients || []), ...(integrations.thirdParty || [])].filter((integration) => integration.connected);
   const integrationHealth = await getIntegrationHealthHistory().catch(() => []);
   const latestFailures = allIntegrations.filter((integration) => {
     const latest = integrationHealth.find((entry) => entry.instanceId === integration.instanceId);
@@ -350,9 +350,163 @@ async function testDownloadIntegration(integration) {
   };
 }
 
+function isWizarrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "wizarr" || name.includes("wizarr");
+}
+
+function getWizarrHeaders(integration) {
+  const apiKey = integration?.values?.secret;
+  return {
+    Accept: "application/json",
+    ...(apiKey ? { "X-API-Key": apiKey } : {}),
+  };
+}
+
+async function testWizarrIntegration(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const apiKey = integration.values?.secret;
+
+  if (!url || !apiKey) {
+    return { ok: false, error: "URL and API key are required" };
+  }
+
+  const response = await axios.get(`${url}/api/status`, {
+    timeout: 10000,
+    headers: getWizarrHeaders(integration),
+  });
+  const data = response.data || {};
+  return {
+    ok: true,
+    version: "Wizarr API",
+    message: `${Number(data.invites || 0)} invites · ${Number(data.users || 0)} users`,
+  };
+}
+
+async function testThirdPartyIntegration(integration) {
+  if (isWizarrIntegration(integration)) {
+    return testWizarrIntegration(integration);
+  }
+  return {
+    ok: true,
+    version: "saved credentials",
+    message: "Connected to saved credentials",
+  };
+}
+
+function normalizeWizarrInvite(invitation, sourceUrl) {
+  const code = invitation.code || invitation.token || invitation.invite_code || "";
+  const rawUrl = invitation.url || invitation.invite_url || invitation.link || (code ? `/j/${encodeURIComponent(code)}` : "");
+  const url = normalizeWizarrInviteUrl(rawUrl, sourceUrl);
+  const usedBy = normalizeWizarrUsedBy(invitation.used_by || invitation.usedBy || invitation.user || invitation.used_by_user || "");
+  return {
+    id: invitation.id,
+    code,
+    url,
+    status: invitation.status || (invitation.used_at || invitation.used ? "used" : "pending"),
+    created: invitation.created || invitation.created_at || null,
+    expires: invitation.expires || invitation.expires_at || null,
+    usedAt: invitation.used_at || null,
+    usedBy,
+    duration: invitation.duration || (invitation.unlimited ? "unlimited" : ""),
+    unlimited: invitation.unlimited !== false,
+    libraries: invitation.specific_libraries || invitation.library_ids || [],
+    displayName: invitation.display_name || "",
+    serverNames: invitation.server_names || [],
+  };
+}
+
+function normalizeWizarrInviteUrl(value, sourceUrl) {
+  if (!value) return "";
+  const baseUrl = cleanIntegrationUrl(sourceUrl);
+  const text = String(value).trim();
+  if (/^https?:\/\//i.test(text)) return text;
+  if (!baseUrl) return text;
+
+  try {
+    return new URL(text.startsWith("/") ? text : `/${text}`, `${baseUrl}/`).toString();
+  } catch {
+    return `${baseUrl}/${text.replace(/^\/+/, "")}`;
+  }
+}
+
+function normalizeWizarrUsedBy(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    return value.username || value.name || value.display_name || value.email || "";
+  }
+  const text = String(value).trim();
+  if (/^<User\s+\d+>$/.test(text)) return "";
+  return text;
+}
+
+function normalizeWizarrServer(server) {
+  return {
+    id: server.id,
+    name: server.name || "Unnamed server",
+    type: server.server_type || server.type || "",
+    verified: server.verified !== false,
+    allowDownloads: Boolean(server.allow_downloads),
+    allowLiveTv: Boolean(server.allow_live_tv),
+    allowMobileUploads: Boolean(server.allow_mobile_uploads),
+  };
+}
+
+function normalizeWizarrLibrary(library) {
+  return {
+    id: library.id,
+    name: library.name || "Unnamed library",
+    externalId: library.external_id || "",
+    serverId: library.server_id,
+    serverName: library.server_name || "",
+    enabled: library.enabled !== false,
+  };
+}
+
+async function getConnectedWizarrIntegration() {
+  const integrations = await getIntegrations();
+  return (integrations.thirdParty || []).find((integration) => integration.connected && isWizarrIntegration(integration));
+}
+
+async function fetchWizarrBundle(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = getWizarrHeaders(integration);
+  const [statusResponse, invitesResponse, serversResponse, librariesResponse] = await Promise.all([
+    axios.get(`${url}/api/status`, { timeout: 10000, headers }),
+    axios.get(`${url}/api/invitations`, { timeout: 10000, headers }),
+    axios.get(`${url}/api/servers`, { timeout: 10000, headers }).catch(() => ({ data: { servers: [] } })),
+    axios.get(`${url}/api/libraries`, { timeout: 12000, headers }).catch(() => ({ data: { libraries: [] } })),
+  ]);
+
+  const invites = Array.isArray(invitesResponse.data?.invitations)
+    ? invitesResponse.data.invitations
+    : Array.isArray(invitesResponse.data)
+      ? invitesResponse.data
+      : [];
+  const servers = Array.isArray(serversResponse.data?.servers) ? serversResponse.data.servers : Array.isArray(serversResponse.data) ? serversResponse.data : [];
+  const libraries = Array.isArray(librariesResponse.data?.libraries)
+    ? librariesResponse.data.libraries
+    : Array.isArray(librariesResponse.data)
+      ? librariesResponse.data
+      : [];
+  return {
+    source: {
+      name: integration.name || "Wizarr",
+      url,
+      instanceId: integration.instanceId,
+    },
+    status: statusResponse.data || {},
+    invites: invites.map((invite) => normalizeWizarrInvite(invite, url)),
+    servers: servers.map(normalizeWizarrServer),
+    libraries: libraries.map(normalizeWizarrLibrary),
+    bundles: [],
+    syncedAt: new Date().toISOString(),
+  };
+}
+
 function isSeerrIntegration(integration) {
   const name = String(integration?.name || integration?.slug || "").toLowerCase();
-  return name.includes("jellyseerr") || name.includes("overseerr");
+  return name === "seerr" || name.includes("jellyseerr") || name.includes("overseerr");
 }
 
 function cloneJson(value) {
@@ -361,6 +515,15 @@ function cloneJson(value) {
 
 function clearRequestCache() {
   requestCache.clear();
+}
+
+async function getConnectedSeerrApps() {
+  const integrations = await getIntegrations();
+  return (integrations.arrApps || []).filter((integration) => integration.connected && isSeerrIntegration(integration));
+}
+
+function getSeerrAppById(seerrApps, sourceId) {
+  return seerrApps.find((integration) => integration.instanceId === sourceId && isSeerrIntegration(integration));
 }
 
 async function fetchSeerrMediaDetails(app, media) {
@@ -411,6 +574,571 @@ function buildSeerrOpenUrl(app, request) {
   return `${url}/${mediaType}/${encodeURIComponent(tmdbId)}`;
 }
 
+async function fetchOmdbRatings(request) {
+  const apiKey = process.env.OMDB_API_KEY || process.env.OMDB_KEY;
+  if (!apiKey) return {};
+
+  const imdbId = request.externalIds?.imdbId;
+  const title = String(request.title || "").trim();
+  if (!imdbId && !title) return {};
+
+  try {
+    const response = await axios.get("https://www.omdbapi.com/", {
+      timeout: 8000,
+      params: {
+        apikey: apiKey,
+        ...(imdbId ? { i: imdbId } : { t: title }),
+        ...(request.year ? { y: request.year } : {}),
+      },
+    });
+    const data = response.data || {};
+    if (data.Response === "False") return {};
+
+    const rotten = (data.Ratings || []).find((rating) => String(rating.Source || "").toLowerCase() === "rotten tomatoes")?.Value;
+    const ratings = {};
+    if (data.imdbRating && data.imdbRating !== "N/A") ratings.imdb = Number(data.imdbRating);
+    if (rotten && rotten !== "N/A") ratings.rottenTomatoes = Number(String(rotten).replace("%", ""));
+    return ratings;
+  } catch (error) {
+    console.log(`[REQUESTS] OMDb ratings lookup failed for ${imdbId || title}:`, error?.message || error);
+    return {};
+  }
+}
+
+function normalizeExternalRating(value) {
+  const raw = typeof value === "object" && value !== null ? value.value ?? value.score ?? value.rating ?? value.percent : value;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const parsed = Number(String(raw).replace("%", ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getObjectValueCaseInsensitive(source = {}, keys = []) {
+  const entries = Object.entries(source || {});
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) return source[key];
+    const match = entries.find(([entryKey]) => entryKey.toLowerCase() === key.toLowerCase());
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function normalizeArrRatings(ratings = {}) {
+  return {
+    imdb: normalizeExternalRating(getObjectValueCaseInsensitive(ratings, ["imdb"])),
+    rottenTomatoes: normalizeExternalRating(getObjectValueCaseInsensitive(ratings, ["rottenTomatoes", "rotten", "tomatometer"])),
+    tmdb: normalizeExternalRating(getObjectValueCaseInsensitive(ratings, ["tmdb"])),
+    metacritic: normalizeExternalRating(getObjectValueCaseInsensitive(ratings, ["metacritic"])),
+  };
+}
+
+function normalizeSeerrRatingsPayload(payload = {}) {
+  const ratings = {};
+  const sourceRatings = Array.isArray(payload.Ratings) ? payload.Ratings : Array.isArray(payload.ratings) ? payload.ratings : [];
+
+  sourceRatings.forEach((entry) => {
+    const sourceName = String(entry.Source || entry.source || entry.name || "").toLowerCase();
+    const value = entry.Value || entry.value || entry.rating || entry.score;
+    if (sourceName.includes("internet movie database") || sourceName.includes("imdb")) ratings.imdb = normalizeExternalRating(value);
+    if (sourceName.includes("rotten")) ratings.rottenTomatoes = normalizeExternalRating(value);
+    if (sourceName.includes("metacritic")) ratings.metacritic = normalizeExternalRating(value);
+    if (sourceName.includes("tmdb") || sourceName.includes("themoviedb")) ratings.tmdb = normalizeExternalRating(value);
+  });
+
+  return {
+    imdb:
+      ratings.imdb ||
+      normalizeExternalRating(getNestedValue(payload, ["imdb.rating", "imdb.score", "imdb.value", "imdb", "imdbRating", "imdbScore"])),
+    rottenTomatoes:
+      ratings.rottenTomatoes ||
+      normalizeExternalRating(
+        getNestedValue(payload, [
+          "rottenTomatoes.rating",
+          "rottenTomatoes.score",
+          "rottenTomatoes.value",
+          "rottenTomatoes.criticsScore",
+          "rottenTomatoes.tomatoMeter",
+          "rt.rating",
+          "rt.score",
+          "rt.value",
+          "rt.criticsScore",
+          "tomatometer",
+          "tomatoMeter",
+          "rtScore",
+        ])
+      ),
+    tmdb:
+      ratings.tmdb ||
+      normalizeExternalRating(getNestedValue(payload, ["tmdb.rating", "tmdb.score", "tmdb.value", "tmdb", "tmdbRating", "tmdbScore"])),
+    metacritic:
+      ratings.metacritic ||
+      normalizeExternalRating(
+        getNestedValue(payload, ["metacritic.rating", "metacritic.score", "metacritic.value", "metacritic", "metascore", "metaScore"])
+      ),
+  };
+}
+
+async function fetchSeerrRatings(app, request) {
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const mediaType = String(request.mediaType || "").toLowerCase();
+  const tmdbId = request.externalIds?.tmdbId;
+  if (!url || !apiKey || !tmdbId || !["movie", "tv"].includes(mediaType)) return {};
+
+  const paths =
+    mediaType === "movie"
+      ? [`/api/v1/movie/${encodeURIComponent(tmdbId)}/ratingscombined`, `/api/v1/movie/${encodeURIComponent(tmdbId)}/ratings`]
+      : [`/api/v1/tv/${encodeURIComponent(tmdbId)}/ratings`];
+
+  for (const path of paths) {
+    try {
+      const response = await axios.get(`${url}${path}`, {
+        timeout: 10000,
+        headers: { "X-Api-Key": apiKey },
+      });
+      const ratings = normalizeSeerrRatingsPayload(response.data || {});
+      if (Object.values(ratings).some(Boolean)) return ratings;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.log(`[REQUESTS] ${app.name} ratings lookup failed for ${request.title}:`, error.response?.status || error.message);
+      }
+    }
+  }
+
+  return {};
+}
+
+function findArrMediaMatch(items, request) {
+  const list = Array.isArray(items) ? items : items ? [items] : [];
+  const tmdbId = String(request.externalIds?.tmdbId || "");
+  const tvdbId = String(request.externalIds?.tvdbId || "");
+  const imdbId = String(request.externalIds?.imdbId || "");
+  const title = String(request.title || "").trim().toLowerCase();
+
+  return (
+    list.find((item) => tmdbId && String(item.tmdbId || item.tmdbId === 0 ? item.tmdbId : "") === tmdbId) ||
+    list.find((item) => tvdbId && String(item.tvdbId || item.tvdbId === 0 ? item.tvdbId : "") === tvdbId) ||
+    list.find((item) => imdbId && String(item.imdbId || "") === imdbId) ||
+    list.find((item) => title && String(item.title || item.sortTitle || "").trim().toLowerCase() === title) ||
+    list[0] ||
+    null
+  );
+}
+
+async function fetchArrRatings(request) {
+  const integrations = await getIntegrations().catch(() => ({ arrApps: [] }));
+  const apps = (integrations.arrApps || []).filter((app) => app.connected && app.values?.url && app.values?.secret);
+  const mediaType = String(request.mediaType || "").toLowerCase();
+  const app =
+    mediaType === "movie"
+      ? apps.find((entry) => String(entry.slug || entry.name || "").toLowerCase().includes("radarr"))
+      : apps.find((entry) => String(entry.slug || entry.name || "").toLowerCase().includes("sonarr"));
+
+  if (!app) return {};
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const headers = { "X-Api-Key": apiKey };
+
+  const attempts =
+    mediaType === "movie"
+      ? [
+          request.externalIds?.tmdbId && { path: `/api/v3/movie/lookup/tmdb?tmdbId=${encodeURIComponent(request.externalIds.tmdbId)}` },
+          request.externalIds?.tmdbId && { path: `/api/v3/movie/lookup?term=${encodeURIComponent(`tmdb:${request.externalIds.tmdbId}`)}` },
+          { path: "/api/v3/movie", find: true },
+        ].filter(Boolean)
+      : [
+          request.externalIds?.tvdbId && { path: `/api/v3/series/lookup?term=${encodeURIComponent(`tvdb:${request.externalIds.tvdbId}`)}` },
+          request.externalIds?.imdbId && { path: `/api/v3/series/lookup?term=${encodeURIComponent(`imdb:${request.externalIds.imdbId}`)}` },
+          { path: "/api/v3/series", find: true },
+        ].filter(Boolean);
+
+  for (const attempt of attempts) {
+    try {
+      const response = await axios.get(`${url}${attempt.path}`, { timeout: 10000, headers });
+      const match = attempt.find ? findArrMediaMatch(response.data, request) : findArrMediaMatch(response.data, request);
+      const ratings = normalizeArrRatings(match?.ratings || {});
+      if (Object.values(ratings).some(Boolean)) return ratings;
+    } catch (error) {
+      console.log(`[REQUESTS] ${app.name} ratings lookup failed for ${request.title}:`, error.response?.status || error.message);
+    }
+  }
+
+  return {};
+}
+
+function getNestedValue(source, paths = []) {
+  for (const path of paths) {
+    const value = path.split(".").reduce((current, key) => (current == null ? undefined : current[key]), source);
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return null;
+}
+
+function normalizeSeerrMediaStatus(mediaInfo = {}) {
+  const status = mediaInfo.status ?? mediaInfo.status4k;
+  const statusMap = {
+    1: "Unknown",
+    2: "Pending",
+    3: "Processing",
+    4: "Partially available",
+    5: "Available",
+  };
+
+  return statusMap[status] || mediaInfo.statusLabel || mediaInfo.status || "Unknown";
+}
+
+function normalizeSeerrSeason(season = {}) {
+  const seasonNumber = season.seasonNumber ?? season.season_number ?? season.season;
+  if (!Number.isFinite(Number(seasonNumber)) || Number(seasonNumber) <= 0) {
+    return null;
+  }
+
+  return {
+    seasonNumber: Number(seasonNumber),
+    title: season.name || season.title || `Season ${seasonNumber}`,
+    episodeCount: season.episodeCount ?? season.episode_count ?? season.episodes?.length ?? null,
+    airDate: season.airDate || season.air_date || null,
+  };
+}
+
+function normalizeSeerrSearchResult(item, source) {
+  const mediaType = String(item.mediaType || item.media_type || "").toLowerCase();
+  if (!["movie", "tv"].includes(mediaType)) {
+    return null;
+  }
+
+  const tmdbId = Number(item.id || item.tmdbId || item.tmdb_id);
+  if (!Number.isFinite(tmdbId)) {
+    return null;
+  }
+
+  const releaseDate = item.releaseDate || item.firstAirDate || item.release_date || item.first_air_date || "";
+  const posterPath = item.posterPath || item.poster_path || null;
+  const backdropPath = item.backdropPath || item.backdrop_path || null;
+  const title = item.title || item.name || item.originalTitle || item.originalName || "Untitled media";
+
+  return {
+    id: `${source.instanceId}-${mediaType}-${tmdbId}`,
+    sourceId: source.instanceId,
+    source: source.name,
+    mediaId: tmdbId,
+    mediaType,
+    title,
+    year: releaseDate ? String(releaseDate).slice(0, 4) : "",
+    releaseDate,
+    overview: item.overview || "",
+    posterPath,
+    posterUrl: buildSeerrImageUrl(posterPath, "w342"),
+    posterUrls: buildSeerrImageUrls(posterPath),
+    backdropUrl: buildSeerrImageUrl(backdropPath, "w780"),
+    rating: item.voteAverage || item.vote_average || item.rating || null,
+    popularity: item.popularity || 0,
+    availability: normalizeSeerrMediaStatus(item.mediaInfo),
+    requested: Boolean(item.mediaInfo?.requests?.length) || ["Pending", "Processing", "Partially available", "Available"].includes(normalizeSeerrMediaStatus(item.mediaInfo)),
+    openUrl: buildSeerrOpenUrl(source, {
+      mediaType,
+      externalIds: { tmdbId },
+    }),
+  };
+}
+
+async function hydrateSeerrSearchResult(source, result) {
+  if (result.mediaType !== "tv") {
+    return result;
+  }
+
+  const details = await fetchSeerrMediaDetails(source, { mediaType: "tv", tmdbId: result.mediaId });
+  const seasons = (details.seasons || []).map(normalizeSeerrSeason).filter(Boolean);
+
+  return {
+    ...result,
+    seasons,
+    tvdbId: details.tvdbId || details.externalIds?.tvdbId || null,
+    overview: result.overview || details.overview || "",
+    posterUrl: result.posterUrl || buildSeerrImageUrl(details.posterPath || details.poster_path, "w342"),
+    posterUrls: result.posterUrls?.length ? result.posterUrls : buildSeerrImageUrls(details.posterPath || details.poster_path),
+  };
+}
+
+async function searchSeerrMedia({ query, sourceId }) {
+  const searchQuery = String(query || "").trim();
+  if (searchQuery.length < 2) {
+    const error = new Error("Search needs at least 2 characters");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const seerrApps = await getConnectedSeerrApps();
+  const apps = sourceId ? [getSeerrAppById(seerrApps, sourceId)].filter(Boolean) : seerrApps;
+  if (!apps.length) {
+    const error = new Error("No connected Jellyseerr or Overseerr source found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const results = [];
+  const errors = [];
+
+  await Promise.all(
+    apps.map(async (app) => {
+      const url = cleanIntegrationUrl(app.values?.url);
+      const apiKey = app.values?.secret;
+      if (!url || !apiKey) return;
+
+      try {
+        const response = await axios.get(`${url}/api/v1/search`, {
+          timeout: 10000,
+          headers: { "X-Api-Key": apiKey },
+          params: { query: searchQuery, page: 1 },
+        });
+        const items = Array.isArray(response.data?.results) ? response.data.results : Array.isArray(response.data) ? response.data : [];
+        const normalized = await Promise.all(
+          items
+            .map((item) => normalizeSeerrSearchResult(item, app))
+            .filter(Boolean)
+            .slice(0, 12)
+            .map((item) => hydrateSeerrSearchResult(app, item))
+        );
+        results.push(...normalized);
+      } catch (error) {
+        errors.push({ source: app.name, message: getAxiosErrorMessage(error) });
+      }
+    })
+  );
+
+  return {
+    query: searchQuery,
+    sources: apps.map((app) => ({ name: app.name, instanceId: app.instanceId, connected: app.connected })),
+    results: results.sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0)).slice(0, 24),
+    errors,
+  };
+}
+
+async function fetchSeerrMediaResultDetail({ sourceId, mediaType, mediaId }) {
+  const seerrApps = await getConnectedSeerrApps();
+  const app = getSeerrAppById(seerrApps, sourceId);
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const normalizedType = String(mediaType || "").toLowerCase();
+  const normalizedMediaId = Number(mediaId);
+  if (!["movie", "tv"].includes(normalizedType) || !Number.isFinite(normalizedMediaId)) {
+    const error = new Error("A valid movie or TV result is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const mediaDetails = await fetchSeerrMediaDetails(app, { mediaType: normalizedType, tmdbId: normalizedMediaId });
+  const base = normalizeSeerrSearchResult({ ...mediaDetails, id: normalizedMediaId, mediaType: normalizedType }, app) || {};
+  const seasons = normalizedType === "tv" ? (mediaDetails.seasons || []).map(normalizeSeerrSeason).filter(Boolean) : [];
+  const releaseDate = mediaDetails.releaseDate || mediaDetails.firstAirDate || mediaDetails.release_date || mediaDetails.first_air_date || base.releaseDate || "";
+  const detail = {
+    ...base,
+    sourceId: app.instanceId,
+    source: app.name,
+    mediaId: normalizedMediaId,
+    mediaType: normalizedType,
+    title: base.title || mediaDetails.title || mediaDetails.name || mediaDetails.originalTitle || mediaDetails.originalName || "Untitled media",
+    overview: mediaDetails.overview || mediaDetails.summary || base.overview || "",
+    genres: (mediaDetails.genres || []).map((genre) => genre.name || genre).filter(Boolean),
+    cast: normalizeCastList(mediaDetails),
+    seasons,
+    runtime: mediaDetails.runtime || mediaDetails.episodeRunTime?.[0] || mediaDetails.episode_run_time?.[0] || null,
+    rating: mediaDetails.voteAverage || mediaDetails.vote_average || mediaDetails.rating || base.rating || null,
+    ratings: {
+      tmdb: mediaDetails.voteAverage || mediaDetails.vote_average || mediaDetails.rating || base.rating || null,
+      rottenTomatoes:
+        getNestedValue(mediaDetails, [
+          "ratings.rottenTomatoes",
+          "ratings.rottenTomatoesScore",
+          "ratings.criticsScore",
+          "rottenTomatoesScore",
+          "criticRating",
+          "criticScore",
+        ]) || null,
+    },
+    year: releaseDate ? String(releaseDate).slice(0, 4) : base.year || "",
+    releaseDate,
+    externalIds: {
+      tmdbId: normalizedMediaId,
+      tvdbId: mediaDetails.tvdbId || mediaDetails.externalIds?.tvdbId || null,
+      imdbId: mediaDetails.imdbId || mediaDetails.imdb_id || mediaDetails.externalIds?.imdbId || null,
+    },
+  };
+
+  detail.availability = await getRequestAvailability(detail, { includeRatings: true });
+  const [seerrRatings, omdbRatings, arrRatings] = await Promise.all([
+    fetchSeerrRatings(app, detail),
+    fetchOmdbRatings(detail),
+    fetchArrRatings(detail),
+  ]);
+  detail.ratings = {
+    ...detail.ratings,
+    ...(detail.availability?.ratings || {}),
+    ...omdbRatings,
+    ...arrRatings,
+    ...seerrRatings,
+  };
+
+  return detail;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size >= 10 || unitIndex === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function normalizeServiceServer(server = {}) {
+  return {
+    id: server.id,
+    name: server.name || `Server ${server.id}`,
+    is4k: Boolean(server.is4k),
+    isDefault: Boolean(server.isDefault),
+    activeDirectory: server.activeDirectory || "",
+    activeProfileId: server.activeProfileId ?? server.activeAnimeProfileId ?? null,
+    activeLanguageProfileId: server.activeLanguageProfileId ?? server.activeAnimeLanguageProfileId ?? null,
+    activeTags: server.activeTags || server.tags || [],
+  };
+}
+
+function normalizeServiceDetails(details = {}) {
+  const server = normalizeServiceServer(details.server || {});
+
+  return {
+    server,
+    profiles: (details.profiles || []).map((profile) => ({ id: profile.id, name: profile.name || `Profile ${profile.id}` })),
+    rootFolders: (details.rootFolders || []).map((folder) => ({
+      id: folder.id,
+      path: folder.path,
+      freeSpace: folder.freeSpace,
+      totalSpace: folder.totalSpace,
+      freeSpaceLabel: formatBytes(folder.freeSpace),
+    })),
+    languageProfiles: (details.languageProfiles || []).map((profile) => ({ id: profile.id, name: profile.name || `Language ${profile.id}` })),
+    tags: (details.tags || []).map((tag) => ({ id: tag.id, label: tag.label || tag.name || `Tag ${tag.id}` })),
+  };
+}
+
+async function fetchSeerrRequestOptions({ sourceId, mediaType }) {
+  const seerrApps = await getConnectedSeerrApps();
+  const app = getSeerrAppById(seerrApps, sourceId);
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const normalizedType = String(mediaType || "").toLowerCase();
+  const serviceType = normalizedType === "movie" ? "radarr" : normalizedType === "tv" ? "sonarr" : "";
+  if (!serviceType) {
+    const error = new Error("A valid movie or TV type is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+
+  try {
+    const listResponse = await axios.get(`${url}/api/v1/service/${serviceType}`, {
+      timeout: 10000,
+      headers: { "X-Api-Key": apiKey },
+    });
+    const servers = Array.isArray(listResponse.data) ? listResponse.data.map(normalizeServiceServer) : [];
+    const detailedServers = await Promise.all(
+      servers.map(async (server) => {
+        try {
+          const detailResponse = await axios.get(`${url}/api/v1/service/${serviceType}/${encodeURIComponent(server.id)}`, {
+            timeout: 10000,
+            headers: { "X-Api-Key": apiKey },
+          });
+          return normalizeServiceDetails(detailResponse.data || { server });
+        } catch (error) {
+          return { server, profiles: [], rootFolders: [], languageProfiles: [], tags: [], error: getAxiosErrorMessage(error) };
+        }
+      })
+    );
+
+    return {
+      sourceId: app.instanceId,
+      source: app.name,
+      mediaType: normalizedType,
+      serviceType,
+      servers: detailedServers,
+    };
+  } catch (error) {
+    const optionsError = new Error(getAxiosErrorMessage(error));
+    optionsError.statusCode = error.response?.status || 503;
+    throw optionsError;
+  }
+}
+
+async function createSeerrMediaRequest({ sourceId, mediaType, mediaId, seasons, serverId, profileId, rootFolder, languageProfileId, tags, is4k }) {
+  const seerrApps = await getConnectedSeerrApps();
+  const app = getSeerrAppById(seerrApps, sourceId);
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const normalizedType = String(mediaType || "").toLowerCase();
+  const normalizedMediaId = Number(mediaId);
+  if (!["movie", "tv"].includes(normalizedType) || !Number.isFinite(normalizedMediaId)) {
+    const error = new Error("A valid movie or TV result is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const payload = {
+    mediaType: normalizedType,
+    mediaId: normalizedMediaId,
+  };
+
+  if (serverId !== undefined && serverId !== "") payload.serverId = Number(serverId);
+  if (profileId !== undefined && profileId !== "") payload.profileId = Number(profileId);
+  if (rootFolder) payload.rootFolder = rootFolder;
+  if (languageProfileId !== undefined && languageProfileId !== "") payload.languageProfileId = Number(languageProfileId);
+  if (Array.isArray(tags) && tags.length) payload.tags = tags.map(Number).filter((tag) => Number.isFinite(tag));
+  if (is4k !== undefined) payload.is4k = Boolean(is4k);
+
+  if (normalizedType === "tv") {
+    const requestedSeasons = Array.isArray(seasons) ? seasons.map(Number).filter((season) => Number.isFinite(season) && season > 0) : [];
+    if (!requestedSeasons.length) {
+      const error = new Error("Select at least one season to request");
+      error.statusCode = 400;
+      throw error;
+    }
+    payload.seasons = requestedSeasons;
+  }
+
+  try {
+    const response = await axios.post(`${url}/api/v1/request`, payload, {
+      timeout: 10000,
+      headers: { "X-Api-Key": apiKey },
+    });
+    clearRequestCache();
+    return { ok: true, source: app.name, request: response.data };
+  } catch (error) {
+    const requestError = new Error(getAxiosErrorMessage(error));
+    requestError.statusCode = error.response?.status || 503;
+    throw requestError;
+  }
+}
+
 function normalizeRequestedSeasons(seasons = []) {
   return seasons.map((season) => ({
     seasonNumber: season.seasonNumber ?? season.season_number ?? season.season,
@@ -425,7 +1153,31 @@ function normalizeRequestedSeasons(seasons = []) {
   }));
 }
 
-async function getRequestAvailability(request) {
+function normalizeCastList(mediaDetails = {}) {
+  const cast =
+    mediaDetails.credits?.cast ||
+    mediaDetails.cast ||
+    mediaDetails.actors ||
+    mediaDetails.people?.cast ||
+    [];
+
+  return (Array.isArray(cast) ? cast : [])
+    .map((person) => {
+      const name = person.name || person.personName || person.actorName || person.originalName || "";
+      const character = person.character || person.role || person.job || "";
+      const profilePath = person.profilePath || person.profile_path || person.imagePath || person.avatarPath || "";
+      return {
+        id: person.id || person.personId || person.creditId || `${name}-${character}`,
+        name,
+        character,
+        imageUrl: buildSeerrImageUrl(profilePath, "w185"),
+      };
+    })
+    .filter((person) => person.name)
+    .slice(0, 10);
+}
+
+async function getRequestAvailability(request, options = {}) {
   const title = String(request.title || "").trim();
   const mediaType = String(request.mediaType || "").toLowerCase();
   const year = Number(request.year);
@@ -436,7 +1188,7 @@ async function getRequestAvailability(request) {
 
   const typeFilter = mediaType === "tv" ? "Series" : mediaType === "movie" ? "Movie" : null;
   const values = [title.toLowerCase()];
-  let query = `SELECT "Id", "Name", "Type", "ProductionYear" FROM jf_library_items WHERE archived=false AND lower("Name")=$1`;
+  let query = `SELECT "Id", "Name", "Type", "ProductionYear", "CommunityRating" FROM jf_library_items WHERE archived=false AND lower("Name")=$1`;
 
   if (typeFilter) {
     values.push(typeFilter);
@@ -453,14 +1205,30 @@ async function getRequestAvailability(request) {
     return { status: "Missing", matchedItems: 0, message: "No Jellyfin match" };
   }
 
+  const ratings = options.includeRatings
+    ? await getLiveItem(matches[0].Id)
+        .then((liveItem) => ({
+          imdb: liveItem?.CommunityRating ?? matches[0].CommunityRating ?? null,
+          rottenTomatoes: liveItem?.CriticRating ?? null,
+          community: liveItem?.CommunityRating ?? matches[0].CommunityRating ?? null,
+          critic: liveItem?.CriticRating ?? null,
+        }))
+        .catch(() => ({
+          imdb: matches[0].CommunityRating ?? null,
+          rottenTomatoes: null,
+          community: matches[0].CommunityRating ?? null,
+          critic: null,
+        }))
+    : undefined;
+
   if (mediaType !== "tv" || !request.requestedSeasons?.length) {
-    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id };
+    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id, ...(ratings ? { ratings } : {}) };
   }
 
   const seriesIds = matches.map((item) => item.Id);
   const requestedEpisodes = request.requestedSeasons.reduce((count, season) => count + (season.episodes?.length || 0), 0);
   if (!requestedEpisodes) {
-    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id };
+    return { status: "Available", matchedItems: matches.length, jellyfinItemId: matches[0].Id, ...(ratings ? { ratings } : {}) };
   }
 
   const conditions = [];
@@ -485,19 +1253,56 @@ async function getRequestAvailability(request) {
     : 0;
 
   if (count >= requestedEpisodes) {
-    return { status: "Available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id };
+    return { status: "Available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id, ...(ratings ? { ratings } : {}) };
   }
 
   if (count > 0) {
-    return { status: "Partially available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id };
+    return { status: "Partially available", matchedItems: matches.length, availableEpisodes: count, requestedEpisodes, jellyfinItemId: matches[0].Id, ...(ratings ? { ratings } : {}) };
   }
 
-  return { status: "Missing", matchedItems: matches.length, availableEpisodes: 0, requestedEpisodes, jellyfinItemId: matches[0].Id };
+  return { status: "Missing", matchedItems: matches.length, availableEpisodes: 0, requestedEpisodes, jellyfinItemId: matches[0].Id, ...(ratings ? { ratings } : {}) };
 }
 
 async function normalizeSeerrRequest(item, source, options = {}) {
   const media = item.media || item.mediaInfo || {};
   const requester = item.requestedBy || item.requestedByUser || {};
+  const seerrJellyfinUserId = getNestedValue(requester, [
+    "jellyfinUserId",
+    "jellyfinUserID",
+    "jellyfinId",
+    "jellyfinID",
+    "jellyfinUser.id",
+    "jellyfinUser.Id",
+    "jellyfinUser.userId",
+    "jellyfinUser.UserId",
+    "settings.jellyfinUserId",
+    "settings.jellyfinUserID",
+    "settings.jellyfinId",
+  ]);
+  const requesterName = requester.displayName || requester.username || requester.jellyfinUsername || requester.email || "Unknown user";
+  const requesterCandidates = [
+    seerrJellyfinUserId,
+    requester.jellyfinUsername,
+    requester.displayName,
+    requester.username,
+    requester.email,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const jellyfinRequester = requesterCandidates.length
+    ? await db
+        .query(
+          `SELECT "Id", "Name", "PrimaryImageTag"
+           FROM jf_users
+           WHERE "Id" = ANY($1)
+              OR lower("Name") = ANY($2)
+           LIMIT 1`,
+          [requesterCandidates, requesterCandidates.map((value) => value.toLowerCase())]
+        )
+        .then((result) => result.rows?.[0] || null)
+        .catch(() => null)
+    : null;
   const mediaDetails = options.lightweight ? {} : await fetchSeerrMediaDetails(source, media);
   const posterPath = mediaDetails.posterPath || mediaDetails.poster_path || media.posterPath || media.poster_path || null;
   const backdropPath = mediaDetails.backdropPath || mediaDetails.backdrop_path || media.backdropPath || media.backdrop_path || null;
@@ -528,7 +1333,16 @@ async function normalizeSeerrRequest(item, source, options = {}) {
       "Unknown request",
     mediaType: media.mediaType || item.type || item.mediaType || "media",
     status: statusMap[item.status] || item.statusLabel || item.status || "Unknown",
-    requestedBy: requester.displayName || requester.username || requester.jellyfinUsername || requester.email || "Unknown user",
+    requestedBy: jellyfinRequester?.Name || requesterName,
+    requester: {
+      id: requester.id || requester.userId || requester.jellyfinUserId || requester.jellyfinUser?.id || null,
+      jellyfinUserId: jellyfinRequester?.Id || seerrJellyfinUserId || null,
+      name: jellyfinRequester?.Name || requesterName,
+      username: requester.username || requester.jellyfinUsername || "",
+      email: requester.email || "",
+      avatar: requester.avatar || requester.avatarUrl || requester.profilePicture || requester.profileImage || "",
+      primaryImageTag: jellyfinRequester?.PrimaryImageTag || "",
+    },
     createdAt: item.createdAt || item.updatedAt || null,
     seasons: Array.isArray(item.seasons) ? item.seasons.length : 0,
     requestedSeasons: normalizeRequestedSeasons(item.seasons || []),
@@ -538,8 +1352,21 @@ async function normalizeSeerrRequest(item, source, options = {}) {
     backdropUrl: buildSeerrImageUrl(backdropPath, "w780"),
     overview: mediaDetails.overview || mediaDetails.summary || "",
     genres: (mediaDetails.genres || []).map((genre) => genre.name || genre).filter(Boolean),
+    cast: normalizeCastList(mediaDetails),
     runtime,
     rating: mediaDetails.voteAverage || mediaDetails.vote_average || mediaDetails.rating || null,
+    ratings: {
+      tmdb: mediaDetails.voteAverage || mediaDetails.vote_average || mediaDetails.rating || null,
+      rottenTomatoes:
+        getNestedValue(mediaDetails, [
+          "ratings.rottenTomatoes",
+          "ratings.rottenTomatoesScore",
+          "ratings.criticsScore",
+          "rottenTomatoesScore",
+          "criticRating",
+          "criticScore",
+        ]) || null,
+    },
     year: releaseDate.slice(0, 4),
     releaseDate,
     externalIds: {
@@ -551,7 +1378,24 @@ async function normalizeSeerrRequest(item, source, options = {}) {
   };
 
   normalized.openUrl = buildSeerrOpenUrl(source, normalized);
-  normalized.availability = options.lightweight ? { status: "Unknown", matchedItems: 0 } : await getRequestAvailability(normalized);
+  normalized.availability = options.lightweight
+    ? { status: "Unknown", matchedItems: 0 }
+    : await getRequestAvailability(normalized, { includeRatings: options.includeRatings });
+
+  if (options.includeRatings) {
+    const [seerrRatings, omdbRatings, arrRatings] = await Promise.all([
+      fetchSeerrRatings(source, normalized),
+      fetchOmdbRatings(normalized),
+      fetchArrRatings(normalized),
+    ]);
+    normalized.ratings = {
+      ...normalized.ratings,
+      ...(normalized.availability?.ratings || {}),
+      ...omdbRatings,
+      ...arrRatings,
+      ...seerrRatings,
+    };
+  }
   return normalized;
 }
 
@@ -642,7 +1486,7 @@ async function buildSeerrRequests(options = {}) {
 }
 
 async function fetchSeerrRequests(options = {}) {
-  const cacheKey = `${options.lightweight ? "lightweight" : "full"}:${options.includeInterest ? "interest" : "plain"}`;
+  const cacheKey = `${options.lightweight ? "lightweight" : "full"}:${options.includeInterest ? "interest" : "plain"}:${options.includeRatings ? "ratings" : "fast"}`;
   const existing = requestCache.get(cacheKey);
   const now = Date.now();
 
@@ -665,6 +1509,53 @@ async function fetchSeerrRequests(options = {}) {
     requestCache.delete(cacheKey);
     throw error;
   }
+}
+
+async function fetchSeerrRequestDetail({ sourceId, requestId }) {
+  const seerrApps = await getConnectedSeerrApps();
+  const app = getSeerrAppById(seerrApps, sourceId);
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const headers = { "X-Api-Key": apiKey };
+  let item = null;
+
+  try {
+    const response = await axios.get(`${url}/api/v1/request/${encodeURIComponent(requestId)}`, {
+      timeout: 10000,
+      headers,
+    });
+    item = response.data;
+  } catch (error) {
+    if (![404, 405].includes(error.response?.status)) {
+      const detailError = new Error(getAxiosErrorMessage(error));
+      detailError.statusCode = error.response?.status || 503;
+      throw detailError;
+    }
+  }
+
+  if (!item) {
+    const response = await axios.get(`${url}/api/v1/request`, {
+      timeout: 10000,
+      headers,
+      params: { take: 100, skip: 0 },
+    });
+    const requests = Array.isArray(response.data?.results) ? response.data.results : Array.isArray(response.data) ? response.data : [];
+    item = requests.find((entry) => String(entry.id) === String(requestId));
+  }
+
+  if (!item) {
+    const error = new Error("Request not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return normalizeSeerrRequest(item, app, { includeRatings: true });
 }
 
 async function annotateRequestUserInterest(requests = []) {
@@ -728,6 +1619,51 @@ async function runSeerrRequestAction({ requestId, sourceId, action }) {
       return { ok: true, source: app.name, action, status: response.status, data: response.data };
     } catch (error) {
       lastError = error;
+    }
+  }
+
+  const error = new Error(getAxiosErrorMessage(lastError));
+  error.statusCode = lastError?.response?.status || 503;
+  throw error;
+}
+
+async function updateSeerrRequest({ requestId, sourceId, serverId, profileId, rootFolder, languageProfileId, tags, is4k }) {
+  const integrations = await getIntegrations();
+  const app = (integrations.arrApps || []).find((integration) => integration.instanceId === sourceId && isSeerrIntegration(integration));
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const url = cleanIntegrationUrl(app.values?.url);
+  const apiKey = app.values?.secret;
+  const payload = {};
+
+  if (serverId !== undefined && serverId !== "") payload.serverId = Number(serverId);
+  if (profileId !== undefined && profileId !== "") payload.profileId = Number(profileId);
+  if (rootFolder) payload.rootFolder = rootFolder;
+  if (languageProfileId !== undefined && languageProfileId !== "") payload.languageProfileId = Number(languageProfileId);
+  if (Array.isArray(tags)) payload.tags = tags.map(Number).filter((tag) => Number.isFinite(tag));
+  if (is4k !== undefined) payload.is4k = Boolean(is4k);
+
+  if (!Object.keys(payload).length) {
+    const error = new Error("No request changes were provided");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let lastError;
+  for (const path of [`/api/v1/request/${encodeURIComponent(requestId)}`, `/api/v1/request/${encodeURIComponent(requestId)}/edit`]) {
+    try {
+      const response = await axios.put(`${url}${path}`, payload, {
+        timeout: 10000,
+        headers: { "X-Api-Key": apiKey },
+      });
+      return { ok: true, source: app.name, status: response.status, data: response.data };
+    } catch (error) {
+      lastError = error;
+      if (![404, 405].includes(error.response?.status)) break;
     }
   }
 
@@ -840,8 +1776,9 @@ function normalizeJellyfinDevice(device = {}) {
 
 function normalizeJellyfinPlugin(plugin = {}) {
   const status = plugin.Status || plugin.State || (plugin.Enabled === false ? "Disabled" : "Enabled");
+  const id = plugin.Id || plugin.Guid || plugin.Name;
   return {
-    id: plugin.Id || plugin.Guid || plugin.Name,
+    id,
     name: plugin.Name || plugin.AssemblyFileName || "Unknown plugin",
     version: plugin.Version || plugin.Versions?.[0]?.version || "",
     description: plugin.Description || plugin.Overview || "",
@@ -850,7 +1787,22 @@ function normalizeJellyfinPlugin(plugin = {}) {
     enabled: plugin.Enabled !== false && !String(status).toLowerCase().includes("disabled"),
     canUninstall: plugin.CanUninstall === true,
     configurationFileName: plugin.ConfigurationFileName || "",
+    imageUrl: plugin.imageUrl || plugin.ImageUrl || "",
   };
+}
+
+function matchJellyfinPluginPackage(plugin, packages = []) {
+  const pluginId = String(plugin.Id || plugin.Guid || plugin.id || "").toLowerCase();
+  const pluginName = String(plugin.Name || plugin.name || "").trim().toLowerCase();
+  return packages.find((entry) => {
+    const packageId = String(entry.guid || entry.Guid || entry.id || "").toLowerCase();
+    const packageName = String(entry.name || entry.Name || "").trim().toLowerCase();
+    return (pluginId && packageId && pluginId === packageId) || (pluginName && packageName && pluginName === packageName);
+  });
+}
+
+function buildPluginImageProxyUrl(imageUrl) {
+  return imageUrl ? `/proxy/Plugins/Images/?url=${encodeURIComponent(imageUrl)}` : "";
 }
 
 async function buildServerManagementStatus() {
@@ -1570,6 +2522,70 @@ router.get("/requests/summary", async (req, res) => {
   }
 });
 
+router.get("/requests/search", async (req, res) => {
+  try {
+    res.send(await searchSeerrMedia({ query: req.query?.query, sourceId: req.query?.sourceId }));
+  } catch (error) {
+    console.error("Seerr media search failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to search Seerr media" });
+  }
+});
+
+router.get("/requests/media-detail", async (req, res) => {
+  try {
+    res.send(
+      await fetchSeerrMediaResultDetail({
+        sourceId: req.query?.sourceId,
+        mediaType: req.query?.mediaType,
+        mediaId: req.query?.mediaId,
+      })
+    );
+  } catch (error) {
+    console.error("Seerr media detail failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to load media detail" });
+  }
+});
+
+router.get("/requests/options", async (req, res) => {
+  try {
+    res.send(await fetchSeerrRequestOptions({ sourceId: req.query?.sourceId, mediaType: req.query?.mediaType }));
+  } catch (error) {
+    console.error("Seerr request options failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to load request options" });
+  }
+});
+
+router.get("/requests/:requestId/detail", async (req, res) => {
+  try {
+    res.send(await fetchSeerrRequestDetail({ requestId: req.params.requestId, sourceId: req.query?.sourceId }));
+  } catch (error) {
+    console.error("Seerr request detail failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to load request detail" });
+  }
+});
+
+router.post("/requests/media", async (req, res) => {
+  try {
+    res.send(
+      await createSeerrMediaRequest({
+        sourceId: req.body?.sourceId,
+        mediaType: req.body?.mediaType,
+        mediaId: req.body?.mediaId,
+        seasons: req.body?.seasons,
+        serverId: req.body?.serverId,
+        profileId: req.body?.profileId,
+        rootFolder: req.body?.rootFolder,
+        languageProfileId: req.body?.languageProfileId,
+        tags: req.body?.tags,
+        is4k: req.body?.is4k,
+      })
+    );
+  } catch (error) {
+    console.error("Seerr media request failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to request media" });
+  }
+});
+
 router.post("/requests/:requestId/actions", async (req, res) => {
   try {
     const result = await runSeerrRequestAction({
@@ -1582,6 +2598,26 @@ router.post("/requests/:requestId/actions", async (req, res) => {
   } catch (error) {
     console.error("Seerr request action failed:", error);
     res.status(error.statusCode || 503).send({ error: error.message || "Unable to update request" });
+  }
+});
+
+router.put("/requests/:requestId/edit", async (req, res) => {
+  try {
+    const result = await updateSeerrRequest({
+      requestId: req.params.requestId,
+      sourceId: req.body?.sourceId,
+      serverId: req.body?.serverId,
+      profileId: req.body?.profileId,
+      rootFolder: req.body?.rootFolder,
+      languageProfileId: req.body?.languageProfileId,
+      tags: req.body?.tags,
+      is4k: req.body?.is4k,
+    });
+    clearRequestCache();
+    res.send(result);
+  } catch (error) {
+    console.error("Seerr request edit failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to edit request" });
   }
 });
 
@@ -3897,6 +4933,7 @@ router.post("/integrations", async (req, res) => {
     await addAuditEntry(req, "integrations.updated", {
       arrApps: saved.arrApps?.length || 0,
       clients: saved.clients?.length || 0,
+      thirdParty: saved.thirdParty?.length || 0,
     });
     res.send(saved);
   } catch (error) {
@@ -3958,16 +4995,19 @@ router.post("/integrations/test-all", async (req, res) => {
     const integrations = await getIntegrations();
     const arrApps = (integrations.arrApps || []).filter((integration) => integration.connected);
     const clients = (integrations.clients || []).filter((integration) => integration.connected);
+    const thirdParty = (integrations.thirdParty || []).filter((integration) => integration.connected);
     const allIntegrations = [
       ...arrApps.map((integration) => ({ integration, type: "automation" })),
       ...clients.map((integration) => ({ integration, type: "download" })),
+      ...thirdParty.map((integration) => ({ integration, type: "thirdParty" })),
     ];
 
     const checkedAt = new Date().toISOString();
     const results = await Promise.all(
       allIntegrations.map(async ({ integration, type }) => {
         try {
-          const result = type === "download" ? await testDownloadIntegration(integration) : await testArrIntegration(integration);
+          const result =
+            type === "download" ? await testDownloadIntegration(integration) : type === "thirdParty" ? await testThirdPartyIntegration(integration) : await testArrIntegration(integration);
           return {
             instanceId: integration.instanceId,
             name: integration.name,
@@ -4007,7 +5047,7 @@ router.post("/integrations/test", async (req, res) => {
   }
 
   try {
-    const result = type === "download" ? await testDownloadIntegration(integration) : await testArrIntegration(integration);
+    const result = type === "download" ? await testDownloadIntegration(integration) : type === "thirdParty" ? await testThirdPartyIntegration(integration) : await testArrIntegration(integration);
     if (!result.ok) {
       return res.status(400).send(result);
     }
@@ -4017,6 +5057,111 @@ router.post("/integrations/test", async (req, res) => {
       ok: false,
       error: getAxiosErrorMessage(error),
     });
+  }
+});
+
+router.get("/wizarr/summary", async (req, res) => {
+  try {
+    const integration = await getConnectedWizarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Wizarr in Settings > Integrations first." });
+    }
+    res.send(await fetchWizarrBundle(integration));
+  } catch (error) {
+    console.error("Wizarr summary failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Wizarr invites" });
+  }
+});
+
+router.post("/wizarr/invitations", async (req, res) => {
+  try {
+    const integration = await getConnectedWizarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Wizarr in Settings > Integrations first." });
+    }
+
+    const body = req.body || {};
+    const serverIds = Array.isArray(body.serverIds) ? body.serverIds.map(Number).filter(Number.isFinite) : [];
+    const libraryIds = Array.isArray(body.libraryIds) ? body.libraryIds.map(Number).filter(Number.isFinite) : [];
+    const expiresInDays = body.expiresInDays === "" || body.expiresInDays == null ? null : Number(body.expiresInDays);
+    const duration = body.duration === "" || body.duration == null ? "unlimited" : String(body.duration);
+    const wizardBundleId = body.wizardBundleId === "" || body.wizardBundleId == null ? null : Number(body.wizardBundleId);
+    const customCode = String(body.customCode || "").trim().toUpperCase();
+
+    if (!serverIds.length) {
+      return res.status(400).send({ error: "Choose at least one Wizarr server." });
+    }
+
+    const url = cleanIntegrationUrl(integration.values?.url);
+    const response = await axios.post(
+      `${url}/api/invitations`,
+      {
+        server_ids: serverIds,
+        library_ids: libraryIds,
+        ...(Number.isFinite(expiresInDays) ? { expires_in_days: expiresInDays } : {}),
+        duration,
+        unlimited: body.unlimited !== false,
+        allow_downloads: Boolean(body.allowDownloads),
+        allow_live_tv: Boolean(body.allowLiveTv),
+        allow_mobile_uploads: Boolean(body.allowMobileUploads),
+        ...(Number.isFinite(wizardBundleId) ? { wizard_bundle_id: wizardBundleId } : {}),
+        ...(customCode ? { code: customCode, invite_code: customCode } : {}),
+      },
+      {
+        timeout: 12000,
+        headers: {
+          ...getWizarrHeaders(integration),
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const normalizedInvite = normalizeWizarrInvite(response.data?.invitation || response.data, url);
+    const webhookManager = new WebhookManager();
+    await webhookManager.triggerEventWebhooks("invite_created", {
+      integrationEvent: "invite created",
+      source: integration.name || "Wizarr",
+      code: normalizedInvite.code,
+      url: normalizedInvite.url,
+      serverIds,
+      libraryIds,
+      message: `Invite ${normalizedInvite.code || normalizedInvite.id || "link"} created from JellyGlance.`,
+    });
+
+    await addAuditEntry(req, "wizarr.invitation.created", { source: integration.name, serverIds, libraryIds });
+    res.status(response.status === 201 ? 201 : 200).send({
+      message: response.data?.message || "Invitation created",
+      invitation: normalizedInvite,
+    });
+  } catch (error) {
+    console.error("Wizarr invitation create failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to create Wizarr invitation" });
+  }
+});
+
+router.delete("/wizarr/invitations/:id", async (req, res) => {
+  try {
+    const integration = await getConnectedWizarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Wizarr in Settings > Integrations first." });
+    }
+    const url = cleanIntegrationUrl(integration.values?.url);
+    const response = await axios.delete(`${url}/api/invitations/${encodeURIComponent(req.params.id)}`, {
+      timeout: 10000,
+      headers: getWizarrHeaders(integration),
+    });
+    const webhookManager = new WebhookManager();
+    await webhookManager.triggerEventWebhooks("invite_deleted", {
+      integrationEvent: "invite deleted",
+      source: integration.name || "Wizarr",
+      id: req.params.id,
+      message: `Invite ${req.params.id} deleted from JellyGlance.`,
+    });
+    await addAuditEntry(req, "wizarr.invitation.deleted", { source: integration.name, id: req.params.id });
+    res.send(response.data || { message: "Invitation deleted" });
+  } catch (error) {
+    console.error("Wizarr invitation delete failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to delete Wizarr invitation" });
   }
 });
 
@@ -4190,12 +5335,27 @@ router.get("/jellyfin/devices", async (req, res) => {
 
 router.get("/jellyfin/plugins", async (req, res) => {
   try {
-    const response = await jellyfinRequest("/Plugins");
+    const [response, packagesResponse] = await Promise.all([
+      jellyfinRequest("/Plugins"),
+      jellyfinRequest("/Packages").catch(() => ({ data: [] })),
+    ]);
     const plugins = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.Items) ? response.data.Items : [];
+    const packages = Array.isArray(packagesResponse.data)
+      ? packagesResponse.data
+      : Array.isArray(packagesResponse.data?.Items)
+        ? packagesResponse.data.Items
+        : [];
+    const normalizedPlugins = plugins.map((plugin) => {
+      const packageInfo = matchJellyfinPluginPackage(plugin, packages);
+      return normalizeJellyfinPlugin({
+        ...plugin,
+        imageUrl: buildPluginImageProxyUrl(packageInfo?.imageUrl || packageInfo?.ImageUrl || plugin.ImageUrl || plugin.imageUrl),
+      });
+    });
     res.send({
-      plugins: plugins.map(normalizeJellyfinPlugin).sort((a, b) => a.name.localeCompare(b.name)),
+      plugins: normalizedPlugins.sort((a, b) => a.name.localeCompare(b.name)),
       total: plugins.length,
-      enabled: plugins.filter((plugin) => normalizeJellyfinPlugin(plugin).enabled).length,
+      enabled: normalizedPlugins.filter((plugin) => plugin.enabled).length,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
