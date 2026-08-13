@@ -382,6 +382,7 @@
 
 .wizarr-create-card select,
 .wizarr-create-card input[type="number"],
+.wizarr-create-card input[type="email"],
 .wizarr-create-card input[type="text"],
 .wizarr-create-card input:not([type]) {
   min-height: 42px;
@@ -490,6 +491,51 @@
   color: #dbe6f5;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.wizarr-email-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.14);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(var(--secondary-rgb), 0.08), transparent 50%),
+    rgba(5, 8, 13, 0.34);
+}
+
+.wizarr-email-box label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: #dfe7f3;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.wizarr-email-box label strong {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.wizarr-email-box label small {
+  display: block;
+  margin-top: 2px;
+  color: #93a4bb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wizarr-email-box svg {
+  color: var(--secondary-color);
+}
+
+.wizarr-email-box input[type="email"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
 }
 
 .wizarr-invite-panel {

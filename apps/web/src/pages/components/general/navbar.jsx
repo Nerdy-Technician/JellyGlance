@@ -17,6 +17,7 @@ import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
 import { slugifyUserName } from "../../../lib/userProfile";
 import Config from "../../../lib/config";
+import { FONT_WEIGHT_OPTIONS, getStoredFontWeight, saveFontWeightPreference } from "../../../lib/appearance";
 import { DEFAULT_THEME, THEME_PRESETS, getStoredTheme, resetTheme, saveTheme } from "../../../lib/theme";
 
 function getCachedConfig() {
@@ -101,6 +102,7 @@ export default function Navbar() {
   const [config, setConfig] = useState(() => getCachedConfig());
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
   const [customTheme, setCustomTheme] = useState(() => getStoredTheme());
+  const [fontWeightPreference, setFontWeightPreference] = useState(() => getStoredFontWeight());
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
@@ -402,6 +404,10 @@ export default function Navbar() {
     setIsThemeMenuOpen(false);
   };
 
+  const handleFontWeightPreference = (preference) => {
+    setFontWeightPreference(saveFontWeightPreference(preference));
+  };
+
   const handleAvatarUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -603,6 +609,28 @@ export default function Navbar() {
               <small>Open the latest JellyGlance update notes.</small>
             </span>
           </button>
+
+          <section className="profile-font-panel" aria-labelledby="profile-font-heading">
+            <div className="profile-font-header">
+              <h3 id="profile-font-heading">Font weight</h3>
+              <span>Choose how bold the interface feels for this browser.</span>
+            </div>
+
+            <div className="profile-font-options">
+              {FONT_WEIGHT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={fontWeightPreference === option.id ? "is-active" : ""}
+                  onClick={() => handleFontWeightPreference(option.id)}
+                  aria-pressed={fontWeightPreference === option.id}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
 
           <section className="profile-theme-panel" aria-labelledby="profile-theme-heading">
             <div className="profile-theme-header">

@@ -3,6 +3,7 @@ import AddLineIcon from "remixicon-react/AddLineIcon";
 import ClipboardLineIcon from "remixicon-react/ClipboardLineIcon";
 import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
 import ExternalLinkLineIcon from "remixicon-react/ExternalLinkLineIcon";
+import MailSendLineIcon from "remixicon-react/MailSendLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SearchLineIcon from "remixicon-react/SearchLineIcon";
 import UserAddLineIcon from "remixicon-react/UserAddLineIcon";
@@ -20,6 +21,8 @@ const emptyForm = {
   allowMobileUploads: false,
   wizardBundleId: "",
   customCode: "",
+  sendEmail: false,
+  emailRecipient: "",
 };
 
 function formatDate(value) {
@@ -100,6 +103,7 @@ export default function WizarrPage() {
   }, [data?.invites, search, statusFilter]);
 
   const customCodeValid = !form.customCode || /^[A-Za-z0-9]{6,10}$/.test(form.customCode.trim());
+  const emailRecipientValid = !form.sendEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.emailRecipient.trim());
 
   useEffect(() => {
     loadWizarr();
@@ -157,13 +161,23 @@ export default function WizarrPage() {
       setNotice("Custom invite code must be 6-10 letters or numbers.");
       return;
     }
+    if (!emailRecipientValid) {
+      setNotice("Enter a valid email recipient.");
+      return;
+    }
 
     try {
       setSaving(true);
       setNotice("");
       const response = await axios.post("/api/wizarr/invitations", form);
       const invite = response.data?.invitation;
-      setNotice(invite?.url ? `Invite created: ${invite.url}` : "Invite created.");
+      setNotice(
+        response.data?.email
+          ? `Invite created and emailed to ${form.emailRecipient.trim()}.`
+          : invite?.url
+            ? `Invite created: ${invite.url}`
+            : "Invite created."
+      );
       setForm((current) => ({ ...emptyForm, serverIds: current.serverIds }));
       await loadWizarr();
     } catch (createError) {
@@ -336,6 +350,25 @@ export default function WizarrPage() {
                 <input type="checkbox" checked={form.allowMobileUploads} onChange={(event) => updateForm("allowMobileUploads", event.target.checked)} />
                 Mobile uploads
               </label>
+            </div>
+
+            <div className="wizarr-email-box">
+              <label>
+                <input type="checkbox" checked={form.sendEmail} onChange={(event) => updateForm("sendEmail", event.target.checked)} />
+                <span>
+                  <strong>Email invite</strong>
+                  <small>Use the built-in SMTP settings from Newsletter.</small>
+                </span>
+                <MailSendLineIcon size={18} />
+              </label>
+              <input
+                type="email"
+                value={form.emailRecipient}
+                onChange={(event) => updateForm("emailRecipient", event.target.value)}
+                placeholder="person@example.com"
+                disabled={!form.sendEmail}
+                className={emailRecipientValid ? "" : "is-invalid"}
+              />
             </div>
 
             <button type="submit" disabled={saving || loading}>

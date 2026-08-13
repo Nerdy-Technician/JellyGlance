@@ -710,14 +710,6 @@ export default function Requests() {
               );
             })}
           </div>
-        ) : mediaSearch.trim().length < 2 ? (
-          <div className="requests-discovery-prompt">
-            <SearchLineIcon size={24} />
-            <div>
-              <strong>Search to add a request</strong>
-              <span>The queue below is still visible. Type a title here to find new media and request it.</span>
-            </div>
-          </div>
         ) : mediaSearch.trim().length >= 2 && !mediaSearchLoading ? (
           <div className="requests-discovery-empty">No Seerr results found.</div>
         ) : null}
