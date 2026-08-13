@@ -1,4 +1,56 @@
 {
+  "1.2.2": [
+    {
+      "icon": "magic",
+      "title": "Invite People Faster",
+      "body": "Create, copy, open, and remove Wizarr invite links without leaving JellyGlance. You can choose servers, libraries, access options, custom invite codes, and a wizard bundle ID when needed."
+    },
+    {
+      "icon": "upload",
+      "title": "One Search for Requests",
+      "body": "The Requests page now combines searching for new media and managing existing requests in one place, with faster filters, clearer cards, and request buttons that open the full setup flow."
+    },
+    {
+      "icon": "movie",
+      "title": "Richer Media Details",
+      "body": "Request details now show the information people actually check first: posters, summaries, cast, ratings, genres, requested seasons, requester avatars, and Jellyfin availability."
+    },
+    {
+      "icon": "movie",
+      "title": "Better Activity Browsing",
+      "body": "Activity history now includes media posters, cleaner title rows, and column controls so you can hide the fields you do not use."
+    },
+    {
+      "icon": "upload",
+      "title": "Recently Added Filters",
+      "body": "Recently Added now has search, media type and library filters, plus ordering controls for both items and shelves."
+    },
+    {
+      "icon": "speed",
+      "title": "Profile Wrap-Up Improvements",
+      "body": "User profiles now default to a clearer yearly activity heatmap, with a year selector, larger squares, and cleaner wrap-up cards."
+    },
+    {
+      "icon": "palette",
+      "title": "Cleaner Settings",
+      "body": "Settings tabs can be opened directly with links like /settings#plugins or /settings#apikeys, and the Plugins view now uses better Jellyfin artwork, spacing, and desktop card sizing."
+    },
+    {
+      "icon": "palette",
+      "title": "Font Weight Preferences",
+      "body": "The profile modal now lets you choose Default, Comfortable, or Light text weight, making JellyGlance easier to tune if the interface feels too bold."
+    },
+    {
+      "icon": "speed",
+      "title": "Smarter Notifications",
+      "body": "Invite events can now trigger webhooks, Invite Sync keeps links fresh in the background, Wizarr links copy with the correct public URL, and stable update checks ignore beta releases."
+    },
+    {
+      "icon": "mail",
+      "title": "Email Wizarr Invites",
+      "body": "Wizarr invites can now be emailed directly from JellyGlance using the built-in SMTP settings from Newsletter."
+    }
+  ],
   "1.2.1": [
     {
       "icon": "speed",

@@ -3292,20 +3292,28 @@
 }
 
 .jellyfin-device-row strong,
-.jellyfin-plugin-card > strong {
+.jellyfin-plugin-body > strong {
   display: block;
   margin-top: 2px;
+  overflow: hidden;
   color: #f8fafc;
   font-size: 15px;
   font-weight: 760;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .jellyfin-device-row p,
 .jellyfin-plugin-card p {
+  display: -webkit-box;
   margin: 4px 0 0;
+  overflow: hidden;
   color: #9aa7bb;
   font-size: 13px;
   line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .jellyfin-device-meta {
@@ -3318,18 +3326,62 @@
 
 .jellyfin-plugin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
 .jellyfin-plugin-card {
   display: grid;
-  gap: 8px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  height: 150px;
   min-height: 150px;
   padding: 12px;
   border: 1px solid var(--surface-border-color);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
+}
+
+.jellyfin-plugin-art {
+  position: relative;
+  display: grid;
+  width: 88px;
+  height: 58px;
+  place-items: center;
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.18), rgba(255, 255, 255, 0.04)),
+    rgba(7, 10, 16, 0.76);
+  color: var(--primary-light-color);
+}
+
+.jellyfin-plugin-art.is-empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.jellyfin-plugin-art img {
+  position: relative;
+  z-index: 1;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 10px);
+  max-height: calc(100% - 10px);
+  border-radius: 5px;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.jellyfin-plugin-body {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  gap: 8px;
+  height: 100%;
+  min-width: 0;
 }
 
 .jellyfin-plugin-card.is-enabled {
@@ -3342,13 +3394,16 @@
 
 .jellyfin-plugin-top {
   display: flex;
+  min-width: 0;
   justify-content: space-between;
   gap: 10px;
 }
 
 .jellyfin-plugin-icon {
   gap: 6px;
+  flex: 0 1 auto;
   width: fit-content;
+  max-width: 100%;
   min-height: 30px;
   padding: 0 9px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
@@ -3357,15 +3412,19 @@
 }
 
 .jellyfin-plugin-icon svg {
+  flex: 0 0 auto;
   color: var(--primary-light-color);
 }
 
 .jellyfin-plugin-top em,
 .jellyfin-plugin-card small {
+  overflow: hidden;
   color: #7f8da3;
   font-size: 12px;
   font-style: normal;
   font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .jellyfin-admin-empty {
@@ -3379,6 +3438,10 @@
 @media (max-width: 1100px) {
   .server-management-grid {
     grid-template-columns: 1fr;
+  }
+
+  .jellyfin-plugin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -3401,6 +3464,10 @@
     flex-direction: column;
   }
 
+  .jellyfin-plugin-grid {
+    grid-template-columns: 1fr;
+  }
+
   .jellyfin-device-row {
     grid-template-columns: 42px minmax(0, 1fr);
   }
@@ -3408,5 +3475,14 @@
   .jellyfin-device-meta {
     grid-column: 2;
     text-align: left;
+  }
+
+  .jellyfin-plugin-card {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .jellyfin-plugin-art {
+    width: 70px;
+    height: 48px;
   }
 }

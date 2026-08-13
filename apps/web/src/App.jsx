@@ -9,6 +9,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Config from "./lib/config";
+import { applyFontWeightPreference } from "./lib/appearance";
 import { INTEGRATIONS_STORAGE_KEY } from "./lib/integrations-storage";
 import { prewarmActiveSessions } from "./lib/session-cache";
 import { DEFAULT_THEME, applyTheme } from "./lib/theme";
@@ -257,6 +258,10 @@ function App() {
       applyTheme(DEFAULT_THEME);
     }
   }, [setupState, shouldShowFirstRunExtras]);
+
+  useEffect(() => {
+    applyFontWeightPreference();
+  }, []);
 
   useEffect(() => {
     const handleAuthExpired = () => {

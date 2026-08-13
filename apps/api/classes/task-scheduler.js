@@ -54,6 +54,10 @@ class TaskScheduler {
         Interval: 5,
         ...TaskList.DownloadQueueSync,
       },
+      InviteSync: {
+        Interval: 30,
+        ...TaskList.InviteSync,
+      },
       IntegrationHealthCheck: {
         Interval: 60,
         ...TaskList.IntegrationHealthCheck,
@@ -218,6 +222,7 @@ class TaskScheduler {
       case "IntegrationSync":
       case "ArrCalendarSync":
       case "DownloadQueueSync":
+      case "InviteSync":
       case "IntegrationHealthCheck":
         this.addGenericTask(taskEnumKey);
         break;

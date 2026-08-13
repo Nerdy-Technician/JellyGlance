@@ -4,6 +4,7 @@ const { createCipheriv, createDecipheriv, createHash, randomBytes } = require("c
 const defaultIntegrations = {
   arrApps: [],
   clients: [],
+  thirdParty: [],
 };
 
 const defaultData = {
@@ -15,6 +16,11 @@ const defaultData = {
   downloads: {
     items: [],
     clients: [],
+    syncedAt: null,
+  },
+  invites: {
+    sources: [],
+    items: [],
     syncedAt: null,
   },
 };
@@ -91,6 +97,13 @@ function mapIntegrationSecrets(integrations, mapper) {
         secret: mapper(integration.values?.secret),
       },
     })),
+    thirdParty: (integrations?.thirdParty || []).map((integration) => ({
+      ...integration,
+      values: {
+        ...(integration.values || {}),
+        secret: mapper(integration.values?.secret),
+      },
+    })),
   };
 }
 
@@ -142,6 +155,10 @@ async function getIntegrationData() {
     downloads: {
       ...defaultData.downloads,
       ...(settings.IntegrationData?.downloads || {}),
+    },
+    invites: {
+      ...defaultData.invites,
+      ...(settings.IntegrationData?.invites || {}),
     },
   };
 }

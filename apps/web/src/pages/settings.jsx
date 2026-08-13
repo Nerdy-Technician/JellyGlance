@@ -1,5 +1,5 @@
 import { Tabs, Tab } from "react-bootstrap";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import SettingsConfig from "./components/settings/settingsConfig";
 import Tasks from "./components/settings/Tasks";
@@ -74,19 +74,102 @@ const settingsTabItems = [
 ];
 
 const settingsTabs = settingsTabItems.map((item) => item.key);
+const settingsTabHashes = {
+  tabGeneral: "general",
+  tabSecurity: "security",
+  tabActivityMonitor: "activity-monitor",
+  tabJellyfinDevices: "devices",
+  tabJellyfinPlugins: "plugins",
+  tabTasks: "tasks",
+  tabLibraries: "libraries",
+  tabIntegrations: "integrations",
+  tabKeys: "apikeys",
+  tabWebhooks: "webhooks",
+  tabNotifications: "notifications",
+  tabBackup: "backup",
+  tabImports: "imports",
+  tabNewsletter: "newsletter",
+  tabHealth: "health",
+  tabRepair: "repair",
+  tabLogs: "logs",
+};
+const settingsHashAliases = {
+  api: "tabKeys",
+  apikey: "tabKeys",
+  apiKey: "tabKeys",
+  apikeys: "tabKeys",
+  apiKeys: "tabKeys",
+  keys: "tabKeys",
+  activity: "tabActivityMonitor",
+  activitymonitor: "tabActivityMonitor",
+  "activity-monitor": "tabActivityMonitor",
+  authorizeddevices: "tabJellyfinDevices",
+  authoriseddevices: "tabJellyfinDevices",
+  "authorized-devices": "tabJellyfinDevices",
+  "authorised-devices": "tabJellyfinDevices",
+  jellyfindevices: "tabJellyfinDevices",
+  "jellyfin-devices": "tabJellyfinDevices",
+  jellyfinplugins: "tabJellyfinPlugins",
+  "jellyfin-plugins": "tabJellyfinPlugins",
+};
+const settingsHashToTab = {
+  ...Object.fromEntries(Object.entries(settingsTabHashes).map(([key, hash]) => [hash, key])),
+  ...settingsHashAliases,
+};
+
+function normalizeSettingsHash(hash = "") {
+  return String(hash).replace(/^#/, "").trim().toLowerCase();
+}
+
+function getTabFromHash() {
+  return settingsHashToTab[normalizeSettingsHash(window.location.hash)] || "";
+}
+
+function getSettingsInitialTab() {
+  const hashTab = getTabFromHash();
+  if (settingsTabs.includes(hashTab)) return hashTab;
+
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
+  if (settingsTabs.includes(requestedTab)) return requestedTab;
+
+  const savedTab = localStorage.getItem(`PREF_SETTINGS_LAST_SELECTED_TAB`) ?? "tabGeneral";
+  return settingsTabs.includes(savedTab) ? savedTab : "tabGeneral";
+}
+
+function setSettingsHash(tabName, mode = "replace") {
+  const nextHash = settingsTabHashes[tabName] || settingsTabHashes.tabGeneral;
+  const nextUrl = `${window.location.pathname}${window.location.search}#${nextHash}`;
+  if (window.location.hash === `#${nextHash}`) return;
+  window.history[mode === "push" ? "pushState" : "replaceState"](null, "", nextUrl);
+}
 
 export default function Settings() {
-  const requestedTab = new URLSearchParams(window.location.search).get("tab");
-  const savedTab = localStorage.getItem(`PREF_SETTINGS_LAST_SELECTED_TAB`) ?? "tabGeneral";
-  const initialTab = settingsTabs.includes(requestedTab) ? requestedTab : savedTab;
-  const [activeTab, setActiveTab] = useState(settingsTabs.includes(initialTab) ? initialTab : "tabGeneral");
+  const [activeTab, setActiveTab] = useState(getSettingsInitialTab);
 
-  function setTab(tabName) {
+  useEffect(() => {
+    setSettingsHash(activeTab);
+  }, []);
+
+  useEffect(() => {
+    function handleHashChange() {
+      const hashTab = getTabFromHash();
+      if (settingsTabs.includes(hashTab)) {
+        setActiveTab(hashTab);
+        localStorage.setItem(`PREF_SETTINGS_LAST_SELECTED_TAB`, hashTab);
+      }
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  function setTab(tabName, updateMode = "push") {
     if (!settingsTabs.includes(tabName)) {
       tabName = "tabGeneral";
     }
     setActiveTab(tabName);
     localStorage.setItem(`PREF_SETTINGS_LAST_SELECTED_TAB`, tabName);
+    setSettingsHash(tabName, updateMode);
   }
 
   return (

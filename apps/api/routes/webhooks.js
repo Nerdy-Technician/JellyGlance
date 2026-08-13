@@ -20,6 +20,9 @@ const eventTypes = [
     'download_started',
     'download_completed',
     'download_failed',
+    'invite_created',
+    'invite_deleted',
+    'invite_links_refreshed',
     'integration_health_warning'
 ];
 
@@ -373,6 +376,38 @@ router.post('/:id/test', async (req, res) => {
                             overview: "This is a test movie for webhook testing",
                             addedDate: new Date().toISOString()
                         }
+                    };
+                    success = await webhookManager.triggerEventWebhooks(eventType, eventData, [webhook.id]);
+                    break;
+
+                case 'invite_created':
+                    eventData = {
+                        integrationEvent: "invite created",
+                        source: "Wizarr",
+                        code: "TEST99",
+                        url: "https://wizarr.example.com/j/TEST99",
+                        message: "Invite TEST99 created from JellyGlance.",
+                    };
+                    success = await webhookManager.triggerEventWebhooks(eventType, eventData, [webhook.id]);
+                    break;
+
+                case 'invite_deleted':
+                    eventData = {
+                        integrationEvent: "invite deleted",
+                        source: "Wizarr",
+                        id: "test-invite-id",
+                        message: "Invite test-invite-id deleted from JellyGlance.",
+                    };
+                    success = await webhookManager.triggerEventWebhooks(eventType, eventData, [webhook.id]);
+                    break;
+
+                case 'invite_links_refreshed':
+                    eventData = {
+                        integrationEvent: "invite links refreshed",
+                        sourceCount: 1,
+                        inviteCount: 12,
+                        activeCount: 8,
+                        message: "Invite sync refreshed 12 invite links.",
                     };
                     success = await webhookManager.triggerEventWebhooks(eventType, eventData, [webhook.id]);
                     break;

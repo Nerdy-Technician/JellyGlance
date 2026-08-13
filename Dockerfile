@@ -28,6 +28,7 @@ RUN npm ci --omit=dev --workspace @jellyglance/api --include-workspace-root=fals
 
 COPY apps/api apps/api
 COPY --from=web-builder /app/apps/web/dist apps/web/dist
+COPY apps/web/src/whats-new.json apps/web/src/whats-new.json
 COPY scripts/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

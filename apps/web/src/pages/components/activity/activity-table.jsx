@@ -15,7 +15,7 @@ import "../../css/activity/activity-table.css";
 import i18next from "i18next";
 import IpInfoModal from "../ip-info";
 import BusyLoader from "../general/busyLoader.jsx";
-import { MRT_TablePagination, MaterialReactTable, useMaterialReactTable } from "material-react-table";
+import { MRT_ShowHideColumnsButton, MRT_TablePagination, MaterialReactTable, useMaterialReactTable } from "material-react-table";
 import { Box, ThemeProvider, Typography, createTheme } from "@mui/material";
 
 import { Link } from "react-router-dom";
@@ -56,6 +56,7 @@ const colors = {
   tertiaryBackgroundColor: "#101620",
 };
 const token = localStorage.getItem("token");
+const activityColumnVisibilityKey = "PREF_ACTIVITY_ColumnVisibility";
 
 function getCssVariableColor(variableName, fallback) {
   if (typeof window === "undefined") {
@@ -64,6 +65,37 @@ function getCssVariableColor(variableName, fallback) {
 
   const value = window.getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
   return value || fallback;
+}
+
+function ActivityPoster({ itemId, title }) {
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  if (!itemId || imageFailed) {
+    return (
+      <span className="activity-poster-fallback" aria-hidden="true">
+        {title?.slice(0, 1)?.toUpperCase() || "?"}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="activity-poster-image"
+      src={`/proxy/Items/Images/Primary?id=${itemId}&fillHeight=108&fillWidth=72&quality=72`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
+function getStoredColumnVisibility() {
+  try {
+    return JSON.parse(localStorage.getItem(activityColumnVisibilityKey) || "{}");
+  } catch {
+    return {};
+  }
 }
 
 export default function ActivityTable(props) {
@@ -81,6 +113,7 @@ export default function ActivityTable(props) {
   const [sorting, setSorting] = React.useState([{ id: "Date", desc: true }]);
 
   const [columnFilters, setColumnFilters] = React.useState([]);
+  const [columnVisibility, setColumnVisibility] = React.useState(getStoredColumnVisibility);
 
   const [modalState, setModalState] = React.useState(false);
   const [modalData, setModalData] = React.useState();
@@ -218,11 +251,17 @@ export default function ActivityTable(props) {
       minSize: 300,
       Cell: ({ row }) => {
         row = row.original;
+        const title = !row.SeriesName
+          ? row.NowPlayingItemName
+          : row.SeriesName + " : S" + row.SeasonNumber + "E" + row.EpisodeNumber + " - " + row.NowPlayingItemName;
+        const itemId = row.NowPlayingItemId || row.EpisodeId;
+
         return (
           <Link to={`/libraries/item/${row.EpisodeId || row.NowPlayingItemId}`} className="activity-table-link activity-title-link">
-            {!row.SeriesName
-              ? row.NowPlayingItemName
-              : row.SeriesName + " : S" + row.SeasonNumber + "E" + row.EpisodeNumber + " - " + row.NowPlayingItemName}
+            <span className="activity-title-media">
+              <ActivityPoster itemId={itemId} title={title} />
+              <span className="activity-title-copy">{title}</span>
+            </span>
           </Link>
         );
       },
@@ -368,6 +407,14 @@ export default function ActivityTable(props) {
     });
   };
 
+  const handleColumnVisibilityChange = (updater) => {
+    setColumnVisibility((currentVisibility) => {
+      const nextVisibility = typeof updater === "function" ? updater(currentVisibility) : updater;
+      localStorage.setItem(activityColumnVisibilityKey, JSON.stringify(nextVisibility));
+      return nextVisibility;
+    });
+  };
+
   useEffect(() => {
     setData(props.data);
   }, [props.data]);
@@ -396,7 +443,8 @@ export default function ActivityTable(props) {
     manualFiltering: true,
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleFilteringChange,
-    enableTopToolbar: Object.keys(rowSelection).length > 0,
+    onColumnVisibilityChange: handleColumnVisibilityChange,
+    enableTopToolbar: true,
     manualPagination: true,
     manualSorting: true,
     autoResetPageIndex: false,
@@ -417,7 +465,7 @@ export default function ActivityTable(props) {
     pageCount: pages,
     rowCount: pagination.pageSize, // fix for bug causing pagination index to reset when row count changes
     showAlertBanner: false,
-    enableHiding: false,
+    enableHiding: true,
     enableFullScreenToggle: false,
     enableGlobalFilter: false,
     enableBottomToolbar: false,
@@ -426,6 +474,12 @@ export default function ActivityTable(props) {
     enableBatchRowSelection: true,
     onRowSelectionChange: setRowSelection,
     positionToolbarAlertBanner: "bottom",
+    renderToolbarInternalActions: ({ table }) => (
+      <Box className="activity-table-actions">
+        <span className="activity-table-actions-label">Columns</span>
+        <MRT_ShowHideColumnsButton table={table} />
+      </Box>
+    ),
     renderTopToolbarCustomActions: () => {
       if (Object.keys(rowSelection).length > 0) {
         return (
@@ -447,6 +501,7 @@ export default function ActivityTable(props) {
           </Box>
         );
       }
+      return <span className="activity-table-toolbar-title">Activity view</span>;
     },
     renderEmptyRowsFallback: () => (
       <span style={{ textAlign: "center", fontStyle: "italic", color: "grey" }} className="py-5">
@@ -490,7 +545,7 @@ export default function ActivityTable(props) {
         },
       },
     },
-    state: { rowSelection, pagination, sorting, columnFilters },
+    state: { rowSelection, pagination, sorting, columnFilters, columnVisibility },
     filterFromLeafRows: true,
     getSubRows: (row) => {
       if (Array.isArray(row.results) && row.results.length == 1) {
@@ -548,6 +603,13 @@ export default function ActivityTable(props) {
         borderRadius: "8px",
         background: "rgba(9, 12, 17, 0.96)",
         boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
+      },
+    },
+    muiTopToolbarProps: {
+      sx: {
+        minHeight: "48px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        background: "rgba(8, 11, 16, 0.98)",
       },
     },
     muiTableContainerProps: {

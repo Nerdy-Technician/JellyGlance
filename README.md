@@ -88,23 +88,24 @@ JellyGlance gives your Jellyfin server a proper dashboard: live sessions, reques
 
 ## What's New
 
-| Command Center | Request Center | User Profiles |
+| Command Center | Request Center | Wizarr Invites |
 | --- | --- | --- |
-| Custom home order, show/hide toggles, presets, density modes, themes, kiosk URL, alert rules, section refresh controls, and quick actions. | Jellyseerr and Overseerr sources, poster cards, fast filters, sorting, availability checks, actions, status badges, and click-through details. | Favourites, watchlist split by Movies and Shows, Continue Watching, Recently Watched, next episodes, watchlist actions, and per-user media search. |
+| Custom home order, show/hide toggles, presets, density modes, themes, kiosk URL, alert rules, section refresh controls, and quick actions. | Jellyseerr and Overseerr sources, combined search/queue, poster cards, cast lists, ratings, season controls, routing options, request actions, and click-through details. | Create, copy, open, delete, and sync Wizarr invite links with custom invite codes, server/library selection, optional wizard bundle IDs, tasks, and webhook events. |
 
-| Operations | Integrations | Home Intelligence |
+| Operations | Integrations | User Profiles |
 | --- | --- | --- |
-| Health dashboard, integration uptime, webhook delivery history, admin audit log, backup freshness, and automation activity feed. | Jellyfin, Arr apps, Seerr apps, download clients, webhook targets, and only-enabled health summaries. | Top item this week, user streaks, storage pressure, watch party suggestions, library gaps, request urgency, and needs-attention alerts. |
+| Health dashboard, integration uptime, webhook delivery history, admin audit log, backup freshness, invite sync, and automation activity feed. | Jellyfin, Arr apps, Seerr apps, Wizarr, download clients, webhook targets, direct settings hashes, plugin artwork, and only-enabled health summaries. | Favourites, watchlist split by Movies and Shows, Continue Watching, Recently Watched, next episodes, watchlist actions, and per-user media search. |
 
 ## Highlights
 
 - **Live active sessions** with device, client, codec, bitrate, user, runtime, episode details, and platform icons.
 - **Customizable home command center** with drag-and-drop section order, visibility toggles, presets, density, themes, kiosk mode, and alert rules.
-- **Requests page** for Jellyseerr and Overseerr with posters, status filters, availability checks, request actions, and direct open links.
+- **Requests page** for Jellyseerr and Overseerr with combined search, posters, ratings, cast lists, season controls, route editing, availability checks, request actions, and direct open links.
+- **Wizarr invite management** with custom invite codes, server and library targeting, optional wizard bundle IDs, copy/open/delete actions, invite sync, and invite webhook notifications.
 - **Recently added shelves** grouped by library with poster-first rows for fast scanning.
 - **User dashboards** for Jellyfin Quick Connect users, local JellyGlance users, OIDC-ready accounts, favourites, watchlists, Continue Watching, and recently watched media.
 - **Useful statistics** covering top movies, series, libraries, clients, users, trends, watch time, and activity heatmaps.
-- **Media automation hub** for Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, Jellyseerr, Overseerr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
+- **Media automation hub** for Jellyfin, Sonarr, Radarr, Lidarr, Bazarr, Jellyseerr, Overseerr, Wizarr, qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet.
 - **Calendar and downloads** for release planning, torrent URLs, magnet links, torrent uploads, and active queues.
 - **Webhook notifications** with delivery history for session, media, request, task, backup, download, and health events.
 - **Admin audit trail** for settings, auth, integrations, webhooks, roles, backups, and restore-sensitive actions.
@@ -275,6 +276,8 @@ JellyGlance is built to sit in the middle of a self-hosted media stack:
 docker compose pull
 docker compose up -d
 ```
+
+The published Docker image supports `linux/amd64`, `linux/arm64`, and `linux/arm/v7` (armhf). Docker automatically pulls the matching image for Raspberry Pi and other ARM hosts.
 
 ## Translations
 

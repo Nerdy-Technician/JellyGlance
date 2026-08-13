@@ -17,6 +17,7 @@ import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
 import { slugifyUserName } from "../../../lib/userProfile";
 import Config from "../../../lib/config";
+import { FONT_WEIGHT_OPTIONS, getStoredFontWeight, saveFontWeightPreference } from "../../../lib/appearance";
 import { DEFAULT_THEME, THEME_PRESETS, getStoredTheme, resetTheme, saveTheme } from "../../../lib/theme";
 
 function getCachedConfig() {
@@ -29,6 +30,7 @@ function getCachedConfig() {
 
 const REQUEST_NAV_AVAILABLE_KEY = "jellyglance_request_nav_available";
 const DOWNLOAD_NAV_AVAILABLE_KEY = "jellyglance_download_nav_available";
+const WIZARR_NAV_AVAILABLE_KEY = "jellyglance_wizarr_nav_available";
 
 function getCachedRequestNavAvailable() {
   return localStorage.getItem(REQUEST_NAV_AVAILABLE_KEY) === "true";
@@ -38,11 +40,15 @@ function getCachedDownloadNavAvailable() {
   return localStorage.getItem(DOWNLOAD_NAV_AVAILABLE_KEY) === "true";
 }
 
+function getCachedWizarrNavAvailable() {
+  return localStorage.getItem(WIZARR_NAV_AVAILABLE_KEY) === "true";
+}
+
 function isConfiguredSeerrApp(app) {
   const name = String(app?.name || app?.slug || "").toLowerCase();
   const values = app?.values || {};
   return (
-    (name.includes("jellyseerr") || name.includes("overseerr")) &&
+    (name === "seerr" || name.includes("jellyseerr") || name.includes("overseerr")) &&
     Boolean(app?.connected) &&
     Boolean(String(values.url || "").trim()) &&
     Boolean(String(values.secret || "").trim())
@@ -67,6 +73,16 @@ function getDownloadAvailabilityFromIntegrations(integrations) {
   return Array.isArray(integrations?.clients) && integrations.clients.some(isConfiguredDownloadClient);
 }
 
+function isConfiguredWizarrApp(app) {
+  const name = String(app?.name || app?.slug || "").toLowerCase();
+  const values = app?.values || {};
+  return name.includes("wizarr") && Boolean(app?.connected) && Boolean(String(values.url || "").trim()) && Boolean(String(values.secret || "").trim());
+}
+
+function getWizarrAvailabilityFromIntegrations(integrations) {
+  return Array.isArray(integrations?.thirdParty) && integrations.thirdParty.some(isConfiguredWizarrApp);
+}
+
 function isNavItemActive(item, location) {
   const pathname = location.pathname.toLocaleLowerCase();
   const navPath = String(item.link || "").split("?")[0].toLocaleLowerCase();
@@ -86,11 +102,13 @@ export default function Navbar() {
   const [config, setConfig] = useState(() => getCachedConfig());
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
   const [customTheme, setCustomTheme] = useState(() => getStoredTheme());
+  const [fontWeightPreference, setFontWeightPreference] = useState(() => getStoredFontWeight());
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
   const [showRequestsNav, setShowRequestsNav] = useState(() => getCachedRequestNavAvailable());
   const [showDownloadsNav, setShowDownloadsNav] = useState(() => getCachedDownloadNavAvailable());
+  const [showWizarrNav, setShowWizarrNav] = useState(() => getCachedWizarrNavAvailable());
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
@@ -117,10 +135,11 @@ export default function Navbar() {
       navData.filter((item) => {
         if (item.link === "requests") return showRequestsNav;
         if (item.link === "downloads") return showDownloadsNav;
+        if (item.link === "wizarr") return showWizarrNav;
         if (item.link === "server-management") return showServerManagementNav;
         return true;
       }),
-    [showDownloadsNav, showRequestsNav, showServerManagementNav]
+    [showDownloadsNav, showRequestsNav, showServerManagementNav, showWizarrNav]
   );
 
   const handleLogout = () => {
@@ -229,6 +248,51 @@ export default function Navbar() {
   useEffect(() => {
     let isMounted = true;
 
+    const setWizarrAvailability = (integrations) => {
+      const nextAvailable = getWizarrAvailabilityFromIntegrations(integrations);
+      localStorage.setItem(WIZARR_NAV_AVAILABLE_KEY, String(nextAvailable));
+      if (isMounted) {
+        setShowWizarrNav(nextAvailable);
+      }
+    };
+
+    const refreshWizarrAvailability = async () => {
+      if (!localStorage.getItem("token")) {
+        setWizarrAvailability({ thirdParty: [] });
+        return;
+      }
+
+      try {
+        const response = await axios.get("/api/integrations", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setWizarrAvailability(response.data || { thirdParty: [] });
+      } catch {
+        if (isMounted) {
+          setShowWizarrNav(getCachedWizarrNavAvailable());
+        }
+      }
+    };
+
+    const handleIntegrationsUpdated = (event) => {
+      if (event.detail) {
+        setWizarrAvailability(event.detail);
+        return;
+      }
+      refreshWizarrAvailability();
+    };
+
+    refreshWizarrAvailability();
+    window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     const setSafeCount = (value) => {
       const nextCount = Number(value || 0);
       if (isMounted) {
@@ -241,6 +305,33 @@ export default function Navbar() {
       localStorage.setItem(REQUEST_NAV_AVAILABLE_KEY, String(nextAvailable));
       if (isMounted) {
         setShowRequestsNav(nextAvailable);
+      }
+    };
+
+    const refreshRequestAvailability = async () => {
+      if (!localStorage.getItem("token")) {
+        setRequestAvailability([]);
+        return false;
+      }
+
+      try {
+        const response = await axios.get("/api/integrations", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        const nextAvailable = getRequestAvailabilityFromIntegrations(response.data || {});
+        localStorage.setItem(REQUEST_NAV_AVAILABLE_KEY, String(nextAvailable));
+        if (isMounted) {
+          setShowRequestsNav(nextAvailable);
+          if (!nextAvailable) {
+            setRequestBadgeCount(0);
+          }
+        }
+        return nextAvailable;
+      } catch {
+        if (isMounted) {
+          setShowRequestsNav(getCachedRequestNavAvailable());
+        }
+        return getCachedRequestNavAvailable();
       }
     };
 
@@ -258,9 +349,7 @@ export default function Navbar() {
         setRequestAvailability(response.data?.sources);
         setSafeCount(nextCount);
       } catch {
-        if (isMounted) {
-          setShowRequestsNav(getCachedRequestNavAvailable());
-        }
+        refreshRequestAvailability();
         setSafeCount(localStorage.getItem("jellyglance_request_badge_count"));
       }
     };
@@ -283,6 +372,7 @@ export default function Navbar() {
       refreshRequestCount();
     };
 
+    refreshRequestAvailability();
     refreshRequestCount();
     const intervalId = setInterval(refreshRequestCount, 60000);
     window.addEventListener("jellyglance-request-count", handleRequestCount);
@@ -312,6 +402,10 @@ export default function Navbar() {
   const handleThemeReset = () => {
     setCustomTheme(resetTheme());
     setIsThemeMenuOpen(false);
+  };
+
+  const handleFontWeightPreference = (preference) => {
+    setFontWeightPreference(saveFontWeightPreference(preference));
   };
 
   const handleAvatarUpload = (event) => {
@@ -515,6 +609,28 @@ export default function Navbar() {
               <small>Open the latest JellyGlance update notes.</small>
             </span>
           </button>
+
+          <section className="profile-font-panel" aria-labelledby="profile-font-heading">
+            <div className="profile-font-header">
+              <h3 id="profile-font-heading">Font weight</h3>
+              <span>Choose how bold the interface feels for this browser.</span>
+            </div>
+
+            <div className="profile-font-options">
+              {FONT_WEIGHT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={fontWeightPreference === option.id ? "is-active" : ""}
+                  onClick={() => handleFontWeightPreference(option.id)}
+                  aria-pressed={fontWeightPreference === option.id}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
 
           <section className="profile-theme-panel" aria-labelledby="profile-theme-heading">
             <div className="profile-theme-header">

@@ -47,6 +47,9 @@ class WebhookManager {
             'download_started',
             'download_completed',
             'download_failed',
+            'invite_created',
+            'invite_deleted',
+            'invite_links_refreshed',
             'integration_health_warning'
         ].forEach((eventType) => {
             this.eventEmitter.on(eventType, async (data) => {

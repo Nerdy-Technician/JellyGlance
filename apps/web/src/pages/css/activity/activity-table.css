@@ -26,6 +26,46 @@
   background: transparent;
 }
 
+.activity-mrt-paper .MuiToolbar-root {
+  color: #dbe6f7;
+}
+
+.activity-table-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding-left: 4px;
+  color: #9ca8b8;
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.activity-table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  padding: 2px 5px 2px 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.activity-table-actions-label {
+  color: #c8d2df;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.activity-table-actions .MuiIconButton-root {
+  color: #e7edf6 !important;
+}
+
+.activity-table-actions .MuiIconButton-root:hover {
+  background: rgba(var(--primary-rgb), 0.16) !important;
+}
+
 .activity-mrt-paper .MuiCheckbox-root {
   color: #8e63a4 !important;
 }
@@ -52,6 +92,44 @@
   overflow: hidden;
   color: #e7edf6 !important;
   font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.activity-title-media {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.activity-poster-image,
+.activity-poster-fallback {
+  width: 42px;
+  height: 62px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: linear-gradient(145deg, rgba(var(--primary-rgb), 0.18), rgba(12, 17, 25, 0.95));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+.activity-poster-image {
+  display: block;
+  object-fit: cover;
+}
+
+.activity-poster-fallback {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.activity-title-copy {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

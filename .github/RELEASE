@@ -1,49 +1,35 @@
-version: v1.2.1
-title: JellyGlance v1.2.1
+version: v1.2.2
+title: JellyGlance v1.2.2
 ---
-feat: expand JellyGlance admin tools, profile media, docs, and UI polish since v1.2.0
+chore: update release, Docker, update-check, task, and webhook infrastructure since v1.2.1
 
 Added
-- Standalone admin-only Jellyfin Jobs page with sidebar entry
-- Jellyfin scheduled task status and run-task actions
-- Settings tabs for authorised Jellyfin devices and installed/enabled plugins
-- About release notes section with version selector and GitHub release loading
-- Beta/release-aware release note handling
-- Additional color theme options
-- Dependabot configuration
-- i18n sync tooling and English US locale scaffold
-- Press page with YouTube and selfh.st coverage
-- Updated README/docs Settings screenshot
+- Multi-architecture Docker image support for linux/amd64, linux/arm64, and linux/arm/v7
+- Invite Sync task registration and scheduler defaults for background invite integration refreshes
+- Invite webhook event plumbing for invite_created, invite_deleted, and invite_links_refreshed
+- Third-party integration data storage for invite sync state and health checks
+- Direct Settings hash routing support for deep-linkable settings tabs
+- Account profile font-weight preference for default, comfortable, and light UI text density
 
 Changed
-- Improved Settings, logs, integrations, repair views, Activity table, and profile media layout
-- Improved VitePress homepage, architecture docs, releases page, press page, and screenshots
-- Updated What's New content, translations, package metadata, release notes, lockfile, and CI/release config
-- Simplified update status copy to “Up to date”
-- Kept app dark-only after removing light mode work
-- Hid Requests and Downloads navigation when related integrations are not configured
-- Suppressed download sync notifications when no download clients are enabled
-- Improved backend route stability, task handling, request errors, caching, and config behavior
+- Improved release metadata handling for stable and beta channels
+- Improved Docker release publishing so supported platforms are advertised correctly
+- Updated release workflow behavior for GitHub Container Registry multi-architecture images
+- Updated webhook event status and test payload handling for new invite events
+- Updated integration sync to include invite integration state alongside calendar and download data
+- Updated What's New and README release metadata for v1.2.2
+- Updated account appearance controls so font-weight preferences apply immediately and persist per browser
 
 Fixed
-- Activity table rapid refresh behavior
-- Activity library modal text readability
-- Recently Added poster aspect ratio so posters are not squashed
-- User profile Recently Watched data source, fallback behavior, and episode labels
-- User profile Next Episodes fallback using watchlist, playback context, and Jellyfin NextUp
-- Profile media counts for generated rails like Next Episodes and Recommended
-- Library card layout, poster sizing, and optional library-name display
-- Task skip/history behavior and server-management edge cases
+- Fixed "update available" notifications so installed stable builds ignore beta/prerelease versions
+- Fixed release note filtering so beta notes and stable notes stay in the correct channel
+- Fixed GitHub Container Registry publishing so multi-architecture manifests are preserved instead of being overwritten by single-platform images
+- Fixed Wizarr API payload handling for default/never invite expiry values
+- Fixed relative invite URL normalization against the configured integration host
+- Fixed raw third-party user object strings leaking through invite normalization
 
 Security / Stability
-- Add configurable CORS allowlist.
-- Add security headers including CSP, frame, referrer, permissions, and content-type protections.
-- Limit JSON request body size.
-- Add simple rate limiting for auth, task, backup, sync, and Jellyfin job actions.
-- Restrict Jellyfin Jobs page/API access to Owner/Admin users.
-- Expand API permission mapping for Jellyfin admin endpoints.
-
-Closes #9.
-Closes #10.
-Closes #11.
-Closes #14.
+- Keep beta and stable release detection separated for safer update prompts.
+- Include invite integrations in integration health checks.
+- Cache invite sync data for task/webhook use instead of relying only on live page loads.
+- Keep multi-architecture Docker publishing aligned with the release workflow.
