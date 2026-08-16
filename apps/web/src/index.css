@@ -14,6 +14,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: white;
+  width: 125%;
+  min-height: 125vh;
+  zoom: 0.8;
 }
 
 * {
@@ -44,6 +47,85 @@ code {
 
 body {
   overflow: auto;
+  overflow-x: hidden;
+}
+
+:root[data-font-weight="comfortable"] {
+  --jg-font-weight-body: 500;
+  --jg-font-weight-label: 620;
+  --jg-font-weight-strong: 680;
+  --jg-font-weight-heading: 760;
+}
+
+:root[data-font-weight="light"] {
+  --jg-font-weight-body: 450;
+  --jg-font-weight-label: 560;
+  --jg-font-weight-strong: 620;
+  --jg-font-weight-heading: 700;
+}
+
+:root[data-font-weight="comfortable"] body,
+:root[data-font-weight="comfortable"] p,
+:root[data-font-weight="comfortable"] span,
+:root[data-font-weight="comfortable"] small,
+:root[data-font-weight="comfortable"] li,
+:root[data-font-weight="comfortable"] input,
+:root[data-font-weight="comfortable"] select,
+:root[data-font-weight="comfortable"] textarea,
+:root[data-font-weight="comfortable"] button,
+:root[data-font-weight="light"] body,
+:root[data-font-weight="light"] p,
+:root[data-font-weight="light"] span,
+:root[data-font-weight="light"] small,
+:root[data-font-weight="light"] li,
+:root[data-font-weight="light"] input,
+:root[data-font-weight="light"] select,
+:root[data-font-weight="light"] textarea,
+:root[data-font-weight="light"] button {
+  font-weight: var(--jg-font-weight-body);
+}
+
+:root[data-font-weight="comfortable"] strong,
+:root[data-font-weight="comfortable"] b,
+:root[data-font-weight="comfortable"] label,
+:root[data-font-weight="comfortable"] th,
+:root[data-font-weight="comfortable"] .navitem,
+:root[data-font-weight="comfortable"] .nav-text,
+:root[data-font-weight="comfortable"] .badge,
+:root[data-font-weight="light"] strong,
+:root[data-font-weight="light"] b,
+:root[data-font-weight="light"] label,
+:root[data-font-weight="light"] th,
+:root[data-font-weight="light"] .navitem,
+:root[data-font-weight="light"] .nav-text,
+:root[data-font-weight="light"] .badge {
+  font-weight: var(--jg-font-weight-strong) !important;
+}
+
+:root[data-font-weight="comfortable"] h1,
+:root[data-font-weight="comfortable"] h2,
+:root[data-font-weight="comfortable"] h3,
+:root[data-font-weight="comfortable"] h4,
+:root[data-font-weight="comfortable"] h5,
+:root[data-font-weight="comfortable"] h6,
+:root[data-font-weight="comfortable"] .modal-title,
+:root[data-font-weight="light"] h1,
+:root[data-font-weight="light"] h2,
+:root[data-font-weight="light"] h3,
+:root[data-font-weight="light"] h4,
+:root[data-font-weight="light"] h5,
+:root[data-font-weight="light"] h6,
+:root[data-font-weight="light"] .modal-title {
+  font-weight: var(--jg-font-weight-heading) !important;
+}
+
+:root[data-font-weight="comfortable"] [class*="eyebrow"],
+:root[data-font-weight="comfortable"] [class*="label"],
+:root[data-font-weight="comfortable"] [class*="badge"],
+:root[data-font-weight="light"] [class*="eyebrow"],
+:root[data-font-weight="light"] [class*="label"],
+:root[data-font-weight="light"] [class*="badge"] {
+  font-weight: var(--jg-font-weight-label) !important;
 }
 
 body::-webkit-scrollbar {

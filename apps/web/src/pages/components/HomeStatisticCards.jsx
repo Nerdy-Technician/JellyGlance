@@ -14,8 +14,9 @@ import "../css/statCard.css";
 import { Trans } from "react-i18next";
 import PlaybackMethodStats from "./statCards/playback_method_stats";
 
-function HomeStatisticCards({ days: controlledDays }) {
+function HomeStatisticCards({ days: controlledDays, variant = "default" }) {
   const isControlled = controlledDays !== undefined && controlledDays !== null;
+  const isMediaRankings = variant === "media-rankings";
   const [days, setDays] = useState(localStorage.getItem("PREF_HOME_STAT_DAYS") ?? 30);
   const [input, setInput] = useState(localStorage.getItem("PREF_HOME_STAT_DAYS") ?? 30);
   const activeDays = isControlled ? controlledDays : days;
@@ -36,11 +37,15 @@ function HomeStatisticCards({ days: controlledDays }) {
     <div className="watch-stat-cards">
       <div className="Heading my-3">
         <div>
-          <p className="stat-section-eyebrow">Overview</p>
+          <p className="stat-section-eyebrow">{isMediaRankings ? "Rankings" : "Overview"}</p>
           <h1>
-            <Trans i18nKey="HOME_PAGE.WATCH_STATISTIC" />
+            {isMediaRankings ? "Media rankings" : <Trans i18nKey="HOME_PAGE.WATCH_STATISTIC" />}
           </h1>
-          <span className="stat-section-subtitle">Top libraries, users, clients, and playback methods for this window.</span>
+          <span className="stat-section-subtitle">
+            {isMediaRankings
+              ? "Most watched and most popular media for this window."
+              : "Top libraries, users, clients, and playback methods for this window."}
+          </span>
         </div>
         {!isControlled && (
           <div className="date-range">
@@ -69,10 +74,14 @@ function HomeStatisticCards({ days: controlledDays }) {
         <MPSeries days={activeDays} />
         <MVMusic days={activeDays} />
         <MPMusic days={activeDays} />
-        <MVLibraries days={activeDays} />
-        <MostUsedClient days={activeDays} />
-        <MostActiveUsers days={activeDays} />
-        <PlaybackMethodStats days={activeDays} />
+        {!isMediaRankings && (
+          <>
+            <MVLibraries days={activeDays} />
+            <MostUsedClient days={activeDays} />
+            <MostActiveUsers days={activeDays} />
+            <PlaybackMethodStats days={activeDays} />
+          </>
+        )}
       </div>
     </div>
   );

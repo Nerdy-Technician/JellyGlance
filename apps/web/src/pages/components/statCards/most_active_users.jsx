@@ -76,6 +76,8 @@ function MostActiveUsers(props) {
       width="100%" 
       style={{borderRadius:'50%'}}
       alt=""
+      loading="lazy"
+      decoding="async"
       onError={()=>setLoaded(false)}
       />
     );

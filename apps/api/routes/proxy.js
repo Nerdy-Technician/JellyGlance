@@ -139,6 +139,53 @@ router.get("/Users/Images/Primary/", async (req, res) => {
     });
 });
 
+router.get("/Plugins/Images/", async (req, res) => {
+  const { id, url: imageUrl } = req.query;
+  const config = await new configClass().getConfig();
+
+  if (config.error) {
+    res.status(503).send({ error: config.error });
+    return;
+  }
+
+  if (!id && !imageUrl) {
+    res.status(400).send("No plugin image provided");
+    return;
+  }
+
+  const encodedId = encodeURIComponent(id);
+  const candidates = imageUrl ? [imageUrl] : [
+    `${config.JF_HOST}/Plugins/${encodedId}/Image`,
+    `${config.JF_HOST}/Plugins/${encodedId}/Images/Primary`,
+    `${config.JF_HOST}/Plugins/${encodedId}/Thumb`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      if (!/^https?:\/\//i.test(url)) continue;
+      const response = await axios.get(url, {
+        responseType: "arraybuffer",
+        headers: {
+          ...(imageUrl ? {} : { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` }),
+          "User-Agent": "JellyGlance/1.0.6",
+        },
+      });
+
+      const contentType = response.headers["content-type"] || "image/png";
+      if (!contentType.startsWith("image/")) continue;
+
+      res.set("Content-Type", contentType);
+      res.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.status(200).send(response.data);
+      return;
+    } catch {
+      // Try the next Jellyfin plugin image endpoint.
+    }
+  }
+
+  res.status(404).send("Plugin image not found");
+});
+
 router.get("/getSessions", async (req, res) => {
   try {
     const sessions = await API.getSessions();

@@ -42,6 +42,7 @@ const TaskScheduler = require("./classes/task-scheduler-singleton");
 // websocket
 const { setupWebSocketServer } = require("./ws");
 const writeEnvVariables = require("./classes/env");
+const { buildEnvContent } = require("./classes/env");
 
 process.env.POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres";
 process.env.POSTGRES_ROLE = process.env.POSTGRES_ROLE ?? process.env.POSTGRES_USER;
@@ -191,6 +192,12 @@ const authRateLimit = createRateLimiter({
   max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
   message: "Too many authentication requests. Try again later.",
 });
+function authRateLimitUnlessPublicStatus(req, res, next) {
+  if (req.method === "GET" && req.path === "/isConfigured") {
+    return next();
+  }
+  return authRateLimit(req, res, next);
+}
 const taskRateLimit = createRateLimiter({
   windowMs: 60 * 1000,
   max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
@@ -297,6 +304,11 @@ app.use((req, res, next) => {
   }
 
   const pathname = getRequestPathname(req);
+  if (pathname === "/env.js" || (BASE_NAME && pathname === `${BASE_NAME}/env.js`)) {
+    res.set("Cache-Control", "no-store");
+    return res.type("application/javascript").send(buildEnvContent());
+  }
+
   const translationFilePath = getTranslationFilePath(req);
   if (translationFilePath) {
     res.set("Cache-Control", "no-store");
@@ -323,7 +335,7 @@ app.use((req, res, next) => {
 });
 
 // initiate routes
-app.use(`/auth`, authRateLimit, authRouter, () => {
+app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
 app.use("/proxy", proxyRouter, () => {
@@ -495,6 +507,10 @@ function getTokenPermissions(user) {
 }
 
 function getRolePermissions(settings, role) {
+  if (role === "Owner" || role === "Disabled") {
+    return DEFAULT_ROLE_PERMISSIONS[role];
+  }
+
   return {
     ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
     ...((settings.rolePermissions || {})[role] || {}),
@@ -587,6 +603,14 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if ((pathName.startsWith("/requests/") && (pathName.endsWith("/actions") || pathName.endsWith("/edit"))) || pathName === "/requests/manage") {
+    if (!["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Admin role required" });
+    }
+    next();
+    return;
+  }
+
   const permission =
     pathName.startsWith("/keys")
       ? "apiKeys"
@@ -602,6 +626,7 @@ function authorizeApiRoute(req, res, next) {
         : pathName.startsWith("/set") ||
             pathName.includes("/purge") ||
             pathName.startsWith("/integrations") ||
+            pathName.startsWith("/wizarr") ||
             pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
             pathName.startsWith("/downloads/add") ||

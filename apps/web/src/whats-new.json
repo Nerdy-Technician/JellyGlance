@@ -1,4 +1,98 @@
 {
+  "1.2.3.beta.1": [
+    {
+      "icon": "palette",
+      "title": "Big UI Beta",
+      "body": "Home, Settings, Statistics, Requests, Activity, Users, Wizarr, About, and integrations have all had a proper redesign pass with cleaner spacing, cards, and controls."
+    },
+    {
+      "icon": "speed",
+      "title": "Tdarr Transcodes",
+      "body": "Tdarr now has an Active Transcodes page with active, queued, and history views, navigation counts, show artwork, conversion details, and live progress updates."
+    },
+    {
+      "icon": "magic",
+      "title": "Smarter Settings",
+      "body": "Settings now uses stable grouped sections, cleaner routes, Kiosk controls, privacy options, sidebar ordering, hidden tabs, and a safer theme preview flow."
+    },
+    {
+      "icon": "movie",
+      "title": "Cleaner Requests",
+      "body": "Requests now has richer media cards, an optional list view, requester profile pictures, admin user filtering, tidier actions, and user-scoped visibility for non-admins."
+    },
+    {
+      "icon": "upload",
+      "title": "Kiosk And Privacy",
+      "body": "Kiosk mode can stay static, refresh every 5 minutes, and show only enabled sections. IP visibility can now be controlled for Home, Kiosk, both, or neither."
+    },
+    {
+      "icon": "palette",
+      "title": "Hall Of Fame Glow-Up",
+      "body": "Hall of Fame now uses a podium-style layout with medal icons, and hidden users are filtered out of Hall of Fame and Activity."
+    },
+    {
+      "icon": "speed",
+      "title": "Statistics Rebuilt",
+      "body": "Statistics has clearer summary panels, redesigned watch stats, profile pictures, client icons, and media links through to JellyGlance media pages where possible."
+    },
+    {
+      "icon": "magic",
+      "title": "Sharper Polish",
+      "body": "Profile modal sizing, account labels, sidebar collapse, profile hover pills, device icons, backup sizing, and several clipped or cramped layouts have been cleaned up."
+    }
+  ],
+  "1.2.2": [
+    {
+      "icon": "magic",
+      "title": "Invite People Faster",
+      "body": "Create, copy, open, and remove Wizarr invite links without leaving JellyGlance. You can choose servers, libraries, access options, custom invite codes, and a wizard bundle ID when needed."
+    },
+    {
+      "icon": "upload",
+      "title": "One Search for Requests",
+      "body": "The Requests page now combines searching for new media and managing existing requests in one place, with faster filters, clearer cards, and request buttons that open the full setup flow."
+    },
+    {
+      "icon": "movie",
+      "title": "Richer Media Details",
+      "body": "Request details now show the information people actually check first: posters, summaries, cast, ratings, genres, requested seasons, requester avatars, and Jellyfin availability."
+    },
+    {
+      "icon": "movie",
+      "title": "Better Activity Browsing",
+      "body": "Activity history now includes media posters, cleaner title rows, and column controls so you can hide the fields you do not use."
+    },
+    {
+      "icon": "upload",
+      "title": "Recently Added Filters",
+      "body": "Recently Added now has search, media type and library filters, plus ordering controls for both items and shelves."
+    },
+    {
+      "icon": "speed",
+      "title": "Profile Wrap-Up Improvements",
+      "body": "User profiles now default to a clearer yearly activity heatmap, with a year selector, larger squares, and cleaner wrap-up cards."
+    },
+    {
+      "icon": "palette",
+      "title": "Cleaner Settings",
+      "body": "Settings tabs can be opened directly with links like /settings#plugins or /settings#apikeys, and the Plugins view now uses better Jellyfin artwork, spacing, and desktop card sizing."
+    },
+    {
+      "icon": "palette",
+      "title": "Font Weight Preferences",
+      "body": "The profile modal now lets you choose Default, Comfortable, or Light text weight, making JellyGlance easier to tune if the interface feels too bold."
+    },
+    {
+      "icon": "speed",
+      "title": "Smarter Notifications",
+      "body": "Invite events can now trigger webhooks, Invite Sync keeps links fresh in the background, Wizarr links copy with the correct public URL, and stable update checks ignore beta releases."
+    },
+    {
+      "icon": "mail",
+      "title": "Email Wizarr Invites",
+      "body": "Wizarr invites can now be emailed directly from JellyGlance using the built-in SMTP settings from Newsletter."
+    }
+  ],
   "1.2.1": [
     {
       "icon": "speed",

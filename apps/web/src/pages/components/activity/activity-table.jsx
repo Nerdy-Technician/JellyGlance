@@ -15,7 +15,7 @@ import "../../css/activity/activity-table.css";
 import i18next from "i18next";
 import IpInfoModal from "../ip-info";
 import BusyLoader from "../general/busyLoader.jsx";
-import { MRT_TablePagination, MaterialReactTable, useMaterialReactTable } from "material-react-table";
+import { MRT_ShowHideColumnsButton, MRT_TablePagination, MaterialReactTable, useMaterialReactTable } from "material-react-table";
 import { Box, ThemeProvider, Typography, createTheme } from "@mui/material";
 
 import { Link } from "react-router-dom";
@@ -56,6 +56,10 @@ const colors = {
   tertiaryBackgroundColor: "#101620",
 };
 const token = localStorage.getItem("token");
+const activityColumnVisibilityKey = "PREF_ACTIVITY_ColumnVisibility";
+const defaultColumnVisibility = {
+  RemoteEndPoint: false,
+};
 
 function getCssVariableColor(variableName, fallback) {
   if (typeof window === "undefined") {
@@ -64,6 +68,61 @@ function getCssVariableColor(variableName, fallback) {
 
   const value = window.getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
   return value || fallback;
+}
+
+function ActivityPoster({ itemId, title }) {
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  if (!itemId || imageFailed) {
+    return (
+      <span className="activity-poster-fallback" aria-hidden="true">
+        {title?.slice(0, 1)?.toUpperCase() || "?"}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="activity-poster-image"
+      src={`/proxy/Items/Images/Primary?id=${itemId}&fillHeight=108&fillWidth=72&quality=72`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
+function ActivityUserAvatar({ userId, userName }) {
+  const [imageFailed, setImageFailed] = React.useState(!userId);
+  const initial = userName?.slice(0, 1)?.toUpperCase() || "?";
+
+  if (imageFailed) {
+    return (
+      <span className="activity-user-avatar activity-user-avatar-fallback" aria-hidden="true">
+        {initial}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="activity-user-avatar"
+      src={`/proxy/Users/Images/Primary?id=${userId}&fillWidth=72&quality=72`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
+function getStoredColumnVisibility() {
+  try {
+    return { ...defaultColumnVisibility, ...JSON.parse(localStorage.getItem(activityColumnVisibilityKey) || "{}") };
+  } catch {
+    return defaultColumnVisibility;
+  }
 }
 
 export default function ActivityTable(props) {
@@ -81,6 +140,7 @@ export default function ActivityTable(props) {
   const [sorting, setSorting] = React.useState([{ id: "Date", desc: true }]);
 
   const [columnFilters, setColumnFilters] = React.useState([]);
+  const [columnVisibility, setColumnVisibility] = React.useState(getStoredColumnVisibility);
 
   const [modalState, setModalState] = React.useState(false);
   const [modalData, setModalData] = React.useState();
@@ -175,54 +235,46 @@ export default function ActivityTable(props) {
 
   const columns = [
     {
-      accessorKey: "UserName",
-      header: i18next.t("USER"),
-      Cell: ({ row }) => {
-        row = row.original;
-        return (
-          <Link to={`/users/${row.UserId}`} className="activity-table-link activity-user-link">
-            {row.UserName}
-          </Link>
-        );
-      },
-    },
-    {
-      accessorKey: "RemoteEndPoint",
-      header: i18next.t("ACTIVITY_TABLE.IP_ADDRESS"),
-
-      Cell: ({ row }) => {
-        row = row.original;
-        if (
-          isRemoteSession(row.RemoteEndPoint) &&
-          (window.env?.JS_GEOLITE_ACCOUNT_ID ?? import.meta.env.JS_GEOLITE_ACCOUNT_ID) != undefined
-        ) {
-          return (
-            <Link className="activity-table-link" onClick={() => showIPDataModal(row.RemoteEndPoint)}>
-              {row.RemoteEndPoint}
-            </Link>
-          );
-        } else {
-          return <span>{row.RemoteEndPoint || "-"}</span>;
-        }
-      },
-    },
-    {
       accessorFn: (row) =>
         `${
           !row?.SeriesName
             ? row.NowPlayingItemName
             : row.SeriesName + " : S" + row.SeasonNumber + "E" + row.EpisodeNumber + " - " + row.NowPlayingItemName
-        }`,
+      }`,
       field: "NowPlayingItemName",
       header: i18next.t("TITLE"),
-      minSize: 300,
+      minSize: 360,
+      grow: 1.6,
+      Cell: ({ row }) => {
+        row = row.original;
+        const title = !row.SeriesName
+          ? row.NowPlayingItemName
+          : row.SeriesName + " : S" + row.SeasonNumber + "E" + row.EpisodeNumber + " - " + row.NowPlayingItemName;
+        const itemId = row.NowPlayingItemId || row.EpisodeId;
+
+        return (
+          <Link to={`/libraries/item/${row.EpisodeId || row.NowPlayingItemId}`} className="activity-table-link activity-title-link">
+            <span className="activity-title-media">
+              <ActivityPoster itemId={itemId} title={title} />
+              <span className="activity-title-copy">
+                <strong>{title}</strong>
+                <small>{row.SeriesName ? "Episode" : row.NowPlayingItemName ? "Movie" : "Media"}</small>
+              </span>
+            </span>
+          </Link>
+        );
+      },
+    },
+    {
+      accessorKey: "UserName",
+      header: i18next.t("USER"),
+      size: 190,
       Cell: ({ row }) => {
         row = row.original;
         return (
-          <Link to={`/libraries/item/${row.EpisodeId || row.NowPlayingItemId}`} className="activity-table-link activity-title-link">
-            {!row.SeriesName
-              ? row.NowPlayingItemName
-              : row.SeriesName + " : S" + row.SeasonNumber + "E" + row.EpisodeNumber + " - " + row.NowPlayingItemName}
+          <Link to={`/users/${row.UserId}`} className="activity-table-link activity-user-link">
+            <ActivityUserAvatar userId={row.UserId} userName={row.UserName} />
+            <span>{row.UserName || "Unknown"}</span>
           </Link>
         );
       },
@@ -230,6 +282,7 @@ export default function ActivityTable(props) {
     {
       accessorKey: "Client",
       header: i18next.t("ACTIVITY_TABLE.CLIENT"),
+      size: 160,
       Cell: ({ row }) => {
         row = row.original;
         return (
@@ -240,8 +293,15 @@ export default function ActivityTable(props) {
       },
     },
     {
+      accessorKey: "DeviceName",
+      header: i18next.t("ACTIVITY_TABLE.DEVICE"),
+      size: 180,
+      Cell: ({ cell }) => <span className="activity-device-cell">{cell.getValue() || "-"}</span>,
+    },
+    {
       accessorKey: "PlayMethod",
       header: i18next.t("TRANSCODE"),
+      size: 160,
       Cell: ({ row }) => {
         row = row.original;
         if (row.PlayMethod === "Transcode") {
@@ -282,14 +342,10 @@ export default function ActivityTable(props) {
       },
     },
     {
-      accessorKey: "DeviceName",
-      header: i18next.t("ACTIVITY_TABLE.DEVICE"),
-    },
-    {
       accessorFn: (row) => new Date(row.ActivityDateInserted),
       field: "ActivityDateInserted",
       header: i18next.t("DATE"),
-      size: 110,
+      size: 170,
       filterVariant: "date-range",
       Cell: ({ row }) => {
         const options = {
@@ -306,9 +362,28 @@ export default function ActivityTable(props) {
       },
     },
     {
+      accessorKey: "RemoteEndPoint",
+      header: i18next.t("ACTIVITY_TABLE.IP_ADDRESS"),
+      size: 150,
+      Cell: ({ row }) => {
+        row = row.original;
+        if (
+          isRemoteSession(row.RemoteEndPoint) &&
+          (window.env?.JS_GEOLITE_ACCOUNT_ID ?? import.meta.env.JS_GEOLITE_ACCOUNT_ID) != undefined
+        ) {
+          return (
+            <Link className="activity-table-link activity-ip-link" onClick={() => showIPDataModal(row.RemoteEndPoint)}>
+              {row.RemoteEndPoint}
+            </Link>
+          );
+        }
+        return <span className="activity-ip-cell">{row.RemoteEndPoint || "-"}</span>;
+      },
+    },
+    {
       accessorKey: "PlaybackDuration",
       header: i18next.t("ACTIVITY_TABLE.TOTAL_PLAYBACK"),
-      minSize: 200,
+      size: 160,
       // filterFn: (row, id, filterValue) => formatTotalWatchTime(row.getValue(id)).startsWith(filterValue),
       filterVariant: "range",
       Cell: ({ cell }) => <span className="activity-duration-cell">{formatTotalWatchTime(cell.getValue())}</span>,
@@ -318,6 +393,7 @@ export default function ActivityTable(props) {
       field: "TotalPlays",
       header: i18next.t("TOTAL_PLAYS"),
       filterFn: "betweenInclusive",
+      size: 110,
 
       Cell: ({ cell }) => <span className="activity-plays-cell">{cell.getValue() ?? 1}</span>,
     },
@@ -368,6 +444,14 @@ export default function ActivityTable(props) {
     });
   };
 
+  const handleColumnVisibilityChange = (updater) => {
+    setColumnVisibility((currentVisibility) => {
+      const nextVisibility = typeof updater === "function" ? updater(currentVisibility) : updater;
+      localStorage.setItem(activityColumnVisibilityKey, JSON.stringify(nextVisibility));
+      return nextVisibility;
+    });
+  };
+
   useEffect(() => {
     setData(props.data);
   }, [props.data]);
@@ -396,7 +480,8 @@ export default function ActivityTable(props) {
     manualFiltering: true,
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleFilteringChange,
-    enableTopToolbar: Object.keys(rowSelection).length > 0,
+    onColumnVisibilityChange: handleColumnVisibilityChange,
+    enableTopToolbar: true,
     manualPagination: true,
     manualSorting: true,
     autoResetPageIndex: false,
@@ -417,7 +502,7 @@ export default function ActivityTable(props) {
     pageCount: pages,
     rowCount: pagination.pageSize, // fix for bug causing pagination index to reset when row count changes
     showAlertBanner: false,
-    enableHiding: false,
+    enableHiding: true,
     enableFullScreenToggle: false,
     enableGlobalFilter: false,
     enableBottomToolbar: false,
@@ -426,6 +511,12 @@ export default function ActivityTable(props) {
     enableBatchRowSelection: true,
     onRowSelectionChange: setRowSelection,
     positionToolbarAlertBanner: "bottom",
+    renderToolbarInternalActions: ({ table }) => (
+      <Box className="activity-table-actions">
+        <span className="activity-table-actions-label">Columns</span>
+        <MRT_ShowHideColumnsButton table={table} />
+      </Box>
+    ),
     renderTopToolbarCustomActions: () => {
       if (Object.keys(rowSelection).length > 0) {
         return (
@@ -447,6 +538,7 @@ export default function ActivityTable(props) {
           </Box>
         );
       }
+      return <span className="activity-table-toolbar-title">Activity view</span>;
     },
     renderEmptyRowsFallback: () => (
       <span style={{ textAlign: "center", fontStyle: "italic", color: "grey" }} className="py-5">
@@ -490,7 +582,7 @@ export default function ActivityTable(props) {
         },
       },
     },
-    state: { rowSelection, pagination, sorting, columnFilters },
+    state: { rowSelection, pagination, sorting, columnFilters, columnVisibility },
     filterFromLeafRows: true,
     getSubRows: (row) => {
       if (Array.isArray(row.results) && row.results.length == 1) {
@@ -548,6 +640,13 @@ export default function ActivityTable(props) {
         borderRadius: "8px",
         background: "rgba(9, 12, 17, 0.96)",
         boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
+      },
+    },
+    muiTopToolbarProps: {
+      sx: {
+        minHeight: "48px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        background: "rgba(8, 11, 16, 0.98)",
       },
     },
     muiTableContainerProps: {
@@ -646,7 +745,7 @@ export default function ActivityTable(props) {
           </button>
         </Modal.Footer>
       </Modal>
-      <Modal show={modalState} onHide={() => setModalState(false)}>
+      <Modal show={modalState} onHide={() => setModalState(false)} dialogClassName="stream-info-modal">
         <Modal.Header>
           <Modal.Title>
             <Trans i18nKey="ACTIVITY_TABLE.MODAL.HEADER" />

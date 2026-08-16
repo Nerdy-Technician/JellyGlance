@@ -13,6 +13,7 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
 
 concurrency:
   group: file-release
@@ -141,7 +142,9 @@ jobs:
       - name: Build docs
         run: npm run build:docs
 
-      - name: Commit package version files
+      - name: Open package version PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -149,8 +152,23 @@ jobs:
           if git diff --cached --quiet; then
             echo "Package files already match ${{ steps.release.outputs.version }}"
           else
+            branch="release/${{ steps.release.outputs.tag }}-package-versions"
             git commit -m "chore(release): ${{ steps.release.outputs.tag }}"
-            git push origin HEAD:${{ github.ref_name }}
+            git push --force-with-lease origin HEAD:"${branch}"
+
+            if gh pr view "${branch}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+              echo "Package version PR already exists for ${branch}"
+            else
+              gh pr create \
+                --repo "${{ github.repository }}" \
+                --base "${{ github.ref_name }}" \
+                --head "${branch}" \
+                --title "chore(release): ${{ steps.release.outputs.tag }}" \
+                --body "Updates package version files for ${{ steps.release.outputs.tag }}. Merge this PR, then rerun the release workflow."
+            fi
+
+            echo "::error::Package version files changed. A PR was opened because ${{ github.ref_name }} requires changes through pull requests. Merge it, then rerun this release workflow."
+            exit 1
           fi
 
       - name: Setup QEMU

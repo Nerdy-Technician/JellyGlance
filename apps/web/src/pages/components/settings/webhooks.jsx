@@ -11,6 +11,7 @@ import TaskLineIcon from "remixicon-react/TaskLineIcon";
 import CalendarEventLineIcon from "remixicon-react/CalendarEventLineIcon";
 import DownloadCloud2LineIcon from "remixicon-react/DownloadCloud2LineIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
+import UserAddLineIcon from "remixicon-react/UserAddLineIcon";
 import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
 import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
 import Edit2LineIcon from "remixicon-react/Edit2LineIcon";
@@ -107,6 +108,24 @@ const eventCards = [
     Icon: ErrorWarningLineIcon,
   },
   {
+    id: "invite_created",
+    title: "Invite created",
+    text: "When a Wizarr invite link is created.",
+    Icon: UserAddLineIcon,
+  },
+  {
+    id: "invite_deleted",
+    title: "Invite deleted",
+    text: "When a Wizarr invite link is removed.",
+    Icon: DeleteBinLineIcon,
+  },
+  {
+    id: "invite_links_refreshed",
+    title: "Invites refreshed",
+    text: "When Wizarr invite state is synced.",
+    Icon: LinksLineIcon,
+  },
+  {
     id: "integration_health_warning",
     title: "Integration health warning",
     text: "When a connected client test fails.",
@@ -149,6 +168,13 @@ const webhookTemplates = [
     type: "generic",
     events: ["download_added", "download_completed", "download_failed", "download_queue_refreshed"],
     taskFilters: [],
+  },
+  {
+    id: "invites",
+    name: "Invite Alerts",
+    type: "discord",
+    events: ["invite_created", "invite_deleted", "invite_links_refreshed"],
+    taskFilters: ["InviteSync"],
   },
   {
     id: "media",

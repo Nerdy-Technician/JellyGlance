@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import AddLineIcon from "remixicon-react/AddLineIcon";
 import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
 import ClipboardLineIcon from "remixicon-react/ClipboardLineIcon";
@@ -10,17 +11,58 @@ import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import Plug2FillIcon from "remixicon-react/Plug2FillIcon";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
 import UploadCloud2LineIcon from "remixicon-react/UploadCloud2LineIcon";
+import UserAddLineIcon from "remixicon-react/UserAddLineIcon";
 import axios from "../lib/axios_instance";
 import { loadSavedIntegrations, saveSavedIntegrations } from "../lib/integrations-storage";
 import JellyfinIntegrationSettings from "./components/settings/JellyfinIntegrationSettings";
 import "./css/integrations.css";
 
 const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
+const tdarrLogoUrl = "https://home.tdarr.io/static/media/logo3-min.246d6df44c7f16ddebaf.png";
+const integrationTabItems = [
+  ["media-server", "Media Server"],
+  ["automation", "Arr Apps"],
+  ["seerr", "Seerr Apps"],
+  ["downloads", "Download Clients"],
+  ["invites", "Invites / Transcodes"],
+];
+const integrationTabKeys = integrationTabItems.map(([key]) => key);
+
+function normalizeIntegrationTabSlug(value = "") {
+  const normalized = String(value || "")
+    .replace(/^#\/?/, "")
+    .trim()
+    .toLowerCase();
+  const aliases = {
+    media: "media-server",
+    mediaserver: "media-server",
+    "media-server": "media-server",
+    jellyfin: "media-server",
+    arr: "automation",
+    arrapps: "automation",
+    "arr-apps": "automation",
+    automation: "automation",
+    jellyseerr: "seerr",
+    overseerr: "seerr",
+    seerr: "seerr",
+    download: "downloads",
+    downloads: "downloads",
+    "download-clients": "downloads",
+    clients: "downloads",
+    invite: "invites",
+    invites: "invites",
+    "invites-transcodes": "invites",
+    transcodes: "invites",
+    tdarr: "invites",
+  };
+  return aliases[normalized] || (integrationTabKeys.includes(normalized) ? normalized : "");
+}
 
 const automationApps = [
   { name: "Sonarr", slug: "sonarr", purpose: "Series automation", accent: "#35c5f4" },
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
   { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "var(--secondary-color)" },
+  { name: "Prowlarr", slug: "prowlarr", purpose: "Indexer management", accent: "#4aa8f0" },
   { name: "Bazarr", slug: "bazarr", purpose: "Subtitle automation", accent: "#84d160" },
   { name: "Jellyseerr", slug: "jellyseerr", purpose: "Request management", accent: "#6366f1" },
   { name: "Overseerr", slug: "overseerr", purpose: "Request management", accent: "#7dd3fc" },
@@ -36,6 +78,18 @@ const downloadClientOptions = [
   { name: "rTorrent", slug: null, protocol: "Torrent" },
 ];
 
+const thirdPartyOptions = [
+  { name: "Tdarr", slug: "tdarr", purpose: "Active transcodes", accent: "var(--primary-light-color)", secretOptional: true },
+  { name: "Wizarr", slug: "wizarr", purpose: "Jellyfin invite links", accent: "#8b5cf6" },
+];
+
+const initialThirdPartyApps = thirdPartyOptions.map((app, index) => ({
+  ...app,
+  instanceId: `${app.name}-${index}`,
+  connected: false,
+  values: {},
+}));
+
 const initialAutomationApps = automationApps.map((app, index) => ({
   ...app,
   instanceId: `${app.name}-${index}`,
@@ -43,7 +97,7 @@ const initialAutomationApps = automationApps.map((app, index) => ({
   values: {},
 }));
 
-const seerrAppNames = new Set(["jellyseerr", "overseerr"]);
+const seerrAppNames = new Set(["seerr", "jellyseerr", "overseerr"]);
 
 function isSeerrApp(app) {
   return seerrAppNames.has(String(app.name || app.slug || "").toLowerCase());
@@ -59,12 +113,32 @@ function normalizeAutomationApps(savedApps) {
   return [...savedApps, ...missingDefaults];
 }
 
+function normalizeThirdPartyApps(savedApps) {
+  if (!Array.isArray(savedApps) || !savedApps.length) {
+    return initialThirdPartyApps;
+  }
+
+  const savedNames = new Set(savedApps.map((app) => String(app.name || "").toLowerCase()));
+  const missingDefaults = initialThirdPartyApps.filter((app) => !savedNames.has(app.name.toLowerCase()));
+  return [...savedApps, ...missingDefaults];
+}
+
 function AppIcon({ app }) {
-  if (!app.slug) {
+  const normalizedName = String(app.name || "").toLowerCase();
+  if (normalizedName.includes("tdarr")) {
+    return <img src={tdarrLogoUrl} alt="" loading="lazy" decoding="async" />;
+  }
+
+  const iconSlug =
+    normalizedName.includes("home assistant") || normalizedName.includes("hacs")
+      ? "home-assistant"
+      : app.slug;
+
+  if (!iconSlug) {
     return <span className="integration-fallback-icon">{app.name.slice(0, 2)}</span>;
   }
 
-  return <img src={iconUrl(app.slug)} alt="" loading="lazy" decoding="async" />;
+  return <img src={iconUrl(iconSlug)} alt="" loading="lazy" decoding="async" />;
 }
 
 function formatHealthDate(value) {
@@ -109,10 +183,11 @@ function buildHealthTimeline(entries = []) {
 function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopySecret, removable = false }) {
   const usesUserPass = type === "download" && app.auth === "userpass";
   const usesPasswordOnly = type === "download" && app.auth === "password";
-  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : "API key";
+  const secretOptional = Boolean(app.secretOptional) || String(app.name || app.slug || "").toLowerCase().includes("tdarr");
+  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : secretOptional ? "API key (optional)" : "API key";
   const connected = Boolean(app.connected);
   const values = app.values || {};
-  const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : "Paste API key";
+  const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : secretOptional ? "Paste API key if auth is enabled" : "Paste API key";
   const [showSecret, setShowSecret] = useState(false);
 
   return (
@@ -188,11 +263,13 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   );
 }
 
-export default function Integrations({ embedded = false, firstRun = false }) {
+export default function Integrations({ embedded = false, firstRun = false, activeTab: controlledActiveTab = "", onTabChange }) {
   const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState("media-server");
+  const [internalActiveTab, setInternalActiveTab] = useState(normalizeIntegrationTabSlug(controlledActiveTab) || "media-server");
+  const activeTab = normalizeIntegrationTabSlug(controlledActiveTab) || internalActiveTab;
   const [arrApps, setArrApps] = useState(initialAutomationApps);
   const [clients, setClients] = useState([]);
+  const [thirdParty, setThirdParty] = useState(initialThirdPartyApps);
   const [selectedClient, setSelectedClient] = useState(downloadClientOptions[0].name);
   const [healthHistory, setHealthHistory] = useState([]);
   const [diagnostics, setDiagnostics] = useState([]);
@@ -200,10 +277,10 @@ export default function Integrations({ embedded = false, firstRun = false }) {
   const [notice, setNotice] = useState("");
   const [savedIntegrationsAvailable, setSavedIntegrationsAvailable] = useState(false);
   const [loadedSavedIntegrations, setLoadedSavedIntegrations] = useState(!firstRun);
-  const connectorCount = useMemo(() => arrApps.length + clients.length, [arrApps.length, clients.length]);
+  const connectorCount = useMemo(() => arrApps.length + clients.length + thirdParty.length, [arrApps.length, clients.length, thirdParty.length]);
   const automationOnlyApps = useMemo(() => arrApps.filter((app) => !isSeerrApp(app)), [arrApps]);
   const seerrApps = useMemo(() => arrApps.filter(isSeerrApp), [arrApps]);
-  const enabledIntegrations = useMemo(() => [...arrApps, ...clients].filter((item) => item.connected), [arrApps, clients]);
+  const enabledIntegrations = useMemo(() => [...arrApps, ...clients, ...thirdParty].filter((item) => item.connected), [arrApps, clients, thirdParty]);
   const latestHealthById = useMemo(() => {
     const lookup = new Map();
     healthHistory.forEach((entry) => {
@@ -215,10 +292,24 @@ export default function Integrations({ embedded = false, firstRun = false }) {
   }, [healthHistory]);
 
   useEffect(() => {
+    const normalized = normalizeIntegrationTabSlug(controlledActiveTab);
+    if (normalized) {
+      setInternalActiveTab(normalized);
+    }
+  }, [controlledActiveTab]);
+
+  function selectIntegrationTab(tabKey) {
+    const normalized = normalizeIntegrationTabSlug(tabKey) || "media-server";
+    setInternalActiveTab(normalized);
+    onTabChange?.(normalized);
+  }
+
+  useEffect(() => {
     async function loadIntegrations() {
       if (firstRun && !loadedSavedIntegrations) {
         setArrApps(initialAutomationApps);
         setClients([]);
+        setThirdParty(initialThirdPartyApps);
         setHealthHistory([]);
         setSavedIntegrationsAvailable(true);
         return;
@@ -230,8 +321,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
         });
         let saved = response.data || {};
         const localSaved = loadSavedIntegrations();
-        const backendIsEmpty = !saved.arrApps?.length && !saved.clients?.length;
-        const localHasIntegrations = localSaved.arrApps?.length || localSaved.clients?.length;
+        const backendIsEmpty = !saved.arrApps?.length && !saved.clients?.length && !saved.thirdParty?.length;
+        const localHasIntegrations = localSaved.arrApps?.length || localSaved.clients?.length || localSaved.thirdParty?.length;
 
         if (backendIsEmpty && localHasIntegrations) {
           saved = localSaved;
@@ -248,12 +339,14 @@ export default function Integrations({ embedded = false, firstRun = false }) {
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
+        setThirdParty(normalizeThirdPartyApps(saved.thirdParty));
       } catch {
         const saved = loadSavedIntegrations();
         setArrApps(normalizeAutomationApps(saved.arrApps));
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
+        setThirdParty(normalizeThirdPartyApps(saved.thirdParty));
       }
     }
     loadIntegrations();
@@ -273,8 +366,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     }
   }
 
-  function persist(nextArrApps = arrApps, nextClients = clients) {
-    const payload = { arrApps: nextArrApps, clients: nextClients };
+  function persist(nextArrApps = arrApps, nextClients = clients, nextThirdParty = thirdParty) {
+    const payload = { arrApps: nextArrApps, clients: nextClients, thirdParty: nextThirdParty };
     saveSavedIntegrations(payload);
     window.dispatchEvent(new CustomEvent("jellyglance-integrations-updated", { detail: payload }));
     axios
@@ -294,7 +387,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     const payload = {
       exportedAt: new Date().toISOString(),
       version: 1,
-      integrations: { arrApps, clients },
+      integrations: { arrApps, clients, thirdParty },
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const link = document.createElement("a");
@@ -317,9 +410,11 @@ export default function Integrations({ embedded = false, firstRun = false }) {
       const imported = parsed.integrations || parsed;
       const nextArrApps = normalizeAutomationApps(imported.arrApps);
       const nextClients = Array.isArray(imported.clients) ? imported.clients : [];
+      const nextThirdParty = normalizeThirdPartyApps(imported.thirdParty);
       setArrApps(nextArrApps);
       setClients(nextClients);
-      persist(nextArrApps, nextClients);
+      setThirdParty(nextThirdParty);
+      persist(nextArrApps, nextClients, nextThirdParty);
       setNotice(`${file.name} imported.`);
     } catch (error) {
       setNotice("Import failed. Choose a JellyGlance integrations JSON file.");
@@ -332,6 +427,10 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     if (!secret) return;
     await navigator.clipboard.writeText(secret);
     setNotice("Secret copied.");
+  }
+
+  function persistForList(listName, next) {
+    persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients, listName === "thirdParty" ? next : thirdParty);
   }
 
   async function testAllIntegrations() {
@@ -370,7 +469,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
             }
           : item
       );
-      persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+      persistForList(listName, next);
       return next;
     });
   }
@@ -378,7 +477,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
   function removeIntegration(listName, setList, instanceId) {
     setList((current) => {
       const next = current.filter((item) => item.instanceId !== instanceId);
-      persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+      persistForList(listName, next);
       return next;
     });
   }
@@ -394,13 +493,13 @@ export default function Integrations({ embedded = false, firstRun = false }) {
             }
           : item
       );
-      persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+      persistForList(listName, next);
       return next;
     });
   }
 
   async function testIntegration(listName, setList, instanceId) {
-    const currentList = listName === "clients" ? clients : arrApps;
+    const currentList = listName === "clients" ? clients : listName === "thirdParty" ? thirdParty : arrApps;
     const selectedIntegration = currentList.find((item) => item.instanceId === instanceId);
 
     if (!selectedIntegration) {
@@ -411,7 +510,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     const needsUsername = listName === "clients" && selectedIntegration.auth === "userpass";
     const missingUrl = !values.url?.trim();
     const missingUsername = needsUsername && !values.username?.trim();
-    const missingSecret = !values.secret?.trim();
+    const secretOptional = listName === "thirdParty" && (selectedIntegration.secretOptional || String(selectedIntegration.name || selectedIntegration.slug || "").toLowerCase().includes("tdarr"));
+    const missingSecret = !secretOptional && !values.secret?.trim();
     const invalidUrl = values.url?.trim() && !/^https?:\/\//i.test(values.url.trim());
     const validationError = invalidUrl ? "URL must start with http:// or https://" : "Fill in all required fields before testing";
 
@@ -435,7 +535,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
           messageType: "success",
         };
       });
-      persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+      persistForList(listName, next);
       return next;
     });
 
@@ -447,7 +547,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
       const response = await axios.post(
         "/api/integrations/test",
         {
-          type: listName === "clients" ? "download" : "automation",
+          type: listName === "clients" ? "download" : listName === "thirdParty" ? "thirdParty" : "automation",
           integration: selectedIntegration,
         },
         {
@@ -467,7 +567,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
               }
             : item
         );
-        persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+        persistForList(listName, next);
         return next;
       });
     } catch (error) {
@@ -483,7 +583,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
               }
             : item
         );
-        persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients);
+        persistForList(listName, next);
         return next;
       });
     }
@@ -502,7 +602,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
           values: {},
         },
       ];
-      persist(arrApps, next);
+      persist(arrApps, next, thirdParty);
       return next;
     });
   }
@@ -523,13 +623,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
       </section>
 
       <nav className="integration-subtabs" aria-label="Integration categories">
-        {[
-          ["media-server", "Media Server"],
-          ["automation", "Arr Apps"],
-          ["seerr", "Seerr Apps"],
-          ["downloads", "Download Clients"],
-        ].map(([key, label]) => (
-          <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => setActiveTab(key)} key={key}>
+        {integrationTabItems.map(([key, label]) => (
+          <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => selectIntegrationTab(key)} key={key}>
             {label}
           </button>
         ))}
@@ -544,7 +639,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
           <div className="integration-section-title">
             <div>
               <h2>Arr Apps</h2>
-              <span>Sonarr, Radarr, Lidarr, and Bazarr</span>
+              <span>Sonarr, Radarr, Lidarr, Prowlarr, and Bazarr</span>
             </div>
             <Settings3LineIcon />
           </div>
@@ -584,6 +679,15 @@ export default function Integrations({ embedded = false, firstRun = false }) {
                 onCopySecret={copySecret}
               />
             ))}
+          </div>
+          <div className="integration-link-panel">
+            <div>
+              <strong>Automation health</strong>
+              <span>Review Bazarr subtitles and Prowlarr indexer status from one JellyGlance view.</span>
+            </div>
+            <div className="integration-link-actions">
+              <Link to="/automation-health">Open Automation Health</Link>
+            </div>
           </div>
         </section>
       ) : null}
@@ -691,6 +795,65 @@ export default function Integrations({ embedded = false, firstRun = false }) {
                 removable
               />
             ))}
+          </div>
+        </section>
+      ) : null}
+
+      {activeTab === "invites" ? (
+        <section className="integration-section">
+          <div className="integration-section-title">
+            <div>
+              <h2>Third-party Apps</h2>
+              <span>Wizarr invites and Tdarr active transcode monitoring</span>
+            </div>
+            <UserAddLineIcon />
+          </div>
+          <div className="integration-toolbar">
+            {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
+              <button type="button" onClick={loadExistingIntegrations}>
+                <DownloadCloud2FillIcon size={18} />
+                Load saved integrations
+              </button>
+            ) : null}
+            {!firstRun || loadedSavedIntegrations ? (
+              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                <HeartPulseLineIcon size={18} />
+                {busyAction === "test-all" ? "Testing" : "Test all"}
+              </button>
+            ) : null}
+            <button type="button" onClick={exportIntegrations}>
+              <DownloadCloud2FillIcon size={18} />
+              Export
+            </button>
+            <label>
+              <UploadCloud2LineIcon size={18} />
+              Import
+              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+            </label>
+          </div>
+          <div className="integration-grid">
+            {thirdParty.map((app) => (
+              <IntegrationCard
+                key={app.instanceId}
+                app={app}
+                type="thirdParty"
+                onChange={(instanceId, field, value) => updateIntegration("thirdParty", setThirdParty, instanceId, field, value)}
+                onRemove={(instanceId) => removeIntegration("thirdParty", setThirdParty, instanceId)}
+                onSave={(instanceId) => saveIntegration("thirdParty", setThirdParty, instanceId)}
+                onTest={(instanceId) => testIntegration("thirdParty", setThirdParty, instanceId)}
+                onCopySecret={copySecret}
+              />
+            ))}
+          </div>
+          <div className="integration-link-panel">
+            <div>
+              <strong>Open connected tools</strong>
+              <span>Manage Wizarr invitations or monitor Tdarr active, queued, and finished transcodes from JellyGlance.</span>
+            </div>
+            <div className="integration-link-actions">
+              <Link to="/wizarr">Open Wizarr links</Link>
+              <Link to="/active-transcodes">Open Active Transcodes</Link>
+            </div>
           </div>
         </section>
       ) : null}

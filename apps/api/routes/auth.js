@@ -42,6 +42,10 @@ const DEFAULT_ROLE_PERMISSIONS = {
 };
 
 function getRolePermissions(settings, role) {
+  if (role === "Owner" || role === "Disabled") {
+    return DEFAULT_ROLE_PERMISSIONS[role];
+  }
+
   return {
     ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
     ...((settings.rolePermissions || {})[role] || {}),

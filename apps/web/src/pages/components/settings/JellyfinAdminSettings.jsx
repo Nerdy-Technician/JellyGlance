@@ -140,16 +140,32 @@ export default function JellyfinAdminSettings({ view = "devices" }) {
             {!loading && !plugins.length ? <div className="jellyfin-admin-empty">No plugins were returned by Jellyfin.</div> : null}
             {plugins.map((plugin) => (
               <article key={plugin.id || plugin.name} className={`jellyfin-plugin-card ${plugin.enabled ? "is-enabled" : "is-disabled"}`}>
-                <div className="jellyfin-plugin-top">
-                  <span className="jellyfin-plugin-icon">
-                    <Plug2LineIcon size={18} />
-                    {plugin.enabled ? "Enabled" : "Disabled"}
-                  </span>
-                  {plugin.canUninstall ? <em>Removable</em> : null}
+                <div className={`jellyfin-plugin-art ${plugin.imageUrl ? "" : "is-empty"}`} aria-hidden="true">
+                  {plugin.imageUrl ? (
+                    <img
+                      src={plugin.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      onError={(event) => {
+                        const art = event.currentTarget.closest(".jellyfin-plugin-art");
+                        event.currentTarget.remove();
+                        art?.classList.add("is-empty");
+                      }}
+                    />
+                  ) : null}
                 </div>
-                <strong>{plugin.name}</strong>
-                <p>{plugin.description || "No plugin description reported."}</p>
-                <small>{plugin.version || plugin.configurationFileName || "Version unavailable"}</small>
+                <div className="jellyfin-plugin-body">
+                  <div className="jellyfin-plugin-top">
+                    <span className="jellyfin-plugin-icon">
+                      <Plug2LineIcon size={18} />
+                      {plugin.enabled ? "Enabled" : "Disabled"}
+                    </span>
+                    {plugin.canUninstall ? <em>Removable</em> : null}
+                  </div>
+                  <strong>{plugin.name}</strong>
+                  <p>{plugin.description || "No plugin description reported."}</p>
+                  <small>{plugin.version || plugin.configurationFileName || "Version unavailable"}</small>
+                </div>
               </article>
             ))}
           </div>

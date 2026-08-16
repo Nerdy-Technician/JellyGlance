@@ -12,6 +12,7 @@ const Tasks = {
   IntegrationSync: { path: "./tasks/IntegrationSyncTask.js", name: "Integration Sync" },
   ArrCalendarSync: { path: "./tasks/ArrCalendarSyncTask.js", name: "Arr Calendar Sync" },
   DownloadQueueSync: { path: "./tasks/DownloadQueueSyncTask.js", name: "Download Queue Sync" },
+  InviteSync: { path: "./tasks/InviteSyncTask.js", name: "Invite Sync" },
   IntegrationHealthCheck: { path: "./tasks/IntegrationHealthCheckTask.js", name: "Integration Health Check" },
 };
 
