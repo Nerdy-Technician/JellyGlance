@@ -192,6 +192,12 @@ const authRateLimit = createRateLimiter({
   max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
   message: "Too many authentication requests. Try again later.",
 });
+function authRateLimitUnlessPublicStatus(req, res, next) {
+  if (req.method === "GET" && req.path === "/isConfigured") {
+    return next();
+  }
+  return authRateLimit(req, res, next);
+}
 const taskRateLimit = createRateLimiter({
   windowMs: 60 * 1000,
   max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
@@ -329,7 +335,7 @@ app.use((req, res, next) => {
 });
 
 // initiate routes
-app.use(`/auth`, authRateLimit, authRouter, () => {
+app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
 app.use("/proxy", proxyRouter, () => {
@@ -501,6 +507,10 @@ function getTokenPermissions(user) {
 }
 
 function getRolePermissions(settings, role) {
+  if (role === "Owner" || role === "Disabled") {
+    return DEFAULT_ROLE_PERMISSIONS[role];
+  }
+
   return {
     ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
     ...((settings.rolePermissions || {})[role] || {}),

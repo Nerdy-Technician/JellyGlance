@@ -34,6 +34,8 @@ function ItemStatComponent(props) {
   }
 
   const renderItemName = (item) => {
+    const mediaItemId = item.Id || item.ItemId || item.NowPlayingItemId || item.jellyglanceItemId;
+
     if (item.UserId) {
       return (
         <Link to={`/users/${item.UserId}`} className="item-name">
@@ -45,12 +47,16 @@ function ItemStatComponent(props) {
     }
 
     if (!item.Client && !props.icon) {
-      return (
-        <Link to={`/libraries/item/${item.Id}`} className="item-name">
+      return mediaItemId ? (
+        <Link to={`/libraries/item/${mediaItemId}`} className="item-name">
           <Tooltip title={item.Name}>
             <span className="item-text">{item.Name}</span>
           </Tooltip>
         </Link>
+      ) : (
+        <Tooltip title={item.Name}>
+          <span className="item-text">{item.Name}</span>
+        </Tooltip>
       );
     }
 

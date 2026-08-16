@@ -5,6 +5,8 @@ import CloseCircleLineIcon from "remixicon-react/CloseCircleLineIcon";
 import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
 import ExternalLinkLineIcon from "remixicon-react/ExternalLinkLineIcon";
 import Edit2LineIcon from "remixicon-react/Edit2LineIcon";
+import FileList3LineIcon from "remixicon-react/FileList3LineIcon";
+import GridLineIcon from "remixicon-react/GridLineIcon";
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SearchLineIcon from "remixicon-react/SearchLineIcon";
@@ -58,6 +60,109 @@ function getRequesterName(request) {
   return request?.requester?.name || request?.requestedBy || "Unknown user";
 }
 
+function normalizeOwnerValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getCurrentRequestOwnerCandidates(config = {}) {
+  const auth = config.settings?.auth || {};
+  const jellyfinUser = auth.jellyfinUser || {};
+  return [
+    config.username,
+    auth.username,
+    auth.email,
+    jellyfinUser.id,
+    jellyfinUser.Id,
+    jellyfinUser.name,
+    jellyfinUser.Name,
+    jellyfinUser.username,
+    jellyfinUser.UserName,
+  ]
+    .map(normalizeOwnerValue)
+    .filter(Boolean);
+}
+
+function isOwnRequest(request, ownerCandidates = []) {
+  if (!ownerCandidates.length) return false;
+  const requester = request?.requester || {};
+  return [
+    request?.requestedBy,
+    requester.id,
+    requester.userId,
+    requester.jellyfinUserId,
+    requester.name,
+    requester.username,
+    requester.email,
+  ]
+    .map(normalizeOwnerValue)
+    .filter(Boolean)
+    .some((candidate) => ownerCandidates.includes(candidate));
+}
+
+function getInitials(value) {
+  return String(value || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
+}
+
+function RequestFilterOptionAvatar({ option }) {
+  if (!option?.avatarUrl && !option?.initials) return null;
+
+  return (
+    <span className="requests-filter-option-avatar">
+      {option.avatarUrl ? (
+        <img src={option.avatarUrl} alt="" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+      ) : null}
+      <span>{option.initials}</span>
+    </span>
+  );
+}
+
+function RequestFilterDropdown({ label, value, options, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value) || options[0];
+
+  return (
+    <div
+      className={`requests-filter-dropdown${isOpen ? " is-open" : ""}`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsOpen(false);
+        }
+      }}
+    >
+      <span>{label}</span>
+      <button type="button" aria-haspopup="listbox" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+        <RequestFilterOptionAvatar option={selectedOption} />
+        <strong>{selectedOption?.label || "Select"}</strong>
+      </button>
+      {isOpen ? (
+        <div className="requests-filter-dropdown-menu" role="listbox" tabIndex={-1}>
+          {options.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              className={option.value === value ? "is-selected" : ""}
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              <RequestFilterOptionAvatar option={option} />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function getRequesterAvatarUrl(request) {
   const requester = request?.requester || {};
   if (requester.jellyfinUserId) {
@@ -80,7 +185,7 @@ function RequesterIdentity({ request, compact = false }) {
     <span className={`requests-user-chip${compact ? " is-compact" : ""}`}>
       <span className="requests-user-avatar">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+          <img src={avatarUrl} alt="" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.style.display = "none"; }} />
         ) : (
           <span>{initials}</span>
         )}
@@ -108,7 +213,7 @@ function RequesterByline({ request }) {
     <span className="requests-requester-byline">
       <span className="requests-requester-avatar">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+          <img src={avatarUrl} alt="" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.style.display = "none"; }} />
         ) : (
           <span>{initials}</span>
         )}
@@ -129,6 +234,7 @@ function RequestPoster({ request, large = false }) {
         src={posterUrl}
         alt=""
         loading={large ? undefined : "lazy"}
+        decoding="async"
         onError={() => {
           if (posterIndex < urls.length - 1) {
             setPosterIndex((current) => current + 1);
@@ -157,22 +263,28 @@ export default function Requests() {
   const [requestOptionForms, setRequestOptionForms] = useState({});
   const [requestOptionsLoading, setRequestOptionsLoading] = useState({});
   const [statusFilter, setStatusFilter] = useState("All");
+  const [requesterFilter, setRequesterFilter] = useState("all");
   const [sortMode, setSortMode] = useState("newest");
+  const [queueView, setQueueView] = useState("cards");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [selectedRequestLoading, setSelectedRequestLoading] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState("");
-  const currentRole = useMemo(() => {
+  const currentConfig = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem("config") || "{}")?.settings?.auth?.role || "Viewer";
+      return JSON.parse(localStorage.getItem("config") || "{}");
     } catch {
-      return "Viewer";
+      return {};
     }
   }, []);
+  const currentRole = currentConfig?.settings?.auth?.role || "Viewer";
   const canManageRequests = currentRole === "Owner" || currentRole === "Admin";
+  const currentOwnerCandidates = useMemo(() => getCurrentRequestOwnerCandidates(currentConfig), [currentConfig]);
 
   const visibleRequests = useMemo(() => {
     const normalizedSearch = mediaSearch.trim().toLowerCase();
     const filtered = (data.requests || []).filter((request) => {
+      if (!canManageRequests && !isOwnRequest(request, currentOwnerCandidates)) return false;
+      if (canManageRequests && requesterFilter !== "all" && getRequesterName(request) !== requesterFilter) return false;
       const statusMatches = statusFilter === "All" || String(request.status).toLowerCase() === statusFilter.toLowerCase();
       if (!statusMatches) return false;
       if (!normalizedSearch) return true;
@@ -193,9 +305,40 @@ export default function Requests() {
       return new Date(second.createdAt || 0).getTime() - new Date(first.createdAt || 0).getTime();
     });
     return sorted;
-  }, [data.requests, mediaSearch, sortMode, statusFilter]);
+  }, [canManageRequests, currentOwnerCandidates, data.requests, mediaSearch, requesterFilter, sortMode, statusFilter]);
 
   const statuses = useMemo(() => ["All", ...new Set((data.requests || []).map((request) => request.status).filter(Boolean))], [data.requests]);
+  const sortOptions = useMemo(
+    () => [
+      { value: "newest", label: "Newest first" },
+      { value: "oldest", label: "Oldest first" },
+      { value: "requester", label: "Requester" },
+      { value: "status", label: "Status" },
+      { value: "availability", label: "Availability" },
+    ],
+    []
+  );
+  const requesterOptions = useMemo(
+    () => {
+      const requesters = new Map();
+      (data.requests || []).forEach((request) => {
+        const name = getRequesterName(request);
+        if (!name || requesters.has(name)) return;
+        requesters.set(name, {
+          value: name,
+          label: name,
+          avatarUrl: getRequesterAvatarUrl(request),
+          initials: getInitials(name),
+        });
+      });
+
+      return [
+        { value: "all", label: "All users" },
+        ...[...requesters.values()].sort((a, b) => a.label.localeCompare(b.label)),
+      ];
+    },
+    [data.requests]
+  );
   const seerrSources = data.sources || [];
 
   function getDefaultOptionForm(options) {
@@ -587,40 +730,21 @@ export default function Requests() {
 
   return (
     <div className="requests-page">
-      <header className="requests-hero">
-        <div>
-          <p>Request center</p>
-          <h1>Requests</h1>
-          <span>Search Seerr, choose destinations, and manage the request queue from one place.</span>
-        </div>
-        <div className="requests-hero-stats" aria-label="Request status overview">
-          <span>
-            <strong>{data.stats?.badgeCount || 0}</strong>
-            Needs action
-          </span>
-          <span>
-            <strong>{data.stats?.available || 0}</strong>
-            Available
-          </span>
-          <span>
-            <strong>{seerrSources.length}</strong>
-            Sources
-          </span>
-        </div>
-        <button type="button" onClick={() => loadRequests(true)} disabled={loading}>
-          <RefreshLineIcon size={18} />
-          {loading ? "Refreshing" : "Refresh"}
-        </button>
-      </header>
-
       {actionMessage ? <div className="requests-action-message">{actionMessage}</div> : null}
 
       <section className="requests-discovery">
         <div className="requests-discovery-head">
           <div>
-            <p>Search</p>
             <h2>Find or request media</h2>
             <span>Search once to filter existing requests and request new media from Seerr results.</span>
+          </div>
+          <div className="requests-view-toggle" role="group" aria-label="Request queue view">
+            <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title="Card view" aria-label="Card view">
+              <GridLineIcon size={18} />
+            </button>
+            <button type="button" className={queueView === "list" ? "is-active" : ""} aria-pressed={queueView === "list"} onClick={() => setQueueView("list")} title="List view" aria-label="List view">
+              <FileList3LineIcon size={18} />
+            </button>
           </div>
         </div>
         <label className="requests-media-search">
@@ -635,17 +759,11 @@ export default function Requests() {
             {mediaSearchLoading ? "Searching" : "Search"}
           </button>
         </label>
-        <section className="requests-control-bar">
-          <label>
-            <span>Sort queue</span>
-            <select value={sortMode} onChange={(event) => setSortMode(event.target.value)}>
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="requester">Requester</option>
-              <option value="status">Status</option>
-              <option value="availability">Availability</option>
-            </select>
-          </label>
+        <section className={`requests-control-bar${canManageRequests ? " has-user-filter" : ""}`}>
+          <RequestFilterDropdown label="Sort queue" value={sortMode} options={sortOptions} onChange={setSortMode} />
+          {canManageRequests ? (
+            <RequestFilterDropdown label="User" value={requesterFilter} options={requesterOptions} onChange={setRequesterFilter} />
+          ) : null}
           <strong>{visibleRequests.length} shown from {data.requests?.length || 0}</strong>
         </section>
         <nav className="requests-filter-strip" aria-label="Request status filters">
@@ -715,7 +833,7 @@ export default function Requests() {
         ) : null}
       </section>
 
-      <section className="requests-board">
+      <section className={`requests-board is-${queueView}`}>
         {visibleRequests.map((request) => {
           const age = getRequestAge(request.createdAt);
           return (

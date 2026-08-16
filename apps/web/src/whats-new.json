@@ -1,4 +1,46 @@
 {
+  "1.2.3.beta.1": [
+    {
+      "icon": "palette",
+      "title": "Big UI Beta",
+      "body": "Home, Settings, Statistics, Requests, Activity, Users, Wizarr, About, and integrations have all had a proper redesign pass with cleaner spacing, cards, and controls."
+    },
+    {
+      "icon": "speed",
+      "title": "Tdarr Transcodes",
+      "body": "Tdarr now has an Active Transcodes page with active, queued, and history views, navigation counts, show artwork, conversion details, and live progress updates."
+    },
+    {
+      "icon": "magic",
+      "title": "Smarter Settings",
+      "body": "Settings now uses stable grouped sections, cleaner routes, Kiosk controls, privacy options, sidebar ordering, hidden tabs, and a safer theme preview flow."
+    },
+    {
+      "icon": "movie",
+      "title": "Cleaner Requests",
+      "body": "Requests now has richer media cards, an optional list view, requester profile pictures, admin user filtering, tidier actions, and user-scoped visibility for non-admins."
+    },
+    {
+      "icon": "upload",
+      "title": "Kiosk And Privacy",
+      "body": "Kiosk mode can stay static, refresh every 5 minutes, and show only enabled sections. IP visibility can now be controlled for Home, Kiosk, both, or neither."
+    },
+    {
+      "icon": "palette",
+      "title": "Hall Of Fame Glow-Up",
+      "body": "Hall of Fame now uses a podium-style layout with medal icons, and hidden users are filtered out of Hall of Fame and Activity."
+    },
+    {
+      "icon": "speed",
+      "title": "Statistics Rebuilt",
+      "body": "Statistics has clearer summary panels, redesigned watch stats, profile pictures, client icons, and media links through to JellyGlance media pages where possible."
+    },
+    {
+      "icon": "magic",
+      "title": "Sharper Polish",
+      "body": "Profile modal sizing, account labels, sidebar collapse, profile hover pills, device icons, backup sizing, and several clipped or cramped layouts have been cleaned up."
+    }
+  ],
   "1.2.2": [
     {
       "icon": "magic",

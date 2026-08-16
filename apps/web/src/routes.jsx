@@ -18,13 +18,16 @@ const Integrations = lazy(() => import("./pages/integrations"));
 const Calendar = lazy(() => import("./pages/calendar"));
 const Requests = lazy(() => import("./pages/requests"));
 const Downloads = lazy(() => import("./pages/downloads"));
+const ActiveTranscodes = lazy(() => import("./pages/active-transcodes"));
+const AutomationHealth = lazy(() => import("./pages/automation-health"));
 const ServerManagement = lazy(() => import("./pages/server-management"));
 const Wizarr = lazy(() => import("./pages/wizarr"));
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
+  { path: "/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/home/kiosk", element: <Home kioskMode />, exact: true },
-  { path: "/settings", element: <Settings />, exact: true },
+  { path: "/settings/*", element: <Settings />, exact: true },
   { path: "/users", element: <Users />, exact: true },
   { path: "/users/:UserId", element: <UserProfilePage />, exact: true },
   { path: "/libraries", element: <Libraries />, exact: true },
@@ -35,9 +38,11 @@ const routes = [
   { path: "/calendar", element: <Calendar />, exact: true },
   { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
+  { path: "/active-transcodes", element: <ActiveTranscodes />, exact: true },
+  { path: "/automation-health", element: <AutomationHealth />, exact: true },
   { path: "/wizarr", element: <Wizarr />, exact: true },
   { path: "/server-management", element: <ServerManagement />, exact: true },
-  { path: "/repair", element: <Navigate to="/settings?tab=tabRepair" replace />, exact: true },
+  { path: "/repair", element: <Navigate to="/settings/repair" replace />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },
   { path: "/activity", element: <Activity />, exact: true },
   { path: "/timeline", element: <ActivityTimeline />, exact: true },

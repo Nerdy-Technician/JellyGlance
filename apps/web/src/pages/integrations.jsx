@@ -18,11 +18,51 @@ import JellyfinIntegrationSettings from "./components/settings/JellyfinIntegrati
 import "./css/integrations.css";
 
 const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
+const tdarrLogoUrl = "https://home.tdarr.io/static/media/logo3-min.246d6df44c7f16ddebaf.png";
+const integrationTabItems = [
+  ["media-server", "Media Server"],
+  ["automation", "Arr Apps"],
+  ["seerr", "Seerr Apps"],
+  ["downloads", "Download Clients"],
+  ["invites", "Invites / Transcodes"],
+];
+const integrationTabKeys = integrationTabItems.map(([key]) => key);
+
+function normalizeIntegrationTabSlug(value = "") {
+  const normalized = String(value || "")
+    .replace(/^#\/?/, "")
+    .trim()
+    .toLowerCase();
+  const aliases = {
+    media: "media-server",
+    mediaserver: "media-server",
+    "media-server": "media-server",
+    jellyfin: "media-server",
+    arr: "automation",
+    arrapps: "automation",
+    "arr-apps": "automation",
+    automation: "automation",
+    jellyseerr: "seerr",
+    overseerr: "seerr",
+    seerr: "seerr",
+    download: "downloads",
+    downloads: "downloads",
+    "download-clients": "downloads",
+    clients: "downloads",
+    invite: "invites",
+    invites: "invites",
+    "invites-transcodes": "invites",
+    transcodes: "invites",
+    tdarr: "invites",
+  };
+  return aliases[normalized] || (integrationTabKeys.includes(normalized) ? normalized : "");
+}
 
 const automationApps = [
   { name: "Sonarr", slug: "sonarr", purpose: "Series automation", accent: "#35c5f4" },
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
   { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "var(--secondary-color)" },
+  { name: "Prowlarr", slug: "prowlarr", purpose: "Indexer management", accent: "#4aa8f0" },
   { name: "Bazarr", slug: "bazarr", purpose: "Subtitle automation", accent: "#84d160" },
   { name: "Jellyseerr", slug: "jellyseerr", purpose: "Request management", accent: "#6366f1" },
   { name: "Overseerr", slug: "overseerr", purpose: "Request management", accent: "#7dd3fc" },
@@ -38,7 +78,10 @@ const downloadClientOptions = [
   { name: "rTorrent", slug: null, protocol: "Torrent" },
 ];
 
-const thirdPartyOptions = [{ name: "Wizarr", slug: "wizarr", purpose: "Jellyfin invite links", accent: "#8b5cf6" }];
+const thirdPartyOptions = [
+  { name: "Tdarr", slug: "tdarr", purpose: "Active transcodes", accent: "var(--primary-light-color)", secretOptional: true },
+  { name: "Wizarr", slug: "wizarr", purpose: "Jellyfin invite links", accent: "#8b5cf6" },
+];
 
 const initialThirdPartyApps = thirdPartyOptions.map((app, index) => ({
   ...app,
@@ -81,11 +124,21 @@ function normalizeThirdPartyApps(savedApps) {
 }
 
 function AppIcon({ app }) {
-  if (!app.slug) {
+  const normalizedName = String(app.name || "").toLowerCase();
+  if (normalizedName.includes("tdarr")) {
+    return <img src={tdarrLogoUrl} alt="" loading="lazy" decoding="async" />;
+  }
+
+  const iconSlug =
+    normalizedName.includes("home assistant") || normalizedName.includes("hacs")
+      ? "home-assistant"
+      : app.slug;
+
+  if (!iconSlug) {
     return <span className="integration-fallback-icon">{app.name.slice(0, 2)}</span>;
   }
 
-  return <img src={iconUrl(app.slug)} alt="" loading="lazy" decoding="async" />;
+  return <img src={iconUrl(iconSlug)} alt="" loading="lazy" decoding="async" />;
 }
 
 function formatHealthDate(value) {
@@ -130,10 +183,11 @@ function buildHealthTimeline(entries = []) {
 function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopySecret, removable = false }) {
   const usesUserPass = type === "download" && app.auth === "userpass";
   const usesPasswordOnly = type === "download" && app.auth === "password";
-  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : "API key";
+  const secretOptional = Boolean(app.secretOptional) || String(app.name || app.slug || "").toLowerCase().includes("tdarr");
+  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : secretOptional ? "API key (optional)" : "API key";
   const connected = Boolean(app.connected);
   const values = app.values || {};
-  const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : "Paste API key";
+  const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : secretOptional ? "Paste API key if auth is enabled" : "Paste API key";
   const [showSecret, setShowSecret] = useState(false);
 
   return (
@@ -209,9 +263,10 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   );
 }
 
-export default function Integrations({ embedded = false, firstRun = false }) {
+export default function Integrations({ embedded = false, firstRun = false, activeTab: controlledActiveTab = "", onTabChange }) {
   const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState("media-server");
+  const [internalActiveTab, setInternalActiveTab] = useState(normalizeIntegrationTabSlug(controlledActiveTab) || "media-server");
+  const activeTab = normalizeIntegrationTabSlug(controlledActiveTab) || internalActiveTab;
   const [arrApps, setArrApps] = useState(initialAutomationApps);
   const [clients, setClients] = useState([]);
   const [thirdParty, setThirdParty] = useState(initialThirdPartyApps);
@@ -235,6 +290,19 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     });
     return lookup;
   }, [healthHistory]);
+
+  useEffect(() => {
+    const normalized = normalizeIntegrationTabSlug(controlledActiveTab);
+    if (normalized) {
+      setInternalActiveTab(normalized);
+    }
+  }, [controlledActiveTab]);
+
+  function selectIntegrationTab(tabKey) {
+    const normalized = normalizeIntegrationTabSlug(tabKey) || "media-server";
+    setInternalActiveTab(normalized);
+    onTabChange?.(normalized);
+  }
 
   useEffect(() => {
     async function loadIntegrations() {
@@ -442,7 +510,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
     const needsUsername = listName === "clients" && selectedIntegration.auth === "userpass";
     const missingUrl = !values.url?.trim();
     const missingUsername = needsUsername && !values.username?.trim();
-    const missingSecret = !values.secret?.trim();
+    const secretOptional = listName === "thirdParty" && (selectedIntegration.secretOptional || String(selectedIntegration.name || selectedIntegration.slug || "").toLowerCase().includes("tdarr"));
+    const missingSecret = !secretOptional && !values.secret?.trim();
     const invalidUrl = values.url?.trim() && !/^https?:\/\//i.test(values.url.trim());
     const validationError = invalidUrl ? "URL must start with http:// or https://" : "Fill in all required fields before testing";
 
@@ -554,14 +623,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
       </section>
 
       <nav className="integration-subtabs" aria-label="Integration categories">
-        {[
-          ["media-server", "Media Server"],
-          ["automation", "Arr Apps"],
-          ["seerr", "Seerr Apps"],
-          ["downloads", "Download Clients"],
-          ["invites", "Invites"],
-        ].map(([key, label]) => (
-          <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => setActiveTab(key)} key={key}>
+        {integrationTabItems.map(([key, label]) => (
+          <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => selectIntegrationTab(key)} key={key}>
             {label}
           </button>
         ))}
@@ -576,7 +639,7 @@ export default function Integrations({ embedded = false, firstRun = false }) {
           <div className="integration-section-title">
             <div>
               <h2>Arr Apps</h2>
-              <span>Sonarr, Radarr, Lidarr, and Bazarr</span>
+              <span>Sonarr, Radarr, Lidarr, Prowlarr, and Bazarr</span>
             </div>
             <Settings3LineIcon />
           </div>
@@ -616,6 +679,15 @@ export default function Integrations({ embedded = false, firstRun = false }) {
                 onCopySecret={copySecret}
               />
             ))}
+          </div>
+          <div className="integration-link-panel">
+            <div>
+              <strong>Automation health</strong>
+              <span>Review Bazarr subtitles and Prowlarr indexer status from one JellyGlance view.</span>
+            </div>
+            <div className="integration-link-actions">
+              <Link to="/automation-health">Open Automation Health</Link>
+            </div>
           </div>
         </section>
       ) : null}
@@ -731,8 +803,8 @@ export default function Integrations({ embedded = false, firstRun = false }) {
         <section className="integration-section">
           <div className="integration-section-title">
             <div>
-              <h2>Invite Managers</h2>
-              <span>Wizarr user invites for Jellyfin and other media servers</span>
+              <h2>Third-party Apps</h2>
+              <span>Wizarr invites and Tdarr active transcode monitoring</span>
             </div>
             <UserAddLineIcon />
           </div>
@@ -775,10 +847,13 @@ export default function Integrations({ embedded = false, firstRun = false }) {
           </div>
           <div className="integration-link-panel">
             <div>
-              <strong>Manage invite links</strong>
-              <span>Create, copy, and revoke Wizarr invitations from JellyGlance once the connection tests successfully.</span>
+              <strong>Open connected tools</strong>
+              <span>Manage Wizarr invitations or monitor Tdarr active, queued, and finished transcodes from JellyGlance.</span>
             </div>
-            <Link to="/wizarr">Open Wizarr links</Link>
+            <div className="integration-link-actions">
+              <Link to="/wizarr">Open Wizarr links</Link>
+              <Link to="/active-transcodes">Open Active Transcodes</Link>
+            </div>
           </div>
         </section>
       ) : null}

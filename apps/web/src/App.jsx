@@ -1,6 +1,6 @@
 // import logo from './logo.svg';
 import "./App.css";
-import React, { useState, useEffect } from "react";
+import React, { lazy, useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import axios from "./lib/axios_instance";
 
@@ -16,17 +16,17 @@ import { DEFAULT_THEME, applyTheme } from "./lib/theme";
 import { getStoredNotificationSettings, normalizeNotificationSettings, storeNotificationSettings } from "./lib/notification-settings";
 
 import Loading from "./pages/components/general/loading";
-
-import Signup from "./pages/signup";
-import Setup from "./pages/setup";
-import FirstRunExtras from "./pages/first-run-extras";
-import Login from "./pages/login";
-
-import Navbar from "./pages/components/general/navbar";
 import ErrorPage from "./pages/components/general/error";
-import WhatsNewModal from "./pages/components/general/WhatsNewModal";
 import routes from "./routes";
 import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
+import { APP_VERSION_STORAGE_KEY } from "./lib/events";
+
+const Signup = lazy(() => import("./pages/signup"));
+const Setup = lazy(() => import("./pages/setup"));
+const FirstRunExtras = lazy(() => import("./pages/first-run-extras"));
+const Login = lazy(() => import("./pages/login"));
+const Navbar = lazy(() => import("./pages/components/general/navbar"));
+const WhatsNewModal = lazy(() => import("./pages/components/general/WhatsNewModal"));
 
 function notificationKind(message) {
   const type = String(message?.type || "").toLowerCase();
@@ -95,6 +95,7 @@ function App() {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorFlag, seterrorFlag] = useState(false);
+  const [startupErrorMessage, setStartupErrorMessage] = useState("Error: Unable to connect to JellyGlance Backend");
   const [notificationSettings, setNotificationSettings] = useState(getStoredNotificationSettings);
   const token = localStorage.getItem("token");
   const shouldShowFirstRunExtras =
@@ -103,7 +104,7 @@ function App() {
     token !== null &&
     config?.settings?.firstRunExtrasCompleted !== true &&
     (localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true" || config?.settings?.firstRunExtrasPending === true);
-  const kioskMode = window.location.pathname === "/home/kiosk";
+  const kioskMode = window.location.pathname === "/home/kiosk" || window.location.pathname === "/kiosk";
 
   const wsListeners = [
     { task: "PlaybackSyncTask", ref: React.useRef(null) },
@@ -234,10 +235,15 @@ function App() {
         .then(async (response) => {
           if (response.status === 200) {
             setSetupState(response.data.state);
+            if (response.data.version) {
+              localStorage.setItem(APP_VERSION_STORAGE_KEY, response.data.version);
+            }
           }
         })
         .catch((error) => {
           console.log(error);
+          const message = error.response?.data?.message || error.response?.data?.error || error.message;
+          setStartupErrorMessage(error.response?.status ? `Error ${error.response.status}: ${message}` : "Error: Unable to connect to JellyGlance Backend");
           seterrorFlag(true);
         });
     }
@@ -277,7 +283,7 @@ function App() {
   }
 
   if (errorFlag) {
-    return <ErrorPage message={"Error: Unable to connect to JellyGlance Backend"} />;
+    return <ErrorPage message={startupErrorMessage} />;
   }
 
   if (!config && setupState === 2 && (token === undefined || token === null)) {

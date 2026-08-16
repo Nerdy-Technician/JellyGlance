@@ -7,10 +7,10 @@ import SpeedLineIcon from "remixicon-react/SpeedLineIcon";
 import Movie2LineIcon from "remixicon-react/Movie2LineIcon";
 import MailLineIcon from "remixicon-react/MailLineIcon";
 import axios from "../../../lib/axios_instance";
+import { APP_VERSION_STORAGE_KEY, OPEN_WHATS_NEW_EVENT } from "../../../lib/events";
 import releaseNotes from "../../../whats-new.json";
 
 const SEEN_VERSION_KEY = "jellyglance_whats_new_seen_version";
-export const OPEN_WHATS_NEW_EVENT = "jellyglance-open-whats-new";
 
 const iconMap = {
   magic: MagicLineIcon,
@@ -41,6 +41,15 @@ export default function WhatsNewModal({ enabled = true }) {
 
   useEffect(() => {
     if (!enabled) return;
+
+    const cachedVersion = localStorage.getItem(APP_VERSION_STORAGE_KEY);
+    if (cachedVersion) {
+      setVersion(cachedVersion);
+      if (localStorage.getItem(SEEN_VERSION_KEY) !== cachedVersion) {
+        setShow(true);
+      }
+      return;
+    }
 
     let active = true;
     axios

@@ -199,6 +199,8 @@ router.get("/getLibraryOverview", async (req, res) => {
 
 router.get("/getHomeDashboard", async (req, res) => {
   try {
+    const settingsResult = await db.query('SELECT settings FROM app_config where "ID"=1').catch(() => ({ rows: [] }));
+    const excludedUsers = Array.isArray(settingsResult.rows?.[0]?.settings?.ExcludedUsers) ? settingsResult.rows[0].settings.ExcludedUsers : [];
     const [
       playbackTotals,
       peakHours,
@@ -260,10 +262,11 @@ router.get("/getHomeDashboard", async (req, res) => {
           COALESCE(sum(a."PlaybackDuration"), 0)::bigint AS "WatchSeconds"
         FROM jf_users u
         LEFT JOIN jf_playback_activity a ON a."UserId" = u."Id"
+        WHERE array_length($1::text[], 1) IS NULL OR u."Id" <> ALL($1::text[])
         GROUP BY u."Id", u."Name", u."PrimaryImageTag"
         ORDER BY count(a."Id") DESC, COALESCE(sum(a."PlaybackDuration"), 0) DESC, u."Name" ASC
         LIMIT 5
-      `),
+      `, [excludedUsers]),
       db.query(`
         WITH library_plays AS (
           SELECT

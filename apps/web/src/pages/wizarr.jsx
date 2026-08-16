@@ -226,18 +226,22 @@ export default function WizarrPage() {
           <article>
             <span>Total invites</span>
             <strong>{data?.status?.invites ?? inviteStats.all}</strong>
+            <small>All links</small>
           </article>
           <article>
             <span>Active</span>
             <strong>{inviteStats.active}</strong>
+            <small>Ready to use</small>
           </article>
           <article>
             <span>Users</span>
             <strong>{data?.status?.users ?? 0}</strong>
+            <small>Wizarr accounts</small>
           </article>
           <article>
             <span>Servers</span>
             <strong>{data?.servers?.length ?? 0}</strong>
+            <small>Destinations</small>
           </article>
         </section>
       ) : null}
@@ -419,7 +423,7 @@ export default function WizarrPage() {
                   <button type="button" onClick={() => copyInvite(invite)} disabled={!invite.url} title="Copy invite link">
                     <ClipboardLineIcon size={18} />
                   </button>
-                  <a href={invite.url} target="_blank" rel="noreferrer" title="Open invite">
+                  <a href={invite.url || "#"} target="_blank" rel="noreferrer" title="Open invite" aria-disabled={!invite.url}>
                     <ExternalLinkLineIcon size={18} />
                   </a>
                   <button type="button" className="is-danger" onClick={() => deleteInvite(invite)} title="Delete invite">

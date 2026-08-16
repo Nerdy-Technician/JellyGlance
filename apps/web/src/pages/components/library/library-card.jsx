@@ -157,6 +157,8 @@ function LibraryCard(props) {
                 className="library-list-image"
                 src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=320&quality=55"}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 onError={() => setImageLoaded(false)}
               />
             ) : (
@@ -215,7 +217,9 @@ function LibraryCard(props) {
             <Card.Img
               variant="top"
               className="library-card-banner library-card-banner-hover"
-              src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=800&quality=60"}
+              src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=560&quality=55"}
+              loading="lazy"
+              decoding="async"
               onError={() => setImageLoaded(false)}
             />
           ) : (

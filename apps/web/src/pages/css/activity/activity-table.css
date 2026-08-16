@@ -5,7 +5,7 @@
 }
 
 .activity-mrt-paper .MuiTable-root {
-  min-width: 980px;
+  min-width: 1120px;
 }
 
 .activity-mrt-paper .MuiTableHead-root .MuiTableRow-root {
@@ -82,8 +82,42 @@
 }
 
 .activity-user-link {
+  display: inline-grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
   color: #dfe7f2 !important;
   font-weight: 680;
+}
+
+.activity-user-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-user-avatar,
+.activity-user-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.3);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(var(--primary-rgb), 0.26), rgba(12, 17, 25, 0.94));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.activity-user-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.activity-user-avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .activity-title-link {
@@ -127,16 +161,39 @@
 }
 
 .activity-title-copy {
-  display: block;
+  display: grid;
+  gap: 4px;
   min-width: 0;
+  overflow: hidden;
+}
+
+.activity-title-copy strong,
+.activity-title-copy small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.activity-title-copy strong {
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.activity-title-copy small {
+  color: #91a0b4;
+  font-size: 11px;
+  font-weight: 680;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .activity-client-link {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  overflow: hidden;
   border: 1px solid rgba(var(--secondary-rgb), 0.22);
   border-radius: 6px;
   padding: 4px 8px;
@@ -144,6 +201,8 @@
   background: rgba(var(--secondary-rgb), 0.08);
   font-size: 12px;
   font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .activity-method-pill {
@@ -157,6 +216,7 @@
   font-size: 12px;
   font-weight: 650;
   text-decoration: none !important;
+  white-space: nowrap;
 }
 
 .activity-method-pill.is-transcode {
@@ -179,6 +239,22 @@
   color: #b9c5d4;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.activity-device-cell,
+.activity-ip-cell,
+.activity-ip-link {
+  display: block;
+  overflow: hidden;
+  color: #c8d3e1;
+  font-size: 12px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-ip-link {
+  color: #adddeb !important;
 }
 
 .activity-duration-cell {

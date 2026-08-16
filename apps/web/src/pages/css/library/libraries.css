@@ -1,5 +1,9 @@
 .libraries {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: hidden;
   padding: 28px clamp(18px, 3vw, 42px) 48px;
   background:
     radial-gradient(circle at 18% 0%, rgba(var(--primary-rgb), 0.18), transparent 32%),
@@ -92,7 +96,10 @@
 
 .libraries-container {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 18px;
   color: white;
 }
@@ -305,13 +312,13 @@
 
 @media (max-width: 1280px) {
   .libraries-container {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   }
 }
 
 @media (max-width: 980px) {
   .libraries-container {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   }
 }
 

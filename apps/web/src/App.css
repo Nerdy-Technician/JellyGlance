@@ -1,10 +1,14 @@
 @import "pages/css/variables.css";
+:root {
+  --jg-sidebar-width: 250px;
+}
+
 .app-shell-main {
   flex: 1 1 auto;
   width: auto !important;
   min-width: 0;
   max-width: 100%;
-  min-height: 100vh;
+  min-height: 125vh;
   margin-inline: 0;
   padding: 16px;
   overflow: auto;
@@ -15,9 +19,11 @@
 
 .App > .d-flex {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
-.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .watch-stats, .user-profile-page, .Home) {
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .transcodes-page, .watch-stats, .user-profile-page, .Home) {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -30,13 +36,21 @@
   align-self: start;
 }
 
+@media (min-width: 901px) and (hover: hover) {
+  .app-shell-main {
+    width: calc(125vw - var(--jg-sidebar-width, 250px)) !important;
+    max-width: calc(125vw - var(--jg-sidebar-width, 250px));
+    overflow-x: hidden;
+  }
+}
+
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
   .App > .d-flex {
     flex-direction: column !important;
   }
 
   .app-shell-main {
-    min-height: 100vh;
+    min-height: 125vh;
     padding: 10px 10px calc(88px + env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;
   }

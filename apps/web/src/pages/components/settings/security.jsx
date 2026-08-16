@@ -14,6 +14,11 @@ import UserSettingsLineIcon from "remixicon-react/UserSettingsLineIcon";
 import { Link } from "react-router-dom";
 
 import Config from "../../../lib/config";
+import {
+  ACTIVE_SESSION_IP_PRIVACY_OPTIONS,
+  getActiveSessionIpPrivacy,
+  setActiveSessionIpPrivacy,
+} from "../../../lib/privacy-settings";
 
 import "../../css/settings/settings.css";
 import { InputGroup } from "react-bootstrap";
@@ -43,10 +48,13 @@ export default function SecuritySettings() {
   const [authMode, setAuthMode] = useState("quick-connect");
   const [showOidcSecret, setShowOidcSecret] = useState(false);
   const [oidcValues, setOidcValues] = useState({});
+  const [activeSessionIpPrivacy, setActiveSessionIpPrivacyState] = useState(() => getActiveSessionIpPrivacy());
   const [saving, setSaving] = useState(false);
   const [isSubmitted, setisSubmitted] = useState("");
   const [submissionMessage, setsubmissionMessage] = useState("");
   const token = localStorage.getItem("token");
+  const activeAuthMode = authModes.find((mode) => mode.id === authMode) || authModes[0];
+  const activePrivacyMode = ACTIVE_SESSION_IP_PRIVACY_OPTIONS.find((option) => option.id === activeSessionIpPrivacy) || ACTIVE_SESSION_IP_PRIVACY_OPTIONS[0];
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -125,9 +133,67 @@ export default function SecuritySettings() {
     setOidcValues({ ...oidcValues, [event.target.name]: event.target.value });
   }
 
+  function handleActiveSessionIpPrivacyChange(value) {
+    const nextValue = setActiveSessionIpPrivacy(value);
+    setActiveSessionIpPrivacyState(nextValue);
+    setisSubmitted("Success");
+    setsubmissionMessage("Active Sessions IP privacy updated.");
+  }
+
   return (
-    <div>
-      <h1>Security</h1>
+    <div className="security-page">
+      <header className="security-hero">
+        <div>
+          <span>Access Control</span>
+          <h1>Security</h1>
+          <p>Manage sign-in, identity providers, and what sensitive session details are visible on shared screens.</p>
+        </div>
+        <div className="security-current-stack" aria-label="Current security settings">
+          <article>
+            <LoginCircleLineIcon size={18} />
+            <span>Authentication</span>
+            <strong>{activeAuthMode.title}</strong>
+          </article>
+          <article>
+            <ShieldKeyholeLineIcon size={18} />
+            <span>IP Privacy</span>
+            <strong>{activePrivacyMode.title}</strong>
+          </article>
+        </div>
+      </header>
+
+      {isSubmitted !== "" ? (
+        <Alert bg="dark" data-bs-theme="dark" variant={isSubmitted === "Failed" ? "danger" : "success"} className="security-status-alert">
+          {submissionMessage}
+        </Alert>
+      ) : null}
+
+      <section className="settings-form security-auth-form security-privacy-form">
+        <div className="security-auth-header">
+          <div>
+            <h2>Active Sessions privacy</h2>
+            <p>Choose where JellyGlance hides viewer IP addresses in Active Sessions cards and details.</p>
+          </div>
+          <strong>{activePrivacyMode.title}</strong>
+        </div>
+
+        <div className="security-auth-grid security-privacy-grid" role="radiogroup" aria-label="Active Sessions IP privacy">
+          {ACTIVE_SESSION_IP_PRIVACY_OPTIONS.map(({ id, title, text }) => (
+            <button
+              key={id}
+              type="button"
+              className={`security-auth-card ${activeSessionIpPrivacy === id ? "is-active" : ""}`}
+              onClick={() => handleActiveSessionIpPrivacyChange(id)}
+            >
+              <ShieldKeyholeLineIcon size={22} />
+              <span>
+                <strong>{title}</strong>
+                <small>{text}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <Form onSubmit={handleAuthSubmit} className="settings-form security-auth-form">
         <div className="security-auth-header">
@@ -135,7 +201,7 @@ export default function SecuritySettings() {
             <h2>Authentication</h2>
             <p>Choose how JellyGlance signs users in after Jellyfin setup.</p>
           </div>
-          <strong>{authModes.find((mode) => mode.id === authMode)?.title}</strong>
+          <strong>{activeAuthMode.title}</strong>
         </div>
 
         <div className="security-auth-grid" role="radiogroup" aria-label="Authentication mode">
@@ -227,19 +293,7 @@ export default function SecuritySettings() {
           </div>
         )}
 
-        {isSubmitted !== "" ? (
-          isSubmitted === "Failed" ? (
-            <Alert bg="dark" data-bs-theme="dark" variant="danger">
-              {submissionMessage}
-            </Alert>
-          ) : (
-            <Alert bg="dark" data-bs-theme="dark" variant="success">
-              {submissionMessage}
-            </Alert>
-          )
-        ) : null}
-
-        <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center">
+        <div className="security-form-actions">
           <Button variant="outline-success" type="submit" disabled={saving}>
             {saving ? <Spinner animation="border" size="sm" /> : authMode === "oidc" ? "Test & Save" : "Save Authentication"}
           </Button>

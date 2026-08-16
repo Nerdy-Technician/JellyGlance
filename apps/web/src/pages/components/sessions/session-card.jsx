@@ -81,6 +81,7 @@ function SessionCardDetailRow({ label, children, className = "" }) {
 
 function SessionCard(props) {
   const session = props.data.session;
+  const hideIpAddress = Boolean(props.hideIpAddress);
   const nowPlaying = session.NowPlayingItem;
   const playState = session.PlayState;
   const mediaItemId = props.data.session.NowPlayingItem.SeriesId
@@ -239,7 +240,7 @@ function SessionCard(props) {
             <SessionDetailItem label="Viewer" value={session.UserName} />
             <SessionDetailItem label="Device" value={session.DeviceName} />
             <SessionDetailItem label="Client" value={`${session.Client || "Unknown"} ${session.ApplicationVersion || ""}`.trim()} />
-            <SessionDetailItem label="IP address" value={session.RemoteEndPoint} />
+            {!hideIpAddress ? <SessionDetailItem label="IP address" value={session.RemoteEndPoint} /> : null}
             <SessionDetailItem label="Container" value={nowPlaying.ContainerStream} />
             <SessionDetailItem label="Video" value={nowPlaying.VideoStream} wide />
             <SessionDetailItem label="Video bitrate" value={nowPlaying.VideoBitrateStream} />
@@ -391,6 +392,7 @@ function SessionCard(props) {
                       </SessionCardDetailRow>
                     )}
 
+                    {!hideIpAddress ? (
                     <SessionCardDetailRow label={<Trans i18nKey="ACTIVITY_TABLE.IP_ADDRESS" />} className="mt-2">
                         {isRemoteSession(props.data.session.RemoteEndPoint) &&
                         (window.env?.JS_GEOLITE_ACCOUNT_ID ?? import.meta.env.JS_GEOLITE_ACCOUNT_ID) ? (
@@ -404,6 +406,7 @@ function SessionCard(props) {
                           <span>{props.data.session.RemoteEndPoint}</span>
                         )}
                     </SessionCardDetailRow>
+                    ) : null}
 
                     <SessionCardDetailRow label="ETA">
                         {props.data.session.NowPlayingItem.RunTimeTicks ||

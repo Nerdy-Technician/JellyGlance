@@ -5,6 +5,9 @@ title: JellyGlance v1.2.3 Beta 1
 
 Welcome to the big UI beta.
 
+This one is all about turning JellyGlance into a cleaner, calmer, more useful control centre. The pages have had a proper redesign pass, Settings has been reorganised, Tdarr gets a real home, Kiosk mode is customisable, and a lot of the small visual snags have been polished away.
+
+It is still a beta, but it is a very busy little beta.
 
 ## The Big Glow-Up
 
@@ -12,6 +15,8 @@ Welcome to the big UI beta.
 
 - Refreshed the main UI across Home, Settings, Statistics, Requests, Activity, Users, Wizarr, About, and integrations.
 - Tightened page spacing, card sizing, modal sizing, and sidebar behaviour.
+- Reduced oversized areas after the v1.2.2 reset while keeping the current JellyGlance colour style.
+- Improved overflow handling so Settings tabs and dense pages stop wandering off-screen.
 - Cleaned up hover states, active pills, category labels, and sidebar twitching.
 
 ### A Smarter Home
@@ -79,7 +84,7 @@ Welcome to the big UI beta.
 ### Theme And Appearance
 
 - Improved theme preset previews.
-- Theme changes now preview first
+- Theme changes now preview first and only apply after pressing Update.
 - Added a Custom theme option.
 - Improved custom colour handling.
 - Cleaned up profile modal sizing, alignment, text readability, and footer buttons.
@@ -142,6 +147,16 @@ Welcome to the big UI beta.
 - Removed bot wording from contributor display.
 - Reworked the contributor area so it sits in a more useful place.
 
+## Fixes And Tiny Sharp Edges Removed
+
+- Fixed the profile/account hover pill so it fills the row properly.
+- Removed broad global nav hover styling that leaked into Settings.
+- Fixed category highlighting in Settings.
+- Fixed Settings sidebar twitching by replacing the generated sidebar tab nav with stable grouped markup.
+- Improved backup page sizing.
+- Improved authorised devices and plugin cards.
+- Improved active transcode page loading behaviour.
+- Fixed multiple cases where text, pills, cards, or controls could clip, drift, or feel cramped.
 
 ## Beta Notes
 
