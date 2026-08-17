@@ -19,6 +19,10 @@ export default defineConfig(({ mode }) => {
       },
     },
 
+    resolve: {
+      dedupe: ["react", "react-dom"],
+    },
+
     server: {
       port: 3001,
       proxy: {

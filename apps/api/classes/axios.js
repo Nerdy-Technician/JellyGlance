@@ -1,6 +1,6 @@
 const axios = require("axios");
 const https = require('https');
-const CacheableLookup = require('cacheable-lookup');
+const CacheableLookup = require('cacheable-lookup').default;
 
 const cacheable = new CacheableLookup();
 
