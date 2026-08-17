@@ -420,7 +420,7 @@ writeEnvVariables().then(() => {
       },
     })
   );
-  app.get("*", (req, res, next) => {
+  app.get("/{*splat}", (req, res, next) => {
     if (req.url.includes("socket.io")) {
       return next();
     }
