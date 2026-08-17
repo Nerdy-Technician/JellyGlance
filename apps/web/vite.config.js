@@ -19,6 +19,12 @@ export default defineConfig(({ mode }) => {
       },
     },
 
+    // Keep React and ReactDOM on the same instance when workspace dependencies
+    // bring in another compatible React version as a peer dependency.
+    resolve: {
+      dedupe: ["react", "react-dom"],
+    },
+
     server: {
       port: 3001,
       proxy: {
