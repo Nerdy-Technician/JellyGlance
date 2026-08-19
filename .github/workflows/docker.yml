@@ -34,10 +34,9 @@ jobs:
         with:
           images: ghcr.io/nerdy-technician/jellyglance
           tags: |
-            type=ref,event=branch
-            type=ref,event=tag
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=beta,enable=${{ github.ref == 'refs/heads/BETA' }}
-            type=sha
       - uses: docker/build-push-action@v7
         with:
           context: .

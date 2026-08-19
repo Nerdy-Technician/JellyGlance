@@ -219,8 +219,8 @@ jobs:
             type=raw,value=${{ steps.release.outputs.tag }}
             type=raw,value=${{ steps.release.outputs.version }}
             type=raw,value=latest,enable=${{ steps.release.outputs.is_beta != 'true' }}
+            type=raw,value=main,enable=${{ steps.release.outputs.is_beta != 'true' }}
             type=raw,value=beta,enable=${{ steps.release.outputs.is_beta == 'true' }}
-            type=sha
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
