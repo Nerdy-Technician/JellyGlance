@@ -17,7 +17,6 @@ permissions:
   contents: write
   packages: write
   pull-requests: write
-  workflows: write
 
 concurrency:
   group: file-release
