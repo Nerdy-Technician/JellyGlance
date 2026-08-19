@@ -207,12 +207,27 @@ const taskRateLimit = createRateLimiter({
 function typeInferenceMiddleware(req, res, next) {
   Object.keys(req.query).forEach((key) => {
     const value = req.query[key];
-    if (value.toLowerCase() === "true" || value.toLowerCase() === "false") {
-      // Convert to boolean
-      req.query[key] = value.toLowerCase() === "true";
-    } else if (!isNaN(value) && value.trim() !== "") {
-      // Convert to number if it's a valid number
-      req.query[key] = +value;
+
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true" || value.toLowerCase() === "false") {
+        req.query[key] = value.toLowerCase() === "true";
+      } else if (value.trim() !== "" && !Number.isNaN(Number(value))) {
+        req.query[key] = +value;
+      }
+    }
+
+    if (Array.isArray(value)) {
+      req.query[key] = value.map((item) => {
+        if (typeof item !== "string") {
+          return item;
+        }
+
+        if (item.toLowerCase() === "true" || item.toLowerCase() === "false") {
+          return item.toLowerCase() === "true";
+        }
+
+        return item.trim() !== "" && !Number.isNaN(Number(item)) ? +item : item;
+      });
     }
   });
   next();
@@ -338,7 +353,7 @@ app.use((req, res, next) => {
 app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", proxyRouter, () => {
+app.use("/proxy", authenticate, authorizeApiRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);

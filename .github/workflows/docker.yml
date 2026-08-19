@@ -5,6 +5,12 @@ on:
     branches:
       - main
       - BETA
+    paths:
+      - ".github/RELEASE"
+      - ".github/RELEASE.beta"
+      - ".github/RELEASE.BETA"
+      - ".github/release.md"
+      - ".github/release-beta.md"
   workflow_dispatch:
 
 permissions:

@@ -17,3 +17,5 @@ This beta introduces practical improvements around integrations and activity rep
 - Improved user avatar handling in the top navigation when user identity comes from JWT-backed sessions.
 - Improved the Active Transcodes page behaviour by loading active jobs more consistently with cleaner live updates.
 - Added richer playback and download webhook notifications when playback starts/ends and downloads are added/completed/failed.
+
+Closes: #64, #50, #31

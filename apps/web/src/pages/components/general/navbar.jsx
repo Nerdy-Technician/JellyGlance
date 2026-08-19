@@ -23,9 +23,27 @@ import { FONT_WEIGHT_OPTIONS, getStoredFontWeight, saveFontWeightPreference } fr
 import { DEFAULT_THEME, THEME_PRESETS, getStoredTheme, resetTheme, saveTheme } from "../../../lib/theme";
 import { applyNavOrder, getStoredHiddenNavLinks, getStoredNavOrder, LOCKED_NAV_LINKS } from "../../../lib/nav-order";
 
+function getTokenPayload() {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+  try {
+    return JSON.parse(window.atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return null;
+  }
+}
+
 function getCachedConfig() {
   try {
-    return JSON.parse(localStorage.getItem("config") || "{}");
+    const config = JSON.parse(localStorage.getItem("config") || "{}");
+    // Merge jellyfinUser from the JWT token so the avatar is always available
+    const tokenUser = getTokenPayload()?.user;
+    if (tokenUser?.jellyfinUser && !config.settings?.auth?.jellyfinUser) {
+      config.settings = config.settings || {};
+      config.settings.auth = config.settings.auth || {};
+      config.settings.auth.jellyfinUser = tokenUser.jellyfinUser;
+    }
+    return config;
   } catch {
     return {};
   }
@@ -200,7 +218,11 @@ export default function Navbar() {
   const isJellyfinAdmin = currentRole === "Owner" || currentRole === "Admin";
   const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? "Jellyfin Admin" : "Jellyfin User") : authMode === "oidc" ? "OIDC User" : "Local User";
   const showServerManagementNav = isJellyfinAdmin;
-  const jellyfinAvatar = jellyfinUser?.id ? `${baseUrl}/proxy/Users/Images/Primary?id=${jellyfinUser.id}&fillWidth=160&quality=80` : "";
+  const jellyfinUserId = jellyfinUser?.id || jellyfinUser?.Id || jellyfinUser?.userId || jellyfinUser?.UserId;
+  const jellyfinImageTag = jellyfinUser?.primaryImageTag || jellyfinUser?.PrimaryImageTag || jellyfinUser?.imageTags?.Primary || jellyfinUser?.ImageTags?.Primary;
+  const jellyfinAvatar = jellyfinUserId
+    ? `${baseUrl}/proxy/Users/Images/Primary/?id=${encodeURIComponent(jellyfinUserId)}${jellyfinImageTag ? `&tag=${encodeURIComponent(jellyfinImageTag)}` : ""}&fillWidth=160&quality=80`
+    : "";
   const avatarSrc = jellyfinAvatar || (canUploadAvatar ? customAvatar : "");
   const activeThemePreset = THEME_PRESETS.find(
     (preset) =>

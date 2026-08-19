@@ -279,16 +279,22 @@ async function testArrIntegration(integration) {
   const url = cleanIntegrationUrl(integration.values?.url);
   const apiKey = integration.values?.secret;
   const name = String(integration.name).toLowerCase();
+  if (isTdarrIntegration(integration)) {
+    return testTdarrIntegration(integration);
+  }
   const isSeerr = name.includes("jellyseerr") || name.includes("overseerr");
   const isBazarr = name === "bazarr";
   const isLidarr = name === "lidarr";
   const isProwlarr = name === "prowlarr";
+  const isSickChill = name === "sickchill";
   const apiPaths = isSeerr
     ? ["/api/v1/status"]
     : isBazarr
     ? ["/api/system/status", "/api/system/status?apikey=:apiKey"]
     : isProwlarr
     ? ["/api/v1/system/status"]
+    : isSickChill
+    ? ["/api/:apiKey/?cmd=sb.ping"]
     : [isLidarr ? "/api/v1/system/status" : "/api/v3/system/status"];
 
   if (!url || !apiKey) {
@@ -303,6 +309,13 @@ async function testArrIntegration(integration) {
         timeout: 10000,
         headers: { "X-Api-Key": apiKey },
       });
+      if (isSickChill && String(response.data?.result || "").toLowerCase() === "success") {
+        return {
+          ok: true,
+          version: "SickChill API",
+          message: response.data.message || "Connected to SickChill",
+        };
+      }
       const version = extractIntegrationVersion(response.data);
 
       if (version) {
@@ -615,6 +628,12 @@ function extractTdarrCodec(record = {}, side = "from") {
 }
 
 function normalizeTdarrProgress(value) {
+  if (typeof value === "string") {
+    const text = value.trim();
+    const percentMatch = text.match(/^(-?\d+(?:\.\d+)?)\s*%$/);
+    if (percentMatch) return Math.max(0, Math.min(100, Number(percentMatch[1])));
+    value = text;
+  }
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.max(0, Math.min(100, number > 1 ? number : number * 100));
@@ -623,9 +642,18 @@ function normalizeTdarrProgress(value) {
 function getTdarrExplicitProgress(record = {}) {
   const candidates = [
     record.progress,
+    record.progressPercent,
+    record.percentageComplete,
+    record.percentComplete,
+    record.transcodeProgress,
     record.percent,
     record.percentage,
     record.transcodePercent,
+    record.TranscodeProgress,
+    record.TranscodePercent,
+    record.Progress,
+    record.Percent,
+    record.Percentage,
     record.worker?.progress,
     record.worker?.percent,
     record.worker?.percentage,
@@ -638,10 +666,60 @@ function getTdarrExplicitProgress(record = {}) {
     record.ffmpeg?.progress,
     record.ffmpeg?.percent,
     record.ffmpeg?.percentage,
+    record.workerItem?.progress,
+    record.workerItem?.percent,
+    record.workerItem?.percentage,
+    record.workerItem?.percentageComplete,
+    record.processData?.progress,
+    record.processData?.percent,
+    record.processData?.percentage,
   ];
 
   const value = candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
-  return value === undefined ? 0 : normalizeTdarrProgress(value);
+  const directProgress = value === undefined ? undefined : normalizeTdarrProgress(value);
+  if (directProgress > 0) return directProgress;
+
+  const ratioProgress = getTdarrRatioProgress(record);
+  if (ratioProgress !== undefined) return ratioProgress;
+
+  const nestedProgress = findTdarrProgressValue(record);
+  if (nestedProgress !== undefined) {
+    const nestedValue = normalizeTdarrProgress(nestedProgress);
+    if (nestedValue > 0 || directProgress === undefined) return nestedValue;
+  }
+  return directProgress || 0;
+}
+
+function getTdarrRatioProgress(record = {}) {
+  const pairs = [
+    [record.currentFrame, record.totalFrames],
+    [record.frames?.current, record.frames?.total],
+    [record.frame, record.frames],
+    [record.ffmpeg?.out_time_ms, record.ffmpeg?.duration_ms],
+    [record.ffmpegData?.out_time_ms, record.ffmpegData?.duration_ms],
+    [record.process?.out_time_ms, record.process?.duration_ms],
+    [record.currentTime, record.totalTime],
+  ];
+  for (const [current, total] of pairs) {
+    const currentNumber = Number(current);
+    const totalNumber = Number(total);
+    if (Number.isFinite(currentNumber) && Number.isFinite(totalNumber) && totalNumber > 0) {
+      return normalizeTdarrProgress(currentNumber / totalNumber);
+    }
+  }
+  return undefined;
+}
+
+function findTdarrProgressValue(value, depth = 0) {
+  if (!value || typeof value !== "object" || depth > 4) return undefined;
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (/(progress|percent|percentage)/i.test(key)) {
+      if (nestedValue !== undefined && nestedValue !== null && nestedValue !== "") return nestedValue;
+    }
+    const result = findTdarrProgressValue(nestedValue, depth + 1);
+    if (result !== undefined) return result;
+  }
+  return undefined;
 }
 
 function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
@@ -917,7 +995,9 @@ function getTdarrActiveCount(active = [], data = {}) {
 
 async function getConnectedTdarrIntegration() {
   const integrations = await getIntegrations();
-  return (integrations.thirdParty || []).find((integration) => integration.connected && isTdarrIntegration(integration));
+  return [...(integrations.thirdParty || []), ...(integrations.arrApps || [])].find(
+    (integration) => integration.connected && isTdarrIntegration(integration)
+  );
 }
 
 async function fetchTdarrCrudDb(integration, payload) {
@@ -962,25 +1042,79 @@ async function fetchTdarrCollection(integration, collection) {
   }
 }
 
-async function fetchTdarrBundle(integration) {
+// Build a map from staged-file ID to live worker progress pulled from /api/v2/get-nodes.
+function mergeNodeProgressIntoStaged(staged, nodesData) {
+  if (!nodesData || typeof nodesData !== "object" || !staged.length) return staged;
+
+  const progressByFileId = new Map();
+  const workers = [];
+  function collectWorkers(value, depth = 0) {
+    if (!value || typeof value !== "object" || depth > 6) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectWorkers(item, depth + 1));
+      return;
+    }
+    const progress = value.percentage ?? value.transcodePercent ?? value.TranscodePercent ?? value.Progress ?? value.progress ?? value.percent;
+    const fileId = value.file || value.fileId || value.filePath || value.path || value._id || value.workerItemId;
+    if (fileId != null && progress != null) workers.push({ fileId: String(fileId), progress });
+    Object.values(value).forEach((child) => collectWorkers(child, depth + 1));
+  }
+  collectWorkers(nodesData);
+
+  for (const worker of workers) {
+    const num = Number(String(worker.progress).replace(/%/, ""));
+    if (Number.isFinite(num)) {
+      progressByFileId.set(worker.fileId, num);
+    }
+  }
+
+  if (!progressByFileId.size) return staged;
+
+  return staged.map((record) => {
+    const ids = [record._id, record.id, record.fileId, record.file, record.filePath, record.path].filter(Boolean).map(String);
+    for (const id of ids) {
+      if (progressByFileId.has(id)) {
+        return { ...record, progress: progressByFileId.get(id) };
+      }
+    }
+    const suffixes = ids.map((id) => id.split(/[\\/]+/).slice(-2).join("/"));
+    const matchingWorker = workers.find((worker) => suffixes.includes(worker.fileId.split(/[\\/]+/).slice(-2).join("/")));
+    if (matchingWorker) return { ...record, progress: matchingWorker.progress };
+    return record;
+  });
+}
+
+async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const [statusResponse, statistics, stagedRows, fileRows] = await Promise.all([
-    axios.get(`${url}/api/v2/status`, {
-      timeout: 12000,
-      headers: getTdarrHeaders(integration),
-    }),
-    fetchTdarrStatistics(integration),
+  const [statusResponse, statistics, stagedRows, fileRows, nodesData] = await Promise.all([
+    axios
+      .get(`${url}/api/v2/status`, {
+        timeout: 12000,
+        headers: getTdarrHeaders(integration),
+      })
+      .catch((error) => {
+        console.log("Tdarr status load failed:", getAxiosErrorMessage(error));
+        return { data: {} };
+      }),
+    activeOnly ? Promise.resolve({}) : fetchTdarrStatistics(integration),
     fetchTdarrCollection(integration, "StagedJSONDB"),
-    fetchTdarrCollection(integration, "FileJSONDB"),
+    activeOnly ? Promise.resolve([]) : fetchTdarrCollection(integration, "FileJSONDB"),
+    axios.get(`${url}/api/v2/get-nodes`, {
+      timeout: 10000,
+      headers: getTdarrHeaders(integration),
+    }).then((r) => r.data || {}).catch(() => ({})),
   ]);
+
+  const stagedWithProgress = mergeNodeProgressIntoStaged(stagedRows, nodesData);
+
   const queuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
   const historyFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
   const [activeWithImages, queuedWithImages, historyWithImages] = await Promise.all([
-    attachJellyfinIdsToTdarrRecords(stagedRows),
-    attachJellyfinIdsToTdarrRecords(queuedFiles),
-    attachJellyfinIdsToTdarrRecords(historyFiles),
+    activeOnly ? Promise.resolve(stagedWithProgress) : attachJellyfinIdsToTdarrRecords(stagedWithProgress),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
   ]);
-  const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages, [...queuedWithImages, ...historyWithImages]);
+  const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages.slice(0, 80), [...queuedWithImages, ...historyWithImages]);
   return {
     ...bundle,
     source: {
@@ -6239,13 +6373,14 @@ router.get("/tdarr/transcodes", async (req, res) => {
     if (!integration) {
       return res.status(404).send({ error: "Connect Tdarr in Settings > Integrations first." });
     }
-    const cacheKey = integration.instanceId || integration.name || cleanIntegrationUrl(integration.values?.url) || "tdarr";
+    const activeOnly = req.query?.activeOnly === "true";
+    const cacheKey = `${integration.instanceId || integration.name || cleanIntegrationUrl(integration.values?.url) || "tdarr"}:${activeOnly ? "active" : "full"}`;
     const cached = tdarrTranscodeCache.get(cacheKey);
     if (req.query?.force !== "true" && cached && Date.now() - cached.cachedAt < TDARR_TRANSCODE_CACHE_TTL_MS) {
       return res.send(cached.data);
     }
 
-    const bundle = await fetchTdarrBundle(integration);
+    const bundle = await fetchTdarrBundle(integration, { activeOnly });
     tdarrTranscodeCache.set(cacheKey, { cachedAt: Date.now(), data: bundle });
     res.send(bundle);
   } catch (error) {

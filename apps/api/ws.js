@@ -4,15 +4,31 @@ const webSocketServerSingleton = require("./ws-server-singleton.js");
 const SocketIoClient = require("./socket-io-client.js");
 const jwt = require("jsonwebtoken");
 
-const token = jwt.sign({ user: "internal" }, process.env.JWT_SECRET);
-const socketClient = new SocketIoClient("http://127.0.0.1:3000", { auth: { token } });
+let socketClient;
 let io; // Store the socket.io server instance
 const JWT_SECRET = process.env.JWT_SECRET;
+
+function createInternalToken() {
+  if (!JWT_SECRET) {
+    throw new Error("JWT Secret cannot be undefined");
+  }
+
+  return jwt.sign({ user: "internal" }, JWT_SECRET);
+}
+
+function getSocketClient() {
+  if (!socketClient) {
+    const token = createInternalToken();
+    socketClient = new SocketIoClient("http://127.0.0.1:3000", { auth: { token } });
+  }
+
+  return socketClient;
+}
 
 const setupWebSocketServer = (server, namespacePath) => {
   io = socketIO(server, { path: namespacePath + "/socket.io" });
 
-  socketClient.connect();
+  getSocketClient().connect();
 
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
@@ -62,12 +78,13 @@ const sendUpdate = async (tag, message) => {
   if (ioInstance) {
     ioInstance.emit(tag, message);
   } else {
-    if (socketClient.client == null || socketClient.client.connected == false) {
-      socketClient.connect();
-      await socketClient.waitForConnection();
+    const client = getSocketClient();
+    if (client.client == null || client.client.connected == false) {
+      client.connect();
+      await client.waitForConnection();
     }
 
-    socketClient.sendMessage({ tag: tag, message: message });
+    client.sendMessage({ tag: tag, message: message });
   }
 };
 
