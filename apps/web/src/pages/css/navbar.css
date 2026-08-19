@@ -728,18 +728,29 @@
   }
 
   .desktop-navigation.is-collapsed .navbar-brand-row {
-    justify-items: center;
+    display: flex;
+    width: 100%;
+    justify-content: center;
     padding: 0;
   }
 
   .desktop-navigation.is-collapsed .navbar .navbar-brand,
   .desktop-navigation.is-collapsed .navbar-brand {
-    margin-top: 4px;
-    padding: 0;
+    display: flex;
+    width: auto;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 0 0 0 !important;
+    padding: 0 !important;
+    transform: none;
   }
 
   .desktop-navigation.is-collapsed .navbar-brand-icon {
+    display: block;
+    width: 42px;
     height: 42px;
+    flex: 0 0 42px;
+    margin: 0 auto;
     padding: 0 !important;
   }
 
@@ -810,30 +821,45 @@
   }
 
   .desktop-navigation.is-collapsed .navbar-footer-account-row {
-    width: auto;
-    grid-template-columns: 46px;
+    width: calc(100% - 10px);
+    grid-template-columns: 54px;
+    grid-template-rows: auto auto;
     justify-items: center;
     gap: 8px;
   }
 
   .desktop-navigation.is-collapsed .account-navitem {
-    width: 46px;
-    min-height: 42px;
+    width: 54px;
+    min-height: 54px;
     justify-content: center;
     padding: 0 !important;
     border-radius: 12px !important;
   }
 
   .desktop-navigation.is-collapsed .account-nav-avatar {
-    width: 30px;
-    height: 30px;
-    flex-basis: 30px;
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
     border-width: 1px;
   }
 
   .desktop-navigation.is-collapsed .account-nav-avatar svg {
     width: 20px;
     height: 20px;
+  }
+
+  .desktop-navigation.is-collapsed .navbar-collapse-toggle {
+    position: static;
+    grid-column: 1;
+    grid-row: 2;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 999px !important;
+    border-color: rgba(var(--primary-light-rgb), 0.14);
+    background: rgba(255, 255, 255, 0.04);
+    color: #94a3b8;
+    transform: none;
   }
 }
 
@@ -845,6 +871,13 @@
     color-mix(in srgb, var(--secondary-background-color) 96%, #000);
   color: #f8fafc;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 125vw !important;
+  height: 125vh !important;
 }
 
 @media (min-width: 901px) {
@@ -927,12 +960,14 @@
 
 .profile-modal-identity {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 13px;
+  gap: 8px;
   padding: 13px;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 999px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.045);
+  text-align: center;
 }
 
 .profile-modal-identity > div:last-child {

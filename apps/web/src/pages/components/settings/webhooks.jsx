@@ -133,6 +133,14 @@ const eventCards = [
   },
 ];
 
+const eventPlaceholderGroups = {
+  playback_started: ["{{UserName}}", "{{ItemName}}", "{{MediaType}}", "{{SeriesName}}", "{{PlayMethod}}", "{{DeviceName}}", "{{ClientName}}"],
+  playback_ended: ["{{UserName}}", "{{ItemName}}", "{{PlaybackDuration}}", "{{StartTime}}", "{{EndTime}}", "{{PlayMethod}}"],
+  download_added: ["{{itemName}}", "{{item.client}}", "{{item.state}}", "{{item.progress}}", "{{item.size}}"],
+  download_completed: ["{{itemName}}", "{{item.client}}", "{{item.size}}", "{{item.addedAt}}"],
+  download_failed: ["{{itemName}}", "{{item.client}}", "{{item.state}}", "{{message}}"],
+};
+
 const defaultWebhook = {
   name: "",
   url: "",
@@ -584,6 +592,16 @@ export default function WebhooksSettings() {
                 );
               })}
             </div>
+            {currentWebhook.events.some((event) => eventPlaceholderGroups[event]) ? (
+              <div className="webhook-placeholder-hint">
+                <strong>Available placeholders</strong>
+                <span>
+                  {[
+                    ...new Set(currentWebhook.events.flatMap((event) => eventPlaceholderGroups[event] || [])),
+                  ].join("  ")}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {currentWebhook.events.some((event) => taskEventIds.includes(event)) ? (

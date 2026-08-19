@@ -47,8 +47,8 @@ function initializeClient(websocketUrl, apiKey) {
           result = result.filter(
             (session) =>
               session.NowPlayingItem !== undefined &&
-              session.NowPlayingItem.Type != "Trailer" &&
-              session.NowPlayingItem.ProviderIds["prerolls.video"] == undefined
+              session.NowPlayingItem?.Type != "Trailer" &&
+              (session.NowPlayingItem?.ProviderIds || {})["prerolls.video"] == undefined
           );
         }
         sessionData = result;

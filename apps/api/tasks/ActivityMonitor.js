@@ -7,7 +7,7 @@ const configClass = require("../classes/config");
 const API = require("../classes/api-loader");
 const { sendUpdate } = require("../ws");
 const { isNumber } = require("../utils/typeValidation");
-// const WebhookManager = require("../classes/webhook-manager");
+const WebhookManager = require("../classes/webhook-manager");
 
 const MINIMUM_SECONDS_TO_INCLUDE_PLAYBACK = process.env.MINIMUM_SECONDS_TO_INCLUDE_PLAYBACK
   ? Number(process.env.MINIMUM_SECONDS_TO_INCLUDE_PLAYBACK)
@@ -17,7 +17,37 @@ const NEW_WATCH_EVENT_THRESHOLD_HOURS = process.env.NEW_WATCH_EVENT_THRESHOLD_HO
   ? Math.max(Math.min(Number(process.env.NEW_WATCH_EVENT_THRESHOLD_HOURS), 12), 1)
   : 1;
 
-// const webhookManager = new WebhookManager();
+const webhookManager = new WebhookManager();
+
+function playbackWebhookData(session, ended = false) {
+  return {
+    sessionInfo: {
+      userId: session.UserId,
+      deviceId: session.DeviceId,
+      deviceName: session.DeviceName,
+      clientName: session.Client,
+      applicationVersion: session.ApplicationVersion,
+      playMethod: session.PlayMethod,
+      isPaused: Boolean(session.IsPaused),
+      playbackDuration: Number(session.PlaybackDuration || 0),
+      startTime: session.ActivityDateInserted,
+      endTime: ended ? new Date().toISOString() : undefined,
+    },
+    userData: {
+      username: session.UserName,
+      userId: session.UserId,
+    },
+    mediaInfo: {
+      itemId: session.NowPlayingItemId,
+      episodeId: session.EpisodeId,
+      seasonId: session.SeasonId,
+      mediaType: session.EpisodeId ? "Episode" : "Movie",
+      mediaName: session.NowPlayingItemName,
+      seriesName: session.SeriesName,
+      playMethod: session.PlayMethod,
+    },
+  };
+}
 
 async function getSessionsInWatchDog(SessionData, WatchdogData) {
   const existingData = await WatchdogData.filter((wdData) => {
@@ -206,41 +236,7 @@ async function ActivityMonitor(defaultInterval) {
       //filter fix if table is empty
 
       if (WatchdogDataToInsert.length > 0) {
-        // for (const session of WatchdogDataToInsert) {
-        //   // let userData = {};
-        //   // try {
-        //   //   const userInfo = await API.getUserById(session.UserId);
-        //   //   if (userInfo) {
-        //   //     userData = {
-        //   //       username: userInfo.Name,
-        //   //       userImageTag: userInfo.PrimaryImageTag
-        //   //     };
-        //   //   }
-        //   // } catch (error) {
-        //   //   console.error(`[WEBHOOK] Error fetching user data: ${error.message}`);
-        //   // }
-
-        //   // await webhookManager.triggerEventWebhooks('playback_started', {
-        //   //   sessionInfo: {
-        //   //     userId: session.UserId,
-        //   //     deviceId: session.DeviceId,
-        //   //     deviceName: session.DeviceName,
-        //   //     clientName: session.ClientName,
-        //   //     isPaused: session.IsPaused,
-        //   //     mediaType: session.MediaType,
-        //   //     mediaName: session.NowPlayingItemName,
-        //   //     startTime: session.ActivityDateInserted
-        //   //   },
-        //   //   userData,
-        //   //   mediaInfo: {
-        //   //     itemId: session.NowPlayingItemId,
-        //   //     episodeId: session.EpisodeId,
-        //   //     mediaName: session.NowPlayingItemName,
-        //   //     seasonName: session.SeasonName,
-        //   //     seriesName: session.SeriesName
-        //   //   }
-        //   // });
-        // }
+        await Promise.all(WatchdogDataToInsert.map((session) => webhookManager.triggerEventWebhooks("playback_started", playbackWebhookData(session))));
 
         //insert new rows where not existing items
         // console.log("Inserted " + WatchdogDataToInsert.length + " wd playback records");
@@ -255,39 +251,7 @@ async function ActivityMonitor(defaultInterval) {
       }
 
       if (dataToRemove.length > 0) {
-        // for (const session of dataToRemove) {
-        //   // let userData = {};
-        //   // try {
-        //   //   const userInfo = await API.getUserById(session.UserId);
-        //   //   if (userInfo) {
-        //   //     userData = {
-        //   //       username: userInfo.Name,
-        //   //       userImageTag: userInfo.PrimaryImageTag
-        //   //     };
-        //   //   }
-        //   // } catch (error) {
-        //   //   console.error(`[WEBHOOK] Error fetching user data: ${error.message}`);
-        //   // }
-
-        //   // await webhookManager.triggerEventWebhooks('playback_ended', {
-        //   //   sessionInfo: {
-        //   //     userId: session.UserId,
-        //   //     deviceId: session.DeviceId,
-        //   //     deviceName: session.DeviceName,
-        //   //     clientName: session.ClientName,
-        //   //     playbackDuration: session.PlaybackDuration,
-        //   //     endTime: session.ActivityDateInserted
-        //   //   },
-        //   //   userData,
-        //   //   mediaInfo: {
-        //   //     itemId: session.NowPlayingItemId,
-        //   //     episodeId: session.EpisodeId,
-        //   //     mediaName: session.NowPlayingItemName,
-        //   //     seasonName: session.SeasonName,
-        //   //     seriesName: session.SeriesName
-        //   //   }
-        //   // });
-        // }
+        await Promise.all( dataToRemove.map((session) => webhookManager.triggerEventWebhooks("playback_ended", playbackWebhookData(session, true))));
 
         const toDeleteIds = dataToRemove.map((row) => row.ActivityId);
 

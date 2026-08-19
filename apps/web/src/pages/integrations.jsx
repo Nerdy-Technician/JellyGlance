@@ -19,6 +19,7 @@ import "./css/integrations.css";
 
 const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
 const tdarrLogoUrl = "https://home.tdarr.io/static/media/logo3-min.246d6df44c7f16ddebaf.png";
+const sickChillLogoUrl = "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sickchill.png";
 const integrationTabItems = [
   ["media-server", "Media Server"],
   ["automation", "Arr Apps"],
@@ -60,6 +61,7 @@ function normalizeIntegrationTabSlug(value = "") {
 
 const automationApps = [
   { name: "Sonarr", slug: "sonarr", purpose: "Series automation", accent: "#35c5f4" },
+  { name: "SickChill", slug: "sickchill", purpose: "Series automation", accent: "#d35b5b" },
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
   { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "var(--secondary-color)" },
   { name: "Prowlarr", slug: "prowlarr", purpose: "Indexer management", accent: "#4aa8f0" },
@@ -97,6 +99,21 @@ const initialAutomationApps = automationApps.map((app, index) => ({
   values: {},
 }));
 
+const defaultAgentOptions = {
+  tv: ["Sonarr", "SickChill"],
+  movies: ["Radarr"],
+  videos: ["Lidarr"],
+};
+
+const defaultAgentMeta = {
+  Sonarr: { slug: "sonarr", accent: "#35c5f4", role: "Series automation" },
+  SickChill: { slug: "sickchill", accent: "#d35b5b", role: "Series automation" },
+  Radarr: { slug: "radarr", accent: "#f4c430", role: "Movie automation" },
+  Tdarr: { slug: "tdarr", accent: "#38bdf8", role: "Media processing" },
+  Lidarr: { slug: "lidarr", accent: "var(--secondary-color)", role: "Music automation" },
+  Jellyfin: { slug: "jellyfin", accent: "#8b5cf6", role: "Media server" },
+};
+
 const seerrAppNames = new Set(["seerr", "jellyseerr", "overseerr"]);
 
 function isSeerrApp(app) {
@@ -104,29 +121,42 @@ function isSeerrApp(app) {
 }
 
 function normalizeAutomationApps(savedApps) {
-  if (!Array.isArray(savedApps) || !savedApps.length) {
+  const automationSavedApps = Array.isArray(savedApps)
+    ? savedApps.filter((app) => !["tdarr", "wizarr"].includes(String(app.name || app.slug || "").toLowerCase()))
+    : [];
+  if (!automationSavedApps.length) {
     return initialAutomationApps;
   }
 
-  const savedNames = new Set(savedApps.map((app) => String(app.name || "").toLowerCase()));
+  const savedNames = new Set(automationSavedApps.map((app) => String(app.name || "").toLowerCase()));
   const missingDefaults = initialAutomationApps.filter((app) => !savedNames.has(app.name.toLowerCase()));
-  return [...savedApps, ...missingDefaults];
+  return [...automationSavedApps, ...missingDefaults];
 }
 
-function normalizeThirdPartyApps(savedApps) {
-  if (!Array.isArray(savedApps) || !savedApps.length) {
+function normalizeThirdPartyApps(savedApps, legacyAutomationApps = []) {
+  const savedThirdPartyApps = [
+    ...(Array.isArray(savedApps) ? savedApps : []),
+    ...(Array.isArray(legacyAutomationApps)
+      ? legacyAutomationApps.filter((app) => ["tdarr", "wizarr"].includes(String(app.name || app.slug || "").toLowerCase()))
+      : []),
+  ];
+  if (!savedThirdPartyApps.length) {
     return initialThirdPartyApps;
   }
 
-  const savedNames = new Set(savedApps.map((app) => String(app.name || "").toLowerCase()));
+  const savedNames = new Set(savedThirdPartyApps.map((app) => String(app.name || "").toLowerCase()));
   const missingDefaults = initialThirdPartyApps.filter((app) => !savedNames.has(app.name.toLowerCase()));
-  return [...savedApps, ...missingDefaults];
+  return [...savedThirdPartyApps, ...missingDefaults];
 }
 
 function AppIcon({ app }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const normalizedName = String(app.name || "").toLowerCase();
+  const fallback = <span className="integration-fallback-icon">{app.name.slice(0, 2)}</span>;
+  if (imageFailed) return fallback;
+
   if (normalizedName.includes("tdarr")) {
-    return <img src={tdarrLogoUrl} alt="" loading="lazy" decoding="async" />;
+    return <img src={tdarrLogoUrl} alt="" loading="lazy" decoding="async" onError={() => setImageFailed(true)} />;
   }
 
   const iconSlug =
@@ -135,10 +165,11 @@ function AppIcon({ app }) {
       : app.slug;
 
   if (!iconSlug) {
-    return <span className="integration-fallback-icon">{app.name.slice(0, 2)}</span>;
+    return fallback;
   }
 
-  return <img src={iconUrl(iconSlug)} alt="" loading="lazy" decoding="async" />;
+  const source = normalizedName.includes("sickchill") ? sickChillLogoUrl : iconUrl(iconSlug);
+  return <img src={source} alt="" loading="lazy" decoding="async" onError={() => setImageFailed(true)} />;
 }
 
 function formatHealthDate(value) {
@@ -270,6 +301,13 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   const [arrApps, setArrApps] = useState(initialAutomationApps);
   const [clients, setClients] = useState([]);
   const [thirdParty, setThirdParty] = useState(initialThirdPartyApps);
+  const [agentDefaults, setAgentDefaults] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("jellyglance_agent_defaults") || "{}") || {};
+    } catch {
+      return {};
+    }
+  });
   const [selectedClient, setSelectedClient] = useState(downloadClientOptions[0].name);
   const [healthHistory, setHealthHistory] = useState([]);
   const [diagnostics, setDiagnostics] = useState([]);
@@ -279,8 +317,18 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   const [loadedSavedIntegrations, setLoadedSavedIntegrations] = useState(!firstRun);
   const connectorCount = useMemo(() => arrApps.length + clients.length + thirdParty.length, [arrApps.length, clients.length, thirdParty.length]);
   const automationOnlyApps = useMemo(() => arrApps.filter((app) => !isSeerrApp(app)), [arrApps]);
+  const sickChillApps = useMemo(() => automationOnlyApps.filter((app) => String(app.name).toLowerCase() === "sickchill"), [automationOnlyApps]);
+  const primaryAutomationApps = useMemo(() => automationOnlyApps.filter((app) => String(app.name).toLowerCase() !== "sickchill"), [automationOnlyApps]);
   const seerrApps = useMemo(() => arrApps.filter(isSeerrApp), [arrApps]);
   const enabledIntegrations = useMemo(() => [...arrApps, ...clients, ...thirdParty].filter((item) => item.connected), [arrApps, clients, thirdParty]);
+
+  function updateAgentDefault(type, value) {
+    setAgentDefaults((current) => {
+      const next = { ...current, [type]: value };
+      localStorage.setItem("jellyglance_agent_defaults", JSON.stringify(next));
+      return next;
+    });
+  }
   const latestHealthById = useMemo(() => {
     const lookup = new Map();
     healthHistory.forEach((entry) => {
@@ -339,14 +387,14 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
-        setThirdParty(normalizeThirdPartyApps(saved.thirdParty));
+        setThirdParty(normalizeThirdPartyApps(saved.thirdParty, saved.arrApps));
       } catch {
         const saved = loadSavedIntegrations();
         setArrApps(normalizeAutomationApps(saved.arrApps));
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
-        setThirdParty(normalizeThirdPartyApps(saved.thirdParty));
+        setThirdParty(normalizeThirdPartyApps(saved.thirdParty, saved.arrApps));
       }
     }
     loadIntegrations();
@@ -410,7 +458,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
       const imported = parsed.integrations || parsed;
       const nextArrApps = normalizeAutomationApps(imported.arrApps);
       const nextClients = Array.isArray(imported.clients) ? imported.clients : [];
-      const nextThirdParty = normalizeThirdPartyApps(imported.thirdParty);
+      const nextThirdParty = normalizeThirdPartyApps(imported.thirdParty, imported.arrApps);
       setArrApps(nextArrApps);
       setClients(nextClients);
       setThirdParty(nextThirdParty);
@@ -632,6 +680,51 @@ export default function Integrations({ embedded = false, firstRun = false, activ
 
       {activeTab === "media-server" ? <JellyfinIntegrationSettings compact firstRun={firstRun} /> : null}
 
+      {activeTab === "media-server" ? (
+        <section className="integration-agent-panel">
+          <div className="integration-subsection-title">
+            <strong>Default media agents</strong>
+            <span>Choose the preferred service for TV, movies, and audio workflows.</span>
+          </div>
+          <div className="integration-agent-grid">
+            {Object.entries(defaultAgentOptions).map(([type, options]) => {
+              const typeLabel = type === "tv" ? "TV shows" : type === "movies" ? "Movies" : "Audio";
+              const selected = agentDefaults[type] || options[0];
+              return (
+                <div key={type} className="integration-agent-category">
+                  <span className="integration-agent-type-label">{typeLabel}</span>
+                  <div className="integration-agent-choices">
+                    {options.map((option) => {
+                      const meta = defaultAgentMeta[option] || {};
+                      const isSelected = selected === option;
+                      return (
+                        <button
+                          type="button"
+                          key={option}
+                          className={`integration-agent-choice${isSelected ? " is-selected" : ""}`}
+                          style={{ "--agent-accent": meta.accent || "var(--primary-color)" }}
+                          onClick={() => updateAgentDefault(type, option)}
+                          aria-pressed={isSelected}
+                        >
+                          <span className="integration-agent-choice-icon">
+                            <AppIcon app={{ name: option, ...meta }} />
+                          </span>
+                          <span className="integration-agent-choice-copy">
+                            <strong>{option}</strong>
+                            <small>{meta.role || ""}</small>
+                          </span>
+                          {isSelected ? <span className="integration-agent-check">✓</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       {notice ? <div className="integration-notice">{notice}</div> : null}
 
       {activeTab === "automation" ? (
@@ -667,7 +760,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
             </label>
           </div>
           <div className="integration-grid">
-            {automationOnlyApps.map((app) => (
+            {primaryAutomationApps.map((app) => (
               <IntegrationCard
                 key={app.instanceId}
                 app={app}
@@ -680,6 +773,28 @@ export default function Integrations({ embedded = false, firstRun = false, activ
               />
             ))}
           </div>
+          {sickChillApps.length ? (
+            <div className="integration-subsection">
+              <div className="integration-subsection-title">
+                <strong>TV alternative</strong>
+                <span>SickChill can be used instead of Sonarr for series automation.</span>
+              </div>
+              <div className="integration-grid integration-grid-single-row">
+                {sickChillApps.map((app) => (
+                  <IntegrationCard
+                    key={app.instanceId}
+                    app={app}
+                    type="automation"
+                    onChange={(instanceId, field, value) => updateIntegration("arrApps", setArrApps, instanceId, field, value)}
+                    onRemove={(instanceId) => removeIntegration("arrApps", setArrApps, instanceId)}
+                    onSave={(instanceId) => saveIntegration("arrApps", setArrApps, instanceId)}
+                    onTest={(instanceId) => testIntegration("arrApps", setArrApps, instanceId)}
+                    onCopySecret={copySecret}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="integration-link-panel">
             <div>
               <strong>Automation health</strong>

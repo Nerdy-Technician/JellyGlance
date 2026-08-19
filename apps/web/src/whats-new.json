@@ -1,4 +1,11 @@
 {
+  "1.2.3.beta.3": [
+    {
+      "icon": "magic",
+      "title": "Integrations and activity improvements",
+      "body": "Added SickChill as a TV automation option, default media-agent presets for TV/movies/audio, clearer webhook placeholders, and improved Active Transcodes loading plus richer playback/download webhook notifications."
+    }
+  ],
   "1.2.3.beta.1": [
     {
       "icon": "palette",

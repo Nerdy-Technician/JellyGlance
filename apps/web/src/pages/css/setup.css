@@ -1024,6 +1024,11 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.setup-card.is-wide .setup-extra-panel .integrations-page.is-embedded .integration-subsection .integration-grid-single-row {
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .setup-import-note,
 .setup-sync-panel {
   display: grid;
@@ -1132,12 +1137,14 @@
 }
 
 .auth-page {
-  position: relative;
+  position: fixed;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  width: 100%;
+  min-height: 125vh;
+  height: 125vh;
+  width: 125vw;
   padding: 24px;
   overflow: hidden;
   background:

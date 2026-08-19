@@ -141,6 +141,29 @@
   color: #f8fafc !important;
 }
 
+.webhook-placeholder-hint {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 9px;
+  background: rgba(var(--primary-rgb), 0.08);
+}
+
+.webhook-placeholder-hint strong {
+  color: #f8fafc;
+  font-size: 11px;
+}
+
+.webhook-placeholder-hint span {
+  overflow-wrap: anywhere;
+  color: #c9b5d5;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .nav-order-settings {
   display: grid;
   gap: 14px;

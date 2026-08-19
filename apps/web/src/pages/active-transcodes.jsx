@@ -19,7 +19,7 @@ const emptyBundle = { active: [], queued: [], history: [], stats: {} };
 function readTranscodesCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(TRANSCODES_CACHE_KEY) || "null");
-    if (!cached?.data || Date.now() - Number(cached.cachedAt || 0) > TRANSCODES_CACHE_MAX_AGE_MS) return null;
+    if (!cached?.data || Date.now() - Number(cached.cachedAt || 0) > TRANSCODES_CACHE_MAX_AGE_MS * 15) return null;
     return cached;
   } catch {
     return null;
@@ -72,7 +72,7 @@ function JobCard({ job, kind }) {
     : {};
   const progress = Number(job.progress || 0);
   const showProgress = kind === "active";
-  const progressLabel = progress > 0 ? `${Math.round(progress)}% complete` : "In progress";
+  const progressLabel = progress > 0 ? `${Math.round(progress)}% complete` : "Transcoding...";
   const historySizes = [formatBytes(job.sizeBefore), formatBytes(job.sizeAfter)].filter(Boolean);
   const savedLabel = formatSaved(job);
 
@@ -133,6 +133,7 @@ export default function ActiveTranscodes() {
   const [bundle, setBundle] = useState(() => cachedTranscodes?.data || emptyBundle);
   const [loading, setLoading] = useState(() => !cachedTranscodes);
   const [error, setError] = useState("");
+  const [hasEverLoaded, setHasEverLoaded] = useState(Boolean(cachedTranscodes));
   const [lastUpdated, setLastUpdated] = useState(() => cachedTranscodes?.cachedAt || null);
 
   const jobs = useMemo(() => bundle[activeTab] || [], [activeTab, bundle]);
@@ -142,45 +143,46 @@ export default function ActiveTranscodes() {
   const erroredCount = Number(bundle.stats?.errored || 0);
   const savedSize = formatBytes(bundle.stats?.saved || 0);
 
-  const loadTranscodes = useCallback(async ({ silent = false, force = false } = {}) => {
+  const loadTranscodes = useCallback(async ({ silent = false, force = false, activeOnly = false } = {}) => {
     try {
       if (!silent) setLoading(true);
-      setError("");
-      const response = await axios.get("/api/tdarr/transcodes", { params: force ? { force: "true" } : undefined });
+      if (!silent) setError("");
+      const response = await axios.get("/api/tdarr/transcodes", {
+        timeout: 8000,
+        params: { ...(force ? { force: "true" } : {}), ...(activeOnly ? { activeOnly: "true" } : {}) },
+      });
       const nextBundle = response.data || emptyBundle;
       setBundle(nextBundle);
+      setHasEverLoaded(true);
       saveTranscodesCache(nextBundle);
       setLastUpdated(Date.now());
+      if (error) setError("");
       const nextActiveCount = Number(nextBundle.stats?.active || nextBundle.active?.length || 0);
       const nextQueueCount = Number(nextBundle.stats?.queue ?? nextBundle.stats?.queued ?? nextBundle.queued?.length ?? 0);
       localStorage.setItem("jellyglance_active_transcode_count", String(nextActiveCount));
       window.dispatchEvent(new CustomEvent("jellyglance-transcode-count", { detail: nextActiveCount }));
       return { active: nextActiveCount, queued: nextQueueCount };
     } catch (requestError) {
-      setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
+      // Only show the error banner when no cached/live data exists
+      if (!hasEverLoaded) setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
       return { active: 0, queued: 0 };
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [error, hasEverLoaded]);
 
   useEffect(() => {
     let stopped = false;
-    let timeoutId;
+    loadTranscodes({ silent: Boolean(cachedTranscodes), force: true, activeOnly: activeTab === "active" });
+    const intervalId = window.setInterval(() => {
+      if (!stopped) loadTranscodes({ silent: true, force: true, activeOnly: activeTab === "active" });
+    }, 5000);
 
-    async function poll(silent = false) {
-      const counts = await loadTranscodes({ silent });
-      if (stopped) return;
-      const delay = counts.active > 0 ? 5000 : counts.queued > 0 ? 15000 : 60000;
-      timeoutId = window.setTimeout(() => poll(true), delay);
-    }
-
-    poll(Boolean(cachedTranscodes));
     return () => {
       stopped = true;
-      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
     };
-  }, [cachedTranscodes, loadTranscodes]);
+  }, [activeTab, cachedTranscodes, loadTranscodes]);
 
   return (
     <div className="transcodes-page">

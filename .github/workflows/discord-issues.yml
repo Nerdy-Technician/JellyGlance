@@ -1,0 +1,72 @@
+name: Discord Issue Notifications
+
+on:
+  issues:
+    types:
+      - opened
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Post new issue to Discord
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post issue notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_ISSUE_WEBHOOK }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_ISSUE_WEBHOOK is not set. Skipping issue notification."
+            exit 0
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          title = os.environ.get("ISSUE_TITLE", "New issue")
+          url = os.environ.get("ISSUE_URL", "")
+          number = os.environ.get("ISSUE_NUMBER", "")
+          author = os.environ.get("ISSUE_AUTHOR", "someone")
+          labels = os.environ.get("ISSUE_LABELS", "")
+          body = (os.environ.get("ISSUE_BODY", "").strip()[:1200] or "No description provided.")
+
+          payload = {
+            "username": "JellyGlance Issues",
+            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
+            "embeds": [
+              {
+                "title": f"Issue #{number}: {title}",
+                "url": url,
+                "description": body,
+                "color": 0x61a0ff,
+                "fields": [
+                  {"name": "Author", "value": f"@{author}"},
+                  {"name": "Labels", "value": labels or "(none)"},
+                ],
+              }
+            ],
+          }
+
+          req = urllib.request.Request(
+            os.environ["DISCORD_WEBHOOK_URL"],
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+          )
+          with urllib.request.urlopen(req) as response:
+            if response.status >= 400:
+              body = response.read().decode("utf-8", errors="ignore")
+              raise SystemExit(f"Discord webhook failed with {response.status}: {body}")
+          PY

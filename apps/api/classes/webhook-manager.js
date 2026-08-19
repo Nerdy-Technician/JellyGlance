@@ -118,6 +118,25 @@ class WebhookManager {
                 event: eventType,
                 triggeredAt: new Date().toISOString()
             };
+
+            if (data.sessionInfo || data.mediaInfo || data.userData) {
+                Object.assign(enrichedData, {
+                    UserId: data.userData?.userId || data.sessionInfo?.userId,
+                    UserName: data.userData?.username,
+                    ItemId: data.mediaInfo?.itemId,
+                    ItemName: data.mediaInfo?.mediaName,
+                    MediaType: data.mediaInfo?.mediaType,
+                    SeriesName: data.mediaInfo?.seriesName,
+                    EpisodeId: data.mediaInfo?.episodeId,
+                    DeviceName: data.sessionInfo?.deviceName,
+                    ClientName: data.sessionInfo?.clientName,
+                    PlayMethod: data.sessionInfo?.playMethod || data.mediaInfo?.playMethod,
+                    IsPaused: data.sessionInfo?.isPaused,
+                    PlaybackDuration: data.sessionInfo?.playbackDuration,
+                    StartTime: data.sessionInfo?.startTime,
+                    EndTime: data.sessionInfo?.endTime,
+                });
+            }
             
             const promises = webhooks.map(webhook => {
                 return this.executeWebhook(webhook, enrichedData);
@@ -276,6 +295,18 @@ class WebhookManager {
     }
 
     getDefaultTitle(data = {}) {
+        if (data.event === 'playback_started') {
+            return `${data.UserName || data.userData?.username || 'A user'} started playback`;
+        }
+
+        if (data.event === 'playback_ended') {
+            return `${data.UserName || data.userData?.username || 'A user'} stopped playback`;
+        }
+
+        if (data.event?.startsWith('download_')) {
+            return data.integrationEvent || 'JellyGlance download update';
+        }
+
         if (data.taskName) {
             return `JellyGlance task ${data.status || 'updated'}`;
         }
@@ -292,6 +323,17 @@ class WebhookManager {
     }
 
     getDefaultMessage(data = {}) {
+        if (data.event === 'playback_started' || data.event === 'playback_ended') {
+            const action = data.event === 'playback_started' ? 'started' : 'stopped';
+            const itemName = data.ItemName || data.mediaInfo?.mediaName || 'media';
+            const detail = data.PlayMethod ? ` via ${data.PlayMethod}` : '';
+            return `${data.UserName || data.userData?.username || 'A user'} ${action} ${itemName}${detail}.`;
+        }
+
+        if (data.event?.startsWith('download_')) {
+            return data.message || data.itemName || data.item?.name || `${data.event} fired.`;
+        }
+
         if (data.taskName) {
             return `${data.taskName} ${data.status || 'updated'}${data.error ? `: ${data.error}` : ''}`;
         }

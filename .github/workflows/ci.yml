@@ -2,9 +2,21 @@ name: CI
 
 on:
   pull_request:
+    paths:
+      - ".github/RELEASE"
+      - ".github/RELEASE.beta"
+      - ".github/RELEASE.BETA"
+      - ".github/release.md"
+      - ".github/release-beta.md"
   push:
     branches:
       - main
+    paths:
+      - ".github/RELEASE"
+      - ".github/RELEASE.beta"
+      - ".github/RELEASE.BETA"
+      - ".github/release.md"
+      - ".github/release-beta.md"
 
 jobs:
   build:

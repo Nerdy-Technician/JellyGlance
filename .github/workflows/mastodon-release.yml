@@ -6,6 +6,7 @@ on:
       - published
   workflow_run:
     workflows:
+      - Release Pipeline
       - RELEASE
     types:
       - completed

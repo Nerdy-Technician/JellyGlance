@@ -1,0 +1,35 @@
+version: v1.2.2
+title: JellyGlance v1.2.2
+---
+chore: update release, Docker, update-check, task, and webhook infrastructure since v1.2.1
+
+Added
+- Multi-architecture Docker image support for linux/amd64, linux/arm64, and linux/arm/v7
+- Invite Sync task registration and scheduler defaults for background invite integration refreshes
+- Invite webhook event plumbing for invite_created, invite_deleted, and invite_links_refreshed
+- Third-party integration data storage for invite sync state and health checks
+- Direct Settings hash routing support for deep-linkable settings tabs
+- Account profile font-weight preference for default, comfortable, and light UI text density
+
+Changed
+- Improved release metadata handling for stable and beta channels
+- Improved Docker release publishing so supported platforms are advertised correctly
+- Updated release workflow behavior for GitHub Container Registry multi-architecture images
+- Updated webhook event status and test payload handling for new invite events
+- Updated integration sync to include invite integration state alongside calendar and download data
+- Updated What's New and README release metadata for v1.2.2
+- Updated account appearance controls so font-weight preferences apply immediately and persist per browser
+
+Fixed
+- Fixed "update available" notifications so installed stable builds ignore beta/prerelease versions
+- Fixed release note filtering so beta notes and stable notes stay in the correct channel
+- Fixed GitHub Container Registry publishing so multi-architecture manifests are preserved instead of being overwritten by single-platform images
+- Fixed Wizarr API payload handling for default/never invite expiry values
+- Fixed relative invite URL normalization against the configured integration host
+- Fixed raw third-party user object strings leaking through invite normalization
+
+Security / Stability
+- Keep beta and stable release detection separated for safer update prompts.
+- Include invite integrations in integration health checks.
+- Cache invite sync data for task/webhook use instead of relying only on live page loads.
+- Keep multi-architecture Docker publishing aligned with the release workflow.
