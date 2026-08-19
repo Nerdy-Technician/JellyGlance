@@ -253,11 +253,7 @@ jobs:
             ${prerelease_flag}
 
       - name: Post Discord release update
-        if: ${{
-          (steps.release.outputs.is_beta == 'true' && secrets.DISCORD_BETA_RELEASES_WEBHOOK != '')
-          ||
-          (steps.release.outputs.is_beta != 'true' && secrets.DISCORD_RELEASES_WEBHOOK != '')
-        }}
+        if: ${{ (steps.release.outputs.is_beta == 'true' && secrets.DISCORD_BETA_RELEASES_WEBHOOK != '') || (steps.release.outputs.is_beta != 'true' && secrets.DISCORD_RELEASES_WEBHOOK != '') }}
         env:
           DISCORD_EVENT_TYPE: release
           DISCORD_WEBHOOK_URL: ${{ steps.release.outputs.is_beta == 'true' && secrets.DISCORD_BETA_RELEASES_WEBHOOK || secrets.DISCORD_RELEASES_WEBHOOK }}
