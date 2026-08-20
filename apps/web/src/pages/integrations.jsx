@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import AddLineIcon from "remixicon-react/AddLineIcon";
+import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
 import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
 import ClipboardLineIcon from "remixicon-react/ClipboardLineIcon";
 import DownloadCloud2FillIcon from "remixicon-react/DownloadCloud2FillIcon";
@@ -25,7 +26,7 @@ const integrationTabItems = [
   ["automation", "Arr Apps"],
   ["seerr", "Seerr Apps"],
   ["downloads", "Download Clients"],
-  ["invites", "Invites / Transcodes"],
+  ["invites", "3rd party apps"],
 ];
 const integrationTabKeys = integrationTabItems.map(([key]) => key);
 
@@ -83,6 +84,12 @@ const downloadClientOptions = [
 const thirdPartyOptions = [
   { name: "Tdarr", slug: "tdarr", purpose: "Active transcodes", accent: "var(--primary-light-color)", secretOptional: true },
   { name: "Wizarr", slug: "wizarr", purpose: "Jellyfin invite links", accent: "#8b5cf6" },
+  { name: "Maintainerr", slug: "maintainerr", purpose: "Cleanup schedule", accent: "#1abca1" },
+];
+const firstRunIntegrationPickerOptions = [
+  ...automationApps.map((app) => ({ ...app, key: `arr:${app.slug}`, label: app.name, description: app.purpose, kind: "Arr Apps" })),
+  ...thirdPartyOptions.map((app) => ({ ...app, key: `third:${app.slug}`, label: app.name, description: app.purpose, kind: "3rd party apps" })),
+  ...downloadClientOptions.map((app) => ({ ...app, key: `download:${app.name}`, label: app.name, description: app.protocol, kind: "Download Clients" })),
 ];
 
 const initialThirdPartyApps = thirdPartyOptions.map((app, index) => ({
@@ -134,12 +141,22 @@ function normalizeAutomationApps(savedApps) {
 }
 
 function normalizeThirdPartyApps(savedApps, legacyAutomationApps = []) {
-  const savedThirdPartyApps = [
-    ...(Array.isArray(savedApps) ? savedApps : []),
-    ...(Array.isArray(legacyAutomationApps)
+  const byName = new Map();
+  const addUnique = (apps = []) => {
+    apps.forEach((app) => {
+      const name = String(app.name || app.slug || "").trim().toLowerCase();
+      if (name && !byName.has(name)) byName.set(name, app);
+    });
+  };
+
+  addUnique(Array.isArray(savedApps) ? savedApps : []);
+  addUnique(
+    Array.isArray(legacyAutomationApps)
       ? legacyAutomationApps.filter((app) => ["tdarr", "wizarr"].includes(String(app.name || app.slug || "").toLowerCase()))
-      : []),
-  ];
+      : []
+  );
+
+  const savedThirdPartyApps = [...byName.values()];
   if (!savedThirdPartyApps.length) {
     return initialThirdPartyApps;
   }
@@ -294,9 +311,11 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   );
 }
 
-export default function Integrations({ embedded = false, firstRun = false, activeTab: controlledActiveTab = "", onTabChange }) {
+export default function Integrations({ embedded = false, firstRun = false, activeTab: controlledActiveTab = "", onTabChange, actions = null }) {
   const fileInputRef = useRef(null);
-  const [internalActiveTab, setInternalActiveTab] = useState(normalizeIntegrationTabSlug(controlledActiveTab) || "media-server");
+  const firstRunDefaultTab = firstRun ? "automation" : "media-server";
+  const availableTabItems = firstRun ? integrationTabItems.filter(([key]) => key !== "media-server") : integrationTabItems;
+  const [internalActiveTab, setInternalActiveTab] = useState(normalizeIntegrationTabSlug(controlledActiveTab) || firstRunDefaultTab);
   const activeTab = normalizeIntegrationTabSlug(controlledActiveTab) || internalActiveTab;
   const [arrApps, setArrApps] = useState(initialAutomationApps);
   const [clients, setClients] = useState([]);
@@ -309,6 +328,9 @@ export default function Integrations({ embedded = false, firstRun = false, activ
     }
   });
   const [selectedClient, setSelectedClient] = useState(downloadClientOptions[0].name);
+  const [firstRunSelection, setFirstRunSelection] = useState(firstRunIntegrationPickerOptions[0]?.key || "");
+  const [firstRunPickerOpen, setFirstRunPickerOpen] = useState(false);
+  const [firstRunVisibleIds, setFirstRunVisibleIds] = useState([]);
   const [healthHistory, setHealthHistory] = useState([]);
   const [diagnostics, setDiagnostics] = useState([]);
   const [busyAction, setBusyAction] = useState("");
@@ -321,6 +343,18 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   const primaryAutomationApps = useMemo(() => automationOnlyApps.filter((app) => String(app.name).toLowerCase() !== "sickchill"), [automationOnlyApps]);
   const seerrApps = useMemo(() => arrApps.filter(isSeerrApp), [arrApps]);
   const enabledIntegrations = useMemo(() => [...arrApps, ...clients, ...thirdParty].filter((item) => item.connected), [arrApps, clients, thirdParty]);
+  const selectedFirstRunIntegration = useMemo(
+    () => firstRunIntegrationPickerOptions.find((option) => option.key === firstRunSelection) || firstRunIntegrationPickerOptions[0],
+    [firstRunSelection]
+  );
+  const firstRunConfiguredIntegrations = useMemo(
+    () =>
+      [...arrApps, ...clients, ...thirdParty].filter((item) => {
+        const hasValues = Object.values(item.values || {}).some((value) => String(value || "").trim());
+        return firstRunVisibleIds.includes(item.instanceId) || item.connected || hasValues || item.message;
+      }),
+    [arrApps, clients, thirdParty, firstRunVisibleIds]
+  );
 
   function updateAgentDefault(type, value) {
     setAgentDefaults((current) => {
@@ -346,8 +380,15 @@ export default function Integrations({ embedded = false, firstRun = false, activ
     }
   }, [controlledActiveTab]);
 
+  useEffect(() => {
+    if (firstRun && activeTab === "media-server") {
+      setInternalActiveTab("automation");
+      onTabChange?.("automation");
+    }
+  }, [activeTab, firstRun, onTabChange]);
+
   function selectIntegrationTab(tabKey) {
-    const normalized = normalizeIntegrationTabSlug(tabKey) || "media-server";
+    const normalized = normalizeIntegrationTabSlug(tabKey) || firstRunDefaultTab;
     setInternalActiveTab(normalized);
     onTabChange?.(normalized);
   }
@@ -358,6 +399,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         setArrApps(initialAutomationApps);
         setClients([]);
         setThirdParty(initialThirdPartyApps);
+        setFirstRunVisibleIds([]);
         setHealthHistory([]);
         setSavedIntegrationsAvailable(true);
         return;
@@ -387,14 +429,29 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
-        setThirdParty(normalizeThirdPartyApps(saved.thirdParty, saved.arrApps));
+        const normalizedThirdParty = normalizeThirdPartyApps(saved.thirdParty, saved.arrApps);
+        setThirdParty(normalizedThirdParty);
+        if (firstRun) {
+          const visibleIds = [...normalizeAutomationApps(saved.arrApps), ...(Array.isArray(saved.clients) ? saved.clients : []), ...normalizedThirdParty]
+            .filter((item) => item.connected || Object.values(item.values || {}).some((value) => String(value || "").trim()))
+            .map((item) => item.instanceId);
+          setFirstRunVisibleIds(visibleIds);
+        }
       } catch {
         const saved = loadSavedIntegrations();
-        setArrApps(normalizeAutomationApps(saved.arrApps));
+        const normalizedArrApps = normalizeAutomationApps(saved.arrApps);
+        setArrApps(normalizedArrApps);
         if (Array.isArray(saved.clients)) {
           setClients(saved.clients);
         }
-        setThirdParty(normalizeThirdPartyApps(saved.thirdParty, saved.arrApps));
+        const normalizedThirdParty = normalizeThirdPartyApps(saved.thirdParty, saved.arrApps);
+        setThirdParty(normalizedThirdParty);
+        if (firstRun) {
+          const visibleIds = [...normalizedArrApps, ...(Array.isArray(saved.clients) ? saved.clients : []), ...normalizedThirdParty]
+            .filter((item) => item.connected || Object.values(item.values || {}).some((value) => String(value || "").trim()))
+            .map((item) => item.instanceId);
+          setFirstRunVisibleIds(visibleIds);
+        }
       }
     }
     loadIntegrations();
@@ -429,6 +486,35 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   function loadExistingIntegrations() {
     setLoadedSavedIntegrations(true);
     setNotice("Loaded saved integrations into first-run setup.");
+  }
+
+  function showFirstRunIntegration(instanceId) {
+    setFirstRunVisibleIds((current) => (current.includes(instanceId) ? current : [...current, instanceId]));
+  }
+
+  function removeFirstRunIntegration(instanceId, listName, setList, type) {
+    setFirstRunVisibleIds((current) => current.filter((id) => id !== instanceId));
+    if (type === "download") {
+      removeIntegration(listName, setList, instanceId);
+      return;
+    }
+    setList((current) => {
+      const next = current.map((item) =>
+        item.instanceId === instanceId
+          ? {
+              ...item,
+              connected: false,
+              message: "",
+              messageType: "",
+              values: {},
+            }
+          : item
+      );
+      const nextArrApps = listName === "arrApps" ? next : arrApps;
+      const nextThirdParty = listName === "thirdParty" ? next : thirdParty;
+      persist(nextArrApps, clients, nextThirdParty);
+      return next;
+    });
   }
 
   function exportIntegrations() {
@@ -474,7 +560,9 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   async function copySecret(secret) {
     if (!secret) return;
     await navigator.clipboard.writeText(secret);
-    setNotice("Secret copied.");
+    if (!firstRun) {
+      setNotice("Secret copied.");
+    }
   }
 
   function persistForList(listName, next) {
@@ -655,8 +743,49 @@ export default function Integrations({ embedded = false, firstRun = false, activ
     });
   }
 
+  function addFirstRunIntegration() {
+    const [kind, identifier] = String(firstRunSelection || "").split(":");
+    if (kind === "arr") {
+      const match = arrApps.find((item) => item.slug === identifier);
+      if (match) showFirstRunIntegration(match.instanceId);
+      setFirstRunPickerOpen(false);
+      return;
+    }
+
+    if (kind === "third") {
+      const match = thirdParty.find((item) => item.slug === identifier);
+      if (match) showFirstRunIntegration(match.instanceId);
+      setFirstRunPickerOpen(false);
+      return;
+    }
+
+    if (kind === "download") {
+      const existing = clients.find((item) => item.name === identifier && !firstRunVisibleIds.includes(item.instanceId));
+      if (existing) {
+        showFirstRunIntegration(existing.instanceId);
+        setFirstRunPickerOpen(false);
+        return;
+      }
+      const client = downloadClientOptions.find((item) => item.name === identifier);
+      if (!client) return;
+      setClients((current) => {
+        const nextClient = {
+          ...client,
+          instanceId: `${client.name}-${Date.now()}-${current.length}`,
+          connected: false,
+          values: {},
+        };
+        const next = [...current, nextClient];
+        persist(arrApps, next, thirdParty);
+        setFirstRunVisibleIds((visible) => [...visible, nextClient.instanceId]);
+        return next;
+      });
+    }
+    setFirstRunPickerOpen(false);
+  }
+
   return (
-    <div className={`integrations-page${embedded ? " is-embedded" : ""}`}>
+    <div className={`integrations-page${embedded ? " is-embedded" : ""}${firstRun ? " is-first-run" : ""}`}>
       <section className="integrations-hero">
         <div>
           <p>Media control</p>
@@ -670,13 +799,130 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         </div>
       </section>
 
+      {firstRun ? (
+        <section className="first-run-integrations-shell">
+          <div className="first-run-integrations-left">
+            <div className="first-run-integrations-toolbar">
+              <div className="first-run-integrations-picker">
+                <span>Add an integration</span>
+                <div className={`first-run-integrations-picker-row${firstRunPickerOpen ? " is-open" : ""}`}>
+                  <div className="first-run-app-picker">
+                    <button
+                      type="button"
+                      className="first-run-app-picker-trigger"
+                      onClick={() => setFirstRunPickerOpen((open) => !open)}
+                      aria-expanded={firstRunPickerOpen}
+                    >
+                      <span className="first-run-app-picker-icon">
+                        <AppIcon app={selectedFirstRunIntegration} />
+                      </span>
+                      <span className="first-run-app-picker-copy">
+                        <strong>{selectedFirstRunIntegration?.label}</strong>
+                        <small>{selectedFirstRunIntegration?.kind} · {selectedFirstRunIntegration?.description}</small>
+                      </span>
+                      <ArrowDownSLineIcon size={20} />
+                    </button>
+                    {firstRunPickerOpen ? (
+                      <div className="first-run-app-picker-menu">
+                        {firstRunIntegrationPickerOptions.map((option) => (
+                          <button
+                            type="button"
+                            key={option.key}
+                            className={firstRunSelection === option.key ? "is-selected" : ""}
+                            onClick={() => {
+                              setFirstRunSelection(option.key);
+                              setFirstRunPickerOpen(false);
+                            }}
+                          >
+                            <span className="first-run-app-picker-icon">
+                              <AppIcon app={option} />
+                            </span>
+                            <span className="first-run-app-picker-copy">
+                              <strong>{option.label}</strong>
+                              <small>{option.kind} · {option.description}</small>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button type="button" onClick={addFirstRunIntegration}>
+                    <AddLineIcon size={18} />
+                    Add integration
+                  </button>
+                </div>
+              </div>
+
+              <div className="first-run-integrations-utility">
+                {!firstRun || loadedSavedIntegrations ? (
+                  <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                    <HeartPulseLineIcon size={18} />
+                    {busyAction === "test-all" ? "Testing" : "Test all"}
+                  </button>
+                ) : null}
+                <label>
+                  <UploadCloud2LineIcon size={18} />
+                  Import
+                  <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+                </label>
+              </div>
+            </div>
+
+            {actions ? <div className="first-run-integrations-actions">{actions}</div> : null}
+          </div>
+
+          <section className="integration-section first-run-configured-list">
+            <div className="integration-section-title">
+              <div>
+                <h2>Configured integrations</h2>
+                <span>{firstRunConfiguredIntegrations.length ? `${firstRunConfiguredIntegrations.length} in setup` : "Add the apps you want ready for first sync."}</span>
+              </div>
+            </div>
+            {firstRunConfiguredIntegrations.length ? (
+              <div className="integration-grid">
+                {firstRunConfiguredIntegrations.map((app) => {
+                  const type = clients.some((client) => client.instanceId === app.instanceId)
+                    ? "download"
+                    : thirdParty.some((item) => item.instanceId === app.instanceId)
+                      ? "thirdParty"
+                      : "automation";
+                  const listName = type === "download" ? "clients" : type === "thirdParty" ? "thirdParty" : "arrApps";
+                  const setList = type === "download" ? setClients : type === "thirdParty" ? setThirdParty : setArrApps;
+                  return (
+                    <IntegrationCard
+                      key={app.instanceId}
+                      app={app}
+                      type={type}
+                      onChange={(instanceId, field, value) => updateIntegration(listName, setList, instanceId, field, value)}
+                      onRemove={(instanceId) => removeFirstRunIntegration(instanceId, listName, setList, type)}
+                      onSave={(instanceId) => saveIntegration(listName, setList, instanceId)}
+                      onTest={(instanceId) => testIntegration(listName, setList, instanceId)}
+                      onCopySecret={copySecret}
+                      removable
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="first-run-integrations-empty">
+                <strong>No integrations added yet</strong>
+                <span>Choose an app above, add it to the setup list, then fill in its connection details here.</span>
+              </div>
+            )}
+          </section>
+        </section>
+      ) : null}
+
+      {firstRun ? null : (
+
       <nav className="integration-subtabs" aria-label="Integration categories">
-        {integrationTabItems.map(([key, label]) => (
+        {availableTabItems.map(([key, label]) => (
           <button type="button" className={activeTab === key ? "is-active" : ""} onClick={() => selectIntegrationTab(key)} key={key}>
             {label}
           </button>
         ))}
       </nav>
+      )}
 
       {activeTab === "media-server" ? <JellyfinIntegrationSettings compact firstRun={firstRun} /> : null}
 
@@ -725,9 +971,9 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         </section>
       ) : null}
 
-      {notice ? <div className="integration-notice">{notice}</div> : null}
+      {!firstRun && notice ? <div className="integration-notice">{notice}</div> : null}
 
-      {activeTab === "automation" ? (
+      {!firstRun && activeTab === "automation" ? (
         <section className="integration-section">
           <div className="integration-section-title">
             <div>
@@ -736,29 +982,31 @@ export default function Integrations({ embedded = false, firstRun = false, activ
             </div>
             <Settings3LineIcon />
           </div>
-          <div className="integration-toolbar">
-            {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
-              <button type="button" onClick={loadExistingIntegrations}>
+          {!firstRun ? (
+            <div className="integration-toolbar">
+              {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
+                <button type="button" onClick={loadExistingIntegrations}>
+                  <DownloadCloud2FillIcon size={18} />
+                  Load saved integrations
+                </button>
+              ) : null}
+              {!firstRun || loadedSavedIntegrations ? (
+                <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
+                  <HeartPulseLineIcon size={18} />
+                  {busyAction === "test-all" ? "Testing" : "Test all"}
+                </button>
+              ) : null}
+              <button type="button" onClick={exportIntegrations}>
                 <DownloadCloud2FillIcon size={18} />
-                Load saved integrations
+                Export
               </button>
-            ) : null}
-            {!firstRun || loadedSavedIntegrations ? (
-              <button type="button" onClick={testAllIntegrations} disabled={busyAction === "test-all"}>
-                <HeartPulseLineIcon size={18} />
-                {busyAction === "test-all" ? "Testing" : "Test all"}
-              </button>
-            ) : null}
-            <button type="button" onClick={exportIntegrations}>
-              <DownloadCloud2FillIcon size={18} />
-              Export
-            </button>
-            <label>
-              <UploadCloud2LineIcon size={18} />
-              Import
-              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
-            </label>
-          </div>
+              <label>
+                <UploadCloud2LineIcon size={18} />
+                Import
+                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
+              </label>
+            </div>
+          ) : null}
           <div className="integration-grid">
             {primaryAutomationApps.map((app) => (
               <IntegrationCard
@@ -807,7 +1055,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         </section>
       ) : null}
 
-      {activeTab === "seerr" ? (
+      {!firstRun && activeTab === "seerr" ? (
         <section className="integration-section">
           <div className="integration-section-title">
             <div>
@@ -816,6 +1064,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
             </div>
             <Settings3LineIcon />
           </div>
+          {!firstRun ? (
           <div className="integration-toolbar">
             {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
               <button type="button" onClick={loadExistingIntegrations}>
@@ -839,6 +1088,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
               <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
             </label>
           </div>
+          ) : null}
           <div className="integration-grid">
             {seerrApps.map((app) => (
               <IntegrationCard
@@ -856,7 +1106,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         </section>
       ) : null}
 
-      {activeTab === "downloads" ? (
+      {!firstRun && activeTab === "downloads" ? (
         <section className="integration-section">
           <div className="integration-section-title">
             <div>
@@ -914,15 +1164,16 @@ export default function Integrations({ embedded = false, firstRun = false, activ
         </section>
       ) : null}
 
-      {activeTab === "invites" ? (
+      {!firstRun && activeTab === "invites" ? (
         <section className="integration-section">
           <div className="integration-section-title">
             <div>
-              <h2>Third-party Apps</h2>
-              <span>Wizarr invites and Tdarr active transcode monitoring</span>
+              <h2>3rd party apps</h2>
+              <span>Wizarr invites, Tdarr active transcodes, and Maintainerr cleanup automation</span>
             </div>
             <UserAddLineIcon />
           </div>
+          {!firstRun ? (
           <div className="integration-toolbar">
             {firstRun && !loadedSavedIntegrations && savedIntegrationsAvailable ? (
               <button type="button" onClick={loadExistingIntegrations}>
@@ -946,6 +1197,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
               <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importIntegrations} />
             </label>
           </div>
+          ) : null}
           <div className="integration-grid">
             {thirdParty.map((app) => (
               <IntegrationCard
@@ -963,17 +1215,18 @@ export default function Integrations({ embedded = false, firstRun = false, activ
           <div className="integration-link-panel">
             <div>
               <strong>Open connected tools</strong>
-              <span>Manage Wizarr invitations or monitor Tdarr active, queued, and finished transcodes from JellyGlance.</span>
+              <span>Manage Wizarr invitations, monitor Tdarr transcodes, and review Maintainerr cleanup activity from JellyGlance.</span>
             </div>
             <div className="integration-link-actions">
               <Link to="/wizarr">Open Wizarr links</Link>
               <Link to="/active-transcodes">Open Active Transcodes</Link>
+              <Link to="/maintainerr">Open Maintainerr</Link>
             </div>
           </div>
         </section>
       ) : null}
 
-      {activeTab !== "media-server" ? (
+      {!firstRun && activeTab !== "media-server" ? (
         <section className="integration-section integration-health-panel">
           <div className="integration-section-title">
             <div>

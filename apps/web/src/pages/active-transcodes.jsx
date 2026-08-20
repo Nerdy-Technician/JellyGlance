@@ -163,13 +163,15 @@ export default function ActiveTranscodes() {
       window.dispatchEvent(new CustomEvent("jellyglance-transcode-count", { detail: nextActiveCount }));
       return { active: nextActiveCount, queued: nextQueueCount };
     } catch (requestError) {
-      // Only show the error banner when no cached/live data exists
-      if (!hasEverLoaded) setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
+      const hasVisibleRows = Boolean((bundle.active || []).length || (bundle.queued || []).length || (bundle.history || []).length);
+      if (!hasEverLoaded || !hasVisibleRows) {
+        setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
+      }
       return { active: 0, queued: 0 };
     } finally {
       setLoading(false);
     }
-  }, [error, hasEverLoaded]);
+  }, [bundle.active, bundle.history, bundle.queued, error, hasEverLoaded]);
 
   useEffect(() => {
     let stopped = false;

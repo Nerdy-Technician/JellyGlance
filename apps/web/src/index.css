@@ -50,6 +50,13 @@ body {
   overflow-x: hidden;
 }
 
+body.setup-mode {
+  width: 100%;
+  min-height: 100vh;
+  zoom: 1;
+  overflow: hidden;
+}
+
 :root[data-font-weight="comfortable"] {
   --jg-font-weight-body: 500;
   --jg-font-weight-label: 620;

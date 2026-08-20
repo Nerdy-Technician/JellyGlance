@@ -423,6 +423,14 @@ export default function SettingsAbout() {
 
           <section className="about-links">
             <h2>Links</h2>
+            <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
+              <PulseLineIcon />
+              Join Discord
+            </a>
+            <a href="https://jellyglance.com/" target="_blank" rel="noreferrer">
+              <RadarLineIcon />
+              Website
+            </a>
             <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Source code
@@ -434,6 +442,10 @@ export default function SettingsAbout() {
             <a href="https://github.com/Nerdy-Technician" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Maintainer profile
+            </a>
+            <a href="https://buymeacoffee.com/nerdytechnician" target="_blank" rel="noreferrer">
+              <HeartPulseLineIcon />
+              Buy me a coffee
             </a>
           </section>
         </aside>

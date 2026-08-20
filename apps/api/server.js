@@ -353,7 +353,7 @@ app.use((req, res, next) => {
 app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", authenticate, authorizeApiRoute, proxyRouter, () => {
+app.use("/proxy", authenticateProxyAsset, authorizeProxyRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);
@@ -503,6 +503,38 @@ async function authenticate(req, res, next) {
       }
     }
   }
+}
+
+function isPublicProxyAssetRequest(req) {
+  if (req.method !== "GET") {
+    return false;
+  }
+
+  const pathName = req.path.toLowerCase();
+  return (
+    pathName.startsWith("/items/images/") ||
+    pathName.startsWith("/users/images/") ||
+    pathName.startsWith("/plugins/images/") ||
+    pathName.startsWith("/web/assets/img/devices/")
+  );
+}
+
+function authenticateProxyAsset(req, res, next) {
+  if (isPublicProxyAssetRequest(req)) {
+    next();
+    return;
+  }
+
+  return authenticate(req, res, next);
+}
+
+function authorizeProxyRoute(req, res, next) {
+  if (isPublicProxyAssetRequest(req)) {
+    next();
+    return;
+  }
+
+  return authorizeApiRoute(req, res, next);
 }
 
 function getTokenPermissions(user) {

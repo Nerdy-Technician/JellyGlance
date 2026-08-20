@@ -253,7 +253,10 @@ function Signup() {
       eyebrow="Admin access"
       title="Choose admin authentication"
       description="Choose how JellyGlance should protect the dashboard. Quick Connect uses Jellyfin auth, OIDC validates your provider first, or Local creates JellyGlance credentials."
+      minimal
     >
+        <section className="setup-stage-shell">
+          <section className="setup-stage-form-card">
         <div className="setup-auth-options" role="radiogroup" aria-label="Admin authentication method">
           <button
             type="button"
@@ -282,6 +285,22 @@ function Signup() {
         </div>
 
         <Form onSubmit={handleFormSubmit} className="setup-form">
+          <div className="setup-form-heading-block">
+            <strong>
+              {authMode === "quick-connect"
+                ? "Jellyfin Quick Connect"
+                : authMode === "oidc"
+                  ? "OIDC provider details"
+                  : "Local admin account"}
+            </strong>
+            <span>
+              {authMode === "quick-connect"
+                ? "Approve the setup in Jellyfin to continue."
+                : authMode === "oidc"
+                  ? "Save the provider details JellyGlance should validate against."
+                  : "Create the JellyGlance credentials used to access the dashboard."}
+            </span>
+          </div>
           {authMode === "quick-connect" && (
             <div className="setup-auth-summary">
               <strong>Jellyfin Quick Connect</strong>
@@ -403,6 +422,8 @@ function Signup() {
                   : submitButtonText}
           </Button>
         </Form>
+          </section>
+        </section>
     </SetupShell>
   );
 }

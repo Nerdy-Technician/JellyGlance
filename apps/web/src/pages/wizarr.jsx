@@ -121,7 +121,7 @@ export default function WizarrPage() {
         serverIds: current.serverIds.length ? current.serverIds : firstServer ? [firstServer.id] : [],
       }));
     } catch (loadError) {
-      setError(loadError?.response?.data?.error || "Unable to load Wizarr. Check Settings > Integrations > Invites.");
+      setError(loadError?.response?.data?.error || "Unable to load Wizarr. Check Settings > Integrations > 3rd party apps.");
     } finally {
       setLoading(false);
     }

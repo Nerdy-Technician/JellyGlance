@@ -35,6 +35,10 @@ function resolveIcon(icon) {
   return iconMap[icon] || MagicLineIcon;
 }
 
+function formatDisplayVersion(version) {
+  return `v${String(version || "").replace(/-beta\.\d+$/i, "").replace(/^v/i, "")}`;
+}
+
 export default function WhatsNewModal({ enabled = true }) {
   const [version, setVersion] = useState("");
   const [show, setShow] = useState(false);
@@ -113,7 +117,7 @@ export default function WhatsNewModal({ enabled = true }) {
             <MagicLineIcon size={17} />
             What&apos;s new
           </span>
-          <h2>JellyGlance {version}</h2>
+          <h2>JellyGlance {formatDisplayVersion(version)}</h2>
           <p>A quick look at the newest bits before you dive back in.</p>
         </div>
         <div className="whats-new-list">

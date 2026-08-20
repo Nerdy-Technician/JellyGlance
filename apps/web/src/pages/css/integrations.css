@@ -46,8 +46,459 @@
   background: transparent;
 }
 
+.integrations-page.is-first-run.is-embedded {
+  gap: 16px;
+  height: 100%;
+}
+
 .integrations-page.is-embedded .integrations-hero {
   display: none;
+}
+
+.first-run-integrations-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.58fr) minmax(720px, 1.42fr);
+  gap: 14px;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+.first-run-integrations-left {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.first-run-integrations-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.first-run-integrations-picker,
+.first-run-integrations-utility {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.first-run-integrations-picker > span {
+  color: #caa6ea;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.first-run-integrations-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.first-run-integrations-picker-row.is-open {
+  align-items: start;
+}
+
+.first-run-integrations-utility {
+  align-content: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 8px;
+  border-radius: 16px;
+}
+
+.first-run-integrations-toolbar button,
+.first-run-integrations-toolbar label {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(10, 13, 19, 0.78);
+  color: #eef4ff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.first-run-integrations-toolbar label input {
+  display: none;
+}
+
+.first-run-app-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.first-run-integrations-toolbar .first-run-app-picker-trigger {
+  width: 100%;
+  min-height: 46px;
+  justify-content: start;
+  padding: 6px 10px;
+  border-color: rgba(var(--primary-light-rgb), 0.2);
+  background:
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.02)),
+    rgba(7, 10, 16, 0.82);
+}
+
+.first-run-app-picker-icon {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.first-run-app-picker-icon img,
+.first-run-app-picker-icon svg {
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+}
+
+.first-run-app-picker-copy {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 1px;
+}
+
+.first-run-app-picker-copy strong,
+.first-run-app-picker-copy small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.first-run-app-picker-copy strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.first-run-app-picker-copy small {
+  color: #aebbd0;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.first-run-app-picker-trigger > svg {
+  margin-left: auto;
+  color: #caa6ea;
+}
+
+.first-run-app-picker-menu {
+  position: static;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  max-height: 206px;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(21, 25, 34, 0.98), rgba(8, 11, 17, 0.98)),
+    #080b11;
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.42);
+}
+
+.first-run-integrations-toolbar .first-run-app-picker-menu button {
+  width: 100%;
+  min-height: 42px;
+  justify-content: start;
+  padding: 5px 8px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.first-run-integrations-toolbar .first-run-app-picker-menu button:hover,
+.first-run-integrations-toolbar .first-run-app-picker-menu button.is-selected {
+  border-color: rgba(var(--primary-light-rgb), 0.22);
+  background: rgba(var(--primary-rgb), 0.16);
+}
+
+.first-run-configured-list {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100%;
+  min-height: 0;
+  padding: 16px !important;
+  border-radius: 22px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    rgba(9, 12, 18, 0.82) !important;
+  min-width: 0;
+}
+
+.first-run-integrations-actions .setup-extra-actions {
+  position: static;
+  margin-top: 0;
+  padding-top: 0;
+  background: transparent;
+}
+
+.first-run-integrations-empty {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  gap: 8px;
+  min-height: 240px;
+  padding: 24px;
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.22);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(var(--primary-rgb), 0.08), transparent 42%),
+    rgba(6, 9, 14, 0.48);
+  text-align: center;
+}
+
+.first-run-integrations-empty strong {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.first-run-integrations-empty span {
+  max-width: 420px;
+  color: #aebbd0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.integrations-page.is-embedded .integration-page-header {
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.integrations-page.is-embedded .integration-page-header p,
+.integrations-page.is-embedded .integration-section-title span {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.integrations-page.is-embedded .integration-page-header h1 {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+.integrations-page.is-embedded .integration-page-header span {
+  font-size: 12px;
+}
+
+.integrations-page.is-embedded .integration-subtabs {
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.integrations-page.is-embedded .integration-subtabs button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.integrations-page.is-embedded .integration-section {
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-section {
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.integrations-page.is-embedded .integration-section-title h2,
+.integrations-page.is-embedded .integration-events h2,
+.integrations-page.is-embedded .downloads-board h2 {
+  font-size: 18px;
+}
+
+.integrations-page.is-embedded .integration-section-title > svg {
+  width: 28px;
+  height: 28px;
+}
+
+.integrations-page.is-embedded .integration-grid {
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+}
+
+.integrations-page.is-first-run.is-embedded .integration-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .integration-card {
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-card {
+  gap: 7px;
+  padding: 10px;
+  border-radius: 13px;
+}
+
+.integrations-page.is-embedded .integration-card-header {
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .integration-card-body,
+.integrations-page.is-embedded .integration-card-footer {
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .integration-card h3 {
+  font-size: 16px;
+}
+
+.integrations-page.is-embedded .integration-card h2 {
+  font-size: 18px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-card h2 {
+  font-size: 15px;
+}
+
+.integrations-page.is-embedded .integration-card p,
+.integrations-page.is-embedded .integration-card small,
+.integrations-page.is-embedded .integration-card label,
+.integrations-page.is-embedded .integration-link-panel span,
+.integrations-page.is-embedded .integration-link-panel strong {
+  font-size: 12px;
+}
+
+.integrations-page.is-embedded .integration-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-icon img,
+.integrations-page.is-first-run.is-embedded .integration-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-fields {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-fields label {
+  gap: 5px;
+  font-size: 10px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-fields input,
+.integrations-page.is-first-run.is-embedded .integration-secret-field button {
+  min-height: 32px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-secret-field {
+  grid-template-columns: minmax(0, 1fr) 32px 32px;
+  gap: 5px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-secret-field button {
+  width: 32px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-actions button {
+  min-height: 32px;
+}
+
+.integrations-page.is-embedded .integration-icon img,
+.integrations-page.is-embedded .integration-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.integrations-page.is-embedded .integration-link-panel {
+  gap: 10px;
+  padding: 12px;
+}
+
+.integrations-page.is-first-run.is-embedded .integration-link-panel {
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.integrations-page.is-embedded .integration-link-panel a,
+.integrations-page.is-embedded .wizarr-refresh-button,
+.integrations-page.is-embedded .wizarr-create-card > button,
+.integrations-page.is-embedded .integration-section button,
+.integrations-page.is-embedded .integration-section .btn {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.integrations-page.is-embedded input,
+.integrations-page.is-embedded select,
+.integrations-page.is-embedded textarea {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.integrations-page.is-embedded .integration-fields {
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .integration-fields label {
+  gap: 6px;
+  font-size: 11px;
+}
+
+.integrations-page.is-embedded .integration-actions,
+.integrations-page.is-embedded .integration-toolbar,
+.integrations-page.is-embedded .integration-link-actions {
+  gap: 8px;
+}
+
+.integrations-page.is-embedded .integration-secret-field {
+  gap: 6px;
+}
+
+.integrations-page.is-embedded .integration-status-light {
+  width: 12px;
+  height: 12px;
 }
 
 .integrations-hero,
@@ -908,7 +1359,28 @@
 }
 
 .integrations-page.is-embedded .integration-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+
+@media (max-width: 1180px) {
+  .first-run-integrations-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .first-run-integrations-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .integrations-page.is-first-run.is-embedded .integration-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .first-run-integrations-picker-row,
+  .integrations-page.is-first-run.is-embedded .integration-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .integrations-page.is-embedded .integration-section {
@@ -934,6 +1406,45 @@
 
 .integrations-page.is-embedded .jellyfin-integration-card.is-compact .integration-settings-form {
   margin: 0 !important;
+}
+
+.integrations-page.is-embedded .wizarr-dashboard {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .wizarr-dashboard article {
+  min-height: 68px;
+  padding: 12px;
+}
+
+.integrations-page.is-embedded .wizarr-dashboard strong {
+  font-size: 24px;
+}
+
+.integrations-page.is-embedded .wizarr-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.integrations-page.is-embedded .wizarr-create-card,
+.integrations-page.is-embedded .wizarr-invite-card {
+  gap: 10px;
+  padding: 12px;
+}
+
+.integrations-page.is-embedded .wizarr-form-section {
+  gap: 8px;
+  padding: 10px;
+}
+
+.integrations-page.is-embedded .wizarr-create-card select,
+.integrations-page.is-embedded .wizarr-create-card input[type="number"],
+.integrations-page.is-embedded .wizarr-create-card input[type="email"],
+.integrations-page.is-embedded .wizarr-create-card input[type="text"],
+.integrations-page.is-embedded .wizarr-create-card input:not([type]) {
+  min-height: 38px;
+  padding: 0 10px;
 }
 
 .integration-card-header {

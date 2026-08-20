@@ -57,8 +57,10 @@ function formatLastSeen(time) {
 }
 
 function userImage(user, size = 48) {
-  if (user.PrimaryImageTag) {
-    return <img className="users-avatar" src={`proxy/Users/Images/Primary?id=${user.UserId}&quality=70`} alt="" loading="lazy" decoding="async" style={{ width: size, height: size }} />;
+  const userId = user.UserId || user.Id || user.id;
+  const primaryImageTag = user.PrimaryImageTag || user.primaryImageTag;
+  if (userId && primaryImageTag) {
+    return <img className="users-avatar" src={`/proxy/Users/Images/Primary?id=${encodeURIComponent(userId)}&tag=${encodeURIComponent(primaryImageTag)}&fillWidth=${Math.max(size * 2, 96)}&quality=80`} alt="" loading="lazy" decoding="async" style={{ width: size, height: size }} />;
   }
 
   return (

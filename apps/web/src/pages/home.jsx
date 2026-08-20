@@ -326,6 +326,23 @@ function getWizarrWidget(data) {
   };
 }
 
+function getMaintainerrWidget(bundle) {
+  const storage = bundle?.storage || {};
+  const stats = bundle?.stats || {};
+  const health = bundle?.health || {};
+  const due = Number(stats.upcomingWeek || 0);
+  const scheduled = Number(stats.scheduledItems || 0);
+  return {
+    status: health.ok ? "Healthy" : "Needs attention",
+    detail: health.status ? `${health.status}${health.live ? ", live" : ""}${health.ready ? ", ready" : ""}`.replace(/^\s*,/g, "").trim() || "Monitor cleanup schedules" : "Monitor cleanup schedules",
+    metrics: [
+      { label: "Scheduled", value: formatNumber(scheduled) },
+      { label: "Due in 7d", value: formatNumber(due) },
+      { label: "Reclaimable", value: formatBytes(storage.reclaimableBytes || 0) },
+    ],
+  };
+}
+
 function getAutomationServiceWidget(service, type) {
   const isBazarr = type === "bazarr";
   if (!service) {
@@ -400,7 +417,7 @@ function HomeIntegrationWidget({ icon: Icon, title, eyebrow, widget, error, to }
 export default function Home({ kioskMode = false }) {
   const [dashboard, setDashboard] = useState(() => loadHomeCache(HOME_DASHBOARD_CACHE_KEY));
   const [operations, setOperations] = useState(() => loadHomeCache(HOME_OPERATIONS_CACHE_KEY) || { requests: null, health: null });
-  const [integrationWidgets, setIntegrationWidgets] = useState({ tdarr: null, wizarr: null, automation: null });
+  const [integrationWidgets, setIntegrationWidgets] = useState({ tdarr: null, wizarr: null, maintainerr: null, automation: null });
   const [integrationWidgetErrors, setIntegrationWidgetErrors] = useState({});
   const [isOrderingHome, setIsOrderingHome] = useState(false);
   const [isHomeActionsOpen, setIsHomeActionsOpen] = useState(false);
@@ -510,6 +527,11 @@ export default function Home({ kioskMode = false }) {
   const libraryIssues = dashboard?.libraryIssues || {};
   const watchParty = dashboard?.watchParty || [];
   const requestUrgency = Number(requestStats.pending || 0) + Number(requestStats.failed || 0);
+  const maintainerrData = operations.maintainerr || null;
+  const maintainerrScheduled = Number(maintainerrData?.stats?.scheduledItems || 0);
+  const maintainerrUpcoming = Number(maintainerrData?.stats?.upcomingWeek || 0);
+  const maintainerrFailures = Number(maintainerrData?.stats?.collectionFailures || 0);
+  const maintainerrReclaimableBytes = Number(maintainerrData?.storage?.reclaimableBytes || 0);
   const backupAgeMs = backupDate ? Date.now() - new Date(backupDate).getTime() : Infinity;
   const backupAgeDays = Number.isFinite(backupAgeMs) ? Math.floor(backupAgeMs / (24 * 60 * 60 * 1000)) : Infinity;
   const attentionItems = [
@@ -520,6 +542,41 @@ export default function Home({ kioskMode = false }) {
     backupAgeDays >= Number(homeSettings.alertRules.backupDays || 7) ? { key: `backup:${backupDate || "missing"}`, label: "Backup is stale or missing", type: "backup" } : null,
     Number(libraryIssues.missingPosters || 0) >= Number(homeSettings.alertRules.missingPosterThreshold || 1)
       ? { key: `posters:${libraryIssues.missingPosters}`, label: `${formatNumber(libraryIssues.missingPosters)} missing posters`, type: "posters" }
+      : null,
+    maintainerrData && maintainerrData.health && maintainerrData.health.ok === false
+      ? {
+          key: `maintainerr-health:${maintainerrData.health.status || "unknown"}`,
+          label: maintainerrData.health.status ? `Maintainerr health: ${maintainerrData.health.status}` : "Maintainerr service degraded",
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrScheduled > 0
+      ? {
+          key: `maintainerr-scheduled:${maintainerrScheduled}`,
+          label: `${formatNumber(maintainerrScheduled)} media item${maintainerrScheduled === 1 ? "" : "s"} scheduled for cleanup`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrUpcoming > 0
+      ? {
+          key: `maintainerr-upcoming:${maintainerrUpcoming}`,
+          label: `${formatNumber(maintainerrUpcoming)} cleanup action${maintainerrUpcoming === 1 ? "" : "s"} in the next 7 days`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrFailures > 0
+      ? {
+          key: `maintainerr-failures:${maintainerrFailures}`,
+          label: `${formatNumber(maintainerrFailures)} cleanup collection${maintainerrFailures === 1 ? "" : "s"} failed`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrReclaimableBytes >= 5 * 1024 * 1024 * 1024
+      ? {
+          key: `maintainerr-reclaimable:${maintainerrReclaimableBytes}`,
+          label: `${formatBytes(maintainerrReclaimableBytes)} reclaimable storage available`,
+          type: "maintainerr",
+        }
       : null,
   ].filter((item) => item && !homeSettings.dismissedAlerts?.[item.key]);
   const seasonGaps = dashboard?.seasonGaps || [];
@@ -672,6 +729,7 @@ export default function Home({ kioskMode = false }) {
     () => ({
       tdarr: orderedSectionIds.includes("tdarr"),
       wizarr: orderedSectionIds.includes("wizarr"),
+      maintainerr: orderedSectionIds.includes("maintainerr"),
       bazarr: orderedSectionIds.includes("bazarr"),
       prowlarr: orderedSectionIds.includes("prowlarr"),
     }),
@@ -681,8 +739,9 @@ export default function Home({ kioskMode = false }) {
   useEffect(() => {
     const wantsTdarr = visibleIntegrationWidgets.tdarr;
     const wantsWizarr = visibleIntegrationWidgets.wizarr;
+    const wantsMaintainerr = visibleIntegrationWidgets.maintainerr;
     const wantsAutomation = visibleIntegrationWidgets.bazarr || visibleIntegrationWidgets.prowlarr;
-    if (!wantsTdarr && !wantsWizarr && !wantsAutomation) return undefined;
+    if (!wantsTdarr && !wantsWizarr && !wantsMaintainerr && !wantsAutomation) return undefined;
 
     let cancelled = false;
 
@@ -719,6 +778,22 @@ export default function Home({ kioskMode = false }) {
         );
       }
 
+      if (wantsMaintainerr) {
+        requests.push(
+          axios
+            .get("/api/maintainerr")
+            .then((response) => {
+              if (cancelled) return;
+              setIntegrationWidgets((current) => ({ ...current, maintainerr: response.data }));
+              setIntegrationWidgetErrors((current) => ({ ...current, maintainerr: "" }));
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setIntegrationWidgetErrors((current) => ({ ...current, maintainerr: error.response?.data?.error || "Unable to load Maintainerr." }));
+            })
+        );
+      }
+
       if (wantsAutomation) {
         requests.push(
           axios.get("/api/automation-health")
@@ -745,7 +820,7 @@ export default function Home({ kioskMode = false }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [kioskMode, visibleIntegrationWidgets.tdarr, visibleIntegrationWidgets.wizarr, visibleIntegrationWidgets.bazarr, visibleIntegrationWidgets.prowlarr]);
+  }, [kioskMode, visibleIntegrationWidgets.tdarr, visibleIntegrationWidgets.wizarr, visibleIntegrationWidgets.maintainerr, visibleIntegrationWidgets.bazarr, visibleIntegrationWidgets.prowlarr]);
 
   useEffect(() => {
     setRotateIndex(0);
@@ -1243,6 +1318,23 @@ export default function Home({ kioskMode = false }) {
             widget={integrationWidgets.wizarr ? getWizarrWidget(integrationWidgets.wizarr) : null}
             error={integrationWidgetErrors.wizarr}
             to="/wizarr"
+          />
+        </section>
+      ) : null}
+
+      {shouldRenderSection("maintainerr") ? (
+        <section
+          className={getHomeSectionClass("maintainerr", "home-integration-widget home-glass-card")}
+          aria-label="Maintainerr cleanup widget"
+          style={getHomeSectionStyle("maintainerr")}
+        >
+          <HomeIntegrationWidget
+            icon={Database2LineIcon}
+            title="Maintainerr"
+            eyebrow="Cleanup schedule"
+            widget={integrationWidgets.maintainerr ? getMaintainerrWidget(integrationWidgets.maintainerr) : null}
+            error={integrationWidgetErrors.maintainerr}
+            to="/maintainerr"
           />
         </section>
       ) : null}

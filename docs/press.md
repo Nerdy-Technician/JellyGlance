@@ -34,4 +34,22 @@ JellyGlance mentions, videos, newsletter notes, and community coverage.
       <a href="/press/self-host-weekly-2026-07-31">Read the post</a>
     </div>
   </article>
+
+  <article class="press-card">
+    <div class="press-card-body">
+      <span>Dashboard Icons · Updated on 11 August 2026</span>
+      <h3>JellyGlance Addon Icon</h3>
+      <p>JellyGlance was added to Dashboard Icons, making it easier to use the project logo in homelab dashboards and launch pages.</p>
+      <a href="https://dashboardicons.com/icons/jellyglance" target="_blank" rel="noreferrer">View the icon</a>
+    </div>
+  </article>
+
+  <article class="press-card">
+    <div class="press-card-body">
+      <span>AlternativeTo · 10 August 2026</span>
+      <h3>JellyGlance Alternatives Listing</h3>
+      <p>JellyGlance was added to AlternativeTo as an option for users comparing Jellyfin admin dashboards, including alternatives to Jellystat and Jellydash.</p>
+      <a href="https://alternativeto.net/software/jellyglance/" target="_blank" rel="noreferrer">View the listing</a>
+    </div>
+  </article>
 </div>

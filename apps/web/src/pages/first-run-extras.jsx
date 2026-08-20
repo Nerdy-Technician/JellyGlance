@@ -70,51 +70,66 @@ export default function FirstRunExtras() {
     }
   }
 
+  const actionRow = (
+    <div className="setup-button-row setup-extra-actions">
+      {activePanel !== "integrations" ? (
+        <Button type="button" className="setup-secondary-button" onClick={goBack} disabled={busy}>
+          Back
+        </Button>
+      ) : null}
+      <Button type="button" className="setup-secondary-button" onClick={() => setActivePanel("sync")} disabled={busy}>
+        Skip to sync
+      </Button>
+      <Button type="button" className="setup-button" onClick={goNext} disabled={busy}>
+        {busy ? "Starting sync..." : activePanel === "sync" ? "Start first sync" : "Continue"}
+      </Button>
+    </div>
+  );
+
   return (
     <SetupShell
       step={currentStep}
-      eyebrow={activePanel === "integrations" ? "Media stack" : activePanel === "imports" ? "Legacy history" : "Build dashboard"}
+      eyebrow={activePanel === "integrations" ? "" : activePanel === "imports" ? "Legacy history" : "Build dashboard"}
       title={
         activePanel === "integrations"
-          ? "Configure integrations"
+          ? ""
           : activePanel === "imports"
             ? "Import old watch history"
             : "Start the first sync"
       }
       description={
         activePanel === "integrations"
-          ? "Add Arr apps, Seerr request services, and download clients before JellyGlance builds its first dashboard cache."
+          ? ""
           : activePanel === "imports"
             ? "Import Jellystat or Tautulli history and match legacy users before the initial Jellyfin sync fills the rest of the dashboard."
             : "JellyGlance will run the first full Jellyfin sync, recently added sync, Playback Reporting import, and dashboard stat refresh."
       }
+      minimal
     >
-      <div className="setup-extras">
-        <nav className="setup-extra-tabs" aria-label="First-run setup areas">
-          <button type="button" className={activePanel === "integrations" ? "is-active" : ""} onClick={() => setActivePanel("integrations")}>
-            <Plug2LineIcon size={18} />
-            Integrations
-          </button>
-          <button type="button" className={activePanel === "imports" ? "is-active" : ""} onClick={() => setActivePanel("imports")}>
-            <Database2LineIcon size={18} />
-            History Import
-          </button>
-          <button type="button" className={activePanel === "sync" ? "is-active" : ""} onClick={() => setActivePanel("sync")}>
-            <RefreshLineIcon size={18} />
-            First Sync
-          </button>
-        </nav>
+      <div className={`setup-extras ${activePanel === "integrations" ? "is-integrations-step" : ""}`}>
+        {activePanel !== "integrations" ? (
+          <nav className="setup-extra-tabs" aria-label="First-run setup areas">
+            <button type="button" className={activePanel === "integrations" ? "is-active" : ""} onClick={() => setActivePanel("integrations")}>
+              <Plug2LineIcon size={18} />
+              Integrations
+            </button>
+            <button type="button" className={activePanel === "imports" ? "is-active" : ""} onClick={() => setActivePanel("imports")}>
+              <Database2LineIcon size={18} />
+              History Import
+            </button>
+            <button type="button" className={activePanel === "sync" ? "is-active" : ""} onClick={() => setActivePanel("sync")}>
+              <RefreshLineIcon size={18} />
+              First Sync
+            </button>
+          </nav>
+        ) : null}
 
         {message ? <div className="setup-connection-status is-error">{message}</div> : null}
 
         <div className="setup-extra-panel">
-          {activePanel === "integrations" ? <Integrations embedded firstRun /> : null}
+          {activePanel === "integrations" ? <Integrations embedded firstRun actions={actionRow} /> : null}
           {activePanel === "imports" ? (
             <>
-              <div className="setup-import-note">
-                <strong>Import Jellystat or Tautulli history before the first sync.</strong>
-                <span>Choose the backup source, import watch history, then match any legacy users to Jellyfin profiles.</span>
-              </div>
               <div className="setup-import-source-tabs" role="tablist" aria-label="History import source">
                 <button
                   type="button"
@@ -131,14 +146,14 @@ export default function FirstRunExtras() {
                   Tautulli
                 </button>
               </div>
-              {activeImportSource === "jellystat" ? <JellystatImport /> : <TautulliImport />}
+              {activeImportSource === "jellystat" ? <JellystatImport compact /> : <TautulliImport compact />}
             </>
           ) : null}
           {activePanel === "sync" ? (
             <section className="setup-sync-panel">
               <RefreshLineIcon />
               <div>
-                <h3>Ready to build JellyGlance</h3>
+                <h3>Ready to build your first dashboard</h3>
                 <p>
                   The first sync starts only after this step. You can still skip integrations or imports, then configure them later
                   from Settings.
@@ -154,19 +169,7 @@ export default function FirstRunExtras() {
           ) : null}
         </div>
 
-        <div className="setup-button-row setup-extra-actions">
-          {activePanel !== "integrations" ? (
-            <Button type="button" className="setup-secondary-button" onClick={goBack} disabled={busy}>
-              Back
-            </Button>
-          ) : null}
-          <Button type="button" className="setup-secondary-button" onClick={() => setActivePanel("sync")} disabled={busy}>
-            Skip to sync
-          </Button>
-          <Button type="button" className="setup-button" onClick={goNext} disabled={busy}>
-            {busy ? "Starting sync..." : activePanel === "sync" ? "Start first sync" : "Continue"}
-          </Button>
-        </div>
+        {activePanel !== "integrations" ? actionRow : null}
       </div>
     </SetupShell>
   );

@@ -14,6 +14,7 @@ import DownloadCloud2FillIcon from 'remixicon-react/DownloadCloud2FillIcon';
 import ServerFillIcon from 'remixicon-react/ServerFillIcon';
 import UserAddFillIcon from 'remixicon-react/UserAddFillIcon';
 import CpuFillIcon from 'remixicon-react/CpuFillIcon';
+import Database2LineIcon from 'remixicon-react/Database2LineIcon';
 import RadarFillIcon from 'remixicon-react/RadarFillIcon';
 import { Trans } from 'react-i18next';
 
@@ -91,13 +92,20 @@ export const navData = [
     },
     {
         id: 10,
+        icon: <Database2LineIcon />,
+        text: "Maintainerr",
+        label: "Maintainerr",
+        link: "maintainerr"
+    },
+    {
+        id: 11,
         icon: <RadarFillIcon />,
         text: "Automation Health",
         label: "Automation Health",
         link: "automation-health"
     },
     {
-        id: 11,
+        id: 12,
         icon: <BarChartFillIcon />,
         text: <Trans i18nKey="MENU_TABS.STATISTICS" />,
         label: "Statistics",
@@ -105,14 +113,14 @@ export const navData = [
     },
 
     {
-        id: 12,
+        id: 13,
         icon: <ServerFillIcon />,
         text: <Trans i18nKey="MENU_TABS.JELLYFIN_JOBS" />,
         label: "Jellyfin Jobs",
         link: "server-management"
     },
     {
-        id: 13,
+        id: 14,
         icon: <SettingsFillIcon />,
         text: <Trans i18nKey="MENU_TABS.SETTINGS" />,
         label: "Settings",
@@ -121,7 +129,7 @@ export const navData = [
     ,
 
     {
-        id: 14,
+        id: 15,
         icon: <InformationFillIcon />,
         text: <Trans i18nKey="MENU_TABS.ABOUT" />,
         label: "About",

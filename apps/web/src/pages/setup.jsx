@@ -108,9 +108,18 @@ function Setup() {
       eyebrow="Media server connection"
       title="Connect Jellyfin"
       description="Add your Jellyfin URL and API key. JellyGlance will validate the connection, save the settings, and start the first sync."
+      minimal
     >
-        <div className="setup-jellyfin-logo" aria-hidden="true">
-          <img src={jellyfinLogo} alt="" />
+        <section className="setup-stage-shell">
+          <section className="setup-stage-form-card">
+        <div className="setup-jellyfin-form-header">
+          <div className="setup-jellyfin-logo" aria-hidden="true">
+            <img src={jellyfinLogo} alt="" />
+          </div>
+          <div className="setup-form-heading-block">
+            <strong>Jellyfin connection</strong>
+            <span>Enter the server you want JellyGlance to index and monitor.</span>
+          </div>
         </div>
         <Form onSubmit={handleFormSubmit} className="setup-form">
           <Form.Group className="inputbox">
@@ -120,7 +129,7 @@ function Setup() {
               name="JF_HOST"
               value={formValues.JF_HOST || ""}
               onChange={handleFormChange}
-              placeholder=" "
+              placeholder="https://jellyfin.example.com"
             />
           </Form.Group>
 
@@ -136,7 +145,7 @@ function Setup() {
                 value={formValues.JF_API_KEY || ""}
                 onChange={handleFormChange}
                 type={showPassword ? "text" : "password"}
-                placeholder=" "
+                placeholder="Paste Jellyfin API key"
                 autoComplete="off"
               />
               <Button className="login-show-password" type="button" onClick={() => setShowPassword(!showPassword)}>
@@ -160,6 +169,8 @@ function Setup() {
             </Button>
           </div>
         </Form>
+          </section>
+        </section>
     </SetupShell>
   );
 }

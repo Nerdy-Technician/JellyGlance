@@ -22,6 +22,7 @@ const ActiveTranscodes = lazy(() => import("./pages/active-transcodes"));
 const AutomationHealth = lazy(() => import("./pages/automation-health"));
 const ServerManagement = lazy(() => import("./pages/server-management"));
 const Wizarr = lazy(() => import("./pages/wizarr"));
+const Maintainerr = lazy(() => import("./pages/maintainerr"));
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
@@ -41,6 +42,7 @@ const routes = [
   { path: "/active-transcodes", element: <ActiveTranscodes />, exact: true },
   { path: "/automation-health", element: <AutomationHealth />, exact: true },
   { path: "/wizarr", element: <Wizarr />, exact: true },
+  { path: "/maintainerr", element: <Maintainerr />, exact: true },
   { path: "/server-management", element: <ServerManagement />, exact: true },
   { path: "/repair", element: <Navigate to="/settings/repair" replace />, exact: true },
   { path: "/statistics", element: <Statistics />, exact: true },

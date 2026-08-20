@@ -6,6 +6,11 @@ import Col from 'react-bootstrap/Col';
 import "../../css/settings/version.css";
 import { Card } from "react-bootstrap";
 
+function formatDisplayVersion(version) {
+  const normalized = String(version || "").replace(/-beta\.\d+$/i, "");
+  return normalized === "Loading" ? normalized : `v${normalized.replace(/^v/i, "")}`;
+}
+
 export default function VersionCard() {
 
   const token = localStorage.getItem('token');
@@ -51,7 +56,7 @@ export default function VersionCard() {
     <Card  className="version rounded-0 border-0" >
        <Card.Body>
             <Row>
-                 <Col>JellyGlance {data.current_version}</Col>
+                 <Col>JellyGlance {formatDisplayVersion(data.current_version)}</Col>
              </Row>
             <Row className="version-community-row">
               <Col>

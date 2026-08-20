@@ -53,6 +53,7 @@ const REQUEST_NAV_AVAILABLE_KEY = "jellyglance_request_nav_available";
 const DOWNLOAD_NAV_AVAILABLE_KEY = "jellyglance_download_nav_available";
 const WIZARR_NAV_AVAILABLE_KEY = "jellyglance_wizarr_nav_available";
 const TDARR_NAV_AVAILABLE_KEY = "jellyglance_tdarr_nav_available";
+const MAINTAINERR_NAV_AVAILABLE_KEY = "jellyglance_maintainerr_nav_available";
 const AUTOMATION_HEALTH_NAV_AVAILABLE_KEY = "jellyglance_automation_health_nav_available";
 const NAV_COLLAPSED_KEY = "jellyglance_nav_collapsed";
 const INTEGRATIONS_CACHE_TTL_MS = 10000;
@@ -104,6 +105,10 @@ function getCachedWizarrNavAvailable() {
 
 function getCachedTdarrNavAvailable() {
   return localStorage.getItem(TDARR_NAV_AVAILABLE_KEY) === "true";
+}
+
+function getCachedMaintainerrNavAvailable() {
+  return localStorage.getItem(MAINTAINERR_NAV_AVAILABLE_KEY) === "true";
 }
 
 function getCachedAutomationHealthNavAvailable() {
@@ -163,6 +168,16 @@ function getTdarrAvailabilityFromIntegrations(integrations) {
   return Array.isArray(integrations?.thirdParty) && integrations.thirdParty.some(isConfiguredTdarrApp);
 }
 
+function isConfiguredMaintainerrApp(app) {
+  const name = String(app?.name || app?.slug || "").toLowerCase();
+  const values = app?.values || {};
+  return name.includes("maintainerr") && Boolean(app?.connected) && Boolean(String(values.url || "").trim());
+}
+
+function getMaintainerrAvailabilityFromIntegrations(integrations) {
+  return Array.isArray(integrations?.thirdParty) && integrations.thirdParty.some(isConfiguredMaintainerrApp);
+}
+
 function isConfiguredAutomationHealthApp(app) {
   const name = String(app?.name || app?.slug || "").toLowerCase();
   const values = app?.values || {};
@@ -201,6 +216,7 @@ export default function Navbar() {
   const [showDownloadsNav, setShowDownloadsNav] = useState(() => getCachedDownloadNavAvailable());
   const [showWizarrNav, setShowWizarrNav] = useState(() => getCachedWizarrNavAvailable());
   const [showTdarrNav, setShowTdarrNav] = useState(() => getCachedTdarrNavAvailable());
+  const [showMaintainerrNav, setShowMaintainerrNav] = useState(() => getCachedMaintainerrNavAvailable());
   const [showAutomationHealthNav, setShowAutomationHealthNav] = useState(() => getCachedAutomationHealthNavAvailable());
   const [navOrder, setNavOrder] = useState(() => getStoredNavOrder(navData));
   const [hiddenNavLinks, setHiddenNavLinks] = useState(() => getStoredHiddenNavLinks(navData));
@@ -239,6 +255,7 @@ export default function Navbar() {
           if (item.link === "requests") return showRequestsNav;
           if (item.link === "downloads") return showDownloadsNav;
           if (item.link === "active-transcodes") return showTdarrNav;
+          if (item.link === "maintainerr") return showMaintainerrNav;
           if (item.link === "automation-health") return showAutomationHealthNav;
           if (item.link === "wizarr") return showWizarrNav;
           if (item.link === "server-management") return showServerManagementNav;
@@ -246,7 +263,7 @@ export default function Navbar() {
         }),
         navOrder
       ),
-    [hiddenNavLinks, navOrder, showAutomationHealthNav, showDownloadsNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav]
+    [hiddenNavLinks, navOrder, showAutomationHealthNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav]
   );
 
   const handleLogout = () => {
@@ -461,6 +478,50 @@ export default function Navbar() {
     };
 
     const startupTimer = window.setTimeout(refreshWizarrAvailability, 500);
+    window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+      window.clearTimeout(startupTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const setMaintainerrAvailability = (integrations) => {
+      const nextAvailable = getMaintainerrAvailabilityFromIntegrations(integrations);
+      localStorage.setItem(MAINTAINERR_NAV_AVAILABLE_KEY, String(nextAvailable));
+      if (isMounted) {
+        setShowMaintainerrNav(nextAvailable);
+      }
+    };
+
+    const refreshMaintainerrAvailability = async () => {
+      if (!localStorage.getItem("token")) {
+        setMaintainerrAvailability({ thirdParty: [] });
+        return;
+      }
+
+      try {
+        setMaintainerrAvailability(await loadNavbarIntegrations());
+      } catch {
+        if (isMounted) {
+          setShowMaintainerrNav(getCachedMaintainerrNavAvailable());
+        }
+      }
+    };
+
+    const handleIntegrationsUpdated = (event) => {
+      if (event.detail) {
+        setMaintainerrAvailability(event.detail);
+        return;
+      }
+      clearNavbarIntegrationsCache();
+      refreshMaintainerrAvailability();
+    };
+
+    const startupTimer = window.setTimeout(refreshMaintainerrAvailability, 500);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     return () => {
       isMounted = false;

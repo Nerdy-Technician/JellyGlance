@@ -387,11 +387,34 @@ function isTdarrIntegration(integration) {
   return name === "tdarr" || name.includes("tdarr");
 }
 
+function isMaintainerrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "maintainerr" || name.includes("maintainerr");
+}
+
 function getWizarrHeaders(integration) {
   const apiKey = integration?.values?.secret;
   return {
     Accept: "application/json",
     ...(apiKey ? { "X-API-Key": apiKey } : {}),
+  };
+}
+
+function getMaintainerrHeaders(integration) {
+  const apiKey = String(integration?.values?.secret || "").trim();
+  if (!apiKey) {
+    return {
+      Accept: "application/json",
+    };
+  }
+
+  const hasBearerPrefix = /^bearer\s+/i.test(apiKey);
+  return {
+    Accept: "application/json",
+    "X-Api-Key": apiKey,
+    "x-api-key": apiKey,
+    ...(hasBearerPrefix ? {} : { Authorization: `Bearer ${apiKey}` }),
+    ...(hasBearerPrefix ? { Authorization: apiKey } : {}),
   };
 }
 
@@ -454,10 +477,33 @@ async function testThirdPartyIntegration(integration) {
   if (isTdarrIntegration(integration)) {
     return testTdarrIntegration(integration);
   }
+  if (isMaintainerrIntegration(integration)) {
+    return testMaintainerrIntegration(integration);
+  }
   return {
     ok: true,
     version: "saved credentials",
     message: "Connected to saved credentials",
+  };
+}
+
+async function testMaintainerrIntegration(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  if (!url) {
+    return { ok: false, error: "URL is required" };
+  }
+
+  const response = await axios.get(`${url}/api/health`, {
+    timeout: 10000,
+    headers: getMaintainerrHeaders(integration),
+  });
+  const health = response.data || {};
+  const healthy = getMaintainerrHealthStatus(health);
+  const version = extractIntegrationVersion(health) || health?.version || "Maintainerr API";
+  return {
+    ok: healthy,
+    version,
+    message: healthy ? "Connected to Maintainerr" : "Maintainerr health reports degraded",
   };
 }
 
@@ -996,7 +1042,7 @@ function getTdarrActiveCount(active = [], data = {}) {
 async function getConnectedTdarrIntegration() {
   const integrations = await getIntegrations();
   return [...(integrations.thirdParty || []), ...(integrations.arrApps || [])].find(
-    (integration) => integration.connected && isTdarrIntegration(integration)
+    (integration) => isTdarrIntegration(integration) && cleanIntegrationUrl(integration.values?.url)
   );
 }
 
@@ -1035,7 +1081,16 @@ async function fetchTdarrCollection(integration, collection) {
         mode: "getAll",
       },
     });
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.docs)) return data.docs;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.records)) return data.records;
+    if (Array.isArray(data?.rows)) return data.rows;
+    if (data && typeof data === "object") {
+      const objectRows = Object.values(data).filter((item) => item && typeof item === "object" && !Array.isArray(item));
+      return objectRows.length ? objectRows : [];
+    }
+    return [];
   } catch (error) {
     console.log(`Tdarr ${collection} load failed:`, getAxiosErrorMessage(error));
     return [];
@@ -1253,6 +1308,290 @@ function normalizeWizarrLibrary(library) {
     serverName: library.server_name || "",
     enabled: library.enabled !== false,
   };
+}
+
+function getMaintainerrStatusValue(raw = {}) {
+  const candidate = String(firstDefined(raw?.status, raw?.State, raw?.state, raw?.result, raw?.message, "") || "").toLowerCase();
+  if (!candidate) return null;
+  if (["ok", "healthy", "up", "true", "connected", "ready"].includes(candidate)) return true;
+  if (["degraded", "error", "down", "unavailable", "false", "failed"].includes(candidate)) return false;
+  return null;
+}
+
+function getMaintainerrHealthStatus(health) {
+  const raw = health || {};
+  const values = [raw?.status, raw?.State, raw?.state, raw?.result, raw?.resultCode, raw?.message, raw?.details?.status, raw?.details?.state]
+    .map((item) => firstDefined(item))
+    .filter(Boolean)
+    .map((item) => String(item).toLowerCase());
+  if (!values.length) return Boolean(raw?.ok) && raw !== undefined;
+  if (values.some((value) => ["error", "failed", "degraded", "unhealthy", "down", "not ready", "unavailable"].includes(value))) return false;
+  if (values.some((value) => ["ok", "healthy", "ready", "up", "alive", "connected"].includes(value))) return true;
+  return Boolean(raw?.ok);
+}
+
+function toMaintainerrNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toMaintainerrTimestamp(value) {
+  const date = new Date(firstDefined(value, ""));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+}
+
+function parseMaintainerrDueSeconds(value, fallback = 0) {
+  const scheduledAt = firstDefined(value?.scheduledFor, value?.runAt, value?.executeAt, value?.nextRunAt, value?.applyAt, value?.timestamp, value?.when);
+  const date = scheduledAt ? new Date(scheduledAt) : null;
+  if (!date || !Number.isFinite(date.getTime())) return fallback;
+  return Math.max(0, Math.floor((date.getTime() - Date.now()) / 1000));
+}
+
+function normalizeMaintainerrCollection(collection = {}, index = 0) {
+  const id = firstDefined(collection?.id, collection?.collectionId, collection?._id, index);
+  const reclaimable = toMaintainerrNumber(
+    firstDefined(
+      collection?.reclaimable_bytes,
+      collection?.reclaimableBytes,
+      collection?.reclaimable_size,
+      collection?.bytesToReclaim,
+      collection?.totalReclaimable,
+      0
+    ),
+    0
+  );
+  return {
+    id: `${id || index + 1}`,
+    name: collection?.name || collection?.title || collection?.collectionName || `Collection ${id || index + 1}`,
+    enabled: collection?.enabled !== false,
+    itemCount: toMaintainerrNumber(collection?.items || collection?.itemCount || collection?.pending || collection?.pendingItems, 0),
+    reclaimableBytes: reclaimable,
+    nextRunAt: toMaintainerrTimestamp(collection?.nextRunAt || collection?.nextRun || collection?.nextRunDate),
+    lastRunAt: toMaintainerrTimestamp(collection?.lastRunAt || collection?.lastRun || collection?.lastRunDate),
+    status: collection?.status || collection?.state || "unknown",
+    rule: firstDefined(collection?.rule, collection?.rules?.[0], collection?.automationRule, "default"),
+  };
+}
+
+function normalizeMaintainerrItem(item = {}, index = 0) {
+  const action = firstDefined(item?.action, item?.pendingAction, item?.nextAction, item?.operation, item?.statusAction, "cleanup");
+  const id = firstDefined(item?.id, item?.itemId, item?.mediaId, item?.mediaItemId, item?._id, index);
+  const dueInSeconds = parseMaintainerrDueSeconds(item, 0);
+  return {
+    id: `${id || index + 1}`,
+    mediaId: firstDefined(item?.mediaId, item?.tmdbId, item?.jellyfinItemId, item?.itemId, id),
+    title: item?.title || item?.name || item?.mediaTitle || item?.filename || item?.path || "Unknown media",
+    collection: firstDefined(item?.collection, item?.collectionName, item?.collection_id, ""),
+    collectionId: firstDefined(item?.collectionId, item?.collection_id, item?.collectionUuid, ""),
+    action,
+    dueAt: toMaintainerrTimestamp(item?.scheduledFor || item?.runAt || item?.executeAt || item?.nextRunAt),
+    dueInSeconds,
+    isExclusion: Boolean(item?.excluded || item?.isExcluded || item?.manualRetention || item?.keepForever),
+    storageBytes: toMaintainerrNumber(item?.size || item?.sizeBytes || item?.bytes || item?.fileSize, 0),
+    status: item?.status || item?.state || "scheduled",
+  };
+}
+
+function extractMaintainerrArray(root, keys = []) {
+  const direct = pickArray(root, keys);
+  if (direct.length) return direct;
+  const nested = flattenRecordCollections(root, keys);
+  if (nested.length) return nested;
+  return recursivelyFindArrays(root, (item) =>
+    Boolean(
+      item &&
+        (item.title || item.name || item.mediaId || item.itemId || item.id || item.media || item.collection || item.collectionId || item.action || item.actionName)
+    )
+  );
+}
+
+function normalizeMaintainerrBundle(raw = {}) {
+  const collections = extractMaintainerrArray(raw, ["collections", "activeCollections", "collectionStats"])
+    .map((collection, index) => normalizeMaintainerrCollection(collection, index))
+    .filter((collection) => collection.name || collection.itemCount || collection.id)
+    .slice(0, 50);
+  const allItems = extractMaintainerrArray(raw, ["items", "media", "queue", "pending", "schedules", "schedule", "actions", "records"])
+    .map((item, index) => normalizeMaintainerrItem(item, index))
+    .filter((item) => item.id || item.mediaId || item.title)
+    .slice(0, 250);
+
+  const storage = raw?.storage || raw?.storageMetrics || {};
+  const excludedItems = allItems.filter((item) => item.isExclusion);
+  const scheduledItems = allItems.filter((item) => item.status === "scheduled" || item.action);
+  const now = Date.now();
+  const upcomingActions = [...scheduledItems]
+    .filter((item) => !item.dueAt || new Date(item.dueAt).getTime() <= now + 7 * 24 * 60 * 60 * 1000)
+    .sort((first, second) => {
+      if (!first.dueAt && !second.dueAt) return 0;
+      if (!first.dueAt) return 1;
+      if (!second.dueAt) return -1;
+      return new Date(first.dueAt) - new Date(second.dueAt);
+    })
+    .slice(0, 20);
+  const recentActions = [...scheduledItems].filter((item) => Boolean(item.dueAt)).sort((first, second) => new Date(second.dueAt || 0) - new Date(first.dueAt || 0)).slice(0, 20);
+
+  const totalPendingBytes = toMaintainerrNumber(
+    firstDefined(storage?.reclaimableBytes, storage?.reclaimable_bytes, storage?.bytesToReclaim, raw?.reclaimableBytes, raw?.reclaimable_bytes, 0),
+    0
+  );
+  const totalItems = toMaintainerrNumber(raw?.scheduledCount || raw?.itemsCount || raw?.queuedCount, scheduledItems.length);
+  const collectionFailures = collections.filter((collection) => String(collection.status || "").toLowerCase().includes("fail")).length;
+
+  return {
+    collections,
+    scheduledItems,
+    excludedItems,
+    upcomingActions,
+    recentActions,
+    storage: {
+      reclaimableBytes: totalPendingBytes,
+      totalBytes: toMaintainerrNumber(storage?.totalBytes || storage?.total_bytes, 0),
+      usedBytes: toMaintainerrNumber(storage?.usedBytes || storage?.used_bytes, 0),
+      freeBytes: toMaintainerrNumber(storage?.freeBytes || storage?.free_bytes, 0),
+    },
+    stats: {
+      collections: collections.length,
+      scheduledItems: totalItems,
+      excludedItems: excludedItems.length,
+      collectionFailures,
+      upcomingWeek: upcomingActions.length,
+    },
+  };
+}
+
+async function getConnectedMaintainerrIntegration() {
+  const integrations = await getIntegrations();
+  return (integrations.thirdParty || []).find(
+    (integration) => integration.connected && isMaintainerrIntegration(integration) && cleanIntegrationUrl(integration.values?.url)
+  );
+}
+
+async function fetchMaintainerrBundle(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = getMaintainerrHeaders(integration);
+  const [healthResponse, liveResponse, readyResponse, storageResponse, overlayResponse] = await Promise.all([
+    fetchOptionalJson(`${url}/api/health`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/health/live`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/health/ready`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/storage-metrics`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/collections/overlay-data`, { timeout: 16000, headers }),
+  ]);
+
+  const healthBase = healthResponse || {};
+  const live = liveResponse || {};
+  const ready = readyResponse || {};
+  const normalized = normalizeMaintainerrBundle({ ...(overlayResponse || {}), storage: storageResponse || {} });
+  const liveStatus = getMaintainerrStatusValue(live);
+  const readyStatus = getMaintainerrStatusValue(ready);
+  const healthy = getMaintainerrHealthStatus(healthBase);
+
+  return {
+    source: {
+      name: integration.name || "Maintainerr",
+      url,
+      instanceId: integration.instanceId,
+    },
+    health: {
+      ok: healthy === null ? true : healthy,
+      status: String(firstDefined(healthBase?.status, healthBase?.state, healthBase?.message, healthBase?.result, "")),
+      live: liveStatus === null ? Boolean(live) : Boolean(liveStatus),
+      ready: readyStatus === null ? Boolean(ready) : Boolean(readyStatus),
+      checkedAt: new Date().toISOString(),
+      details: firstDefined(healthBase, {}),
+    },
+    ...normalized,
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+async function runMaintainerrAction(integration, payload = {}) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = { ...getMaintainerrHeaders(integration), "Content-Type": "application/json" };
+  const action = String(payload.action || "").trim().toLowerCase();
+  const collectionId = String(payload.collectionId || payload.collection || "").trim();
+  const itemId = String(payload.itemId || payload.mediaId || payload.id || "").trim();
+  const rawAction = String(payload.rawAction || payload.actionName || payload.actionType || "").trim();
+  const postponeHours = Number(payload.postponeHours || 24);
+
+  const postJson = (path, body = {}) =>
+    axios.post(`${url}${path}`, { ...body, ...(payload?.extra || {}) }, { timeout: 12000, headers });
+
+  if (action === "refresh" || action === "refresh-collections" || action === "refresh-rules" || action === "refresh-rules-and-collections") {
+    const attempts = [
+      `/api/collections/refresh`,
+      `/api/media-server/collections/refresh`,
+      collectionId ? `/api/collections/${encodeURIComponent(collectionId)}/refresh` : null,
+      `/api/rules/refresh`,
+      `/api/media-server/rules/refresh`,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, { collectionId, reason: "manual_refresh", ...payload });
+        return { action, ok: true, result: response.data || { status: "ok", message: "Refresh triggered." }, message: "Refresh triggered." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  if (action === "postpone-item" || action === "postpone") {
+    const body = {
+      itemId,
+      action: "postpone",
+      collectionId,
+      postponeHours: Number.isFinite(postponeHours) && postponeHours > 0 ? postponeHours : 24,
+      ...payload,
+    };
+    const attempts = [
+      "/api/collections/media/handle",
+      "/api/media-server/collections/media/handle",
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/postpone` : null,
+      itemId ? `/api/media-server/collections/media/${encodeURIComponent(itemId)}/postpone` : null,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, body);
+        return { action, ok: true, result: response.data || { status: "ok", message: "Item postponed." }, message: "Item postponed." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  if (action === "run-item-action" || action === "run-item" || action === "trigger-item" || action === "run") {
+    const body = {
+      itemId,
+      collectionId,
+      action: rawAction || "run",
+      ...payload,
+    };
+    const attempts = [
+      "/api/collections/media/handle",
+      "/api/media-server/collections/media/handle",
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/run` : null,
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/action` : null,
+      itemId ? `/api/media-server/collections/media/${encodeURIComponent(itemId)}/run` : null,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, body);
+        return { action, ok: true, result: response.data || { status: "ok", message: "Cleanup action triggered." }, message: "Item action triggered." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  throw new Error(`Unsupported Maintainerr action: ${action}`);
 }
 
 async function getConnectedWizarrIntegration() {
@@ -3582,14 +3921,20 @@ router.get("/health", async (req, res) => {
 
 router.get("/home/operations", async (req, res) => {
   try {
-    const [requestsResult, healthResult] = await Promise.allSettled([
+    const [requestsResult, healthResult, maintainerrResult] = await Promise.allSettled([
       fetchSeerrRequests({ force: req.query?.forceRequests === "true" }),
       buildHealthStatus(),
+      (async () => {
+        const integration = await getConnectedMaintainerrIntegration();
+        if (!integration) return null;
+        return fetchMaintainerrBundle(integration);
+      })(),
     ]);
 
     res.send({
       requests: requestsResult.status === "fulfilled" ? requestsResult.value : null,
       health: healthResult.status === "fulfilled" ? healthResult.value : null,
+      maintainerr: maintainerrResult.status === "fulfilled" ? maintainerrResult.value : null,
     });
   } catch (error) {
     console.error("Home operations failed:", error);
@@ -6235,6 +6580,44 @@ router.post("/integrations/test", async (req, res) => {
       ok: false,
       error: getAxiosErrorMessage(error),
     });
+  }
+});
+
+router.get("/maintainerr", async (req, res) => {
+  try {
+    const integration = await getConnectedMaintainerrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Maintainerr in Settings > Integrations first." });
+    }
+    const bundle = await fetchMaintainerrBundle(integration);
+    res.send(bundle);
+  } catch (error) {
+    console.error("Maintainerr summary failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Maintainerr data" });
+  }
+});
+
+router.post("/maintainerr/actions", async (req, res) => {
+  try {
+    const integration = await getConnectedMaintainerrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Maintainerr in Settings > Integrations first." });
+    }
+    const payload = req.body || {};
+    const result = await runMaintainerrAction(integration, payload);
+    const webhookManager = new WebhookManager();
+    await webhookManager.triggerEventWebhooks("maintainerr.action", {
+      integrationEvent: "maintainerr action",
+      source: integration.name || "Maintainerr",
+      action: payload.action,
+      collectionId: payload.collectionId,
+      itemId: payload.itemId,
+      message: `${payload.action} triggered from JellyGlance`,
+    });
+    res.send(result);
+  } catch (error) {
+    console.error("Maintainerr action failed:", error);
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Maintainerr action" });
   }
 });
 
