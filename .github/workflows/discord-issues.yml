@@ -64,7 +64,10 @@ jobs:
           req = urllib.request.Request(
             os.environ["DISCORD_WEBHOOK_URL"],
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+              "Content-Type": "application/json",
+              "User-Agent": "JellyGlance-GitHub-Actions/1.0",
+            },
             method="POST",
           )
           try:
