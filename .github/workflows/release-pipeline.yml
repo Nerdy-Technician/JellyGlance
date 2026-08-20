@@ -168,33 +168,13 @@ jobs:
       - name: Build docs
         run: npm run build:docs
 
-      - name: Open package version PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Report build-local package version changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json apps/*/package.json docs/package.json
           if git diff --cached --quiet; then
             echo "Package files already match ${{ steps.release.outputs.version }}"
           else
-            branch="release/${{ steps.release.outputs.tag }}-package-versions"
-            git commit -m "chore(release): ${{ steps.release.outputs.tag }}"
-            git push --force-with-lease origin HEAD:"${branch}"
-
-            if gh pr view "${branch}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-              echo "Package version PR already exists for ${branch}"
-            else
-              gh pr create \
-                --repo "${{ github.repository }}" \
-                --base "${{ github.ref_name }}" \
-                --head "${branch}" \
-                --title "chore(release): ${{ steps.release.outputs.tag }}" \
-                --body "Updates package version files for ${{ steps.release.outputs.tag }}. Merge this PR, then rerun the release workflow."
-            fi
-
-            echo "::error::Package version files changed. A PR was opened because ${{ github.ref_name }} requires changes through pull requests. Merge it, then rerun this release workflow."
-            exit 1
+            echo "::notice::Package files were updated locally for this release build only. Protected branches are not modified by the release workflow."
           fi
 
       - name: Setup QEMU
