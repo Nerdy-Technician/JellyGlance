@@ -213,6 +213,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Configure git identity for release tag
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
       - name: Create and push git tag
         run: |
           git tag -a "${{ steps.release.outputs.tag }}" -m "${{ steps.release.outputs.title }}"
