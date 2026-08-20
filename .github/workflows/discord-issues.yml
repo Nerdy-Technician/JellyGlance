@@ -33,6 +33,8 @@ jobs:
           python3 <<'PY'
           import json
           import os
+          import sys
+          import urllib.error
           import urllib.request
 
           title = os.environ.get("ISSUE_TITLE", "New issue")
@@ -65,8 +67,16 @@ jobs:
             headers={"Content-Type": "application/json"},
             method="POST",
           )
-          with urllib.request.urlopen(req) as response:
-            if response.status >= 400:
-              body = response.read().decode("utf-8", errors="ignore")
-              raise SystemExit(f"Discord webhook failed with {response.status}: {body}")
+          try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+              if response.status >= 400:
+                body = response.read().decode("utf-8", errors="ignore")
+                print(f"::warning::Discord webhook failed with {response.status}: {body}")
+          except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="ignore")
+            print(f"::warning::Discord webhook failed with {error.code}: {body}")
+            sys.exit(0)
+          except urllib.error.URLError as error:
+            print(f"::warning::Discord webhook request failed: {error.reason}")
+            sys.exit(0)
           PY
