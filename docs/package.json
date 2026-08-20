@@ -1,6 +1,6 @@
 {
   "name": "@jellyglance/docs",
-  "version": "1.2.3-beta.3",
+  "version": "1.2.3",
   "private": true,
   "type": "module",
   "scripts": {
