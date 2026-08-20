@@ -1,0 +1,59 @@
+services:
+  jellyglance-latest-db:
+    image: postgres:16-alpine
+    container_name: jellyglance-latest-db-4000
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: jellyglance
+    volumes:
+      - ./compare/postgres-latest:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --dbname=jellyglance --username=postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jellyglance-latest:
+    image: ghcr.io/nerdy-technician/jellyglance:latest
+    container_name: jellyglance-latest-4000
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_IP: jellyglance-latest-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: jellyglance
+      JWT_SECRET: "replace-me-with-a-long-random-secret"
+      TZ: Europe/London
+      CONFIG_DIR: /app/config
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./compare/config-latest:/app/config
+      - ./compare/backups-latest:/app/backups
+    ports:
+      - "4000:3000"
+    depends_on:
+      jellyglance-latest-db:
+        condition: service_healthy
+
+  jellyglance-local-db:
+    image: postgres:16-alpine
+    container_name: jellyglance-local-db-4001
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: jellyglance
+    volumes:
+      - ./compare/postgres-local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --dbname=jellyglance --username=postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+

@@ -19,6 +19,7 @@ import FilmLineIcon from "remixicon-react/FilmLineIcon";
 import GroupLineIcon from "remixicon-react/GroupLineIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
 import MagicLineIcon from "remixicon-react/MagicLineIcon";
+import MedalFillIcon from "remixicon-react/MedalFillIcon";
 import Music2LineIcon from "remixicon-react/Music2LineIcon";
 import PlayCircleLineIcon from "remixicon-react/PlayCircleLineIcon";
 import RestartLineIcon from "remixicon-react/RestartLineIcon";
@@ -32,190 +33,41 @@ import User3LineIcon from "remixicon-react/User3LineIcon";
 import MenuLineIcon from "remixicon-react/MenuLineIcon";
 
 import Sessions from "./components/sessions/sessions";
+import { fetchActiveSessions } from "../lib/session-cache";
 import "./css/home.css";
+import {
+  DEFAULT_HOME_ORDER,
+  DEFAULT_HOME_SETTINGS,
+  HOME_PRESETS,
+  HOME_SECTION_DEFINITIONS,
+  HOME_WIDGET_SIZE_LABELS,
+  getHomeSettingsStorageKey,
+  loadHomeSettings,
+  normalizeHomeOrder,
+  normalizeHomeSettings,
+} from "../lib/home-settings";
 
 const numberFormat = new Intl.NumberFormat();
-const HOME_SETTINGS_STORAGE_PREFIX = "jellyglance_home_settings";
-const LEGACY_HOME_ORDER_STORAGE_KEY = "jellyglance_home_section_order";
-const HOME_LAYOUT_VERSION = 2;
-const HOME_SECTION_DEFINITIONS = [
-  { id: "sessions", label: "Active sessions" },
-  { id: "overview", label: "Overview" },
-  { id: "hall", label: "Hall of Fame" },
-  { id: "library", label: "Library health" },
-  { id: "catalog", label: "Catalog totals" },
-  { id: "milestones", label: "Milestones" },
-  { id: "week", label: "This week" },
-  { id: "attention", label: "Needs attention" },
-  { id: "trends", label: "Today vs last week" },
-  { id: "issues", label: "Library issues" },
-  { id: "watchParty", label: "Watch party" },
-  { id: "seasonGaps", label: "Season gaps" },
-  { id: "automation", label: "Automation feed" },
-  { id: "quickActions", label: "Quick actions" },
-  { id: "operations", label: "Operations" },
-];
-const DEFAULT_HOME_ORDER = HOME_SECTION_DEFINITIONS.map((section) => section.id);
-const CURATED_DEFAULT_HOME_ORDER = [
-  "sessions",
-  "attention",
-  "overview",
-  "operations",
-  "milestones",
-  "week",
-  "hall",
-  "trends",
-  "watchParty",
-  "quickActions",
-  "library",
-  "catalog",
-  "issues",
-  "seasonGaps",
-  "automation",
-];
-const DEFAULT_HOME_SETTINGS = {
-  order: CURATED_DEFAULT_HOME_ORDER,
-  hidden: ["seasonGaps"],
-  pinned: "",
-  density: "comfortable",
-  autoRotate: false,
-  preset: "default",
-  title: "",
-  theme: "default",
-  alertRules: { backupDays: 7, requestThreshold: 1, missingPosterThreshold: 1 },
-  dismissedAlerts: {},
-  sizes: {},
-  version: HOME_LAYOUT_VERSION,
-};
-const HOME_PRESETS = {
-  default: {
-    label: "Default",
-    order: CURATED_DEFAULT_HOME_ORDER,
-    hidden: ["seasonGaps"],
-    density: "comfortable",
-    sizes: {
-      sessions: "large",
-      overview: "large",
-      attention: "small",
-      quickActions: "small",
-    },
-  },
-  admin: {
-    label: "Admin",
-    order: ["attention", "operations", "quickActions", "automation", "sessions", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
-    hidden: ["watchParty"],
-    density: "compact",
-    sizes: {
-      attention: "small",
-      operations: "large",
-      quickActions: "small",
-      automation: "small",
-    },
-  },
-  family: {
-    label: "Family",
-    order: ["sessions", "watchParty", "week", "milestones", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "automation"],
-    hidden: ["issues", "seasonGaps", "automation"],
-    density: "comfortable",
-    sizes: {
-      sessions: "large",
-      watchParty: "large",
-      week: "medium",
-      hall: "large",
-    },
-  },
-  media: {
-    label: "Media Stats",
-    order: ["overview", "milestones", "trends", "catalog", "library", "issues", "seasonGaps", "week", "watchParty", "hall", "sessions", "operations", "quickActions", "attention", "automation"],
-    hidden: ["automation"],
-    density: "comfortable",
-    sizes: {
-      overview: "large",
-      trends: "large",
-      catalog: "medium",
-      issues: "medium",
-    },
-  },
-  requests: {
-    label: "Requests First",
-    order: ["attention", "operations", "quickActions", "automation", "sessions", "week", "milestones", "overview", "hall", "trends", "library", "catalog", "issues", "seasonGaps", "watchParty"],
-    hidden: ["seasonGaps"],
-    density: "compact",
-    sizes: {
-      attention: "small",
-      operations: "large",
-      quickActions: "small",
-    },
-  },
-};
+const HOME_DASHBOARD_CACHE_KEY = "jellyglance_home_dashboard_cache";
+const HOME_OPERATIONS_CACHE_KEY = "jellyglance_home_operations_cache";
+const HOME_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
-function normalizeHomeOrder(order) {
-  const knownSections = new Set(DEFAULT_HOME_ORDER);
-  const savedOrder = Array.isArray(order) ? order.filter((sectionId) => knownSections.has(sectionId)) : [];
-  const missingSections = DEFAULT_HOME_ORDER.filter((sectionId) => !savedOrder.includes(sectionId));
-  return [...savedOrder, ...missingSections];
-}
-
-function getHomeUserStorageKey() {
-  const payload = getHomeTokenPayload();
-  if (!payload) return `${HOME_SETTINGS_STORAGE_PREFIX}:browser`;
-  return `${HOME_SETTINGS_STORAGE_PREFIX}:${payload.sub || payload.userid || payload.username || payload.name || "user"}`;
-}
-
-function getHomeTokenPayload() {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
+function loadHomeCache(key) {
   try {
-    return JSON.parse(window.atob(token.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/") || ""));
+    const cached = JSON.parse(localStorage.getItem(key) || "null");
+    if (!cached?.data || Date.now() - Number(cached.cachedAt || 0) > HOME_CACHE_MAX_AGE_MS) return null;
+    return cached.data;
   } catch {
     return null;
   }
 }
 
-function normalizeHomeSettings(settings) {
-  const normalized = { ...DEFAULT_HOME_SETTINGS, ...(settings || {}) };
-  const knownSections = new Set(DEFAULT_HOME_ORDER);
-  normalized.order = normalizeHomeOrder(normalized.order);
-  normalized.hidden = Array.isArray(normalized.hidden) ? [...new Set(normalized.hidden.filter((sectionId) => knownSections.has(sectionId)))] : [];
-  normalized.pinned = knownSections.has(normalized.pinned) ? normalized.pinned : "";
-  normalized.density = normalized.density === "compact" ? "compact" : "comfortable";
-  normalized.autoRotate = Boolean(normalized.autoRotate);
-  normalized.preset = normalized.preset || "custom";
-  normalized.title = typeof normalized.title === "string" ? normalized.title : "";
-  normalized.theme = ["default", "darker", "neon", "highContrast", "wall"].includes(normalized.theme) ? normalized.theme : "default";
-  normalized.alertRules = {
-    ...DEFAULT_HOME_SETTINGS.alertRules,
-    ...(normalized.alertRules || {}),
-  };
-  normalized.dismissedAlerts = normalized.dismissedAlerts && typeof normalized.dismissedAlerts === "object" ? normalized.dismissedAlerts : {};
-  normalized.sizes = normalized.sizes && typeof normalized.sizes === "object" ? { ...DEFAULT_HOME_SETTINGS.sizes, ...normalized.sizes } : DEFAULT_HOME_SETTINGS.sizes;
-  normalized.version = Number(normalized.version || 0);
-  return normalized;
-}
-
-function loadHomeSettings() {
-  const storageKey = getHomeUserStorageKey();
+function saveHomeCache(key, data) {
   try {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      const normalized = normalizeHomeSettings(parsed);
-      const stillOldDefault = normalized.version < HOME_LAYOUT_VERSION && (!parsed.preset || parsed.preset === "custom") && JSON.stringify(normalizeHomeOrder(parsed.order)) === JSON.stringify(DEFAULT_HOME_ORDER);
-      return stillOldDefault ? normalizeHomeSettings(DEFAULT_HOME_SETTINGS) : normalized;
-    }
-
-    const legacyOrder = localStorage.getItem(LEGACY_HOME_ORDER_STORAGE_KEY);
-    if (legacyOrder) return normalizeHomeSettings({ order: JSON.parse(legacyOrder) });
+    localStorage.setItem(key, JSON.stringify({ cachedAt: Date.now(), data }));
   } catch {
-    return DEFAULT_HOME_SETTINGS;
+    // Ignore quota/private-mode failures; fresh network data still renders.
   }
-
-  const payload = getHomeTokenPayload();
-  const role = String(payload?.role || payload?.Role || payload?.roles?.[0] || "").toLowerCase();
-  if (role.includes("admin") || role.includes("owner") || role.includes("manager")) {
-    return normalizeHomeSettings({ ...DEFAULT_HOME_SETTINGS, ...HOME_PRESETS.admin, sizes: HOME_PRESETS.admin.sizes, preset: "admin" });
-  }
-  return normalizeHomeSettings({ ...DEFAULT_HOME_SETTINGS, ...HOME_PRESETS.family, sizes: HOME_PRESETS.family.sizes, preset: "family" });
 }
 
 function formatNumber(value) {
@@ -437,12 +289,139 @@ function HomeOpsCard({ icon: Icon, label, value, detail, to, accent = "cyan" }) 
   return <article className={`home-glass-card home-ops-card home-accent-${accent}`}>{content}</article>;
 }
 
+function getServiceByType(automationData, type) {
+  return (automationData?.services || []).find((service) => service.type === type);
+}
+
+function getTdarrWidget(bundle) {
+  const stats = bundle?.stats || {};
+  const firstJob = bundle?.active?.[0] || bundle?.queued?.[0];
+  const active = Number(stats.active || bundle?.active?.length || 0);
+  const queued = Number(stats.queue ?? stats.queued ?? bundle?.queued?.length ?? 0);
+
+  return {
+    status: active > 0 ? `${formatNumber(active)} active` : queued > 0 ? `${formatNumber(queued)} queued` : "Idle",
+    detail: firstJob?.title || firstJob?.name || firstJob?.file || "No active workers right now",
+    metrics: [
+      { label: "Active", value: formatNumber(active) },
+      { label: "Queue", value: formatNumber(queued) },
+      { label: "Saved", value: formatBytes(stats.saved || 0) },
+    ],
+  };
+}
+
+function getWizarrWidget(data) {
+  const invites = data?.invites || [];
+  const active = invites.filter((invite) => String(invite.status || "").toLowerCase() !== "used" && String(invite.status || "").toLowerCase() !== "expired").length;
+  const used = invites.filter((invite) => String(invite.status || "").toLowerCase() === "used").length;
+
+  return {
+    status: `${formatNumber(active)} active`,
+    detail: data?.servers?.length ? `${formatNumber(data.servers.length)} server${data.servers.length === 1 ? "" : "s"} connected` : "Invite manager ready",
+    metrics: [
+      { label: "Invites", value: formatNumber(data?.status?.invites ?? invites.length) },
+      { label: "Used", value: formatNumber(used) },
+      { label: "Users", value: formatNumber(data?.status?.users || 0) },
+    ],
+  };
+}
+
+function getMaintainerrWidget(bundle) {
+  const storage = bundle?.storage || {};
+  const stats = bundle?.stats || {};
+  const health = bundle?.health || {};
+  const due = Number(stats.upcomingWeek || 0);
+  const scheduled = Number(stats.scheduledItems || 0);
+  return {
+    status: health.ok ? "Healthy" : "Needs attention",
+    detail: health.status ? `${health.status}${health.live ? ", live" : ""}${health.ready ? ", ready" : ""}`.replace(/^\s*,/g, "").trim() || "Monitor cleanup schedules" : "Monitor cleanup schedules",
+    metrics: [
+      { label: "Scheduled", value: formatNumber(scheduled) },
+      { label: "Due in 7d", value: formatNumber(due) },
+      { label: "Reclaimable", value: formatBytes(storage.reclaimableBytes || 0) },
+    ],
+  };
+}
+
+function getAutomationServiceWidget(service, type) {
+  const isBazarr = type === "bazarr";
+  if (!service) {
+    return {
+      status: "Not connected",
+      detail: `Connect ${isBazarr ? "Bazarr" : "Prowlarr"} in Settings > Integrations.`,
+      metrics: [
+        { label: isBazarr ? "Missing" : "Indexers", value: "0" },
+        { label: isBazarr ? "Grabbed" : "Failed", value: "0" },
+        { label: "Issues", value: "0" },
+      ],
+    };
+  }
+
+  if (isBazarr) {
+    const missing = Number(service.stats?.missingEpisodes || 0) + Number(service.stats?.missingMovies || 0);
+    return {
+      status: service.ok ? "Healthy" : `${formatNumber(service.issues?.length || 0)} issue${service.issues?.length === 1 ? "" : "s"}`,
+      detail: service.version ? `Bazarr ${service.version}` : "Subtitle health",
+      metrics: [
+        { label: "Missing", value: formatNumber(missing) },
+        { label: "Grabbed", value: formatNumber(service.history?.length || 0) },
+        { label: "Issues", value: formatNumber(service.issues?.length || 0) },
+      ],
+    };
+  }
+
+  return {
+    status: service.ok ? "Healthy" : `${formatNumber(service.stats?.failedIndexers || 0)} failed`,
+    detail: service.version ? `Prowlarr ${service.version}` : "Indexer health",
+    metrics: [
+      { label: "Indexers", value: formatNumber(service.stats?.indexers || 0) },
+      { label: "Failed", value: formatNumber(service.stats?.failedIndexers || 0) },
+      { label: "Apps", value: formatNumber(service.stats?.applications || 0) },
+    ],
+  };
+}
+
+function HomeIntegrationWidget({ icon: Icon, title, eyebrow, widget, error, to }) {
+  return (
+    <>
+      <div className="home-integration-widget-head">
+        <span className="home-icon-bubble">
+          <Icon size={22} />
+        </span>
+        <div>
+          <p>{eyebrow}</p>
+          <h2>{title}</h2>
+        </div>
+        <Link to={to}>Open</Link>
+      </div>
+      {error ? (
+        <div className="home-integration-empty">{error}</div>
+      ) : (
+        <>
+          <strong className="home-integration-status">{widget ? widget.status : "Loading"}</strong>
+          <small className="home-integration-detail">{widget ? widget.detail : "Checking integration data"}</small>
+          <div className="home-integration-stat-grid">
+            {(widget?.metrics || Array.from({ length: 3 }, (_, index) => ({ label: ["One", "Two", "Three"][index], value: "" }))).map((metric) => (
+              <span key={metric.label}>
+                <b className={!widget ? "home-value-skeleton" : ""}>{metric.value}</b>
+                <em>{metric.label}</em>
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function Home({ kioskMode = false }) {
-  const [dashboard, setDashboard] = useState(null);
-  const [operations, setOperations] = useState({ requests: null, health: null });
+  const [dashboard, setDashboard] = useState(() => loadHomeCache(HOME_DASHBOARD_CACHE_KEY));
+  const [operations, setOperations] = useState(() => loadHomeCache(HOME_OPERATIONS_CACHE_KEY) || { requests: null, health: null });
+  const [integrationWidgets, setIntegrationWidgets] = useState({ tdarr: null, wizarr: null, maintainerr: null, automation: null });
+  const [integrationWidgetErrors, setIntegrationWidgetErrors] = useState({});
   const [isOrderingHome, setIsOrderingHome] = useState(false);
   const [isHomeActionsOpen, setIsHomeActionsOpen] = useState(false);
-  const [homeSettings, setHomeSettings] = useState(loadHomeSettings);
+  const [homeSettings, setHomeSettings] = useState(() => loadHomeSettings(kioskMode ? "kiosk" : "user"));
   const [rotateIndex, setRotateIndex] = useState(0);
   const [actionMessage, setActionMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
@@ -458,6 +437,7 @@ export default function Home({ kioskMode = false }) {
         headers: { Authorization: `Bearer ${config.token}` },
       });
       setDashboard(response.data);
+      saveHomeCache(HOME_DASHBOARD_CACHE_KEY, response.data);
       setError("");
     } catch (err) {
       console.log(err);
@@ -469,16 +449,17 @@ export default function Home({ kioskMode = false }) {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const headers = { Authorization: `Bearer ${token}` };
-    const [requestsResponse, healthResponse] = await Promise.allSettled([
-      axios.get("/api/requests", { headers, params: forceRequests ? { force: "true" } : undefined }),
-      axios.get("/api/health", { headers }),
-    ]);
-
-    setOperations({
-      requests: requestsResponse.status === "fulfilled" ? requestsResponse.value.data : null,
-      health: healthResponse.status === "fulfilled" ? healthResponse.value.data : null,
-    });
+    try {
+      const response = await axios.get("/api/home/operations", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: forceRequests ? { forceRequests: "true" } : undefined,
+      });
+      const nextOperations = response.data || { requests: null, health: null };
+      setOperations(nextOperations);
+      saveHomeCache(HOME_OPERATIONS_CACHE_KEY, nextOperations);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   useEffect(() => {
@@ -489,13 +470,13 @@ export default function Home({ kioskMode = false }) {
     }
 
     fetchDashboard();
-    const interval = setInterval(fetchDashboard, 60000 * 2);
+    const interval = setInterval(fetchDashboard, kioskMode ? 60000 * 5 : 60000 * 2);
 
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [kioskMode]);
 
   useEffect(() => {
     let active = true;
@@ -506,18 +487,29 @@ export default function Home({ kioskMode = false }) {
     }
 
     fetchOperations();
-    const interval = setInterval(fetchOperations, 60000);
+    const interval = setInterval(fetchOperations, kioskMode ? 60000 * 5 : 60000);
 
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [kioskMode]);
 
   const peakHours = dashboard?.peakHours || [];
   const maxPeak = useMemo(() => Math.max(...peakHours.map((hour) => Number(hour.count || 0)), 1), [peakHours]);
   const hallOfFame = dashboard?.hallOfFame || [];
   const podium = hallOfFame.slice(0, 3);
+  const podiumSlots = dashboard
+    ? [
+        { user: podium[1], rank: 2, medal: "Silver", avatarSize: 62 },
+        { user: podium[0], rank: 1, medal: "Gold", avatarSize: 78 },
+        { user: podium[2], rank: 3, medal: "Bronze", avatarSize: 58 },
+      ].filter((slot) => slot.user)
+    : [
+        { rank: 2, medal: "Silver", avatarSize: 62 },
+        { rank: 1, medal: "Gold", avatarSize: 78 },
+        { rank: 3, medal: "Bronze", avatarSize: 58 },
+      ];
   const runners = hallOfFame.slice(3, 5);
   const concentration = Number(dashboard?.libraryBalance?.concentration || 0);
   const requestStats = operations.requests?.stats || {};
@@ -535,6 +527,11 @@ export default function Home({ kioskMode = false }) {
   const libraryIssues = dashboard?.libraryIssues || {};
   const watchParty = dashboard?.watchParty || [];
   const requestUrgency = Number(requestStats.pending || 0) + Number(requestStats.failed || 0);
+  const maintainerrData = operations.maintainerr || null;
+  const maintainerrScheduled = Number(maintainerrData?.stats?.scheduledItems || 0);
+  const maintainerrUpcoming = Number(maintainerrData?.stats?.upcomingWeek || 0);
+  const maintainerrFailures = Number(maintainerrData?.stats?.collectionFailures || 0);
+  const maintainerrReclaimableBytes = Number(maintainerrData?.storage?.reclaimableBytes || 0);
   const backupAgeMs = backupDate ? Date.now() - new Date(backupDate).getTime() : Infinity;
   const backupAgeDays = Number.isFinite(backupAgeMs) ? Math.floor(backupAgeMs / (24 * 60 * 60 * 1000)) : Infinity;
   const attentionItems = [
@@ -546,14 +543,51 @@ export default function Home({ kioskMode = false }) {
     Number(libraryIssues.missingPosters || 0) >= Number(homeSettings.alertRules.missingPosterThreshold || 1)
       ? { key: `posters:${libraryIssues.missingPosters}`, label: `${formatNumber(libraryIssues.missingPosters)} missing posters`, type: "posters" }
       : null,
+    maintainerrData && maintainerrData.health && maintainerrData.health.ok === false
+      ? {
+          key: `maintainerr-health:${maintainerrData.health.status || "unknown"}`,
+          label: maintainerrData.health.status ? `Maintainerr health: ${maintainerrData.health.status}` : "Maintainerr service degraded",
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrScheduled > 0
+      ? {
+          key: `maintainerr-scheduled:${maintainerrScheduled}`,
+          label: `${formatNumber(maintainerrScheduled)} media item${maintainerrScheduled === 1 ? "" : "s"} scheduled for cleanup`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrUpcoming > 0
+      ? {
+          key: `maintainerr-upcoming:${maintainerrUpcoming}`,
+          label: `${formatNumber(maintainerrUpcoming)} cleanup action${maintainerrUpcoming === 1 ? "" : "s"} in the next 7 days`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrFailures > 0
+      ? {
+          key: `maintainerr-failures:${maintainerrFailures}`,
+          label: `${formatNumber(maintainerrFailures)} cleanup collection${maintainerrFailures === 1 ? "" : "s"} failed`,
+          type: "maintainerr",
+        }
+      : null,
+    maintainerrReclaimableBytes >= 5 * 1024 * 1024 * 1024
+      ? {
+          key: `maintainerr-reclaimable:${maintainerrReclaimableBytes}`,
+          label: `${formatBytes(maintainerrReclaimableBytes)} reclaimable storage available`,
+          type: "maintainerr",
+        }
+      : null,
   ].filter((item) => item && !homeSettings.dismissedAlerts?.[item.key]);
   const seasonGaps = dashboard?.seasonGaps || [];
   const automationFeed = dashboard?.automationFeed || [];
   const milestones = useMemo(() => buildHomeMilestones(dashboard, operations), [dashboard, operations]);
+  const visibleWidgetCount = HOME_SECTION_DEFINITIONS.length - homeSettings.hidden.length;
+  const hiddenWidgetCount = homeSettings.hidden.length;
 
   useEffect(() => {
-    localStorage.setItem(getHomeUserStorageKey(), JSON.stringify(homeSettings));
-  }, [homeSettings]);
+    localStorage.setItem(getHomeSettingsStorageKey(kioskMode ? "kiosk" : "user"), JSON.stringify(homeSettings));
+  }, [homeSettings, kioskMode]);
 
   function updateHomeSettings(updater) {
     setHomeSettings((current) => normalizeHomeSettings(typeof updater === "function" ? updater(current) : { ...current, ...updater }));
@@ -675,12 +709,118 @@ export default function Home({ kioskMode = false }) {
 
     return ordered;
   }, [homeSettings.hidden, homeSettings.order, homeSettings.pinned, requestUrgency]);
-  const effectiveAutoRotate = homeSettings.autoRotate || kioskMode;
+  useEffect(() => {
+    if (!kioskMode) return undefined;
+    const refreshSessions = () => {
+      fetchActiveSessions().catch((error) => console.log(error));
+    };
+    refreshSessions();
+    const interval = setInterval(refreshSessions, 60000 * 5);
+    return () => clearInterval(interval);
+  }, [kioskMode]);
+
+  const effectiveAutoRotate = !kioskMode && homeSettings.autoRotate;
   const activeRotateSection = effectiveAutoRotate && orderedSectionIds.length ? orderedSectionIds[rotateIndex % orderedSectionIds.length] : null;
   const homeSectionOrder = useMemo(() => Object.fromEntries(orderedSectionIds.map((sectionId, index) => [sectionId, index])), [orderedSectionIds]);
   const getHomeSectionStyle = (sectionId) => ({ order: homeSectionOrder[sectionId] ?? DEFAULT_HOME_ORDER.indexOf(sectionId) });
-  const getHomeSectionClass = (sectionId, className = "") => `${className} home-widget-size-${homeSettings.sizes?.[sectionId] || "medium"}`.trim();
+  const getHomeSectionClass = (sectionId, className = "") => `${className} home-widget-size-${homeSettings.sizes?.[sectionId] || "medium"} ${isOrderingHome ? "is-home-widget-editing" : ""}`.trim();
   const shouldRenderSection = (sectionId) => orderedSectionIds.includes(sectionId) && (!activeRotateSection || activeRotateSection === sectionId);
+  const visibleIntegrationWidgets = useMemo(
+    () => ({
+      tdarr: orderedSectionIds.includes("tdarr"),
+      wizarr: orderedSectionIds.includes("wizarr"),
+      maintainerr: orderedSectionIds.includes("maintainerr"),
+      bazarr: orderedSectionIds.includes("bazarr"),
+      prowlarr: orderedSectionIds.includes("prowlarr"),
+    }),
+    [orderedSectionIds]
+  );
+
+  useEffect(() => {
+    const wantsTdarr = visibleIntegrationWidgets.tdarr;
+    const wantsWizarr = visibleIntegrationWidgets.wizarr;
+    const wantsMaintainerr = visibleIntegrationWidgets.maintainerr;
+    const wantsAutomation = visibleIntegrationWidgets.bazarr || visibleIntegrationWidgets.prowlarr;
+    if (!wantsTdarr && !wantsWizarr && !wantsMaintainerr && !wantsAutomation) return undefined;
+
+    let cancelled = false;
+
+    async function loadIntegrationWidgets() {
+      const requests = [];
+
+      if (wantsTdarr) {
+        requests.push(
+          axios.get("/api/tdarr/transcodes")
+            .then((response) => {
+              if (cancelled) return;
+              setIntegrationWidgets((current) => ({ ...current, tdarr: response.data }));
+              setIntegrationWidgetErrors((current) => ({ ...current, tdarr: "" }));
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setIntegrationWidgetErrors((current) => ({ ...current, tdarr: error.response?.data?.error || "Unable to load Tdarr." }));
+            })
+        );
+      }
+
+      if (wantsWizarr) {
+        requests.push(
+          axios.get("/api/wizarr/summary")
+            .then((response) => {
+              if (cancelled) return;
+              setIntegrationWidgets((current) => ({ ...current, wizarr: response.data }));
+              setIntegrationWidgetErrors((current) => ({ ...current, wizarr: "" }));
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setIntegrationWidgetErrors((current) => ({ ...current, wizarr: error.response?.data?.error || "Unable to load Wizarr." }));
+            })
+        );
+      }
+
+      if (wantsMaintainerr) {
+        requests.push(
+          axios
+            .get("/api/maintainerr")
+            .then((response) => {
+              if (cancelled) return;
+              setIntegrationWidgets((current) => ({ ...current, maintainerr: response.data }));
+              setIntegrationWidgetErrors((current) => ({ ...current, maintainerr: "" }));
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              setIntegrationWidgetErrors((current) => ({ ...current, maintainerr: error.response?.data?.error || "Unable to load Maintainerr." }));
+            })
+        );
+      }
+
+      if (wantsAutomation) {
+        requests.push(
+          axios.get("/api/automation-health")
+            .then((response) => {
+              if (cancelled) return;
+              setIntegrationWidgets((current) => ({ ...current, automation: response.data }));
+              setIntegrationWidgetErrors((current) => ({ ...current, bazarr: "", prowlarr: "" }));
+            })
+            .catch((error) => {
+              if (cancelled) return;
+              const message = error.response?.data?.error || "Unable to load automation health.";
+              setIntegrationWidgetErrors((current) => ({ ...current, bazarr: message, prowlarr: message }));
+            })
+        );
+      }
+
+      await Promise.all(requests);
+    }
+
+    loadIntegrationWidgets();
+    const interval = setInterval(loadIntegrationWidgets, kioskMode ? 60000 * 5 : 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [kioskMode, visibleIntegrationWidgets.tdarr, visibleIntegrationWidgets.wizarr, visibleIntegrationWidgets.maintainerr, visibleIntegrationWidgets.bazarr, visibleIntegrationWidgets.prowlarr]);
 
   useEffect(() => {
     setRotateIndex(0);
@@ -742,7 +882,7 @@ export default function Home({ kioskMode = false }) {
             aria-pressed={isOrderingHome}
           >
             <Settings3LineIcon size={17} />
-            Order
+            Edit widgets
           </button>
         </div>
       </div>
@@ -751,8 +891,9 @@ export default function Home({ kioskMode = false }) {
         <div className="home-order-panel home-glass-card">
           <div className="home-order-panel-heading">
             <div>
-              <p>Homepage order</p>
-              <strong>Move, hide, pin, and preset sections.</strong>
+              <p>Widget editor</p>
+              <strong>Choose, reorder, resize, and save your Home layout.</strong>
+              <span>{visibleWidgetCount} visible · {hiddenWidgetCount} hidden · saved on this browser</span>
             </div>
             <button type="button" onClick={resetHomeOrder}>
               <RestartLineIcon size={16} />
@@ -830,6 +971,7 @@ export default function Home({ kioskMode = false }) {
               return (
               <article
                 key={sectionId}
+                className={`${isHidden ? "is-hidden-widget" : ""} ${draggedSection === sectionId ? "is-dragging-widget" : ""}`.trim()}
                 draggable
                 onDragStart={() => setDraggedSection(sectionId)}
                 onDragOver={(event) => event.preventDefault()}
@@ -837,14 +979,18 @@ export default function Home({ kioskMode = false }) {
                   moveSectionTo(draggedSection, sectionId);
                   setDraggedSection("");
                 }}
+                onDragEnd={() => setDraggedSection("")}
               >
                 <span>{index + 1}</span>
-                <strong className={isHidden ? "is-hidden-section" : ""}>{sectionLabels[sectionId]}</strong>
+                <strong className={isHidden ? "is-hidden-section" : ""}>
+                  {sectionLabels[sectionId]}
+                  <small>{isHidden ? "Hidden" : HOME_WIDGET_SIZE_LABELS[homeSettings.sizes?.[sectionId] || "medium"]}</small>
+                </strong>
                 <div>
                   <select title="Widget size" value={homeSettings.sizes?.[sectionId] || "medium"} onChange={(event) => updateWidgetSize(sectionId, event.target.value)}>
-                    <option value="small">S</option>
-                    <option value="medium">M</option>
-                    <option value="large">L</option>
+                    <option value="small">Compact</option>
+                    <option value="medium">Half</option>
+                    <option value="large">Full</option>
                   </select>
                   <button type="button" title={isHidden ? "Show section" : "Hide section"} onClick={() => toggleHomeSection(sectionId)}>
                     {isHidden ? <EyeOffLineIcon size={17} /> : <EyeLineIcon size={17} />}
@@ -865,7 +1011,7 @@ export default function Home({ kioskMode = false }) {
 
       <div className="home-section-stack">
       {shouldRenderSection("sessions") ? <section className={getHomeSectionClass("sessions", "home-active-sessions home-glass-card")} style={getHomeSectionStyle("sessions")}>
-        <Sessions />
+        <Sessions surface={kioskMode ? "kiosk" : "home"} />
       </section> : null}
 
       {shouldRenderSection("overview") ? <section className={getHomeSectionClass("overview", "home-hero-grid")} aria-label="JellyGlance overview" style={getHomeSectionStyle("overview")}>
@@ -919,12 +1065,20 @@ export default function Home({ kioskMode = false }) {
 
         <div className="home-hall-grid">
           <div className="home-podium">
-            {(dashboard ? podium : [0, 1, 2]).map((user, index) => (
-              <article key={dashboard ? user.userId || user.userName : `loading-${index}`} className={`home-podium-card rank-${index + 1}`}>
-                <span className="home-rank-medal">#{index + 1}</span>
-                {dashboard ? <HomeAvatar user={user} size={index === 0 ? 74 : 58} /> : <span className="home-avatar home-avatar-skeleton" style={{ width: index === 0 ? 74 : 58, height: index === 0 ? 74 : 58 }} />}
+            {podiumSlots.map(({ user, rank, medal, avatarSize }, index) => (
+              <article
+                key={dashboard ? user.userId || user.userName : `loading-${rank}`}
+                className={`home-podium-card rank-${rank}`}
+                style={dashboard && podium[0]?.plays ? { "--hall-share": `${Math.max(10, (Number(user.plays || 0) / Number(podium[0].plays || 1)) * 100)}%` } : undefined}
+              >
+                <span className="home-rank-medal">
+                  <span>{medal}</span>
+                  <MedalFillIcon size={18} aria-hidden="true" />
+                </span>
+                {dashboard ? <HomeAvatar user={user} size={avatarSize} /> : <span className="home-avatar home-avatar-skeleton" style={{ width: avatarSize, height: avatarSize }} />}
                 <strong className={!dashboard ? "home-name-skeleton" : ""}>{dashboard ? user.userName || "Unknown" : ""}</strong>
                 {dashboard ? <small>{formatNumber(user.plays)} plays</small> : <small className="home-detail-skeleton" />}
+                <span className="home-podium-share" aria-hidden="true" />
               </article>
             ))}
           </div>
@@ -1139,6 +1293,75 @@ export default function Home({ kioskMode = false }) {
               </article>
             )) : <span>No automation activity yet.</span>}
           </div>
+        </section>
+      ) : null}
+
+      {shouldRenderSection("tdarr") ? (
+        <section className={getHomeSectionClass("tdarr", "home-integration-widget home-glass-card")} aria-label="Tdarr transcode widget" style={getHomeSectionStyle("tdarr")}>
+          <HomeIntegrationWidget
+            icon={Tv2LineIcon}
+            title="Tdarr"
+            eyebrow="Active transcodes"
+            widget={integrationWidgets.tdarr ? getTdarrWidget(integrationWidgets.tdarr) : null}
+            error={integrationWidgetErrors.tdarr}
+            to="/active-transcodes"
+          />
+        </section>
+      ) : null}
+
+      {shouldRenderSection("wizarr") ? (
+        <section className={getHomeSectionClass("wizarr", "home-integration-widget home-glass-card")} aria-label="Wizarr invite widget" style={getHomeSectionStyle("wizarr")}>
+          <HomeIntegrationWidget
+            icon={GroupLineIcon}
+            title="Wizarr"
+            eyebrow="Invite manager"
+            widget={integrationWidgets.wizarr ? getWizarrWidget(integrationWidgets.wizarr) : null}
+            error={integrationWidgetErrors.wizarr}
+            to="/wizarr"
+          />
+        </section>
+      ) : null}
+
+      {shouldRenderSection("maintainerr") ? (
+        <section
+          className={getHomeSectionClass("maintainerr", "home-integration-widget home-glass-card")}
+          aria-label="Maintainerr cleanup widget"
+          style={getHomeSectionStyle("maintainerr")}
+        >
+          <HomeIntegrationWidget
+            icon={Database2LineIcon}
+            title="Maintainerr"
+            eyebrow="Cleanup schedule"
+            widget={integrationWidgets.maintainerr ? getMaintainerrWidget(integrationWidgets.maintainerr) : null}
+            error={integrationWidgetErrors.maintainerr}
+            to="/maintainerr"
+          />
+        </section>
+      ) : null}
+
+      {shouldRenderSection("bazarr") ? (
+        <section className={getHomeSectionClass("bazarr", "home-integration-widget home-glass-card")} aria-label="Bazarr subtitle widget" style={getHomeSectionStyle("bazarr")}>
+          <HomeIntegrationWidget
+            icon={ChatCheckLineIcon}
+            title="Bazarr"
+            eyebrow="Subtitle health"
+            widget={integrationWidgets.automation ? getAutomationServiceWidget(getServiceByType(integrationWidgets.automation, "bazarr"), "bazarr") : null}
+            error={integrationWidgetErrors.bazarr}
+            to="/automation-health"
+          />
+        </section>
+      ) : null}
+
+      {shouldRenderSection("prowlarr") ? (
+        <section className={getHomeSectionClass("prowlarr", "home-integration-widget home-glass-card")} aria-label="Prowlarr indexer widget" style={getHomeSectionStyle("prowlarr")}>
+          <HomeIntegrationWidget
+            icon={BarChartGroupedLineIcon}
+            title="Prowlarr"
+            eyebrow="Indexer health"
+            widget={integrationWidgets.automation ? getAutomationServiceWidget(getServiceByType(integrationWidgets.automation, "prowlarr"), "prowlarr") : null}
+            error={integrationWidgetErrors.prowlarr}
+            to="/automation-health"
+          />
         </section>
       ) : null}
 

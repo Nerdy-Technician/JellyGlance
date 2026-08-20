@@ -1,4 +1,4 @@
-name: RELEASE
+name: Release Pipeline
 
 on:
   workflow_dispatch:
@@ -8,7 +8,10 @@ on:
       - BETA
     paths:
       - ".github/RELEASE"
+      - ".github/release.md"
       - ".github/RELEASE.beta"
+      - ".github/RELEASE.BETA"
+      - ".github/release-beta.md"
 
 permissions:
   contents: write
@@ -39,7 +42,30 @@ jobs:
           const fs = require("fs");
 
           const isBeta = process.env.GITHUB_REF_NAME === "BETA";
-          const releaseFile = isBeta ? ".github/RELEASE.beta" : ".github/RELEASE";
+          const releaseCandidates = isBeta
+            ? [
+                ".github/release-beta.md",
+                ".github/RELEASE.beta",
+                ".github/RELEASE.BETA",
+                ".github/RELEASE",
+              ]
+            : [
+                ".github/release.md",
+                ".github/RELEASE",
+              ];
+
+          const releaseFile = releaseCandidates.find((candidate) => fs.existsSync(candidate));
+          if (!releaseFile) {
+            throw new Error("Could not find a release metadata file. Expected .github/release.md or .github/RELEASE for stable, and .github/release-beta.md or .github/RELEASE.beta for beta.");
+          }
+
+          if (!releaseFile.startsWith(".github/release")) {
+            const preferred = isBeta
+              ? ".github/release-beta.md"
+              : ".github/release.md";
+            console.log(`::notice::Using legacy release metadata file ${releaseFile}; migrate to ${preferred} for naming consistency.`);
+          }
+
           const raw = fs.readFileSync(releaseFile, "utf8").replace(/\r\n/g, "\n");
           const parts = raw.split(/^---\s*$/m);
           const header = parts.shift() || "";
@@ -193,8 +219,8 @@ jobs:
             type=raw,value=${{ steps.release.outputs.tag }}
             type=raw,value=${{ steps.release.outputs.version }}
             type=raw,value=latest,enable=${{ steps.release.outputs.is_beta != 'true' }}
+            type=raw,value=main,enable=${{ steps.release.outputs.is_beta != 'true' }}
             type=raw,value=beta,enable=${{ steps.release.outputs.is_beta == 'true' }}
-            type=sha
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7
@@ -227,12 +253,25 @@ jobs:
             ${prerelease_flag}
 
       - name: Post Discord release update
-        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' && steps.release.outputs.is_beta != 'true' }}
         env:
           DISCORD_EVENT_TYPE: release
-          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_RELEASES_WEBHOOK }}
+          DISCORD_BETA_WEBHOOK_URL: ${{ secrets.DISCORD_BETA_RELEASES_WEBHOOK }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          IS_BETA_RELEASE: ${{ steps.release.outputs.is_beta }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
           RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}
+          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
         run: |
-          RELEASE_NOTES="$(cat "${{ steps.release.outputs.notes_file }}")" node .github/scripts/discord-notify.mjs
+          if [ "${IS_BETA_RELEASE}" = "true" ] && [ -n "${DISCORD_BETA_WEBHOOK_URL}" ]; then
+            DISCORD_CHANNEL="beta" DISCORD_WEBHOOK_URL="${DISCORD_BETA_WEBHOOK_URL}" \
+              RELEASE_NOTES="$(cat "${NOTES_FILE}")" node .github/scripts/discord-notify.mjs
+            exit 0
+          fi
+
+          if [ "${IS_BETA_RELEASE}" != "true" ] && [ -n "${DISCORD_WEBHOOK_URL}" ]; then
+            DISCORD_CHANNEL="stable" \
+              RELEASE_NOTES="$(cat "${NOTES_FILE}")" node .github/scripts/discord-notify.mjs
+          elif [ "${IS_BETA_RELEASE}" = "true" ] || [ -z "${DISCORD_WEBHOOK_URL}" ] && [ -z "${DISCORD_BETA_WEBHOOK_URL}" ]; then
+            echo "No Discord release webhook configured for ${IS_BETA_RELEASE} release.";
+          fi

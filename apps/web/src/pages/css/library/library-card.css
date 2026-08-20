@@ -209,8 +209,9 @@
   overflow: hidden;
   margin-top: 4px;
   color: #f8fafc;
-  font-size: 16px;
+  font-size: clamp(13px, 0.9vw, 16px);
   font-weight: 950;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

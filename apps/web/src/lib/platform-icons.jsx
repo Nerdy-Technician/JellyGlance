@@ -9,6 +9,7 @@ import {
   siGooglecast,
   siGooglechrome,
   siGoogletv,
+  siHomeassistant,
   siJellyfin,
   siKodi,
   siLg,
@@ -23,9 +24,19 @@ import {
   siVivaldi,
 } from "simple-icons";
 
+const selfHostedIconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
+
 const iconMap = [
+  { match: ["home assistant", "hacs"], icon: siHomeassistant },
+  { match: ["reclaimerr"], imageSlug: "reclaimerr", title: "Reclaimerr" },
+  { match: ["jellystat"], imageSlug: "jellystat", title: "Jellystat" },
+  { match: ["jellyseerr"], imageSlug: "jellyseerr", title: "Jellyseerr" },
+  { match: ["overseerr"], imageSlug: "overseerr", title: "Overseerr" },
+  { match: ["seerr"], imageSlug: "seerr", title: "Seerr" },
+  { match: ["jellyfin-uwp", "xbox"], imageSlug: "xbox", title: "Xbox" },
   { match: ["roku"], icon: siRoku },
   { match: ["android", "fire tv"], icon: siAndroid },
+  { match: ["edge chromium", "microsoft edge"], imageSlug: "microsoft-edge", title: "Microsoft Edge" },
   { match: ["apple tv", "tvos"], icon: siAppletv },
   { match: ["iphone", "ipad", "ios", "macos", "apple"], icon: siApple },
   { match: ["google tv"], icon: siGoogletv },
@@ -67,7 +78,12 @@ function ChromeIcon({ className = "" }) {
 }
 
 export function PlatformIcon({ client, deviceName, className = "" }) {
-  const { icon, color: overrideColor } = getPlatformIconMeta(client, deviceName);
+  const { icon, imageSlug, title, color: overrideColor } = getPlatformIconMeta(client, deviceName);
+
+  if (imageSlug) {
+    return <img className={className} src={selfHostedIconUrl(imageSlug)} alt="" loading="lazy" decoding="async" title={title} />;
+  }
+
   const color = overrideColor || `#${icon.hex}`;
 
   if (icon === siGooglechrome) {

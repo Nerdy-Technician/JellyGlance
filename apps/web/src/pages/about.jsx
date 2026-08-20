@@ -6,14 +6,19 @@ import ArchiveLineIcon from "remixicon-react/ArchiveLineIcon";
 import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
 import CheckLineIcon from "remixicon-react/CheckLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
+import DownloadCloud2LineIcon from "remixicon-react/DownloadCloud2LineIcon";
 import FilmLineIcon from "remixicon-react/FilmLineIcon";
 import GitBranchLineIcon from "remixicon-react/GitBranchLineIcon";
 import GithubFillIcon from "remixicon-react/GithubFillIcon";
 import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
+import LayoutGridLineIcon from "remixicon-react/LayoutGridLineIcon";
 import PulseLineIcon from "remixicon-react/PulseLineIcon";
 import PriceTag3LineIcon from "remixicon-react/PriceTag3LineIcon";
+import RadarLineIcon from "remixicon-react/RadarLineIcon";
+import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
 import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
 import TaskLineIcon from "remixicon-react/TaskLineIcon";
+import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
 
 function stripMarkdown(value) {
   return String(value || "")
@@ -65,6 +70,20 @@ function parseReleaseBody(body) {
   return sections.length ? sections : [{ title: "Notes", items: ["No release notes were provided for this version."] }];
 }
 
+function isBotContributor(contributor) {
+  const login = String(contributor?.login || "").toLowerCase();
+  return /\bbot\b/.test(login) || login.includes("[bot]") || login.includes("dependabot") || login.includes("github-actions");
+}
+
+const PROJECT_OWNER_LOGIN = "Nerdy-Technician";
+const PROJECT_OWNER_FALLBACK = {
+  id: "project-owner",
+  login: PROJECT_OWNER_LOGIN,
+  avatar_url: `https://github.com/${PROJECT_OWNER_LOGIN}.png?size=160`,
+  profile_url: `https://github.com/${PROJECT_OWNER_LOGIN}`,
+  contributions: 0,
+};
+
 export default function SettingsAbout() {
   const token = localStorage.getItem("token");
   const [data, setData] = useState({
@@ -76,9 +95,13 @@ export default function SettingsAbout() {
   const [releaseMessage, setReleaseMessage] = useState("Loading release notes...");
   const [selectedReleaseId, setSelectedReleaseId] = useState("");
   const [releaseMenuOpen, setReleaseMenuOpen] = useState(false);
+  const [contributors, setContributors] = useState([]);
+  const [contributorsMessage, setContributorsMessage] = useState("Loading GitHub profiles...");
   const updateMessage = data.message === "JellyGlance is up to date" ? "Up to date" : data.message;
   const selectedRelease = releaseData.releases.find((release) => String(release.id) === selectedReleaseId) || releaseData.releases[0];
   const selectedReleaseSections = parseReleaseBody(selectedRelease?.body);
+  const projectOwner = contributors.find((contributor) => contributor.login?.toLowerCase() === PROJECT_OWNER_LOGIN.toLowerCase()) || PROJECT_OWNER_FALLBACK;
+  const projectContributors = contributors.filter((contributor) => contributor.login?.toLowerCase() !== PROJECT_OWNER_LOGIN.toLowerCase());
 
   useEffect(() => {
     const fetchVersion = () => {
@@ -135,12 +158,33 @@ export default function SettingsAbout() {
       });
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+
+    axios
+      .get("/api/github/contributors", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      .then((response) => {
+        const profiles = (response.data?.contributors || []).filter((contributor) => !isBotContributor(contributor));
+        setContributors(profiles);
+        setContributorsMessage(profiles.length ? "" : "No GitHub profiles found.");
+      })
+      .catch((error) => {
+        console.log(error);
+        setContributorsMessage("Unable to load GitHub profiles.");
+      });
+  }, [token]);
+
   return (
     <div className="about-page">
       <header className="about-header">
         <p>About</p>
         <h1>JellyGlance</h1>
-        <span>Local Jellyfin visibility for sessions, activity, libraries, requests, downloads, and scheduled jobs.</span>
+        <span>Local Jellyfin visibility for sessions, libraries, requests, downloads, transcodes, automation health, and scheduled jobs.</span>
       </header>
 
       <main className="about-layout">
@@ -151,29 +195,59 @@ export default function SettingsAbout() {
               <p>
                 JellyGlance is a self-hosted dashboard for people running Jellyfin. It pulls the common admin checks into
                 one interface: current playback, recent library changes, watch history, health signals, integrations, and
-                background tasks.
+                background tasks, with customisable navigation and Home widgets for each browser.
               </p>
 
               <div className="about-feature-grid" aria-label="JellyGlance capabilities">
                 <article>
                   <PulseLineIcon />
                   <strong>Live status</strong>
-                  <span>See active streams, playback method, device, client, bitrate, transcoding state, and session history.</span>
+                  <span>See active streams, playback method, viewer, client, internal or remote IP, bitrate, transcode progress, and session history.</span>
                 </article>
                 <article>
                   <FilmLineIcon />
                   <strong>Library visibility</strong>
-                  <span>Track recent additions, library totals, missing artwork, item details, user activity, and watch trends.</span>
+                  <span>Track recent additions, library totals, missing artwork, item details, user activity, watch trends, and media quality signals.</span>
                 </article>
                 <article>
                   <TaskLineIcon />
                   <strong>Operations</strong>
-                  <span>Run syncs, backups, imports, health checks, notification tests, and background maintenance tasks.</span>
+                  <span>Run syncs, backups, imports, health checks, notification tests, repairs, logs, and background maintenance tasks.</span>
                 </article>
                 <article>
                   <Database2LineIcon />
                   <strong>Integrations</strong>
-                  <span>Connect request managers, download clients, Arr apps, Tautulli, Jellystat, webhooks, and newsletter tools.</span>
+                  <span>Connect Seerr, download clients, Sonarr/Radarr/Lidarr, Tdarr, Bazarr, Prowlarr, Tautulli, Jellystat, webhooks, and newsletters.</span>
+                </article>
+                <article>
+                  <TaskLineIcon />
+                  <strong>Requests</strong>
+                  <span>Review pending approvals, per-user queues, availability, issue reports, request trends, and Seerr search results.</span>
+                </article>
+                <article>
+                  <DownloadCloud2LineIcon />
+                  <strong>Downloads</strong>
+                  <span>Monitor torrent and usenet clients with queue state, progress, speeds, ETA, stalled items, and failed jobs.</span>
+                </article>
+                <article>
+                  <TimerFlashLineIcon />
+                  <strong>Active transcodes</strong>
+                  <span>Track Tdarr processing, queued items, history, thumbnails, source-to-target conversion, savings, and live percentages.</span>
+                </article>
+                <article>
+                  <RadarLineIcon />
+                  <strong>Automation health</strong>
+                  <span>Check Bazarr subtitle gaps, subtitle grabs, Prowlarr indexer health, failed indexers, and connected app sync status.</span>
+                </article>
+                <article>
+                  <LayoutGridLineIcon />
+                  <strong>Custom layouts</strong>
+                  <span>Collapse the sidebar, reorder navigation, hide tabs, resize Home widgets, and save browser-specific dashboard layouts.</span>
+                </article>
+                <article>
+                  <Settings3LineIcon />
+                  <strong>Admin tools</strong>
+                  <span>Manage settings, devices, integrations, API keys, webhooks, backups, imports, repair tasks, and application logs.</span>
                 </article>
               </div>
 
@@ -182,7 +256,8 @@ export default function SettingsAbout() {
                 <p>
                   JellyGlance runs beside your Jellyfin server and talks to the configured APIs with your saved settings. The
                   dashboard keeps local cache and task history so pages can show useful operational context without making
-                  every view feel like a raw API browser.
+                  every view feel like a raw API browser. Optional GitHub data powers release notes and project profile cards
+                  on this page.
                 </p>
               </section>
 
@@ -190,10 +265,40 @@ export default function SettingsAbout() {
                 <h2>What to configure</h2>
                 <ul>
                   <li>Jellyfin connection and authentication mode for the main dashboard.</li>
-                  <li>Optional Jellyseerr or Overseerr instances for request management.</li>
-                  <li>Optional qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or similar clients for downloads.</li>
-                  <li>Optional backups, webhooks, newsletter delivery, imports, and health monitoring.</li>
+                  <li>Optional Jellyseerr or Overseerr instances for request management, approvals, user queues, issue reports, and request trends.</li>
+                  <li>Optional qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or similar clients for download monitoring.</li>
+                  <li>Optional Tdarr for active transcodes, queue, history, conversion detail, thumbnails, and live progress.</li>
+                  <li>Optional Bazarr and Prowlarr for subtitle gaps, subtitle history, indexer health, failed indexers, and app sync status.</li>
+                  <li>Optional backups, webhooks, newsletter delivery, imports, health monitoring, custom navbar order, hidden tabs, and Home widgets.</li>
                 </ul>
+              </section>
+
+              <section className="about-contributors">
+                <div className="about-profile-group">
+                  <h3>Project Owner</h3>
+                  <a className="about-owner-card" href={projectOwner.profile_url} target="_blank" rel="noreferrer">
+                    <img src={projectOwner.avatar_url} alt="" loading="lazy" />
+                    <span>
+                      <strong>{projectOwner.login}</strong>
+                      <small>{projectOwner.contributions ? `${projectOwner.contributions} contribution${projectOwner.contributions === 1 ? "" : "s"}` : "Project owner"}</small>
+                    </span>
+                  </a>
+                </div>
+                <div className="about-profile-group">
+                  <h3>Contributors</h3>
+                  {contributorsMessage ? <p>{contributorsMessage}</p> : null}
+                  <div className="about-contributor-list">
+                    {projectContributors.map((contributor) => (
+                      <a key={contributor.id || contributor.login} href={contributor.profile_url} target="_blank" rel="noreferrer">
+                        <img src={contributor.avatar_url} alt="" loading="lazy" />
+                        <span>
+                          <strong>{contributor.login}</strong>
+                          <small>{contributor.contributions} contribution{contributor.contributions === 1 ? "" : "s"}</small>
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </section>
             </div>
 
@@ -318,6 +423,14 @@ export default function SettingsAbout() {
 
           <section className="about-links">
             <h2>Links</h2>
+            <a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">
+              <PulseLineIcon />
+              Join Discord
+            </a>
+            <a href="https://jellyglance.com/" target="_blank" rel="noreferrer">
+              <RadarLineIcon />
+              Website
+            </a>
             <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Source code
@@ -329,6 +442,10 @@ export default function SettingsAbout() {
             <a href="https://github.com/Nerdy-Technician" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Maintainer profile
+            </a>
+            <a href="https://buymeacoffee.com/nerdytechnician" target="_blank" rel="noreferrer">
+              <HeartPulseLineIcon />
+              Buy me a coffee
             </a>
           </section>
         </aside>

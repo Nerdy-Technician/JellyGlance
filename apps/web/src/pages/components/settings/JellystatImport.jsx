@@ -43,7 +43,7 @@ function formatSize(sizeInBytes = 0) {
   return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-export default function JellystatImport() {
+export default function JellystatImport({ compact = false }) {
   const fileInputRef = useRef(null);
   const [uploadedBackup, setUploadedBackup] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -147,13 +147,15 @@ export default function JellystatImport() {
 
   return (
     <div className="legacy-import-page">
-      <header className="settings-section-header">
-        <div>
-          <span>Legacy history</span>
-          <h2>Jellystat Import</h2>
-          <p>Upload a Jellystat JSON backup and append its watch history into JellyGlance before the first sync runs.</p>
-        </div>
-      </header>
+      {!compact ? (
+        <header className="settings-section-header">
+          <div>
+            <span>Legacy history</span>
+            <h2>Jellystat Import</h2>
+            <p>Upload a Jellystat JSON backup and append its watch history into JellyGlance before the first sync runs.</p>
+          </div>
+        </header>
+      ) : null}
 
       {message ? (
         <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>

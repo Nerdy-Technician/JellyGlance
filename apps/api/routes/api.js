@@ -10,7 +10,7 @@ const pgp = require("pg-promise")();
 const { randomUUID } = require("crypto");
 
 const configClass = require("../classes/config");
-const { checkForUpdates, fetchReleaseNotes } = require("../version-control");
+const { checkForUpdates, fetchGithubContributors, fetchReleaseNotes } = require("../version-control");
 const API = require("../classes/api-loader");
 const { sendUpdate } = require("../ws");
 const { tables } = require("../global/backup_tables");
@@ -37,8 +37,10 @@ const router = express.Router();
 const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
 const REQUEST_CACHE_TTL_MS = 45000;
 const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
+const TDARR_TRANSCODE_CACHE_TTL_MS = 5000;
 const requestCache = new Map();
 const seerrMediaDetailCache = new Map();
+const tdarrTranscodeCache = new Map();
 const DEFAULT_ROLE_PERMISSIONS = {
   Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
   Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
@@ -46,6 +48,14 @@ const DEFAULT_ROLE_PERMISSIONS = {
   Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
   Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
 };
+
+function normalizeAccessRoles(settings = {}) {
+  return settings.roles || DEFAULT_ACCESS_ROLES;
+}
+
+function roleExists(settings = {}, role) {
+  return normalizeAccessRoles(settings).includes(role);
+}
 const DEFAULT_NOTIFICATION_SETTINGS = {
   mode: "all",
   manualTaskToasts: true,
@@ -269,13 +279,22 @@ async function testArrIntegration(integration) {
   const url = cleanIntegrationUrl(integration.values?.url);
   const apiKey = integration.values?.secret;
   const name = String(integration.name).toLowerCase();
+  if (isTdarrIntegration(integration)) {
+    return testTdarrIntegration(integration);
+  }
   const isSeerr = name.includes("jellyseerr") || name.includes("overseerr");
   const isBazarr = name === "bazarr";
   const isLidarr = name === "lidarr";
+  const isProwlarr = name === "prowlarr";
+  const isSickChill = name === "sickchill";
   const apiPaths = isSeerr
     ? ["/api/v1/status"]
     : isBazarr
     ? ["/api/system/status", "/api/system/status?apikey=:apiKey"]
+    : isProwlarr
+    ? ["/api/v1/system/status"]
+    : isSickChill
+    ? ["/api/:apiKey/?cmd=sb.ping"]
     : [isLidarr ? "/api/v1/system/status" : "/api/v3/system/status"];
 
   if (!url || !apiKey) {
@@ -290,6 +309,13 @@ async function testArrIntegration(integration) {
         timeout: 10000,
         headers: { "X-Api-Key": apiKey },
       });
+      if (isSickChill && String(response.data?.result || "").toLowerCase() === "success") {
+        return {
+          ok: true,
+          version: "SickChill API",
+          message: response.data.message || "Connected to SickChill",
+        };
+      }
       const version = extractIntegrationVersion(response.data);
 
       if (version) {
@@ -356,11 +382,47 @@ function isWizarrIntegration(integration) {
   return name === "wizarr" || name.includes("wizarr");
 }
 
+function isTdarrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "tdarr" || name.includes("tdarr");
+}
+
+function isMaintainerrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "maintainerr" || name.includes("maintainerr");
+}
+
 function getWizarrHeaders(integration) {
   const apiKey = integration?.values?.secret;
   return {
     Accept: "application/json",
     ...(apiKey ? { "X-API-Key": apiKey } : {}),
+  };
+}
+
+function getMaintainerrHeaders(integration) {
+  const apiKey = String(integration?.values?.secret || "").trim();
+  if (!apiKey) {
+    return {
+      Accept: "application/json",
+    };
+  }
+
+  const hasBearerPrefix = /^bearer\s+/i.test(apiKey);
+  return {
+    Accept: "application/json",
+    "X-Api-Key": apiKey,
+    "x-api-key": apiKey,
+    ...(hasBearerPrefix ? {} : { Authorization: `Bearer ${apiKey}` }),
+    ...(hasBearerPrefix ? { Authorization: apiKey } : {}),
+  };
+}
+
+function getTdarrHeaders(integration) {
+  const apiKey = integration?.values?.secret;
+  return {
+    Accept: "application/json",
+    ...(apiKey ? { "x-api-key": apiKey } : {}),
   };
 }
 
@@ -384,14 +446,738 @@ async function testWizarrIntegration(integration) {
   };
 }
 
+async function testTdarrIntegration(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+
+  if (!url) {
+    return { ok: false, error: "URL is required" };
+  }
+
+  const [statusResponse, statistics] = await Promise.all([
+    axios.get(`${url}/api/v2/status`, {
+      timeout: 10000,
+      headers: getTdarrHeaders(integration),
+    }),
+    fetchTdarrStatistics(integration),
+  ]);
+  const data = statusResponse.data || {};
+  const stats = normalizeTdarrStatistics(statistics);
+  const version = extractIntegrationVersion(data) || data?.serverVersion || data?.tdarrVersion || "Tdarr API";
+  return {
+    ok: true,
+    version,
+    message: `${stats.queue} queued · ${stats.processed} processed · ${stats.errored} errored`,
+  };
+}
+
 async function testThirdPartyIntegration(integration) {
   if (isWizarrIntegration(integration)) {
     return testWizarrIntegration(integration);
+  }
+  if (isTdarrIntegration(integration)) {
+    return testTdarrIntegration(integration);
+  }
+  if (isMaintainerrIntegration(integration)) {
+    return testMaintainerrIntegration(integration);
   }
   return {
     ok: true,
     version: "saved credentials",
     message: "Connected to saved credentials",
+  };
+}
+
+async function testMaintainerrIntegration(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  if (!url) {
+    return { ok: false, error: "URL is required" };
+  }
+
+  const response = await axios.get(`${url}/api/health`, {
+    timeout: 10000,
+    headers: getMaintainerrHeaders(integration),
+  });
+  const health = response.data || {};
+  const healthy = getMaintainerrHealthStatus(health);
+  const version = extractIntegrationVersion(health) || health?.version || "Maintainerr API";
+  return {
+    ok: healthy,
+    version,
+    message: healthy ? "Connected to Maintainerr" : "Maintainerr health reports degraded",
+  };
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function asArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function toNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function pickArray(root, names) {
+  if (!root || typeof root !== "object") return [];
+  for (const name of names) {
+    const value = root[name];
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+      const nested = Object.values(value).find(Array.isArray);
+      if (nested) return nested;
+    }
+  }
+  return [];
+}
+
+function flattenRecordCollections(root, names) {
+  const direct = pickArray(root, names);
+  if (direct.length) return direct;
+  const results = [];
+  for (const value of Object.values(root || {})) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = pickArray(value, names);
+      if (nested.length) results.push(...nested);
+    }
+  }
+  return results;
+}
+
+function recursivelyFindArrays(root, predicate, maxDepth = 4) {
+  const results = [];
+  const seen = new WeakSet();
+
+  function visit(value, depth) {
+    if (!value || typeof value !== "object" || depth > maxDepth || seen.has(value)) return;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      if (!predicate || value.some((item) => item && typeof item === "object" && predicate(item))) {
+        results.push(value);
+      }
+      value.forEach((item) => visit(item, depth + 1));
+      return;
+    }
+    Object.values(value).forEach((item) => visit(item, depth + 1));
+  }
+
+  visit(root, 0);
+  return results.flat();
+}
+
+function extractTdarrTitle(record = {}) {
+  const sourceRecord = record.originalLibraryFile || record.libraryFile || record.file || record;
+  const rawPath = firstDefined(sourceRecord.filePath, sourceRecord.file, sourceRecord.path, record.filePath, record.file, record.path, record.inputFile, record.originalPath, record._id, "");
+  const rawTitle = firstDefined(
+    sourceRecord.fileNameWithoutExtension,
+    sourceRecord.title,
+    sourceRecord.name,
+    record.title,
+    record.name,
+    record.fileName,
+    record.originalFileName,
+    record.meta?.Title,
+    record.DB?.Title,
+    record._source?.fileName,
+    ""
+  );
+  const fromPath = String(rawPath || "")
+    .split(/[\\/]/)
+    .pop()
+    ?.replace(/\.[^.]+$/, "");
+  return String(rawTitle || fromPath || "Unknown media");
+}
+
+function normalizeTdarrDisplayStatus(value) {
+  const text = String(value || "").trim();
+  if (!text || text.toLowerCase() === "none") return "";
+  return text;
+}
+
+function parseTdarrTargetFromText(value) {
+  const text = String(value || "").toLowerCase();
+  if (!text || text === "none") return "";
+
+  const codec = text.match(/\b(hevc|h265|h\.265|x265|av1|h264|h\.264|x264|vp9)\b/)?.[1];
+  const container = text.match(/\b(mkv|mp4|mov|avi|webm)\b/)?.[1];
+  const resolution = text.match(/\b(2160p|4k|1440p|1080p|720p|576p|480p)\b/)?.[1];
+  const parts = [
+    codec?.replace("h.265", "h265").replace("x265", "h265").replace("h.264", "h264").replace("x264", "h264"),
+    container,
+    resolution === "4k" ? "2160p" : resolution,
+  ].filter(Boolean);
+
+  return parts.length ? [...new Set(parts)].join(" / ") : "";
+}
+
+function getTdarrFormatLabel(record = {}) {
+  return [
+    firstDefined(record.video_codec_name, record.videoCodec, record.codec),
+    firstDefined(record.container, record.format),
+    firstDefined(record.video_resolution, record.resolution),
+  ]
+    .map(normalizeTdarrDisplayStatus)
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function tdarrSizeToBytes(value, unit = "gb") {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  if (unit === "mb") return number * 1000000;
+  if (unit === "bytes") return number;
+  return number * 1000000000;
+}
+
+function getTdarrTargetLabel(record = {}, status = "queued") {
+  const base = record.originalLibraryFile || record.libraryFile || record;
+  const output = record.output || record.target || record.result || {};
+  const directParts = [
+    firstDefined(record.targetCodec, record.outputCodec, output.videoCodec, output.video_codec_name),
+    firstDefined(record.targetContainer, record.outputContainer, output.container),
+    firstDefined(record.targetResolution, record.outputResolution, output.video_resolution),
+  ].map(normalizeTdarrDisplayStatus).filter(Boolean);
+
+  if (directParts.length) {
+    return [...new Set(directParts)].join(" / ");
+  }
+
+  const descriptiveTarget = firstDefined(record.pluginName, record.flowName, record.lastPluginDetails, base.lastPluginDetails);
+  const parsedTarget = parseTdarrTargetFromText(descriptiveTarget);
+  if (parsedTarget) return parsedTarget;
+
+  if (status === "queued") {
+    const isHealthCheck = String(firstDefined(record.HealthCheck, base.HealthCheck, "")).toLowerCase() === "queued";
+    return isHealthCheck ? "Health check" : "Queued target";
+  }
+
+  return status === "active" ? "Processing" : "";
+}
+
+function extractTdarrCodec(record = {}, side = "from") {
+  const base = record.originalLibraryFile || record.libraryFile || record;
+  const source = side === "from" ? record.input || record.source || record.original || base.mediaInfo || base : record.output || record.target || record.result || record.mediaInfo || record;
+  return firstDefined(
+    source.videoCodec,
+    source.video_codec_name,
+    source.codec,
+    source.container,
+    source.format,
+    record[side === "from" ? "originalCodec" : "targetCodec"],
+    record[side === "from" ? "sourceCodec" : "outputCodec"],
+    side === "from" ? record.video_codec_name : record.output_codec_name,
+    ""
+  );
+}
+
+function normalizeTdarrProgress(value) {
+  if (typeof value === "string") {
+    const text = value.trim();
+    const percentMatch = text.match(/^(-?\d+(?:\.\d+)?)\s*%$/);
+    if (percentMatch) return Math.max(0, Math.min(100, Number(percentMatch[1])));
+    value = text;
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, number > 1 ? number : number * 100));
+}
+
+function getTdarrExplicitProgress(record = {}) {
+  const candidates = [
+    record.progress,
+    record.progressPercent,
+    record.percentageComplete,
+    record.percentComplete,
+    record.transcodeProgress,
+    record.percent,
+    record.percentage,
+    record.transcodePercent,
+    record.TranscodeProgress,
+    record.TranscodePercent,
+    record.Progress,
+    record.Percent,
+    record.Percentage,
+    record.worker?.progress,
+    record.worker?.percent,
+    record.worker?.percentage,
+    record.job?.progress,
+    record.job?.percent,
+    record.job?.percentage,
+    record.process?.progress,
+    record.process?.percent,
+    record.process?.percentage,
+    record.ffmpeg?.progress,
+    record.ffmpeg?.percent,
+    record.ffmpeg?.percentage,
+    record.workerItem?.progress,
+    record.workerItem?.percent,
+    record.workerItem?.percentage,
+    record.workerItem?.percentageComplete,
+    record.processData?.progress,
+    record.processData?.percent,
+    record.processData?.percentage,
+  ];
+
+  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
+  const directProgress = value === undefined ? undefined : normalizeTdarrProgress(value);
+  if (directProgress > 0) return directProgress;
+
+  const ratioProgress = getTdarrRatioProgress(record);
+  if (ratioProgress !== undefined) return ratioProgress;
+
+  const nestedProgress = findTdarrProgressValue(record);
+  if (nestedProgress !== undefined) {
+    const nestedValue = normalizeTdarrProgress(nestedProgress);
+    if (nestedValue > 0 || directProgress === undefined) return nestedValue;
+  }
+  return directProgress || 0;
+}
+
+function getTdarrRatioProgress(record = {}) {
+  const pairs = [
+    [record.currentFrame, record.totalFrames],
+    [record.frames?.current, record.frames?.total],
+    [record.frame, record.frames],
+    [record.ffmpeg?.out_time_ms, record.ffmpeg?.duration_ms],
+    [record.ffmpegData?.out_time_ms, record.ffmpegData?.duration_ms],
+    [record.process?.out_time_ms, record.process?.duration_ms],
+    [record.currentTime, record.totalTime],
+  ];
+  for (const [current, total] of pairs) {
+    const currentNumber = Number(current);
+    const totalNumber = Number(total);
+    if (Number.isFinite(currentNumber) && Number.isFinite(totalNumber) && totalNumber > 0) {
+      return normalizeTdarrProgress(currentNumber / totalNumber);
+    }
+  }
+  return undefined;
+}
+
+function findTdarrProgressValue(value, depth = 0) {
+  if (!value || typeof value !== "object" || depth > 4) return undefined;
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (/(progress|percent|percentage)/i.test(key)) {
+      if (nestedValue !== undefined && nestedValue !== null && nestedValue !== "") return nestedValue;
+    }
+    const result = findTdarrProgressValue(nestedValue, depth + 1);
+    if (result !== undefined) return result;
+  }
+  return undefined;
+}
+
+function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
+  const id = String(firstDefined(record.id, record._id, record.fileId, record.jobId, record.jobID, record.file, record.path, `${status}-${index}`));
+  const progress = getTdarrExplicitProgress(record);
+  const itemId = firstDefined(record.jellyfinId, record.jellyfinItemId, record.itemId, record.mediaId, record.embyId, record.meta?.Id, record.jellyglanceItemId, "");
+  const imageId = firstDefined(record.jellyglanceImageId, itemId);
+  const posterId = firstDefined(record.jellyglancePosterId, imageId, itemId);
+  const base = record.originalLibraryFile || record.libraryFile || record;
+  const sourceCodec = getTdarrFormatLabel(base);
+  const activeStatus = status === "active" ? firstDefined(record.status, record.handling, record.job?.type) : "";
+  const decision = normalizeTdarrDisplayStatus(firstDefined(activeStatus, record.TranscodeDecisionMaker, base.TranscodeDecisionMaker, record.HealthCheck, base.HealthCheck, status));
+  const targetLabel = getTdarrTargetLabel(record, status);
+  const reasonLabel = normalizeTdarrDisplayStatus(firstDefined(record.reason, record.error, record.message, record.pluginName, record.lastPluginDetails, base.lastPluginDetails));
+  const oldSizeBytes = tdarrSizeToBytes(firstDefined(record.oldSize, base.oldSize, record.originalSizeGb, base.originalSizeGb));
+  const newSizeBytes = tdarrSizeToBytes(firstDefined(record.newSize, base.newSize, record.outputSizeGb, base.outputSizeGb));
+  const fileSizeBytes = tdarrSizeToBytes(firstDefined(base.file_size, record.file_size), "mb");
+  const sizeBefore = firstDefined(record.sizeBefore, record.originalSize, record.input?.size, oldSizeBytes);
+  const sizeAfter = firstDefined(record.outputSize, record.sizeAfter, record.output?.size, newSizeBytes, fileSizeBytes);
+  const savedBytes = oldSizeBytes && newSizeBytes ? Math.max(0, oldSizeBytes - newSizeBytes) : 0;
+  const savedPercent = oldSizeBytes && savedBytes ? Math.round((savedBytes / oldSizeBytes) * 100) : 0;
+  const historyFrom = normalizeTdarrDisplayStatus(firstDefined(record.originalFormat, record.sourceFormat, record.previousFormat, ""));
+  const historyTo = sourceCodec || targetLabel;
+
+  return {
+    id,
+    title: extractTdarrTitle(record),
+    library: firstDefined(record.libraryName, record.library, base.DB, record.DB?.libraryName, record.meta?.LibraryName, ""),
+    worker: firstDefined(record.workerName, record.nodeName, record.nodeID, record.nodeId, record.worker?.name, record.workerType, ""),
+    status: decision || status,
+    from: status === "history" ? firstDefined(historyFrom, "Previous version") : firstDefined(sourceCodec, extractTdarrCodec(record, "from"), "Source"),
+    to: status === "history" ? firstDefined(historyTo, targetLabel, "After") : targetLabel,
+    progress,
+    sizeBefore,
+    sizeAfter,
+    savedBytes,
+    savedPercent,
+    updatedAt: firstDefined(record.updatedAt, record.lastUpdated, record.date, record.time, record.finishedAt, record.createdAt, base.lastTranscodeDate, base.lastHealthCheckDate, ""),
+    reason: reasonLabel,
+    itemId,
+    imageId,
+    bannerUrl: imageId ? `/proxy/Items/Images/Backdrop?id=${encodeURIComponent(imageId)}&fillWidth=1200&quality=64` : "",
+    thumbnailUrl: posterId ? `/proxy/Items/Images/Primary?id=${encodeURIComponent(posterId)}&fillWidth=480&fillHeight=720&quality=96` : "",
+  };
+}
+
+function getTdarrRecordPath(record = {}) {
+  const base = record.originalLibraryFile || record.libraryFile || record;
+  return firstDefined(base.file, base.path, base.filePath, record.file, record.path, record.filePath, record._id, "");
+}
+
+function getTdarrPathSuffix(pathValue = "") {
+  const parts = String(pathValue).split(/[\\/]+/).filter(Boolean);
+  if (parts.length <= 3) return parts.join("/");
+  return parts.slice(-4).join("/");
+}
+
+function getTdarrEpisodeKey(pathValue = "") {
+  const text = String(pathValue);
+  const episodeMatch = text.match(/S(\d{1,2})E(\d{1,3})/i);
+  if (!episodeMatch) return null;
+  const parts = text.split(/[\\/]+/).filter(Boolean);
+  const seriesFolder = parts.find((part) => /\(\d{4}\)/.test(part)) || parts[Math.max(0, parts.length - 3)] || "";
+  return {
+    series: seriesFolder.toLowerCase(),
+    episode: `s${episodeMatch[1].padStart(2, "0")}e${episodeMatch[2].padStart(2, "0")}`,
+  };
+}
+
+async function attachJellyfinIdsToTdarrRecords(records = []) {
+  const paths = [...new Set(records.map(getTdarrRecordPath).filter(Boolean))];
+  if (!paths.length) return records;
+
+  try {
+    const suffixes = [...new Set(paths.map(getTdarrPathSuffix).filter(Boolean))];
+    const episodeKeys = new Map(paths.map((pathValue) => [pathValue, getTdarrEpisodeKey(pathValue)]).filter(([, key]) => key));
+    const episodeSeriesPatterns = [...new Set([...episodeKeys.values()].map((key) => `%${key.series}%`))];
+    const episodePatterns = [...new Set([...episodeKeys.values()].map((key) => key.episode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))];
+    const { rows } = await db.query(
+      `
+        SELECT "Id", "Path", "Name"
+        FROM jf_item_info
+        WHERE "Path" = ANY($1)
+           OR "Path" LIKE ANY($2)
+           OR ("Path" ILIKE ANY($3) AND "Path" ~* ANY($4))
+      `,
+      [paths, suffixes.map((suffix) => `%${suffix}`), episodeSeriesPatterns.length ? episodeSeriesPatterns : ["__jg_no_series_match__"], episodePatterns.length ? episodePatterns : ["__jg_no_episode_match__"]]
+    );
+    const idByPath = new Map(rows.map((row) => [row.Path, row.Id]));
+    const idBySuffix = new Map(rows.map((row) => [getTdarrPathSuffix(row.Path), row.Id]));
+    const idByEpisode = new Map(
+      rows
+        .map((row) => {
+          const key = getTdarrEpisodeKey(row.Path || row.Name);
+          return key ? [`${key.series}::${key.episode}`, row.Id] : null;
+        })
+        .filter(Boolean)
+    );
+    const matchedItemIds = [...new Set(
+      records
+        .map((record) => {
+          const pathValue = getTdarrRecordPath(record);
+          const episodeKey = episodeKeys.get(pathValue);
+          return (
+            idByPath.get(pathValue) ||
+            idBySuffix.get(getTdarrPathSuffix(pathValue)) ||
+            (episodeKey ? idByEpisode.get(`${episodeKey.series}::${episodeKey.episode}`) : null)
+          );
+        })
+        .filter(Boolean)
+    )];
+    const imageIdByItemId = new Map();
+    const posterIdByItemId = new Map();
+    if (matchedItemIds.length) {
+      const episodeRows = await db.query(
+        'SELECT "EpisodeId", "SeriesId", "ParentBackdropItemId" FROM jf_library_episodes WHERE "EpisodeId" = ANY($1)',
+        [matchedItemIds]
+      );
+      episodeRows.rows.forEach((row) => {
+        imageIdByItemId.set(row.EpisodeId, row.ParentBackdropItemId || row.SeriesId);
+        posterIdByItemId.set(row.EpisodeId, row.SeriesId);
+      });
+    }
+
+    return records.map((record) => {
+      const pathValue = getTdarrRecordPath(record);
+      const episodeKey = episodeKeys.get(pathValue);
+      const itemId =
+        idByPath.get(pathValue) ||
+        idBySuffix.get(getTdarrPathSuffix(pathValue)) ||
+        (episodeKey ? idByEpisode.get(`${episodeKey.series}::${episodeKey.episode}`) : null);
+      return itemId
+        ? {
+            ...record,
+            jellyglanceItemId: itemId,
+            jellyglanceImageId: imageIdByItemId.get(itemId) || itemId,
+            jellyglancePosterId: posterIdByItemId.get(itemId) || itemId,
+          }
+        : record;
+    });
+  } catch (error) {
+    console.log("Tdarr Jellyfin path lookup failed:", error.message);
+    return records;
+  }
+}
+
+function normalizeTdarrStatistics(statistics = {}) {
+  const table1 = toNumber(statistics.table1ViewableCount ?? statistics.table1Count);
+  const table2 = toNumber(statistics.table2ViewableCount ?? statistics.table2Count);
+  const table3 = toNumber(statistics.table3ViewableCount ?? statistics.table3Count);
+  const table4 = toNumber(statistics.table4ViewableCount ?? statistics.table4Count);
+  const table5 = toNumber(statistics.table5ViewableCount ?? statistics.table5Count);
+  const table6 = toNumber(statistics.table6ViewableCount ?? statistics.table6Count);
+  return {
+    transcodeQueue: table1,
+    transcodeProcessed: table2,
+    transcodeErrored: table3,
+    healthQueue: table4,
+    healthProcessed: table5,
+    healthErrored: table6,
+    queue: table1 + table4,
+    processed: table2 + table5,
+    errored: table3 + table6,
+    saved: toNumber(statistics.sizeDiff) * 1000000000,
+  };
+}
+
+function looksLikeTdarrActiveRecord(record = {}) {
+  const text = [
+    record.status,
+    record.state,
+    record.stage,
+    record.type,
+    record.workerType,
+    record.process,
+    record.file,
+    record.filePath,
+    record.originalPath,
+    record.healthCheck,
+    record.transcode,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /transcod|health|worker|process|ffmpeg|handbrake|active|running|current|file/.test(text);
+}
+
+function isTdarrQueuedFile(file = {}) {
+  return [file.TranscodeDecisionMaker, file.HealthCheck].some((value) => String(value || "").toLowerCase() === "queued");
+}
+
+function isTdarrHistoryFile(file = {}) {
+  return [file.TranscodeDecisionMaker, file.HealthCheck].some((value) => /success|error|cancel|not required|complete/i.test(String(value || "")));
+}
+
+function sortTdarrFilesByDate(files = []) {
+  return [...files].sort((first, second) => {
+    const firstDate = toNumber(first.lastTranscodeDate || first.lastHealthCheckDate || first.createdAt);
+    const secondDate = toNumber(second.lastTranscodeDate || second.lastHealthCheckDate || second.createdAt);
+    return secondDate - firstDate;
+  });
+}
+
+function extractTdarrActiveRows(root = {}) {
+  const namedRows = flattenRecordCollections(root, [
+    "active",
+    "activeTranscodes",
+    "activeWorkers",
+    "workers",
+    "currentTranscodes",
+    "running",
+    "inProgress",
+    "transcodeWorkers",
+    "nodeStatus",
+    "nodes",
+  ]);
+  const recursiveRows = recursivelyFindArrays(root, looksLikeTdarrActiveRecord, 4);
+  const rows = [...namedRows, ...recursiveRows].filter((record) => record && typeof record === "object" && looksLikeTdarrActiveRecord(record));
+  const seen = new Set();
+  return rows.filter((record) => {
+    const key = String(firstDefined(record.id, record._id, record.file, record.filePath, record.workerName, record.nodeName, JSON.stringify(record).slice(0, 160)));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeTdarrBundle(data = {}, statistics = {}, stagedRows = [], fileRows = []) {
+  const root = data.data && typeof data.data === "object" ? data.data : data;
+  const queuedNames = ["queued", "queue", "transcodeQueue", "transcodeQueueItems", "staged", "pending", "waiting"];
+  const historyNames = ["history", "recent", "recentlyFinished", "finished", "success", "completed", "transcodeHistory"];
+  const normalizedStats = normalizeTdarrStatistics(statistics);
+  const staged = Array.isArray(stagedRows) ? stagedRows : [];
+  const files = Array.isArray(fileRows) ? fileRows : [];
+  const activeSource = staged.length ? staged : extractTdarrActiveRows(root);
+  const queuedSource = files.length ? files.filter(isTdarrQueuedFile).slice(0, 80) : flattenRecordCollections(root, queuedNames);
+  const historySource = files.length ? sortTdarrFilesByDate(files.filter(isTdarrHistoryFile)).slice(0, 80) : flattenRecordCollections(root, historyNames);
+  const active = activeSource.map((record, index) => normalizeTdarrRecord(record, "active", index));
+  const queued = queuedSource.map((record, index) => normalizeTdarrRecord(record, "queued", index));
+  const history = historySource.map((record, index) => normalizeTdarrRecord(record, "history", index));
+
+  return {
+    source: {
+      name: "Tdarr",
+      version: extractIntegrationVersion(data) || root.serverVersion || root.tdarrVersion || "",
+    },
+    active,
+    queued,
+    history,
+    stats: {
+      active: staged.length || getTdarrActiveCount(active, root),
+      queued: normalizedStats.queue || queued.length || toNumber(root.totalQueued || root.queueCount || root.transcodeQueueCount),
+      queue: normalizedStats.queue || queued.length || toNumber(root.totalQueued || root.queueCount || root.transcodeQueueCount),
+      processed: normalizedStats.processed,
+      errored: normalizedStats.errored,
+      saved: normalizedStats.saved,
+      transcodeQueue: normalizedStats.transcodeQueue,
+      healthQueue: normalizedStats.healthQueue,
+      history: history.length || normalizedStats.processed + normalizedStats.errored,
+      nodes: asArray(root.nodes || root.nodeStatus || root.clients).length,
+    },
+    raw: root,
+    statistics,
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+function getTdarrActiveCount(active = [], data = {}) {
+  const explicit = firstDefined(data.activeCount, data.activeTranscodeCount, data.transcodeCount, data.stats?.active, data.workerStats?.active);
+  const number = Number(explicit);
+  return Number.isFinite(number) ? number : active.length;
+}
+
+async function getConnectedTdarrIntegration() {
+  const integrations = await getIntegrations();
+  return [...(integrations.thirdParty || []), ...(integrations.arrApps || [])].find(
+    (integration) => isTdarrIntegration(integration) && cleanIntegrationUrl(integration.values?.url)
+  );
+}
+
+async function fetchTdarrCrudDb(integration, payload) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const response = await axios.post(`${url}/api/v2/cruddb`, payload, {
+    timeout: 12000,
+    headers: {
+      ...getTdarrHeaders(integration),
+      "Content-Type": "application/json",
+    },
+  });
+  return response.data || {};
+}
+
+async function fetchTdarrStatistics(integration) {
+  try {
+    return await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "StatisticsJSONDB",
+        mode: "getById",
+        docID: "statistics",
+      },
+    });
+  } catch (error) {
+    console.log("Tdarr statistics load failed:", getAxiosErrorMessage(error));
+    return {};
+  }
+}
+
+async function fetchTdarrCollection(integration, collection) {
+  try {
+    const data = await fetchTdarrCrudDb(integration, {
+      data: {
+        collection,
+        mode: "getAll",
+      },
+    });
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.docs)) return data.docs;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.records)) return data.records;
+    if (Array.isArray(data?.rows)) return data.rows;
+    if (data && typeof data === "object") {
+      const objectRows = Object.values(data).filter((item) => item && typeof item === "object" && !Array.isArray(item));
+      return objectRows.length ? objectRows : [];
+    }
+    return [];
+  } catch (error) {
+    console.log(`Tdarr ${collection} load failed:`, getAxiosErrorMessage(error));
+    return [];
+  }
+}
+
+// Build a map from staged-file ID to live worker progress pulled from /api/v2/get-nodes.
+function mergeNodeProgressIntoStaged(staged, nodesData) {
+  if (!nodesData || typeof nodesData !== "object" || !staged.length) return staged;
+
+  const progressByFileId = new Map();
+  const workers = [];
+  function collectWorkers(value, depth = 0) {
+    if (!value || typeof value !== "object" || depth > 6) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectWorkers(item, depth + 1));
+      return;
+    }
+    const progress = value.percentage ?? value.transcodePercent ?? value.TranscodePercent ?? value.Progress ?? value.progress ?? value.percent;
+    const fileId = value.file || value.fileId || value.filePath || value.path || value._id || value.workerItemId;
+    if (fileId != null && progress != null) workers.push({ fileId: String(fileId), progress });
+    Object.values(value).forEach((child) => collectWorkers(child, depth + 1));
+  }
+  collectWorkers(nodesData);
+
+  for (const worker of workers) {
+    const num = Number(String(worker.progress).replace(/%/, ""));
+    if (Number.isFinite(num)) {
+      progressByFileId.set(worker.fileId, num);
+    }
+  }
+
+  if (!progressByFileId.size) return staged;
+
+  return staged.map((record) => {
+    const ids = [record._id, record.id, record.fileId, record.file, record.filePath, record.path].filter(Boolean).map(String);
+    for (const id of ids) {
+      if (progressByFileId.has(id)) {
+        return { ...record, progress: progressByFileId.get(id) };
+      }
+    }
+    const suffixes = ids.map((id) => id.split(/[\\/]+/).slice(-2).join("/"));
+    const matchingWorker = workers.find((worker) => suffixes.includes(worker.fileId.split(/[\\/]+/).slice(-2).join("/")));
+    if (matchingWorker) return { ...record, progress: matchingWorker.progress };
+    return record;
+  });
+}
+
+async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const [statusResponse, statistics, stagedRows, fileRows, nodesData] = await Promise.all([
+    axios
+      .get(`${url}/api/v2/status`, {
+        timeout: 12000,
+        headers: getTdarrHeaders(integration),
+      })
+      .catch((error) => {
+        console.log("Tdarr status load failed:", getAxiosErrorMessage(error));
+        return { data: {} };
+      }),
+    activeOnly ? Promise.resolve({}) : fetchTdarrStatistics(integration),
+    fetchTdarrCollection(integration, "StagedJSONDB"),
+    activeOnly ? Promise.resolve([]) : fetchTdarrCollection(integration, "FileJSONDB"),
+    axios.get(`${url}/api/v2/get-nodes`, {
+      timeout: 10000,
+      headers: getTdarrHeaders(integration),
+    }).then((r) => r.data || {}).catch(() => ({})),
+  ]);
+
+  const stagedWithProgress = mergeNodeProgressIntoStaged(stagedRows, nodesData);
+
+  const queuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
+  const historyFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
+  const [activeWithImages, queuedWithImages, historyWithImages] = await Promise.all([
+    activeOnly ? Promise.resolve(stagedWithProgress) : attachJellyfinIdsToTdarrRecords(stagedWithProgress),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
+  ]);
+  const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages.slice(0, 80), [...queuedWithImages, ...historyWithImages]);
+  return {
+    ...bundle,
+    source: {
+      ...bundle.source,
+      name: integration.name || "Tdarr",
+      url,
+      instanceId: integration.instanceId,
+    },
   };
 }
 
@@ -524,6 +1310,290 @@ function normalizeWizarrLibrary(library) {
   };
 }
 
+function getMaintainerrStatusValue(raw = {}) {
+  const candidate = String(firstDefined(raw?.status, raw?.State, raw?.state, raw?.result, raw?.message, "") || "").toLowerCase();
+  if (!candidate) return null;
+  if (["ok", "healthy", "up", "true", "connected", "ready"].includes(candidate)) return true;
+  if (["degraded", "error", "down", "unavailable", "false", "failed"].includes(candidate)) return false;
+  return null;
+}
+
+function getMaintainerrHealthStatus(health) {
+  const raw = health || {};
+  const values = [raw?.status, raw?.State, raw?.state, raw?.result, raw?.resultCode, raw?.message, raw?.details?.status, raw?.details?.state]
+    .map((item) => firstDefined(item))
+    .filter(Boolean)
+    .map((item) => String(item).toLowerCase());
+  if (!values.length) return Boolean(raw?.ok) && raw !== undefined;
+  if (values.some((value) => ["error", "failed", "degraded", "unhealthy", "down", "not ready", "unavailable"].includes(value))) return false;
+  if (values.some((value) => ["ok", "healthy", "ready", "up", "alive", "connected"].includes(value))) return true;
+  return Boolean(raw?.ok);
+}
+
+function toMaintainerrNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toMaintainerrTimestamp(value) {
+  const date = new Date(firstDefined(value, ""));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+}
+
+function parseMaintainerrDueSeconds(value, fallback = 0) {
+  const scheduledAt = firstDefined(value?.scheduledFor, value?.runAt, value?.executeAt, value?.nextRunAt, value?.applyAt, value?.timestamp, value?.when);
+  const date = scheduledAt ? new Date(scheduledAt) : null;
+  if (!date || !Number.isFinite(date.getTime())) return fallback;
+  return Math.max(0, Math.floor((date.getTime() - Date.now()) / 1000));
+}
+
+function normalizeMaintainerrCollection(collection = {}, index = 0) {
+  const id = firstDefined(collection?.id, collection?.collectionId, collection?._id, index);
+  const reclaimable = toMaintainerrNumber(
+    firstDefined(
+      collection?.reclaimable_bytes,
+      collection?.reclaimableBytes,
+      collection?.reclaimable_size,
+      collection?.bytesToReclaim,
+      collection?.totalReclaimable,
+      0
+    ),
+    0
+  );
+  return {
+    id: `${id || index + 1}`,
+    name: collection?.name || collection?.title || collection?.collectionName || `Collection ${id || index + 1}`,
+    enabled: collection?.enabled !== false,
+    itemCount: toMaintainerrNumber(collection?.items || collection?.itemCount || collection?.pending || collection?.pendingItems, 0),
+    reclaimableBytes: reclaimable,
+    nextRunAt: toMaintainerrTimestamp(collection?.nextRunAt || collection?.nextRun || collection?.nextRunDate),
+    lastRunAt: toMaintainerrTimestamp(collection?.lastRunAt || collection?.lastRun || collection?.lastRunDate),
+    status: collection?.status || collection?.state || "unknown",
+    rule: firstDefined(collection?.rule, collection?.rules?.[0], collection?.automationRule, "default"),
+  };
+}
+
+function normalizeMaintainerrItem(item = {}, index = 0) {
+  const action = firstDefined(item?.action, item?.pendingAction, item?.nextAction, item?.operation, item?.statusAction, "cleanup");
+  const id = firstDefined(item?.id, item?.itemId, item?.mediaId, item?.mediaItemId, item?._id, index);
+  const dueInSeconds = parseMaintainerrDueSeconds(item, 0);
+  return {
+    id: `${id || index + 1}`,
+    mediaId: firstDefined(item?.mediaId, item?.tmdbId, item?.jellyfinItemId, item?.itemId, id),
+    title: item?.title || item?.name || item?.mediaTitle || item?.filename || item?.path || "Unknown media",
+    collection: firstDefined(item?.collection, item?.collectionName, item?.collection_id, ""),
+    collectionId: firstDefined(item?.collectionId, item?.collection_id, item?.collectionUuid, ""),
+    action,
+    dueAt: toMaintainerrTimestamp(item?.scheduledFor || item?.runAt || item?.executeAt || item?.nextRunAt),
+    dueInSeconds,
+    isExclusion: Boolean(item?.excluded || item?.isExcluded || item?.manualRetention || item?.keepForever),
+    storageBytes: toMaintainerrNumber(item?.size || item?.sizeBytes || item?.bytes || item?.fileSize, 0),
+    status: item?.status || item?.state || "scheduled",
+  };
+}
+
+function extractMaintainerrArray(root, keys = []) {
+  const direct = pickArray(root, keys);
+  if (direct.length) return direct;
+  const nested = flattenRecordCollections(root, keys);
+  if (nested.length) return nested;
+  return recursivelyFindArrays(root, (item) =>
+    Boolean(
+      item &&
+        (item.title || item.name || item.mediaId || item.itemId || item.id || item.media || item.collection || item.collectionId || item.action || item.actionName)
+    )
+  );
+}
+
+function normalizeMaintainerrBundle(raw = {}) {
+  const collections = extractMaintainerrArray(raw, ["collections", "activeCollections", "collectionStats"])
+    .map((collection, index) => normalizeMaintainerrCollection(collection, index))
+    .filter((collection) => collection.name || collection.itemCount || collection.id)
+    .slice(0, 50);
+  const allItems = extractMaintainerrArray(raw, ["items", "media", "queue", "pending", "schedules", "schedule", "actions", "records"])
+    .map((item, index) => normalizeMaintainerrItem(item, index))
+    .filter((item) => item.id || item.mediaId || item.title)
+    .slice(0, 250);
+
+  const storage = raw?.storage || raw?.storageMetrics || {};
+  const excludedItems = allItems.filter((item) => item.isExclusion);
+  const scheduledItems = allItems.filter((item) => item.status === "scheduled" || item.action);
+  const now = Date.now();
+  const upcomingActions = [...scheduledItems]
+    .filter((item) => !item.dueAt || new Date(item.dueAt).getTime() <= now + 7 * 24 * 60 * 60 * 1000)
+    .sort((first, second) => {
+      if (!first.dueAt && !second.dueAt) return 0;
+      if (!first.dueAt) return 1;
+      if (!second.dueAt) return -1;
+      return new Date(first.dueAt) - new Date(second.dueAt);
+    })
+    .slice(0, 20);
+  const recentActions = [...scheduledItems].filter((item) => Boolean(item.dueAt)).sort((first, second) => new Date(second.dueAt || 0) - new Date(first.dueAt || 0)).slice(0, 20);
+
+  const totalPendingBytes = toMaintainerrNumber(
+    firstDefined(storage?.reclaimableBytes, storage?.reclaimable_bytes, storage?.bytesToReclaim, raw?.reclaimableBytes, raw?.reclaimable_bytes, 0),
+    0
+  );
+  const totalItems = toMaintainerrNumber(raw?.scheduledCount || raw?.itemsCount || raw?.queuedCount, scheduledItems.length);
+  const collectionFailures = collections.filter((collection) => String(collection.status || "").toLowerCase().includes("fail")).length;
+
+  return {
+    collections,
+    scheduledItems,
+    excludedItems,
+    upcomingActions,
+    recentActions,
+    storage: {
+      reclaimableBytes: totalPendingBytes,
+      totalBytes: toMaintainerrNumber(storage?.totalBytes || storage?.total_bytes, 0),
+      usedBytes: toMaintainerrNumber(storage?.usedBytes || storage?.used_bytes, 0),
+      freeBytes: toMaintainerrNumber(storage?.freeBytes || storage?.free_bytes, 0),
+    },
+    stats: {
+      collections: collections.length,
+      scheduledItems: totalItems,
+      excludedItems: excludedItems.length,
+      collectionFailures,
+      upcomingWeek: upcomingActions.length,
+    },
+  };
+}
+
+async function getConnectedMaintainerrIntegration() {
+  const integrations = await getIntegrations();
+  return (integrations.thirdParty || []).find(
+    (integration) => integration.connected && isMaintainerrIntegration(integration) && cleanIntegrationUrl(integration.values?.url)
+  );
+}
+
+async function fetchMaintainerrBundle(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = getMaintainerrHeaders(integration);
+  const [healthResponse, liveResponse, readyResponse, storageResponse, overlayResponse] = await Promise.all([
+    fetchOptionalJson(`${url}/api/health`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/health/live`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/health/ready`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/storage-metrics`, { timeout: 12000, headers }),
+    fetchOptionalJson(`${url}/api/collections/overlay-data`, { timeout: 16000, headers }),
+  ]);
+
+  const healthBase = healthResponse || {};
+  const live = liveResponse || {};
+  const ready = readyResponse || {};
+  const normalized = normalizeMaintainerrBundle({ ...(overlayResponse || {}), storage: storageResponse || {} });
+  const liveStatus = getMaintainerrStatusValue(live);
+  const readyStatus = getMaintainerrStatusValue(ready);
+  const healthy = getMaintainerrHealthStatus(healthBase);
+
+  return {
+    source: {
+      name: integration.name || "Maintainerr",
+      url,
+      instanceId: integration.instanceId,
+    },
+    health: {
+      ok: healthy === null ? true : healthy,
+      status: String(firstDefined(healthBase?.status, healthBase?.state, healthBase?.message, healthBase?.result, "")),
+      live: liveStatus === null ? Boolean(live) : Boolean(liveStatus),
+      ready: readyStatus === null ? Boolean(ready) : Boolean(readyStatus),
+      checkedAt: new Date().toISOString(),
+      details: firstDefined(healthBase, {}),
+    },
+    ...normalized,
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+async function runMaintainerrAction(integration, payload = {}) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = { ...getMaintainerrHeaders(integration), "Content-Type": "application/json" };
+  const action = String(payload.action || "").trim().toLowerCase();
+  const collectionId = String(payload.collectionId || payload.collection || "").trim();
+  const itemId = String(payload.itemId || payload.mediaId || payload.id || "").trim();
+  const rawAction = String(payload.rawAction || payload.actionName || payload.actionType || "").trim();
+  const postponeHours = Number(payload.postponeHours || 24);
+
+  const postJson = (path, body = {}) =>
+    axios.post(`${url}${path}`, { ...body, ...(payload?.extra || {}) }, { timeout: 12000, headers });
+
+  if (action === "refresh" || action === "refresh-collections" || action === "refresh-rules" || action === "refresh-rules-and-collections") {
+    const attempts = [
+      `/api/collections/refresh`,
+      `/api/media-server/collections/refresh`,
+      collectionId ? `/api/collections/${encodeURIComponent(collectionId)}/refresh` : null,
+      `/api/rules/refresh`,
+      `/api/media-server/rules/refresh`,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, { collectionId, reason: "manual_refresh", ...payload });
+        return { action, ok: true, result: response.data || { status: "ok", message: "Refresh triggered." }, message: "Refresh triggered." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  if (action === "postpone-item" || action === "postpone") {
+    const body = {
+      itemId,
+      action: "postpone",
+      collectionId,
+      postponeHours: Number.isFinite(postponeHours) && postponeHours > 0 ? postponeHours : 24,
+      ...payload,
+    };
+    const attempts = [
+      "/api/collections/media/handle",
+      "/api/media-server/collections/media/handle",
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/postpone` : null,
+      itemId ? `/api/media-server/collections/media/${encodeURIComponent(itemId)}/postpone` : null,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, body);
+        return { action, ok: true, result: response.data || { status: "ok", message: "Item postponed." }, message: "Item postponed." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  if (action === "run-item-action" || action === "run-item" || action === "trigger-item" || action === "run") {
+    const body = {
+      itemId,
+      collectionId,
+      action: rawAction || "run",
+      ...payload,
+    };
+    const attempts = [
+      "/api/collections/media/handle",
+      "/api/media-server/collections/media/handle",
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/run` : null,
+      itemId ? `/api/collections/media/${encodeURIComponent(itemId)}/action` : null,
+      itemId ? `/api/media-server/collections/media/${encodeURIComponent(itemId)}/run` : null,
+    ];
+    for (const path of attempts) {
+      if (!path) continue;
+      try {
+        const response = await postJson(path, body);
+        return { action, ok: true, result: response.data || { status: "ok", message: "Cleanup action triggered." }, message: "Item action triggered." };
+      } catch (error) {
+        if (error.response?.status && error.response.status < 500 && error.response.status !== 404) {
+          continue;
+        }
+      }
+    }
+  }
+
+  throw new Error(`Unsupported Maintainerr action: ${action}`);
+}
+
 async function getConnectedWizarrIntegration() {
   const integrations = await getIntegrations();
   return (integrations.thirdParty || []).find((integration) => integration.connected && isWizarrIntegration(integration));
@@ -568,6 +1638,203 @@ async function fetchWizarrBundle(integration) {
 function isSeerrIntegration(integration) {
   const name = String(integration?.name || integration?.slug || "").toLowerCase();
   return name === "seerr" || name.includes("jellyseerr") || name.includes("overseerr");
+}
+
+function isBazarrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "bazarr" || name.includes("bazarr");
+}
+
+function isProwlarrIntegration(integration) {
+  const name = String(integration?.name || integration?.slug || "").toLowerCase();
+  return name === "prowlarr" || name.includes("prowlarr");
+}
+
+function getArrHeaders(integration) {
+  return {
+    Accept: "application/json",
+    "X-Api-Key": integration?.values?.secret || "",
+  };
+}
+
+function asCount(value) {
+  if (Array.isArray(value)) return value.length;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function toStatusText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return value.message || value.errorMessage || value.error || JSON.stringify(value);
+}
+
+async function fetchOptionalJson(url, options) {
+  try {
+    const response = await axios.get(url, options);
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeBazarrHistory(items = []) {
+  return (Array.isArray(items) ? items : items?.data || [])
+    .map((item, index) => ({
+      id: item.id || item.history_id || `${item.title || item.path || "subtitle"}-${index}`,
+      title: item.title || item.seriesTitle || item.movieTitle || item.sonarrSeriesTitle || item.radarrMovieTitle || item.path || "Subtitle event",
+      language: item.language || item.languageName || item.subtitle_language || "",
+      action: item.action || item.event || (item.upgrade ? "Upgraded" : item.message || "Subtitle update"),
+      provider: item.provider || item.score_provider || "",
+      createdAt: item.timestamp || item.date || item.createdAt || "",
+    }))
+    .slice(0, 20);
+}
+
+async function fetchBazarrHealth(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = getArrHeaders(integration);
+  const options = { timeout: 12000, headers, params: { apikey: integration.values?.secret } };
+  const [status, health, episodesWanted, moviesWanted, history] = await Promise.all([
+    fetchOptionalJson(`${url}/api/system/status`, options),
+    fetchOptionalJson(`${url}/api/system/health`, options),
+    fetchOptionalJson(`${url}/api/episodes/wanted`, options),
+    fetchOptionalJson(`${url}/api/movies/wanted`, options),
+    fetchOptionalJson(`${url}/api/history`, options),
+  ]);
+  const episodeItems = Array.isArray(episodesWanted) ? episodesWanted : episodesWanted?.data || episodesWanted?.results || [];
+  const movieItems = Array.isArray(moviesWanted) ? moviesWanted : moviesWanted?.data || moviesWanted?.results || [];
+  const issues = Array.isArray(health) ? health : health?.issues || health?.data || [];
+
+  return {
+    id: integration.instanceId,
+    name: integration.name || "Bazarr",
+    type: "bazarr",
+    version: extractIntegrationVersion(status) || status?.version || "",
+    ok: issues.length === 0,
+    stats: {
+      missingEpisodes: asCount(episodeItems),
+      missingMovies: asCount(movieItems),
+      issues: issues.length,
+      recentDownloads: normalizeBazarrHistory(history).length,
+    },
+    issues: issues.map((issue, index) => ({
+      id: issue.id || index,
+      source: issue.source || issue.type || "Bazarr",
+      message: toStatusText(issue.message || issue.error || issue.warning || issue),
+      level: issue.type || issue.level || "warning",
+    })),
+    wanted: [...episodeItems, ...movieItems].slice(0, 20).map((item, index) => ({
+      id: item.id || item.sonarrEpisodeId || item.radarrId || index,
+      title: item.title || item.seriesTitle || item.movieTitle || item.path || "Missing subtitle",
+      language: item.language || item.languageName || item.missing_language || "",
+      type: item.episodeTitle || item.seriesTitle ? "Episode" : "Movie",
+    })),
+    history: normalizeBazarrHistory(history),
+  };
+}
+
+async function fetchProwlarrHealth(integration) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  const headers = getArrHeaders(integration);
+  const options = { timeout: 12000, headers };
+  const [status, health, indexers, indexerStatus, applications] = await Promise.all([
+    fetchOptionalJson(`${url}/api/v1/system/status`, options),
+    fetchOptionalJson(`${url}/api/v1/health`, options),
+    fetchOptionalJson(`${url}/api/v1/indexer`, options),
+    fetchOptionalJson(`${url}/api/v1/indexerstatus`, options),
+    fetchOptionalJson(`${url}/api/v1/applications`, options),
+  ]);
+  const indexerRows = Array.isArray(indexers) ? indexers : [];
+  const statusRows = Array.isArray(indexerStatus) ? indexerStatus : [];
+  const issueRows = Array.isArray(health) ? health : [];
+  const statusByIndexerId = new Map(statusRows.map((item) => [String(item.indexerId || item.id), item]));
+  const failedIndexers = indexerRows.filter((indexer) => {
+    const row = statusByIndexerId.get(String(indexer.id));
+    return indexer.enable === false || row?.disabledTill || row?.mostRecentFailure || row?.initialFailure;
+  });
+
+  return {
+    id: integration.instanceId,
+    name: integration.name || "Prowlarr",
+    type: "prowlarr",
+    version: extractIntegrationVersion(status) || status?.version || "",
+    ok: issueRows.length === 0 && failedIndexers.length === 0,
+    stats: {
+      indexers: indexerRows.length,
+      failedIndexers: failedIndexers.length,
+      applications: Array.isArray(applications) ? applications.length : 0,
+      issues: issueRows.length,
+    },
+    issues: [
+      ...issueRows.map((issue, index) => ({
+        id: issue.id || index,
+        source: issue.source || "Prowlarr",
+        message: toStatusText(issue.message || issue.error || issue),
+        level: issue.type || issue.level || "warning",
+      })),
+      ...failedIndexers.map((indexer) => {
+        const row = statusByIndexerId.get(String(indexer.id)) || {};
+        return {
+          id: `indexer-${indexer.id}`,
+          source: indexer.name || "Indexer",
+          message: toStatusText(row.mostRecentFailure || row.initialFailure || row.disabledTill || "Indexer disabled"),
+          level: "error",
+        };
+      }),
+    ],
+    indexers: indexerRows.slice(0, 40).map((indexer) => {
+      const row = statusByIndexerId.get(String(indexer.id)) || {};
+      return {
+        id: indexer.id,
+        name: indexer.name || `Indexer ${indexer.id}`,
+        protocol: indexer.protocol || "",
+        enabled: indexer.enable !== false,
+        failure: toStatusText(row.mostRecentFailure || row.initialFailure),
+        disabledTill: toStatusText(row.disabledTill),
+      };
+    }),
+    applications: (Array.isArray(applications) ? applications : []).map((app) => ({
+      id: app.id,
+      name: app.name || app.implementationName || "Application",
+      syncLevel: app.syncLevel || "",
+      tags: app.tags || [],
+    })),
+  };
+}
+
+async function fetchAutomationHealth() {
+  const integrations = await getIntegrations();
+  const apps = (integrations.arrApps || []).filter((integration) => integration.connected && (isBazarrIntegration(integration) || isProwlarrIntegration(integration)));
+  const results = await Promise.allSettled(
+    apps.map((integration) => (isBazarrIntegration(integration) ? fetchBazarrHealth(integration) : fetchProwlarrHealth(integration)))
+  );
+
+  const services = results.map((result, index) => {
+    if (result.status === "fulfilled") return result.value;
+    const integration = apps[index];
+    return {
+      id: integration.instanceId,
+      name: integration.name,
+      type: isBazarrIntegration(integration) ? "bazarr" : "prowlarr",
+      ok: false,
+      stats: {},
+      issues: [{ id: "load-error", source: integration.name, message: getAxiosErrorMessage(result.reason), level: "error" }],
+    };
+  });
+
+  return {
+    services,
+    stats: {
+      services: services.length,
+      healthy: services.filter((service) => service.ok).length,
+      issues: services.reduce((count, service) => count + (service.issues?.length || 0), 0),
+      missingSubtitles: services.reduce((count, service) => count + Number(service.stats?.missingEpisodes || 0) + Number(service.stats?.missingMovies || 0), 0),
+      failedIndexers: services.reduce((count, service) => count + Number(service.stats?.failedIndexers || 0), 0),
+    },
+    syncedAt: new Date().toISOString(),
+  };
 }
 
 function cloneJson(value) {
@@ -1462,6 +2729,7 @@ async function normalizeSeerrRequest(item, source, options = {}) {
 
 function buildRequestStats(requests = []) {
   const realRequests = requests.filter((request) => request.status !== "Error");
+  const now = Date.now();
   const statusCounts = realRequests.reduce((counts, request) => {
     const status = request.status || "Unknown";
     counts[status] = (counts[status] || 0) + 1;
@@ -1487,6 +2755,45 @@ function buildRequestStats(requests = []) {
     .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))[0] || { type: "none", count: 0 };
   const failed = (statusCounts.Failed || 0) + requests.filter((request) => request.status === "Error").length;
   const pending = statusCounts.Pending || 0;
+  const approvalQueue = realRequests
+    .filter((request) => request.status === "Pending")
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+    .slice(0, 8)
+    .map((request) => ({
+      id: request.id,
+      title: request.title,
+      requester: request.requestedBy,
+      source: request.source,
+      createdAt: request.createdAt,
+    }));
+  const perUserPending = Object.entries(
+    realRequests
+      .filter((request) => request.status === "Pending")
+      .reduce((counts, request) => {
+        const requester = request.requestedBy || "Unknown user";
+        counts[requester] = (counts[requester] || 0) + 1;
+        return counts;
+      }, {})
+  )
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 5);
+  const mediaIssues = realRequests
+    .filter((request) => ["Failed", "Missing", "Partially available"].includes(request.status) || ["Missing", "Partially available"].includes(request.availability?.status))
+    .slice(0, 8)
+    .map((request) => ({
+      id: request.id,
+      title: request.title,
+      status: request.status,
+      availability: request.availability?.status || "Unknown",
+      source: request.source,
+    }));
+  const trends = Array.from({ length: 7 }).map((_, offset) => {
+    const date = new Date(now - (6 - offset) * 24 * 60 * 60 * 1000);
+    const key = date.toISOString().slice(0, 10);
+    const count = realRequests.filter((request) => String(request.createdAt || "").slice(0, 10) === key).length;
+    return { date: key, count };
+  });
 
   return {
     total: realRequests.length,
@@ -1497,6 +2804,10 @@ function buildRequestStats(requests = []) {
     failed,
     badgeCount: pending + failed,
     topRequesters,
+    perUserPending,
+    approvalQueue,
+    mediaIssues,
+    trends,
     mediaTypeCounts,
     mostRequestedMediaType,
   };
@@ -1570,6 +2881,64 @@ async function fetchSeerrRequests(options = {}) {
     requestCache.delete(cacheKey);
     throw error;
   }
+}
+
+function normalizeRequestOwnerValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getRequestOwnerCandidates(user = {}) {
+  if (!user || user === "internal") return [];
+  return [
+    user.id,
+    user.username,
+    user.email,
+    user.name,
+    user.jellyfinUser?.id,
+    user.jellyfinUser?.Id,
+    user.jellyfinUser?.name,
+    user.jellyfinUser?.Name,
+    user.jellyfinUser?.username,
+    user.jellyfinUser?.UserName,
+  ]
+    .map(normalizeRequestOwnerValue)
+    .filter(Boolean);
+}
+
+function isUserRequestOwner(request, ownerCandidates = []) {
+  if (!ownerCandidates.length) return false;
+  const requester = request?.requester || {};
+  const requestCandidates = [
+    request?.requestedBy,
+    requester.id,
+    requester.userId,
+    requester.jellyfinUserId,
+    requester.name,
+    requester.username,
+    requester.email,
+  ]
+    .map(normalizeRequestOwnerValue)
+    .filter(Boolean);
+
+  return requestCandidates.some((candidate) => ownerCandidates.includes(candidate));
+}
+
+function canViewAllRequests(user) {
+  return user === "internal" || ["Owner", "Admin"].includes(user?.role);
+}
+
+function filterSeerrRequestsForUser(data, user) {
+  if (canViewAllRequests(user)) {
+    return data;
+  }
+
+  const ownerCandidates = getRequestOwnerCandidates(user);
+  const requests = (data.requests || []).filter((request) => isUserRequestOwner(request, ownerCandidates));
+  return {
+    ...data,
+    requests,
+    stats: buildRequestStats(requests),
+  };
 }
 
 async function fetchSeerrRequestDetail({ sourceId, requestId }) {
@@ -2550,6 +3919,29 @@ router.get("/health", async (req, res) => {
   }
 });
 
+router.get("/home/operations", async (req, res) => {
+  try {
+    const [requestsResult, healthResult, maintainerrResult] = await Promise.allSettled([
+      fetchSeerrRequests({ force: req.query?.forceRequests === "true" }),
+      buildHealthStatus(),
+      (async () => {
+        const integration = await getConnectedMaintainerrIntegration();
+        if (!integration) return null;
+        return fetchMaintainerrBundle(integration);
+      })(),
+    ]);
+
+    res.send({
+      requests: requestsResult.status === "fulfilled" ? requestsResult.value : null,
+      health: healthResult.status === "fulfilled" ? healthResult.value : null,
+      maintainerr: maintainerrResult.status === "fulfilled" ? maintainerrResult.value : null,
+    });
+  } catch (error) {
+    console.error("Home operations failed:", error);
+    res.status(503).send({ error: "Unable to load home operations" });
+  }
+});
+
 router.get("/admin-audit", async (req, res) => {
   try {
     res.send(await getAuditLog());
@@ -2561,12 +3953,11 @@ router.get("/admin-audit", async (req, res) => {
 
 router.get("/requests", async (req, res) => {
   try {
-    res.send(
-      await fetchSeerrRequests({
-        force: req.query?.force === "true",
-        includeInterest: req.query?.includeInterest === "true",
-      })
-    );
+    const data = await fetchSeerrRequests({
+      force: req.query?.force === "true",
+      includeInterest: req.query?.includeInterest === "true",
+    });
+    res.send(filterSeerrRequestsForUser(data, req.user));
   } catch (error) {
     console.error("Get Seerr requests failed:", error);
     res.status(503).send({ error: "Unable to load requests" });
@@ -2576,7 +3967,8 @@ router.get("/requests", async (req, res) => {
 router.get("/requests/summary", async (req, res) => {
   try {
     const data = await fetchSeerrRequests({ lightweight: true, force: req.query?.force === "true" });
-    res.send({ stats: data.stats, sources: data.sources, syncedAt: data.syncedAt });
+    const filtered = filterSeerrRequestsForUser(data, req.user);
+    res.send({ stats: filtered.stats, sources: filtered.sources, syncedAt: filtered.syncedAt });
   } catch (error) {
     console.error("Get Seerr request summary failed:", error);
     res.status(503).send({ error: "Unable to load request summary" });
@@ -2616,9 +4008,22 @@ router.get("/requests/options", async (req, res) => {
   }
 });
 
+router.get("/automation-health", async (req, res) => {
+  try {
+    res.send(await fetchAutomationHealth());
+  } catch (error) {
+    console.error("Automation health failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to load automation health" });
+  }
+});
+
 router.get("/requests/:requestId/detail", async (req, res) => {
   try {
-    res.send(await fetchSeerrRequestDetail({ requestId: req.params.requestId, sourceId: req.query?.sourceId }));
+    const request = await fetchSeerrRequestDetail({ requestId: req.params.requestId, sourceId: req.query?.sourceId });
+    if (!canViewAllRequests(req.user) && !isUserRequestOwner(request, getRequestOwnerCandidates(req.user))) {
+      return res.status(404).send({ error: "Request not found" });
+    }
+    res.send(request);
   } catch (error) {
     console.error("Seerr request detail failed:", error);
     res.status(error.statusCode || 503).send({ error: error.message || "Unable to load request detail" });
@@ -3475,6 +4880,16 @@ router.patch("/roles/:role/permissions", async (req, res) => {
       return;
     }
 
+    if (role === "Owner") {
+      res.json({ role, permissions: DEFAULT_ROLE_PERMISSIONS.Owner });
+      return;
+    }
+
+    if (role === "Disabled") {
+      res.json({ role, permissions: DEFAULT_ROLE_PERMISSIONS.Disabled });
+      return;
+    }
+
     settings.rolePermissions = {
       ...(settings.rolePermissions || {}),
       [role]: {
@@ -3507,6 +4922,12 @@ router.post("/localUsers", async (req, res) => {
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
     const localUsers = settings.localUsers || [];
+    const cleanRole = role || "Viewer";
+
+    if (!roleExists(settings, cleanRole)) {
+      res.status(400).json({ errorMessage: "Role not found" });
+      return;
+    }
 
     if (config.APP_USER === username || localUsers.some((user) => user.username === username)) {
       res.status(409).json({ errorMessage: "A local user with that username already exists" });
@@ -3517,7 +4938,7 @@ router.post("/localUsers", async (req, res) => {
       id: randomUUID(),
       username,
       password,
-      role: role || "Viewer",
+      role: cleanRole,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -3543,6 +4964,11 @@ router.patch("/localUsers/:id", async (req, res) => {
 
     if (userIndex === -1) {
       res.status(404).json({ errorMessage: "Local user not found" });
+      return;
+    }
+
+    if (role && !roleExists(settings, role)) {
+      res.status(400).json({ errorMessage: "Role not found" });
       return;
     }
 
@@ -3609,6 +5035,12 @@ router.patch("/userRoles/:userid", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
+
+    if (!roleExists(settings, role)) {
+      res.status(400).json({ errorMessage: "Role not found" });
+      return;
+    }
+
     settings.userRoles = {
       ...(settings.userRoles || {}),
       [userid]: role,
@@ -4002,6 +5434,16 @@ router.get("/CheckForUpdates/releases", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503).send({ error: "Unable to load release notes" });
+  }
+});
+
+router.get("/github/contributors", async (req, res) => {
+  try {
+    const result = await fetchGithubContributors();
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    res.status(503).send({ error: "Unable to load GitHub contributors" });
   }
 });
 
@@ -4410,6 +5852,8 @@ router.get("/getHistory", async (req, res) => {
   const sortField = groupedSortMap.find((item) => item.field === sort)?.column || "a.ActivityDateInserted";
 
   const values = [];
+  const settingsResult = await db.query('SELECT settings FROM app_config where "ID"=1').catch(() => ({ rows: [] }));
+  const excludedUsers = Array.isArray(settingsResult.rows?.[0]?.settings?.ExcludedUsers) ? settingsResult.rows[0].settings.ExcludedUsers : [];
 
   try {
     const cte = {
@@ -4491,6 +5935,16 @@ router.get("/getHistory", async (req, res) => {
     }
 
     query.values = values;
+
+    if (excludedUsers.length) {
+      query.where = query.where || [];
+      query.where.push({
+        column: "a.UserId",
+        operator: "<> ALL",
+        value: `($${query.values.length + 1}::text[])`,
+      });
+      query.values.push(excludedUsers);
+    }
 
     dbHelper.buildFilterList(query, filtersArray, filterFields);
     const result = await dbHelper.query(query);
@@ -5129,6 +6583,44 @@ router.post("/integrations/test", async (req, res) => {
   }
 });
 
+router.get("/maintainerr", async (req, res) => {
+  try {
+    const integration = await getConnectedMaintainerrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Maintainerr in Settings > Integrations first." });
+    }
+    const bundle = await fetchMaintainerrBundle(integration);
+    res.send(bundle);
+  } catch (error) {
+    console.error("Maintainerr summary failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Maintainerr data" });
+  }
+});
+
+router.post("/maintainerr/actions", async (req, res) => {
+  try {
+    const integration = await getConnectedMaintainerrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Maintainerr in Settings > Integrations first." });
+    }
+    const payload = req.body || {};
+    const result = await runMaintainerrAction(integration, payload);
+    const webhookManager = new WebhookManager();
+    await webhookManager.triggerEventWebhooks("maintainerr.action", {
+      integrationEvent: "maintainerr action",
+      source: integration.name || "Maintainerr",
+      action: payload.action,
+      collectionId: payload.collectionId,
+      itemId: payload.itemId,
+      message: `${payload.action} triggered from JellyGlance`,
+    });
+    res.send(result);
+  } catch (error) {
+    console.error("Maintainerr action failed:", error);
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Maintainerr action" });
+  }
+});
+
 router.get("/wizarr/summary", async (req, res) => {
   try {
     const integration = await getConnectedWizarrIntegration();
@@ -5255,6 +6747,28 @@ router.delete("/wizarr/invitations/:id", async (req, res) => {
   } catch (error) {
     console.error("Wizarr invitation delete failed:", getAxiosErrorMessage(error));
     res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to delete Wizarr invitation" });
+  }
+});
+
+router.get("/tdarr/transcodes", async (req, res) => {
+  try {
+    const integration = await getConnectedTdarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Tdarr in Settings > Integrations first." });
+    }
+    const activeOnly = req.query?.activeOnly === "true";
+    const cacheKey = `${integration.instanceId || integration.name || cleanIntegrationUrl(integration.values?.url) || "tdarr"}:${activeOnly ? "active" : "full"}`;
+    const cached = tdarrTranscodeCache.get(cacheKey);
+    if (req.query?.force !== "true" && cached && Date.now() - cached.cachedAt < TDARR_TRANSCODE_CACHE_TTL_MS) {
+      return res.send(cached.data);
+    }
+
+    const bundle = await fetchTdarrBundle(integration, { activeOnly });
+    tdarrTranscodeCache.set(cacheKey, { cachedAt: Date.now(), data: bundle });
+    res.send(bundle);
+  } catch (error) {
+    console.error("Tdarr transcodes load failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Tdarr transcodes" });
   }
 });
 

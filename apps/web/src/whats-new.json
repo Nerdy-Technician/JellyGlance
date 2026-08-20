@@ -1,4 +1,98 @@
 {
+  "1.2.3": [
+    {
+      "icon": "magic",
+      "title": "3rd Party Apps",
+      "body": "JellyGlance now pulls Wizarr invites, Tdarr transcodes, Maintainerr cleanup, and SickChill series automation into one clearer `3rd party apps` setup area."
+    },
+    {
+      "icon": "upload",
+      "title": "Wizarr Invites",
+      "body": "Create, copy, open, and manage Wizarr invites directly in JellyGlance without bouncing out to another app."
+    },
+    {
+      "icon": "speed",
+      "title": "Tdarr And Maintainerr",
+      "body": "Tdarr now has clearer active, queued, and history views, while Maintainerr adds cleanup monitoring, summary data, alerts, widgets, and its own dashboard page."
+    },
+    {
+      "icon": "palette",
+      "title": "Settings And Kiosk",
+      "body": "Settings now uses cleaner categories with a collapsible sidebar, and Kiosk has its own custom controls for title, density, theme, visible widgets, widget sizes, and widget order."
+    },
+    {
+      "icon": "palette",
+      "title": "Home And Hall Of Fame",
+      "body": "Hall of Fame has been polished up, and Home plus Kiosk now give you better widget ordering, layout control, and dashboard customisation."
+    },
+    {
+      "icon": "movie",
+      "title": "Requests Upgraded",
+      "body": "Requests now has a richer display, newer features, and more advanced management controls for handling request queues and approvals."
+    },
+    {
+      "icon": "speed",
+      "title": "Activity And Statistics",
+      "body": "The `/activity` view is cleaner to scan, and `/statistics` now presents summaries and watch trends with stronger visual structure."
+    },
+    {
+      "icon": "magic",
+      "title": "Profiles And Privacy",
+      "body": "The profile modal has been cleaned up, logout now lives there, font-weight options are available, and Active Sessions privacy controls let you choose where viewer IPs are hidden."
+    },
+    {
+      "icon": "upload",
+      "title": "Libraries And Users",
+      "body": "Libraries and Users both had a broader UI overhaul, including better list views and the option to hide selected users from stats and activity when needed."
+    }
+  ],
+  "1.2.3.beta.1": [
+    {
+      "icon": "palette",
+      "title": "Big UI Beta",
+      "body": "Home, Settings, Statistics, Requests, Activity, Users, Libraries, Hall of Fame, Wizarr, About, and integrations all had a broader redesign pass with cleaner spacing, cards, controls, and layout polish."
+    },
+    {
+      "icon": "speed",
+      "title": "Tdarr Transcodes",
+      "body": "Tdarr now has an Active Transcodes page with active, queued, and history views, navigation counts, show artwork, conversion details, and live progress updates."
+    },
+    {
+      "icon": "magic",
+      "title": "Smarter Settings",
+      "body": "Settings now uses grouped categories, a collapsible sidebar, cleaner routes, custom Kiosk controls, privacy options, sidebar ordering, hidden tabs, and a safer theme preview flow."
+    },
+    {
+      "icon": "magic",
+      "title": "3rd Party Apps",
+      "body": "Integrations are grouped more clearly with Wizarr for invites, Tdarr for transcodes, Maintainerr for cleanup, and SickChill as an alternative to Sonarr for series automation."
+    },
+    {
+      "icon": "movie",
+      "title": "Cleaner Requests",
+      "body": "Requests now has richer media cards, an optional list view, requester profile pictures, admin user filtering, tidier actions, newer request features, and more advanced management for admins."
+    },
+    {
+      "icon": "upload",
+      "title": "Kiosk And Privacy",
+      "body": "Kiosk mode can stay static, refresh every 5 minutes, and use custom title, density, theme, visible widgets, widget sizes, and widget order. IP visibility can now be controlled for Home, Kiosk, both, or neither."
+    },
+    {
+      "icon": "palette",
+      "title": "Hall Of Fame Glow-Up",
+      "body": "Hall of Fame now uses a podium-style layout with medal icons, and hidden users can be filtered out of Hall of Fame, Statistics, and Activity."
+    },
+    {
+      "icon": "speed",
+      "title": "Statistics Rebuilt",
+      "body": "Statistics has clearer summary panels, redesigned watch stats, profile pictures, client icons, stronger visual hierarchy, and media links through to JellyGlance media pages where possible."
+    },
+    {
+      "icon": "magic",
+      "title": "Sharper Polish",
+      "body": "Profile modal sizing, account labels, sidebar collapse, logout placement, profile hover pills, device icons, backup sizing, library and user list layouts, and several clipped or cramped screens have been cleaned up."
+    }
+  ],
   "1.2.2": [
     {
       "icon": "magic",

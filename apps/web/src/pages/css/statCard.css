@@ -297,3 +297,84 @@ input[type="number"] {
     grid-template-columns: 1fr;
   }
 }
+
+.stats-overview .watch-stat-cards,
+.statistics-dashboard .watch-stat-cards {
+  padding: 14px;
+  border: 1px solid var(--surface-border-color);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.045), rgba(var(--secondary-rgb), 0.025)),
+    rgba(15, 20, 29, 0.86);
+  box-shadow: none;
+}
+
+.stats-overview .watch-stat-cards .Heading,
+.statistics-dashboard .watch-stat-cards .Heading {
+  padding: 0 2px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.stats-overview .watch-stat-cards .Heading h1,
+.statistics-dashboard .watch-stat-cards .Heading h1 {
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.stats-overview .grid-stat-cards,
+.statistics-dashboard .grid-stat-cards {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stats-overview .stat-card,
+.statistics-dashboard .stat-card {
+  min-height: 142px;
+  border-color: var(--surface-border-color) !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(var(--primary-rgb), 0.035)),
+    rgba(9, 13, 20, 0.92) !important;
+  box-shadow: none;
+}
+
+.stats-overview .stat-card:hover,
+.statistics-dashboard .stat-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--primary-light-rgb), 0.28) !important;
+}
+
+.stats-overview .stat-card-overlay,
+.statistics-dashboard .stat-card-overlay {
+  grid-template-columns: 78px minmax(0, 1fr);
+  min-height: 142px;
+  padding: 9px;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.66)),
+    rgba(7, 10, 16, 0.72) !important;
+}
+
+.stats-overview .stat-card-media,
+.statistics-dashboard .stat-card-media {
+  width: 78px;
+  height: 124px;
+  border-radius: 8px;
+}
+
+.stats-overview .stat-card-header span,
+.statistics-dashboard .stat-card-header span {
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.03em;
+}
+
+.stats-overview .stat-item-count,
+.statistics-dashboard .stat-item-count {
+  font-weight: 780;
+}

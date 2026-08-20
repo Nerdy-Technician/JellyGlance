@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+      DISCORD_BETA_RELEASES_WEBHOOK: ${{ secrets.DISCORD_BETA_RELEASES_WEBHOOK }}
 
     steps:
       - name: Checkout
@@ -25,7 +26,7 @@ jobs:
 
       - name: Read release
         id: release
-        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' }}
+        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' || env.DISCORD_BETA_RELEASES_WEBHOOK != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -40,15 +41,29 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${release.tag_name}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `title=${release.name || release.tag_name}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${release.html_url}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `is_prerelease=${!!release.prerelease}\n`);
           NODE
 
-      - name: Post Discord release update
-        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' }}
+      - name: Post Discord release update (stable)
+        if: ${{ env.DISCORD_RELEASES_WEBHOOK != '' && steps.release.outputs.is_prerelease != 'true' }}
         env:
           DISCORD_EVENT_TYPE: release
           DISCORD_WEBHOOK_URL: ${{ env.DISCORD_RELEASES_WEBHOOK }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
           RELEASE_URL: ${{ steps.release.outputs.url }}
+          DISCORD_CHANNEL: stable
+        run: |
+          RELEASE_NOTES="$(cat RELEASE_NOTES.txt)" node .github/scripts/discord-notify.mjs
+
+      - name: Post Discord release update (beta)
+        if: ${{ env.DISCORD_BETA_RELEASES_WEBHOOK != '' && steps.release.outputs.is_prerelease == 'true' }}
+        env:
+          DISCORD_EVENT_TYPE: release
+          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_BETA_RELEASES_WEBHOOK }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          DISCORD_CHANNEL: beta
         run: |
           RELEASE_NOTES="$(cat RELEASE_NOTES.txt)" node .github/scripts/discord-notify.mjs

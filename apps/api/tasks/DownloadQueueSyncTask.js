@@ -50,6 +50,38 @@ function normalizeQbittorrentTorrent(client, torrent) {
   };
 }
 
+function normalizeSabnzbdJob(client, slot) {
+  const size = Number(slot.mbleft || 0) * 1024 * 1024;
+  const total = Number(slot.mb || 0) * 1024 * 1024;
+  const progress = total > 0 ? Math.round(((total - size) / total) * 100) : 0;
+  const status = String(slot.status || "unknown").toLowerCase();
+  return {
+    id: `${client.instanceId || client.name}-${slot.nzo_id || slot.filename || slot.title}`,
+    name: slot.filename || slot.alt_filename || slot.title || "SABnzbd download",
+    client: client.name,
+    source: "Other",
+    state: status,
+    progress: Math.min(Math.max(progress, 0), 100),
+    size: `${formatBytes(total - size)} / ${formatBytes(total)}`,
+    down: formatSpeed(slot.kbpersec ? Number(slot.kbpersec) * 1024 : 0),
+    up: "0 B/s",
+    addedAt: slot.time_added || new Date().toISOString(),
+  };
+}
+
+async function fetchSabnzbdQueue(client) {
+  const url = cleanUrl(client.values?.url);
+  const apiKey = client.values?.secret;
+  if (!url || !apiKey) return { items: [], error: "Missing SABnzbd URL or API key" };
+
+  const response = await axios.get(`${url}/api`, {
+    timeout: 15000,
+    params: { mode: "queue", output: "json", apikey: apiKey },
+  });
+  const slots = Array.isArray(response.data?.queue?.slots) ? response.data.queue.slots : [];
+  return { items: slots.map((slot) => normalizeSabnzbdJob(client, slot)) };
+}
+
 async function fetchQbittorrentQueue(client) {
   const url = cleanUrl(client.values?.url);
   const username = client.values?.username;
@@ -84,6 +116,9 @@ async function fetchClientQueue(client) {
   if (name.includes("qbittorrent") || name === "bittorrent") {
     return fetchQbittorrentQueue(client);
   }
+  if (name.includes("sabnzbd")) {
+    return fetchSabnzbdQueue(client);
+  }
 
   return { items: [], error: client.connected ? "Queue polling not implemented for this client yet" : "Needs setup" };
 }
@@ -116,6 +151,33 @@ async function runDownloadQueueSyncTask() {
 
     const queueResults = await Promise.allSettled(connectedClients.map((client) => fetchClientQueue(client)));
     const syncedItems = queueResults.flatMap((result) => (result.status === "fulfilled" ? result.value.items || [] : []));
+    const previousItems = Array.isArray(integrationData.downloads?.items) ? integrationData.downloads.items : [];
+    const previousById = new Map(previousItems.map((item) => [item.id, item]));
+    const webhookManager = new WebhookManager();
+
+    await Promise.all(
+      syncedItems.flatMap((item) => {
+        const previous = previousById.get(item.id);
+        const events = [];
+        if (!previous) events.push(["download_added", "Download added"]);
+        if (previous && Number(previous.progress || 0) < 100 && Number(item.progress || 0) >= 100) {
+          events.push(["download_completed", "Download completed"]);
+        }
+        if (String(item.state).includes("fail") && !String(previous?.state || "").includes("fail")) {
+          events.push(["download_failed", "Download failed"]);
+        }
+        return events.map(([eventType, integrationEvent]) =>
+          webhookManager.triggerEventWebhooks(eventType, {
+            integrationEvent,
+            source: item.client,
+            client: item.client,
+            item,
+            itemName: item.name,
+            message: `${item.name} on ${item.client}`,
+          })
+        );
+      })
+    );
     const clients = (integrations.clients || []).map((client) => {
       const resultIndex = connectedClients.findIndex((item) => item.instanceId === client.instanceId);
       const result = resultIndex >= 0 ? queueResults[resultIndex] : null;
@@ -141,7 +203,6 @@ async function runDownloadQueueSyncTask() {
       },
     });
 
-    const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("download_queue_refreshed", {
       integrationEvent: "download queue refreshed",
       source: "Download clients",

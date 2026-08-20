@@ -72,10 +72,12 @@ function MostActiveUsers(props) {
 
   const UserImage = () => {
     return (
-      <img src={`proxy/Users/Images/Primary?id=${data[0].UserId}&fillWidth=100&quality=50`} 
+      <img src={`/proxy/Users/Images/Primary?id=${encodeURIComponent(data[0].UserId)}&fillWidth=100&quality=50`} 
       width="100%" 
       style={{borderRadius:'50%'}}
       alt=""
+      loading="lazy"
+      decoding="async"
       onError={()=>setLoaded(false)}
       />
     );

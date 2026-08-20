@@ -192,6 +192,12 @@ const authRateLimit = createRateLimiter({
   max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
   message: "Too many authentication requests. Try again later.",
 });
+function authRateLimitUnlessPublicStatus(req, res, next) {
+  if (req.method === "GET" && req.path === "/isConfigured") {
+    return next();
+  }
+  return authRateLimit(req, res, next);
+}
 const taskRateLimit = createRateLimiter({
   windowMs: 60 * 1000,
   max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
@@ -201,12 +207,27 @@ const taskRateLimit = createRateLimiter({
 function typeInferenceMiddleware(req, res, next) {
   Object.keys(req.query).forEach((key) => {
     const value = req.query[key];
-    if (value.toLowerCase() === "true" || value.toLowerCase() === "false") {
-      // Convert to boolean
-      req.query[key] = value.toLowerCase() === "true";
-    } else if (!isNaN(value) && value.trim() !== "") {
-      // Convert to number if it's a valid number
-      req.query[key] = +value;
+
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true" || value.toLowerCase() === "false") {
+        req.query[key] = value.toLowerCase() === "true";
+      } else if (value.trim() !== "" && !Number.isNaN(Number(value))) {
+        req.query[key] = +value;
+      }
+    }
+
+    if (Array.isArray(value)) {
+      req.query[key] = value.map((item) => {
+        if (typeof item !== "string") {
+          return item;
+        }
+
+        if (item.toLowerCase() === "true" || item.toLowerCase() === "false") {
+          return item.toLowerCase() === "true";
+        }
+
+        return item.trim() !== "" && !Number.isNaN(Number(item)) ? +item : item;
+      });
     }
   });
   next();
@@ -329,10 +350,10 @@ app.use((req, res, next) => {
 });
 
 // initiate routes
-app.use(`/auth`, authRateLimit, authRouter, () => {
+app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", proxyRouter, () => {
+app.use("/proxy", authenticateProxyAsset, authorizeProxyRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);
@@ -420,7 +441,7 @@ writeEnvVariables().then(() => {
       },
     })
   );
-  app.get("*", (req, res, next) => {
+  app.get("/{*splat}", (req, res, next) => {
     if (req.url.includes("socket.io")) {
       return next();
     }
@@ -484,6 +505,38 @@ async function authenticate(req, res, next) {
   }
 }
 
+function isPublicProxyAssetRequest(req) {
+  if (req.method !== "GET") {
+    return false;
+  }
+
+  const pathName = req.path.toLowerCase();
+  return (
+    pathName.startsWith("/items/images/") ||
+    pathName.startsWith("/users/images/") ||
+    pathName.startsWith("/plugins/images/") ||
+    pathName.startsWith("/web/assets/img/devices/")
+  );
+}
+
+function authenticateProxyAsset(req, res, next) {
+  if (isPublicProxyAssetRequest(req)) {
+    next();
+    return;
+  }
+
+  return authenticate(req, res, next);
+}
+
+function authorizeProxyRoute(req, res, next) {
+  if (isPublicProxyAssetRequest(req)) {
+    next();
+    return;
+  }
+
+  return authorizeApiRoute(req, res, next);
+}
+
 function getTokenPermissions(user) {
   if (user === "internal") {
     return DEFAULT_ROLE_PERMISSIONS.Owner;
@@ -501,6 +554,10 @@ function getTokenPermissions(user) {
 }
 
 function getRolePermissions(settings, role) {
+  if (role === "Owner" || role === "Disabled") {
+    return DEFAULT_ROLE_PERMISSIONS[role];
+  }
+
   return {
     ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
     ...((settings.rolePermissions || {})[role] || {}),

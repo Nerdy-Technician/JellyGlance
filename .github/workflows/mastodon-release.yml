@@ -1,15 +1,16 @@
 name: Post Release to Mastodon
 
 on:
-  release:
-    types:
-      - published
   workflow_run:
     workflows:
-      - RELEASE
+      - Release Pipeline
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce (optional)
+        required: false
 
 permissions:
   contents: read
@@ -17,7 +18,7 @@ permissions:
 jobs:
   post:
     name: Publish Mastodon release post
-    if: (github.event_name == 'release' && github.event.release.prerelease != true) || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'BETA') || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
 
     steps:
@@ -26,10 +27,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_RELEASE_NAME: ${{ github.event.release.name }}
-          EVENT_RELEASE_TAG: ${{ github.event.release.tag_name }}
-          EVENT_RELEASE_BODY: ${{ github.event.release.body }}
-          EVENT_RELEASE_URL: ${{ github.event.release.html_url }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           node <<'NODE'
           const fs = require("fs");
@@ -39,20 +39,28 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}<<EOF\n${value || ""}\nEOF\n`);
           };
 
-          let release = {
-            name: process.env.EVENT_RELEASE_NAME,
-            tag_name: process.env.EVENT_RELEASE_TAG,
-            body: process.env.EVENT_RELEASE_BODY,
-            html_url: process.env.EVENT_RELEASE_URL,
-          };
+          let release;
+          const repo = process.env.REPO;
+          const workflowHeadSha = process.env.WORKFLOW_HEAD_SHA || "";
+          const inputTag = process.env.INPUT_TAG || "";
 
-          if (process.env.EVENT_NAME !== "release") {
-            const json = execFileSync(
-              "gh",
-              ["api", `repos/${process.env.GITHUB_REPOSITORY}/releases/latest`],
-              { encoding: "utf8" }
+          if (inputTag) {
+            release = JSON.parse(
+              execFileSync("gh", ["api", `repos/${repo}/releases/tags/${inputTag}`], { encoding: "utf8" })
             );
-            release = JSON.parse(json);
+          } else if (process.env.EVENT_NAME === "workflow_run") {
+            const releases = JSON.parse(
+              execFileSync("gh", ["api", `repos/${repo}/releases`], { encoding: "utf8" })
+            );
+            release = releases.find((candidate) => candidate.target_commitish === workflowHeadSha);
+            if (!release && releases.length) {
+              console.log(`::notice::No matching release for commit ${workflowHeadSha}; falling back to latest release.`);
+              release = releases[0];
+            }
+          } else {
+            release = JSON.parse(
+              execFileSync("gh", ["api", `repos/${repo}/releases/latest`], { encoding: "utf8" })
+            );
           }
 
           if (!release.tag_name || !release.html_url) {

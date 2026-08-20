@@ -6,6 +6,8 @@ import CryptoJS from "crypto-js";
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
 import CheckFillIcon from "remixicon-react/CheckFillIcon";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
+import EyeLineIcon from "remixicon-react/EyeLineIcon";
+import EyeOffLineIcon from "remixicon-react/EyeOffLineIcon";
 import SearchLineIcon from "remixicon-react/SearchLineIcon";
 import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
 import LockPasswordLineIcon from "remixicon-react/LockPasswordLineIcon";
@@ -22,6 +24,13 @@ import Loading from "./components/general/loading";
 import i18next from "i18next";
 
 const token = localStorage.getItem("token");
+const PERMISSION_DEFINITIONS = [
+  { key: "dashboard", label: "Dashboard", detail: "Can open JellyGlance and view dashboards." },
+  { key: "users", label: "Users", detail: "Can manage user roles, tracking, and local accounts." },
+  { key: "settings", label: "Settings", detail: "Can change integrations, backups, imports, and maintenance settings." },
+  { key: "apiKeys", label: "API Keys", detail: "Can view and manage API keys." },
+];
+const LOCKED_PERMISSION_ROLES = new Set(["Owner", "Disabled"]);
 
 function formatWatchTime(seconds = 0) {
   const hours = Math.floor(seconds / 3600);
@@ -48,8 +57,10 @@ function formatLastSeen(time) {
 }
 
 function userImage(user, size = 48) {
-  if (user.PrimaryImageTag) {
-    return <img className="users-avatar" src={`proxy/Users/Images/Primary?id=${user.UserId}&quality=70`} alt="" style={{ width: size, height: size }} />;
+  const userId = user.UserId || user.Id || user.id;
+  const primaryImageTag = user.PrimaryImageTag || user.primaryImageTag;
+  if (userId && primaryImageTag) {
+    return <img className="users-avatar" src={`/proxy/Users/Images/Primary?id=${encodeURIComponent(userId)}&tag=${encodeURIComponent(primaryImageTag)}&fillWidth=${Math.max(size * 2, 96)}&quality=80`} alt="" loading="lazy" decoding="async" style={{ width: size, height: size }} />;
   }
 
   return (
@@ -77,6 +88,8 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [sourceFilter, setSourceFilter] = useState("All");
+  const [viewMode, setViewMode] = useState(localStorage.getItem("PREF_USERS_ViewMode") || "cards");
+  const [showHiddenUsers, setShowHiddenUsers] = useState(localStorage.getItem("PREF_USERS_ShowHidden") === "true");
   const [savingUserId, setSavingUserId] = useState("");
   const [alert, setAlert] = useState(null);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -232,6 +245,7 @@ export default function Users() {
     return rows
       .filter((user) => roleFilter === "All" || user.Role === roleFilter)
       .filter((user) => sourceFilter === "All" || user.Source === sourceFilter)
+      .filter((user) => showHiddenUsers || user.Source !== "Jellyfin" || user.Tracked)
       .filter((user) => {
         if (!searchQuery) {
           return true;
@@ -246,11 +260,12 @@ export default function Users() {
         );
       })
       .sort((a, b) => (b.SortWatchTime || 0) - (a.SortWatchTime || 0));
-  }, [roleFilter, rows, searchQuery, sourceFilter]);
+  }, [roleFilter, rows, searchQuery, showHiddenUsers, sourceFilter]);
 
   const visibleRows = filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   const jellyfinRows = rows.filter((user) => user.Source === "Jellyfin");
   const trackedCount = jellyfinRows.filter((user) => user.Tracked).length;
+  const hiddenUserCount = jellyfinRows.length - trackedCount;
   const totalWatchTime = jellyfinRows.reduce((total, user) => total + Number(user.TotalWatchTime || 0), 0);
   const localAccountCount = rows.filter((user) => user.Source === "Local").length;
   const oidcAccountCount = rows.filter((user) => user.Source === "OIDC").length;
@@ -264,21 +279,30 @@ export default function Users() {
       ...(access.rolePermissions?.[previewRole] || {}),
     };
   }, [access, previewRole]);
+  const selectedRolePermissions = previewPermissions;
+  const selectedRoleLocked = LOCKED_PERMISSION_ROLES.has(previewRole);
 
   async function toggleTrackedState(userid) {
-    const response = await axios.post(
-      "/api/setUntrackedUsers",
-      { userId: userid },
-      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
-    );
+    try {
+      setSavingUserId(userid);
+      const response = await axios.post(
+        "/api/setUntrackedUsers",
+        { userId: userid },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
 
-    const excluded = response.data;
-    setData((currentData) =>
-      currentData.map((item) => ({
-        ...item,
-        Tracked: !excluded.includes(item.UserId),
-      }))
-    );
+      const excluded = response.data;
+      setData((currentData) =>
+        currentData.map((item) => ({
+          ...item,
+          Tracked: !excluded.includes(item.UserId),
+        }))
+      );
+    } catch (error) {
+      setAlert({ variant: "danger", message: error.response?.data?.errorMessage || "Unable to update tracking." });
+    } finally {
+      setSavingUserId("");
+    }
   }
 
   async function changeJellyfinRole(userid, role) {
@@ -381,20 +405,21 @@ export default function Users() {
       [permission]: enabled,
     };
 
-    setAccess((currentAccess) => ({
-      ...currentAccess,
-      rolePermissions: {
-        ...(currentAccess.rolePermissions || {}),
-        [role]: nextPermissions,
-      },
-    }));
+    if (LOCKED_PERMISSION_ROLES.has(role)) return;
 
     try {
-      await axios.patch(
+      const response = await axios.patch(
         `/api/roles/${encodeURIComponent(role)}/permissions`,
         { permissions: nextPermissions },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
+      setAccess((currentAccess) => ({
+        ...currentAccess,
+        rolePermissions: {
+          ...(currentAccess.rolePermissions || {}),
+          [role]: response.data.permissions,
+        },
+      }));
     } catch (error) {
       setAlert({ variant: "danger", message: error.response?.data?.errorMessage || "Unable to update permissions." });
       await fetchAccess();
@@ -402,16 +427,24 @@ export default function Users() {
   }
 
   async function changeLocalRole(user, role) {
-    const response = await axios.patch(
-      `/api/localUsers/${user.id}`,
-      { role },
-      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
-    );
+    try {
+      setSavingUserId(`local-${user.id}`);
+      const response = await axios.patch(
+        `/api/localUsers/${user.id}`,
+        { role },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
 
-    setAccess((currentAccess) => ({
-      ...currentAccess,
-      localUsers: currentAccess.localUsers.map((localUser) => (localUser.id === user.id ? response.data : localUser)),
-    }));
+      setAccess((currentAccess) => ({
+        ...currentAccess,
+        localUsers: currentAccess.localUsers.map((localUser) => (localUser.id === user.id ? response.data : localUser)),
+      }));
+      setAlert({ variant: "success", message: "Local role updated." });
+    } catch (error) {
+      setAlert({ variant: "danger", message: error.response?.data?.errorMessage || "Unable to update local role." });
+    } finally {
+      setSavingUserId("");
+    }
   }
 
   async function removeLocalUser(user) {
@@ -452,6 +485,90 @@ export default function Users() {
     setResetPassword("");
     setResetTarget(null);
     setAlert({ variant: "success", message: "Password reset." });
+  }
+
+  function updateViewMode(nextMode) {
+    setViewMode(nextMode);
+    localStorage.setItem("PREF_USERS_ViewMode", nextMode);
+  }
+
+  function updateShowHiddenUsers(nextValue) {
+    setShowHiddenUsers(nextValue);
+    localStorage.setItem("PREF_USERS_ShowHidden", String(nextValue));
+    setPage(0);
+  }
+
+  function renderRoleControl(user) {
+    if (user.IsLocalAccount && !user.IsPrimaryLocal) {
+      return (
+        <FormSelect className="users-role-select" value={user.Role} onChange={(event) => changeLocalRole(user.LocalUser, event.target.value)} disabled={savingUserId === `local-${user.LocalUser.id}`}>
+          {access.roles.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </FormSelect>
+      );
+    }
+
+    if (user.Source === "Jellyfin") {
+      return (
+        <FormSelect className="users-role-select" value={user.Role} onChange={(event) => changeJellyfinRole(user.UserId, event.target.value)} disabled={savingUserId === user.UserId}>
+          {access.roles.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </FormSelect>
+      );
+    }
+
+    return <span className="users-role-readonly">{user.Role}</span>;
+  }
+
+  function renderUserActions(user) {
+    if (user.Source === "Jellyfin") {
+      return (
+        <Button
+          className={`users-track-button ${user.Tracked ? "is-tracked" : ""}`}
+          type="button"
+          onClick={() => toggleTrackedState(user.UserId)}
+          disabled={savingUserId === user.UserId}
+          title={user.Tracked ? "Hide user" : "Unhide user"}
+        >
+          {savingUserId === user.UserId ? <Spinner size="sm" animation="border" /> : user.Tracked ? <EyeLineIcon size={20} /> : <EyeOffLineIcon size={20} />}
+        </Button>
+      );
+    }
+
+    if (user.IsLocalAccount) {
+      return (
+        <div className="users-row-actions">
+          <Button
+            type="button"
+            className="users-row-action-button"
+            title="Reset password"
+            aria-label={`Reset password for ${user.UserName}`}
+            onClick={() => setResetTarget(user.IsPrimaryLocal ? { primary: true, username: user.UserName } : user.LocalUser)}
+          >
+            <LockPasswordLineIcon size={17} />
+          </Button>
+          {!user.IsPrimaryLocal ? (
+            <Button
+              type="button"
+              className="users-row-action-button is-danger"
+              title="Delete local user"
+              aria-label={`Delete ${user.UserName}`}
+              onClick={() => setDeleteTarget(user.LocalUser)}
+            >
+              <DeleteBinLineIcon size={17} />
+            </Button>
+          ) : null}
+        </div>
+      );
+    }
+
+    return <span className="users-track-placeholder" />;
   }
 
   if (!data || !config || !access) {
@@ -520,6 +637,14 @@ export default function Users() {
               <p>{formatWatchTime(totalWatchTime)} watched across synced users.</p>
             </div>
             <div className="users-toolbar">
+              <div className="users-view-toggle" role="group" aria-label="User view">
+                <button type="button" className={viewMode === "cards" ? "is-active" : ""} onClick={() => updateViewMode("cards")}>
+                  Cards
+                </button>
+                <button type="button" className={viewMode === "list" ? "is-active" : ""} onClick={() => updateViewMode("list")}>
+                  List
+                </button>
+              </div>
               <div className="users-search">
                 <SearchLineIcon size={17} />
                 <FormControl type="text" placeholder="Search users, media, clients" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
@@ -551,108 +676,102 @@ export default function Users() {
                 <option value="25">25 rows</option>
                 <option value="50">50 rows</option>
               </FormSelect>
+              <label className="users-hidden-toggle">
+                <Form.Check type="switch" checked={showHiddenUsers} onChange={(event) => updateShowHiddenUsers(event.target.checked)} />
+                <span>Show hidden</span>
+                <small>{hiddenUserCount}</small>
+              </label>
             </div>
           </div>
 
-          <div className="users-list">
-            {visibleRows.map((user) => (
-              <article className={`users-row-card ${user.Source !== "Jellyfin" ? "is-account-row" : ""}`} key={user.AccountId}>
-                <div className="users-row-person">
-                  {userImage(user, 54)}
-                  <div>
+          {viewMode === "cards" ? (
+            <div className="users-profile-grid">
+              {visibleRows.map((user) => (
+                <article className={`users-profile-card ${user.Source !== "Jellyfin" ? "is-account-card" : ""} ${!user.Tracked && user.Source === "Jellyfin" ? "is-hidden-user" : ""}`} key={user.AccountId}>
+                  <div className="users-profile-top">
+                    {userImage(user, 72)}
+                    <div className="users-profile-actions">
+                      {renderUserActions(user)}
+                    </div>
+                  </div>
+                  <div className="users-profile-name">
                     {user.Source === "Jellyfin" ? <Link to={`/users/${user.UserId}`}>{user.UserName}</Link> : <strong>{user.UserName}</strong>}
                     <span>{user.SourceLabel}</span>
                   </div>
-                </div>
+                  <div className="users-profile-badges">
+                    <Badge className={`users-role-badge ${roleClass(user.Role)}`}>{user.Role}</Badge>
+                    <Badge className={`users-source-badge ${sourceClass(user.Source)}`}>{user.Source}</Badge>
+                    {user.Source === "Jellyfin" && !user.Tracked ? <Badge className="users-source-badge source-hidden">Hidden</Badge> : null}
+                  </div>
+                  <div className="users-profile-metrics">
+                    <span>
+                      <small>Watch time</small>
+                      <strong>{formatWatchTime(user.TotalWatchTime)}</strong>
+                    </span>
+                    <span>
+                      <small>Last watched</small>
+                      <strong>{user.LastWatched || "Never"}</strong>
+                    </span>
+                    <span>
+                      <small>Client</small>
+                      <strong>{user.LastClient || "N/A"}</strong>
+                    </span>
+                    <span>
+                      <small>{user.IsRunning ? "Watching now" : "Last seen"}</small>
+                      <strong>{user.IsRunning ? "Running" : formatLastSeen(user.LastSeen)}</strong>
+                    </span>
+                  </div>
+                  <div className="users-profile-role">
+                    {renderRoleControl(user)}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="users-list">
+              {visibleRows.map((user) => (
+                <article className={`users-row-card ${user.Source !== "Jellyfin" ? "is-account-row" : ""} ${!user.Tracked && user.Source === "Jellyfin" ? "is-hidden-user" : ""}`} key={user.AccountId}>
+                  <div className="users-row-person">
+                    {userImage(user, 54)}
+                    <div>
+                      {user.Source === "Jellyfin" ? <Link to={`/users/${user.UserId}`}>{user.UserName}</Link> : <strong>{user.UserName}</strong>}
+                      <span>{user.SourceLabel}</span>
+                    </div>
+                  </div>
 
-                <div className="users-row-metrics">
-                  <div className="users-row-meta">
-                    <span>Last watched</span>
-                    <strong>{user.LastWatched || "Never"}</strong>
+                  <div className="users-row-metrics">
+                    <div className="users-row-meta">
+                      <span>Last watched</span>
+                      <strong>{user.LastWatched || "Never"}</strong>
+                    </div>
+                    <div className="users-row-meta">
+                      <span>Client</span>
+                      <strong>{user.LastClient || "N/A"}</strong>
+                    </div>
+                    <div className="users-row-meta">
+                      <span>Watch time</span>
+                      <strong>{formatWatchTime(user.TotalWatchTime)}</strong>
+                    </div>
+                    <div className="users-row-meta">
+                      <span>{user.IsRunning ? "Watching now" : "Last seen"}</span>
+                      <strong>{user.IsRunning ? "Running" : formatLastSeen(user.LastSeen)}</strong>
+                    </div>
                   </div>
-                  <div className="users-row-meta">
-                    <span>Client</span>
-                    <strong>{user.LastClient || "N/A"}</strong>
-                  </div>
-                  <div className="users-row-meta">
-                    <span>Watch time</span>
-                    <strong>{formatWatchTime(user.TotalWatchTime)}</strong>
-                  </div>
-                  <div className="users-row-meta">
-                    <span>{user.IsRunning ? "Watching now" : "Last seen"}</span>
-                    <strong>{user.IsRunning ? "Running" : formatLastSeen(user.LastSeen)}</strong>
-                  </div>
-                </div>
 
-                <div className="users-row-badges">
-                  <Badge className={`users-role-badge ${roleClass(user.Role)}`}>{user.Role}</Badge>
-                  <Badge className={`users-source-badge ${sourceClass(user.Source)}`}>{user.Source}</Badge>
-                </div>
-
-                {user.IsLocalAccount && !user.IsPrimaryLocal ? (
-                  <FormSelect value={user.Role} onChange={(event) => changeLocalRole(user.LocalUser, event.target.value)}>
-                    {access.roles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </FormSelect>
-                ) : user.Source === "Jellyfin" ? (
-                  <FormSelect value={user.Role} onChange={(event) => changeJellyfinRole(user.UserId, event.target.value)} disabled={savingUserId === user.UserId}>
-                    {access.roles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </FormSelect>
-                ) : (
-                  <span className="users-role-readonly">{user.Role}</span>
-                )}
-
-                {user.Source === "Jellyfin" ? (
-                  <Button
-                    className={`users-track-button ${user.Tracked ? "is-tracked" : ""}`}
-                    type="button"
-                    onClick={() => toggleTrackedState(user.UserId)}
-                    title={user.Tracked ? "Tracked" : "Not tracked"}
-                  >
-                    {user.Tracked ? <CheckFillIcon size={18} /> : <CloseFillIcon size={18} />}
-                  </Button>
-                ) : user.IsLocalAccount ? (
-                  <div className="users-row-actions">
-                    <Button
-                      type="button"
-                      className="users-row-action-button"
-                      title="Reset password"
-                      aria-label={`Reset password for ${user.UserName}`}
-                      onClick={() =>
-                        setResetTarget(
-                          user.IsPrimaryLocal
-                            ? { primary: true, username: user.UserName }
-                            : user.LocalUser
-                        )
-                      }
-                    >
-                      <LockPasswordLineIcon size={17} />
-                    </Button>
-                    {!user.IsPrimaryLocal ? (
-                      <Button
-                        type="button"
-                        className="users-row-action-button is-danger"
-                        title="Delete local user"
-                        aria-label={`Delete ${user.UserName}`}
-                        onClick={() => setDeleteTarget(user.LocalUser)}
-                      >
-                        <DeleteBinLineIcon size={17} />
-                      </Button>
-                    ) : null}
+                  <div className="users-row-badges">
+                    <Badge className={`users-role-badge ${roleClass(user.Role)}`}>{user.Role}</Badge>
+                    <Badge className={`users-source-badge ${sourceClass(user.Source)}`}>{user.Source}</Badge>
+                    {user.Source === "Jellyfin" && !user.Tracked ? <Badge className="users-source-badge source-hidden">Hidden</Badge> : null}
                   </div>
-                ) : (
-                  <span className="users-track-placeholder" />
-                )}
-              </article>
-            ))}
-          </div>
+
+                  {renderRoleControl(user)}
+                  {renderUserActions(user)}
+                </article>
+              ))}
+            </div>
+          )}
+
+          {!visibleRows.length ? <div className="users-empty-state">No users match this view.</div> : null}
 
           <div className="users-pagination">
             <span>
@@ -672,6 +791,53 @@ export default function Users() {
           </div>
         </div>
 
+        <aside className="users-panel users-access-panel">
+          <div className="users-panel-header compact">
+            <div>
+              <h2>Permissions</h2>
+              <p>Role access is saved to the backend and checked on protected API routes.</p>
+            </div>
+            <Button className="users-primary-action" onClick={() => setShowRolesManager(true)}>
+              <PriceTag3LineIcon size={17} />
+              Roles
+            </Button>
+          </div>
+
+          <div className="users-role-selector">
+            <span>Editing role</span>
+            <FormSelect value={previewRole} onChange={(event) => setPreviewRole(event.target.value)}>
+              {access.roles.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </FormSelect>
+          </div>
+
+          <div className="users-permission-editor">
+            {PERMISSION_DEFINITIONS.map((permission) => (
+              <label className={`users-permission-row ${selectedRolePermissions[permission.key] ? "is-enabled" : ""}`} key={permission.key}>
+                <span>
+                  <strong>{permission.label}</strong>
+                  <small>{permission.detail}</small>
+                </span>
+                <Form.Check
+                  type="switch"
+                  checked={Boolean(selectedRolePermissions[permission.key])}
+                  disabled={selectedRoleLocked}
+                  onChange={(event) => updateRolePermission(previewRole, permission.key, event.target.checked)}
+                  aria-label={`${permission.label} permission for ${previewRole}`}
+                />
+              </label>
+            ))}
+          </div>
+
+          {selectedRoleLocked ? (
+            <p className="users-permission-note">{previewRole === "Owner" ? "Owner always keeps full access." : "Disabled users cannot access JellyGlance."}</p>
+          ) : (
+            <p className="users-permission-note">Changes save immediately and apply the next time that user calls a protected route.</p>
+          )}
+        </aside>
       </section>
 
       <Modal show={showUsersManager} onHide={() => setShowUsersManager(false)} centered size="lg" contentClassName="users-modal users-manager-modal">
@@ -761,15 +927,10 @@ export default function Users() {
               </FormSelect>
             </div>
             <div className="role-preview-grid">
-              {[
-                ["dashboard", "Dashboard"],
-                ["users", "Users"],
-                ["settings", "Settings"],
-                ["apiKeys", "API Keys"],
-              ].map(([permission, label]) => (
-                <span key={permission} className={previewPermissions[permission] ? "is-allowed" : "is-denied"}>
-                  {previewPermissions[permission] ? <CheckFillIcon size={14} /> : <CloseFillIcon size={14} />}
-                  {label}
+              {PERMISSION_DEFINITIONS.map((permission) => (
+                <span key={permission.key} className={previewPermissions[permission.key] ? "is-allowed" : "is-denied"}>
+                  {previewPermissions[permission.key] ? <CheckFillIcon size={14} /> : <CloseFillIcon size={14} />}
+                  {permission.label}
                 </span>
               ))}
             </div>
@@ -788,19 +949,15 @@ export default function Users() {
                     )}
                   </div>
                   <div className="permission-toggle-grid">
-                    {[
-                      ["dashboard", "Dashboard"],
-                      ["users", "Users"],
-                      ["settings", "Settings"],
-                      ["apiKeys", "API Keys"],
-                    ].map(([permission, label]) => (
+                    {PERMISSION_DEFINITIONS.map((permission) => (
                       <Form.Check
-                        key={permission}
+                        key={permission.key}
                         type="switch"
-                        id={`role-${role}-${permission}`}
-                        label={label}
-                        checked={Boolean(access.rolePermissions?.[role]?.[permission])}
-                        onChange={(event) => updateRolePermission(role, permission, event.target.checked)}
+                        id={`role-${role}-${permission.key}`}
+                        label={permission.label}
+                        checked={Boolean(access.rolePermissions?.[role]?.[permission.key])}
+                        disabled={LOCKED_PERMISSION_ROLES.has(role)}
+                        onChange={(event) => updateRolePermission(role, permission.key, event.target.checked)}
                       />
                     ))}
                   </div>

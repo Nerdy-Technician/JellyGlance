@@ -13,9 +13,16 @@ import {
   getCachedActiveSessions,
   subscribeActiveSessions,
 } from "../../../lib/session-cache";
+import {
+  ACTIVE_SESSION_IP_PRIVACY_EVENT,
+  ACTIVE_SESSION_IP_PRIVACY_KEY,
+  getActiveSessionIpPrivacy,
+  shouldHideActiveSessionIp,
+} from "../../../lib/privacy-settings";
 
-function Sessions() {
+function Sessions({ surface = "home" }) {
   const [data, setData] = useState(() => getCachedActiveSessions());
+  const [ipPrivacy, setIpPrivacy] = useState(() => getActiveSessionIpPrivacy());
   const [config, setConfig] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("config") || "null");
@@ -23,6 +30,23 @@ function Sessions() {
       return null;
     }
   });
+
+  useEffect(() => {
+    const handleIpPrivacyUpdate = () => setIpPrivacy(getActiveSessionIpPrivacy());
+    const handleStorage = (event) => {
+      if (event.key === ACTIVE_SESSION_IP_PRIVACY_KEY) {
+        handleIpPrivacyUpdate();
+      }
+    };
+
+    window.addEventListener(ACTIVE_SESSION_IP_PRIVACY_EVENT, handleIpPrivacyUpdate);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(ACTIVE_SESSION_IP_PRIVACY_EVENT, handleIpPrivacyUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeActiveSessions(setData);
@@ -42,6 +66,8 @@ function Sessions() {
     };
   }, []);
 
+  const hideIpAddress = shouldHideActiveSessionIp(surface, ipPrivacy);
+
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -59,7 +85,7 @@ function Sessions() {
 
   if (!config && !data) {
     return (
-      <div>
+      <div className="sessions-widget sessions-widget-loading">
         <h1 className="my-3">
           Active Sessions
         </h1>
@@ -73,7 +99,7 @@ function Sessions() {
 
   if ((!data && config) || data.length === 0) {
     return (
-      <div>
+      <div className="sessions-widget sessions-widget-empty">
         <h1 className="my-3">
           Active Sessions
         </h1>
@@ -85,7 +111,7 @@ function Sessions() {
   }
 
   return (
-    <div>
+    <div className="sessions-widget">
       <h1 className="my-3">
         Active Sessions
       </h1>
@@ -96,7 +122,7 @@ function Sessions() {
             .sort((a, b) => a.Id.padStart(12, "0").localeCompare(b.Id.padStart(12, "0")))
             .map((session) => (
               <ErrorBoundary key={session.Id}>
-                <SessionCard data={{ session: session, base_url: config?.base_url }} />
+                <SessionCard data={{ session: session, base_url: config?.base_url }} hideIpAddress={hideIpAddress} />
               </ErrorBoundary>
             ))}
       </div>

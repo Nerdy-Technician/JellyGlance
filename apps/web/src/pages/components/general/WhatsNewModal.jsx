@@ -7,10 +7,10 @@ import SpeedLineIcon from "remixicon-react/SpeedLineIcon";
 import Movie2LineIcon from "remixicon-react/Movie2LineIcon";
 import MailLineIcon from "remixicon-react/MailLineIcon";
 import axios from "../../../lib/axios_instance";
+import { APP_VERSION_STORAGE_KEY, OPEN_WHATS_NEW_EVENT } from "../../../lib/events";
 import releaseNotes from "../../../whats-new.json";
 
 const SEEN_VERSION_KEY = "jellyglance_whats_new_seen_version";
-export const OPEN_WHATS_NEW_EVENT = "jellyglance-open-whats-new";
 
 const iconMap = {
   magic: MagicLineIcon,
@@ -35,12 +35,25 @@ function resolveIcon(icon) {
   return iconMap[icon] || MagicLineIcon;
 }
 
+function formatDisplayVersion(version) {
+  return `v${String(version || "").replace(/-beta\.\d+$/i, "").replace(/^v/i, "")}`;
+}
+
 export default function WhatsNewModal({ enabled = true }) {
   const [version, setVersion] = useState("");
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
+
+    const cachedVersion = localStorage.getItem(APP_VERSION_STORAGE_KEY);
+    if (cachedVersion) {
+      setVersion(cachedVersion);
+      if (localStorage.getItem(SEEN_VERSION_KEY) !== cachedVersion) {
+        setShow(true);
+      }
+      return;
+    }
 
     let active = true;
     axios
@@ -104,7 +117,7 @@ export default function WhatsNewModal({ enabled = true }) {
             <MagicLineIcon size={17} />
             What&apos;s new
           </span>
-          <h2>JellyGlance {version}</h2>
+          <h2>JellyGlance {formatDisplayVersion(version)}</h2>
           <p>A quick look at the newest bits before you dive back in.</p>
         </div>
         <div className="whats-new-list">

@@ -74,19 +74,43 @@ async function sendStars() {
   const gained = Math.max(0, current - previous);
   const repoUrl = optionalEnv("REPOSITORY_URL", "https://github.com/Nerdy-Technician/JellyGlance");
   const starUsers = optionalEnv("STAR_USERS", "");
-  const firstStarUser = starUsers.match(/\[@([^\]]+)\]/)?.[1];
+  const userList = starUsers
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const firstStarUser = userList[0]?.match(/\[@([^\]]+)\]/)?.[1];
   const title = starUsers && gained === 1
-    ? `@${firstStarUser || "Someone"} starred JellyGlance`
-    : gained > 1
-      ? `JellyGlance gained ${gained} new stars`
-      : "JellyGlance gained a new star";
+        ? `${firstStarUser ? `@${firstStarUser}` : "A star"} starred JellyGlance`
+        : gained > 1
+          ? `JellyGlance gained ${gained} new stars`
+          : "JellyGlance gained a new star";
   const fields = [
     { name: "Previous", value: String(previous), inline: true },
     { name: "Current", value: String(current), inline: true },
   ];
 
   if (starUsers) {
-    fields.push({ name: gained > 1 ? "Starred by" : "Starred by", value: starUsers, inline: false });
+    const starsBy = gained === 1
+      ? `${starUsers} just starred this project.`
+      : `These people just starred this project: ${starUsers}`;
+
+    fields.push({
+      name: gained === 1 ? "Starred by" : "Just starred",
+      value: starsBy,
+      inline: false,
+    });
+
+    fields.push({
+      name: "Stargazers",
+      value: `[View all stargazers](${repoUrl}/stargazers)`,
+      inline: false,
+    });
+  } else {
+    fields.push({
+      name: "Stargazers",
+      value: `[View all stargazers](${repoUrl}/stargazers)`,
+      inline: false,
+    });
   }
 
   fields.push({ name: "Repository", value: repoUrl, inline: false });

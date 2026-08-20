@@ -51,9 +51,13 @@ Then fill in PostgreSQL connection settings and `JWT_SECRET`.
 3. Enter a Jellyfin API key so JellyGlance can validate the server and sync library data.
 4. Choose your admin access mode.
 5. Complete Jellyfin Quick Connect, OIDC/Auth provider details, or local admin creation.
-6. Let the first sync finish.
+6. Review the integrations step and connect any services you want ready from the start.
+7. Optionally import older Tautulli or Jellystat watch history.
+8. Let the first sync finish.
 
 After setup, JellyGlance can use cached artwork from your Jellyfin library for the login background.
+
+See the [screenshots gallery](/guide/screenshots) for the current first-run screens.
 
 ## What To Configure Next
 
@@ -61,7 +65,7 @@ Once Jellyfin is connected, the most useful follow-up configuration lives in **S
 
 | Settings Area | What It Controls |
 | --- | --- |
-| Integrations | Jellyfin, Seerr apps, Arr apps, download clients, health checks, and integration event sources |
+| Integrations | Jellyfin, 3rd Party Apps, Seerr apps, Arr apps, download clients, health checks, and integration event sources |
 | Tasks | Manual and scheduled sync jobs for Jellyfin, calendar, downloads, health checks, and backups |
 | Webhooks | One or many webhook destinations with event toggles, test delivery, and delivery history |
 | API Key | Scoped JellyGlance access tokens for automation or dashboards |
@@ -78,7 +82,11 @@ After the first Jellyfin sync, these areas are worth opening first:
 | Page | Why It Matters |
 | --- | --- |
 | Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. |
+| Settings > Integrations > 3rd Party Apps | Connect Wizarr, Tdarr, Maintainerr, or SickChill for invites, transcodes, cleanup visibility, and alternative TV automation. |
 | Requests | Connect Jellyseerr or Overseerr to review request cards, posters, availability, requester info, status filters, and actions. |
+| Downloads | Connect qBittorrent, Transmission, Deluge, SABnzbd, or NZBGet to monitor queue state, stalled items, and active jobs. |
+| Active Transcodes | Connect Tdarr to monitor active, queued, and historical transcode work with progress and media artwork. |
+| Invites | Connect Wizarr to create, copy, open, and remove invite links inside JellyGlance. |
 | Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. |
 | Repair | Review missing artwork, missing runtime, empty series, orphaned activity, unmatched imports, and recent task failures. |
 | Settings > Imports | Bring old Tautulli watch history into JellyGlance and link unmatched legacy media to current Jellyfin items. |
@@ -90,14 +98,15 @@ After the first Jellyfin sync, these areas are worth opening first:
 JellyGlance can connect to:
 
 - Jellyfin for media, users, sessions, activity, and artwork
+- Wizarr, Tdarr, Maintainerr, and SickChill under **3rd Party Apps**
 - Tautulli backup files for legacy Plex watch-history imports
 - Jellyseerr and Overseerr for media requests and availability checks
-- Sonarr, Radarr, Lidarr, and Bazarr for automation status and release calendars
+- Sonarr, Radarr, Lidarr, Bazarr, and Prowlarr for automation status, indexer health, and release calendars
 - qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet for download queues and torrent/magnet submission
 - Discord-compatible and Gotify-style webhook endpoints for notifications and delivery history
 - SMTP servers for manual, weekly, or monthly newsletter digest delivery
 
-See [Integrations](./integrations.md) for the complete setup map.
+See [Integrations](/intergrations) for the complete setup map.
 
 ## Common Commands
 
@@ -111,5 +120,6 @@ npm run docs:dev
 ## Next Steps
 
 - Review [Architecture](./architecture.md) to understand the workspace.
+- Review [Integrations](/intergrations) to map your media stack.
 - Review [Docker](../operations/docker.md) before deploying.
 - Review [Releases](../operations/releases.md) before tagging changes.

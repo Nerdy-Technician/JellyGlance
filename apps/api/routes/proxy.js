@@ -6,6 +6,50 @@ const API = require("../classes/api-loader");
 
 const router = express.Router();
 
+function toUnsignedInt(value, fallback) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function getJellyfinOrigin(config) {
+  if (!config?.JF_HOST) {
+    return null;
+  }
+
+  try {
+    const hostUrl = new URL(config.JF_HOST);
+    return `${hostUrl.protocol}//${hostUrl.host}`;
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedPluginImageUrl(url, config) {
+  try {
+    const parsed = new URL(url);
+    if (!/^https?:$/.test(parsed.protocol)) {
+      return false;
+    }
+
+    const jellyfinOrigin = getJellyfinOrigin(config);
+    if (!jellyfinOrigin) {
+      return false;
+    }
+
+    if (parsed.origin === jellyfinOrigin) {
+      return true;
+    }
+
+    if (config.IS_JELLYFIN == false && parsed.hostname === "raw.githubusercontent.com") {
+      return parsed.pathname.startsWith("/MediaBrowser/Emby.Resources/");
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 router.get("/web/assets/img/devices/", async (req, res) => {
   const { devicename } = req.query; // Get the image URL from the query string
   const config = await new configClass().getConfig();
@@ -15,7 +59,13 @@ router.get("/web/assets/img/devices/", async (req, res) => {
     return;
   }
 
-  let url = `${config.JF_HOST}/web/assets/img/devices/${devicename}.svg`;
+  if (!devicename) {
+    res.status(400).send("device name is required");
+    return;
+  }
+
+  const encodedDevice = encodeURIComponent(String(devicename));
+  let url = `${config.JF_HOST}/web/assets/img/devices/${encodedDevice}.svg`;
   if (config.IS_JELLYFIN == false) {
     url = `https://raw.githubusercontent.com/MediaBrowser/Emby.Resources/master/images/devices/${devicename}.png`;
   }
@@ -53,9 +103,16 @@ router.get("/Items/Images/Backdrop/", async (req, res) => {
     return;
   }
 
-  let url = `${config.JF_HOST}/Items/${id}/Images/Backdrop?fillWidth=${fillWidth || 800}&quality=${quality || 100}&blur=${
-    blur || 0
-  }`;
+  if (!id) {
+    res.status(400).send("id is required");
+    return;
+  }
+
+  const width = toUnsignedInt(fillWidth, 800);
+  const imageQuality = toUnsignedInt(quality, 100);
+  const blurValue = toUnsignedInt(blur, 0);
+  const encodedId = encodeURIComponent(id);
+  let url = `${config.JF_HOST}/Items/${encodedId}/Images/Backdrop?fillWidth=${width}&quality=${imageQuality}&blur=${blurValue}`;
 
   axios
     .get(url, {
@@ -86,7 +143,15 @@ router.get("/Items/Images/Primary/", async (req, res) => {
     return;
   }
 
-  let url = `${config.JF_HOST}/Items/${id}/Images/Primary?fillWidth=${fillWidth || 400}&quality=${quality || 100}`;
+  if (!id) {
+    res.status(400).send("id is required");
+    return;
+  }
+
+  const width = toUnsignedInt(fillWidth, 400);
+  const imageQuality = toUnsignedInt(quality, 100);
+  const encodedId = encodeURIComponent(id);
+  let url = `${config.JF_HOST}/Items/${encodedId}/Images/Primary?fillWidth=${width}&quality=${imageQuality}`;
 
   axios
     .get(url, {
@@ -109,7 +174,7 @@ router.get("/Items/Images/Primary/", async (req, res) => {
 });
 
 router.get("/Users/Images/Primary/", async (req, res) => {
-  const { id, fillWidth, quality } = req.query; // Get the image URL from the query string
+  const { id, tag, fillWidth, quality } = req.query;
   const config = await new configClass().getConfig();
 
   if (config.error) {
@@ -117,18 +182,33 @@ router.get("/Users/Images/Primary/", async (req, res) => {
     return;
   }
 
-  let url = `${config.JF_HOST}/Users/${id}/Images/Primary?fillWidth=${fillWidth || 100}&quality=${quality || 100}`;
+  if (!id) {
+    res.status(400).send("id is required");
+    return;
+  }
+
+  const encodedId = encodeURIComponent(id || "");
+  const encodedTag = tag ? `&tag=${encodeURIComponent(tag)}` : "";
+  const width = toUnsignedInt(fillWidth, 100);
+  const imageQuality = toUnsignedInt(quality, 100);
+  let url = `${config.JF_HOST}/Users/${encodedId}/Images/Primary?fillWidth=${width}&quality=${imageQuality}${encodedTag}`;
 
   axios
     .get(url, {
       responseType: "arraybuffer",
+      headers: {
+        Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+        "X-Emby-Authorization": `MediaBrowser Token="${config.JF_API_KEY}"`,
+        "X-MediaBrowser-Token": config.JF_API_KEY,
+      },
     })
     .then((response) => {
-      res.set("Content-Type", "image/jpeg");
+      const contentType = response.headers["content-type"] || "";
+      res.set("Content-Type", contentType.startsWith("image/") ? contentType : "image/jpeg");
       res.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
       res.status(200);
 
-      if (response.headers["content-type"].startsWith("image/")) {
+      if (contentType.startsWith("image/")) {
         res.send(response.data);
       } else {
         res.status(500).send("Error fetching image");
@@ -153,7 +233,7 @@ router.get("/Plugins/Images/", async (req, res) => {
     return;
   }
 
-  const encodedId = encodeURIComponent(id);
+  const encodedId = id ? encodeURIComponent(id) : undefined;
   const candidates = imageUrl ? [imageUrl] : [
     `${config.JF_HOST}/Plugins/${encodedId}/Image`,
     `${config.JF_HOST}/Plugins/${encodedId}/Images/Primary`,
@@ -162,7 +242,10 @@ router.get("/Plugins/Images/", async (req, res) => {
 
   for (const url of candidates) {
     try {
-      if (!/^https?:\/\//i.test(url)) continue;
+      if (!/^https?:\/\//i.test(url) || !isAllowedPluginImageUrl(url, config)) {
+        continue;
+      }
+
       const response = await axios.get(url, {
         responseType: "arraybuffer",
         headers: {

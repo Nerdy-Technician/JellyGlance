@@ -65,7 +65,9 @@ function SelectionCard(props) {
           <Card.Img
             variant="top"
             className="library-card-banner default_library_image"
-            src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=800&quality=50"}
+            src={baseUrl + "/proxy/Items/Images/Primary?id=" + props.data.Id + "&fillWidth=520&quality=48"}
+            loading="lazy"
+            decoding="async"
             onError={() => setImageLoaded(false)}
           />
         ) : (
