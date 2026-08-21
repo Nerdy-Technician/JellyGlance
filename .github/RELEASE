@@ -1,12 +1,19 @@
-version: v1.2.5
-title: JellyGlance v1.2.5
+version: v1.2.6
+title: JellyGlance v1.2.6
 ---
-fix: improve Tdarr queue, history, and refresh reliability
+feat: add more themes and improve local reliability
+
+We are sorry for the three updates in one day. The recent work crossed several connected parts of JellyGlance: frontend routes, API routes, proxy endpoints, authentication, and third-party integrations. Small changes to one response shape or proxy path could affect artwork, activity, Tdarr data, or page loading elsewhere, so several quick updates were needed while those pieces were brought back into sync.
+
+Added
+- Ten new theme presets: Sakura, Volcanic, Deep Sea, Honey, Plasma, Moss, Paper, Electric Blue, Tangerine, and Violet Night
+- Theme choices are available from both Settings and the profile theme menu
+- Active session cards now show transcoded progress as a lighter overlay on the playback progress bar
+- Expanded session cards now show the viewer profile picture and a client icon beside the client details
+
 
 Fixed
-- Tdarr queued cards now use the paged client search data used by the Tdarr UI instead of exposing only aggregate queue counts
-- Tdarr active, queued, and history response mapping keeps worker progress, queue rows, history rows, and summary counts in the correct views
-- Tdarr history cards now retain media names, Jellyfin posters and backdrops, source formats, finished formats, size changes, and saved space
-- Tdarr refreshes no longer wait on the slow full database dump or blocking job-report lookups
-- Tdarr slow or unavailable optional endpoints no longer prevent active, queued, and history data from rendering
-- Active Tdarr transcode posters and backdrops now remain matched during live polling refreshes
+- Activity no longer goes black while authenticated configuration is loading
+- Activity table rendering no longer crashes when Material UI theme contexts differ
+
+- Release notes remain available when GitHub API requests are rate-limited

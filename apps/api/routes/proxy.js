@@ -3,8 +3,82 @@ const express = require("express");
 const { axios } = require("../classes/axios");
 const configClass = require("../classes/config");
 const API = require("../classes/api-loader");
+const { getIntegrations } = require("../classes/integration-store");
 
 const router = express.Router();
+
+let sessionSonarrCache = { expiresAt: 0, ratingsByKey: new Map() };
+
+function normalizeSessionRating(value) {
+  const number = Number(String(value ?? "").replace("%", ""));
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normalizeSessionSeriesTitle(value) {
+  return String(value || "")
+    .replace(/\s*\(\d{4}\)\s*$/, "")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getSessionSeriesKey(session) {
+  const item = session?.NowPlayingItem || {};
+  const providerIds = item.ProviderIds || {};
+  const tvdbId = providerIds.Tvdb || providerIds.TVDB || providerIds.tvdb;
+  const imdbId = providerIds.Imdb || providerIds.IMDb || providerIds.imdb;
+  const title = item.SeriesName || (["Series", "Season"].includes(item.Type) ? item.Name : "");
+  return {
+    id: tvdbId ? `tvdb:${tvdbId}` : imdbId ? `imdb:${imdbId}` : "",
+    title: String(title || "").trim(),
+  };
+}
+
+async function attachSonarrSessionRatings(sessions = []) {
+  const activeSeries = sessions.map(getSessionSeriesKey).filter((entry) => entry.id || entry.title);
+  if (!activeSeries.length) return sessions;
+
+  try {
+    const integrations = await getIntegrations();
+    const sonarr = (integrations.arrApps || []).find(
+      (integration) => integration.connected && String(integration.slug || integration.name || "").toLowerCase().includes("sonarr")
+    );
+    if (!sonarr?.values?.url || !sonarr?.values?.secret) return sessions;
+
+    const cacheKey = `${sonarr.instanceId || sonarr.name || sonarr.values.url}`;
+    let series = sessionSonarrCache.key === cacheKey && Date.now() < sessionSonarrCache.expiresAt ? sessionSonarrCache.series : null;
+    if (!series) {
+      const response = await axios.get(`${sonarr.values.url.replace(/\/$/, "")}/api/v3/series`, {
+        timeout: 5000,
+        headers: { "X-Api-Key": sonarr.values.secret },
+      });
+      series = Array.isArray(response.data) ? response.data : [];
+      sessionSonarrCache = { key: cacheKey, expiresAt: Date.now() + 5 * 60 * 1000, series, ratingsByKey: new Map() };
+    }
+
+    const ratingsByKey = new Map();
+    series.forEach((entry) => {
+      const ratings = {
+        // Sonarr commonly stores its IMDb score as the generic ratings.value.
+        imdb: normalizeSessionRating(entry.ratings?.imdb ?? entry.ratings?.value),
+        rottenTomatoes: normalizeSessionRating(entry.ratings?.rottenTomatoes),
+      };
+      if (!ratings.imdb && !ratings.rottenTomatoes) return;
+      const providerIds = entry.tvdbId || entry.imdbId ? [`tvdb:${entry.tvdbId}`, `imdb:${entry.imdbId}`] : [];
+      providerIds.filter((key) => !key.endsWith(":undefined")).forEach((key) => ratingsByKey.set(key, ratings));
+      if (entry.title) ratingsByKey.set(`title:${normalizeSessionSeriesTitle(entry.title)}`, ratings);
+    });
+
+    return sessions.map((session) => {
+      const key = getSessionSeriesKey(session);
+      const ratings = ratingsByKey.get(key.id) || ratingsByKey.get(`title:${normalizeSessionSeriesTitle(key.title)}`);
+      return ratings ? { ...session, SonarrRatings: ratings } : session;
+    });
+  } catch (error) {
+    console.log("Unable to load Sonarr session ratings:", error.response?.status || error.message);
+    return sessions;
+  }
+}
 
 function getJellyfinAuthHeaders(config) {
   return {
@@ -278,7 +352,7 @@ router.get("/Plugins/Images/", async (req, res) => {
 router.get("/getSessions", async (req, res) => {
   try {
     const sessions = await API.getSessions();
-    res.send(sessions);
+    res.send(await attachSonarrSessionRatings(sessions));
   } catch (error) {
     res.status(503);
     res.send(error);

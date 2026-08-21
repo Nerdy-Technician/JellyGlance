@@ -17,7 +17,11 @@ const CONTRIBUTORS_CACHE_FILE = path.join(getConfigDir(), "github-contributors-c
 const BUNDLED_RELEASE_NOTES_FILE = path.join(__dirname, "../web/src/whats-new.json");
 
 function normalizeVersion(version) {
-  return String(version || "").trim().replace(/^v/i, "");
+  return String(version || "")
+    .trim()
+    .replace(/^v/i, "")
+    // Older bundled notes used 1.2.3.beta.1; normalize it for semver sorting.
+    .replace(/\.(alpha|beta|rc|pre|preview)\.(\d+)$/i, "-$1.$2");
 }
 
 function releaseChannel(currentVersion = packageJson.version) {

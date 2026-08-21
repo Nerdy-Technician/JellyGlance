@@ -13,6 +13,15 @@ import i18next from "i18next";
 import LibraryFilterModal from "./components/library/library-filter-modal";
 import socket from "../socket";
 
+function readActivityPreference(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value == null ? fallback : JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function Activity() {
   const [data, setData] = useState();
   const [config, setConfig] = useState(null);
@@ -21,9 +30,10 @@ function Activity() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
   const [itemCount, setItemCount] = useState(parseInt(localStorage.getItem("PREF_ACTIVITY_ItemCount") ?? "10"));
   const [libraryFilters, setLibraryFilters] = useState(
-    localStorage.getItem("PREF_ACTIVITY_libraryFilters") != undefined
-      ? JSON.parse(localStorage.getItem("PREF_ACTIVITY_libraryFilters"))
-      : []
+    () => {
+      const stored = readActivityPreference("PREF_ACTIVITY_libraryFilters", []);
+      return Array.isArray(stored) ? stored : [];
+    }
   );
   const [libraries, setLibraries] = useState([]);
   const [showLibraryFilters, setShowLibraryFilters] = useState(false);
@@ -228,12 +238,22 @@ function Activity() {
             "Content-Type": "application/json",
           },
         })
-        .then((data) => {
-          setData(data.data);
+        .then((response) => {
+          const payload = response.data;
+          setData(
+            Array.isArray(payload)
+              ? { results: payload, pages: 1 }
+              : {
+                  ...payload,
+                  results: Array.isArray(payload?.results) ? payload.results : [],
+                  pages: payload?.pages || 1,
+                }
+          );
           setIsBusy(false);
         })
         .catch((error) => {
           console.log(error);
+          setData({ results: [], pages: 1 });
           setIsBusy(false);
         });
     };
@@ -282,7 +302,9 @@ function Activity() {
     return <Loading />;
   }
 
-  if (data.length === 0) {
+  const activityRows = Array.isArray(data?.results) ? data.results : [];
+
+  if (activityRows.length === 0) {
     return (
       <div className="Activity">
         <div className="Heading">
@@ -383,7 +405,7 @@ function Activity() {
       </header>
       <div className="Activity activity-table-shell">
         <ActivityTable
-          data={data.results}
+          data={activityRows}
           itemCount={itemCount}
           onPageChange={handlePageChange}
           onSortChange={onSortChange}

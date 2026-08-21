@@ -1,8 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, { useEffect, useMemo } from "react";
 import axios from "../../../lib/axios_instance";
-import { enUS } from "@mui/material/locale";
-
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 
@@ -16,7 +14,7 @@ import i18next from "i18next";
 import IpInfoModal from "../ip-info";
 import BusyLoader from "../general/busyLoader.jsx";
 import { MRT_ShowHideColumnsButton, MRT_TablePagination, MaterialReactTable, useMaterialReactTable } from "material-react-table";
-import { Box, ThemeProvider, Typography, createTheme } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import { Link } from "react-router-dom";
 import { Button, Modal } from "react-bootstrap";
@@ -60,6 +58,15 @@ const activityColumnVisibilityKey = "PREF_ACTIVITY_ColumnVisibility";
 const defaultColumnVisibility = {
   RemoteEndPoint: false,
 };
+
+function readActivityTablePreference(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value == null ? fallback : JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
 
 function getCssVariableColor(variableName, fallback) {
   if (typeof window === "undefined") {
@@ -118,15 +125,12 @@ function ActivityUserAvatar({ userId, userName }) {
 }
 
 function getStoredColumnVisibility() {
-  try {
-    return { ...defaultColumnVisibility, ...JSON.parse(localStorage.getItem(activityColumnVisibilityKey) || "{}") };
-  } catch {
-    return defaultColumnVisibility;
-  }
+  const stored = readActivityTablePreference(activityColumnVisibilityKey, {});
+  return { ...defaultColumnVisibility, ...(stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {}) };
 }
 
 export default function ActivityTable(props) {
-  const twelve_hr = JSON.parse(localStorage.getItem("12hr"));
+  const twelve_hr = readActivityTablePreference("12hr", false);
   const localization = localStorage.getItem("i18nextLng");
   const [data, setData] = React.useState(props.data ?? []);
   const pages = props.pageCount || 1;
@@ -671,40 +675,6 @@ export default function ActivityTable(props) {
       baseBackgroundColor: "#070a10",
     }),
   });
-  const theme = useMemo(
-    () =>
-      createTheme(
-        {
-          palette: {
-            mode: "dark",
-            primary: {
-              main: muiColors.secondary,
-            },
-            secondary: {
-              main: muiColors.primary,
-            },
-            info: {
-              main: muiColors.primary,
-            },
-            warning: {
-              main: muiColors.primary,
-            },
-          },
-          components: {
-            MuiTooltip: {
-              styleOverrides: {
-                tooltip: {
-                  backgroundColor: colors.tertiaryBackgroundColor,
-                },
-              },
-            },
-          },
-        },
-        enUS
-      ),
-    [muiColors]
-  );
-
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       {isBusy && <BusyLoader />}
@@ -763,18 +733,16 @@ export default function ActivityTable(props) {
           </Button>
         </Modal.Footer>
       </Modal>
-      <ThemeProvider theme={theme}>
-        <MaterialReactTable table={table} />
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "end",
-            alignItems: "center",
-          }}
-        >
-          <MRT_TablePagination table={table} />
-        </Box>
-      </ThemeProvider>
+      <MaterialReactTable table={table} />
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "end",
+          alignItems: "center",
+        }}
+      >
+        <MRT_TablePagination table={table} />
+      </Box>
     </LocalizationProvider>
   );
 }

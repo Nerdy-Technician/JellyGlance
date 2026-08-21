@@ -297,6 +297,11 @@ function App() {
     return <Signup />;
   }
 
+  // Keep the app visible while the authenticated configuration request is pending.
+  if (setupState === 2 && !config) {
+    return token ? <Loading /> : <Login />;
+  }
+
   if (config && shouldShowFirstRunExtras) {
     return <FirstRunExtras />;
   }

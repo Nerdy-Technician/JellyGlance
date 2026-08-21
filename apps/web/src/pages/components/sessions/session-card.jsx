@@ -112,6 +112,15 @@ function SessionCard(props) {
         Math.max(0, (playState.PositionTicks / nowPlaying.RunTimeTicks) * 100)
       )
     : 0;
+  const rawTranscodePercent = Number(session.TranscodingInfo?.CompletionPercentage);
+  const transcodePositionPercent = nowPlaying.RunTimeTicks
+    ? Number(session.TranscodingInfo?.TranscodingPositionTicks) / nowPlaying.RunTimeTicks * 100
+    : 0;
+  const transcodePercent = Number.isFinite(rawTranscodePercent)
+    ? Math.min(100, Math.max(0, rawTranscodePercent))
+    : Number.isFinite(transcodePositionPercent)
+      ? Math.min(100, Math.max(0, transcodePositionPercent))
+      : null;
   const eta =
     nowPlaying.RunTimeTicks || nowPlaying.ChannelType === "TV"
       ? getETA(nowPlaying, playState)
@@ -228,7 +237,14 @@ function SessionCard(props) {
               <h2>{title}</h2>
               <p>{subtitle}</p>
               <div className="session-popout-progress" aria-label={`Playback progress ${Math.round(progressPercent)} percent`}>
-                <div style={{ width: `${progressPercent}%` }} />
+                <div className="session-playback-progress" style={{ width: `${progressPercent}%` }} />
+                {isTranscoding && transcodePercent !== null ? (
+                  <div
+                    className="session-transcode-progress"
+                    style={{ width: `${transcodePercent}%` }}
+                    aria-label={`Transcode progress ${Math.round(transcodePercent)} percent`}
+                  />
+                ) : null}
               </div>
               <div className="session-popout-time">
                 <strong>{timecode}</strong>
@@ -237,9 +253,34 @@ function SessionCard(props) {
             </div>
           </div>
           <div className="session-popout-grid">
-            <SessionDetailItem label="Viewer" value={session.UserName} />
+            <div className="session-popout-detail">
+              <span>Viewer</span>
+              <div className="session-popout-viewer">
+                {session.UserPrimaryImageTag !== undefined ? (
+                  <img
+                    src={`${baseUrl}/proxy/Users/Images/Primary?id=${session.UserId}&fillWidth=72&quality=55`}
+                    loading="lazy"
+                    decoding="async"
+                    alt=""
+                  />
+                ) : (
+                  <AccountCircleFillIcon aria-hidden="true" />
+                )}
+                <strong>{session.UserName}</strong>
+              </div>
+            </div>
             <SessionDetailItem label="Device" value={session.DeviceName} />
-            <SessionDetailItem label="Client" value={`${session.Client || "Unknown"} ${session.ApplicationVersion || ""}`.trim()} />
+            <div className="session-popout-detail">
+              <span>Client</span>
+              <div className="session-popout-client">
+                <PlatformIcon
+                  client={session.Client}
+                  deviceName={session.DeviceName}
+                  className={`session-popout-client-icon${String(session.Client || "").toLowerCase().includes("roku") ? " is-roku" : ""}`}
+                />
+                <strong>{`${session.Client || "Unknown"} ${session.ApplicationVersion || ""}`.trim()}</strong>
+              </div>
+            </div>
             {!hideIpAddress ? <SessionDetailItem label="IP address" value={session.RemoteEndPoint} /> : null}
             <SessionDetailItem label="Container" value={nowPlaying.ContainerStream} />
             <SessionDetailItem label="Video" value={nowPlaying.VideoStream} wide />
@@ -456,6 +497,13 @@ function SessionCard(props) {
                 width: `${progressPercent}%`,
               }}
             ></div>
+            {isTranscoding && transcodePercent !== null ? (
+              <div
+                className="progress-transcode"
+                style={{ width: `${transcodePercent}%` }}
+                aria-label={`Transcode progress ${Math.round(transcodePercent)} percent`}
+              />
+            ) : null}
           </div>
         </Col>
       </Row>

@@ -35,6 +35,16 @@ export const THEME_PRESETS = [
   { name: "Iceberg", primary: "#7dd3fc", secondary: "#c4b5fd", background: "#071018", surface: "#121d29" },
   { name: "Limewire", primary: "#bef264", secondary: "#22d3ee", background: "#050b08", surface: "#101a14" },
   { name: "Noir", primary: "#fafafa", secondary: "#f43f5e", background: "#050505", surface: "#111111" },
+  { name: "Sakura", primary: "#fda4af", secondary: "#f0abfc", background: "#120910", surface: "#24131f" },
+  { name: "Volcanic", primary: "#fb923c", secondary: "#fef08a", background: "#120805", surface: "#26150d" },
+  { name: "Deep Sea", primary: "#38bdf8", secondary: "#2dd4bf", background: "#031018", surface: "#0b202b" },
+  { name: "Honey", primary: "#fbbf24", secondary: "#fef3c7", background: "#120d03", surface: "#251b08" },
+  { name: "Plasma", primary: "#e879f9", secondary: "#818cf8", background: "#0d0614", surface: "#1d1029" },
+  { name: "Moss", primary: "#a3e635", secondary: "#84cc16", background: "#091006", surface: "#17210d" },
+  { name: "Paper", primary: "#f8fafc", secondary: "#94a3b8", background: "#111318", surface: "#20242c" },
+  { name: "Electric Blue", primary: "#2563eb", secondary: "#67e8f9", background: "#050a18", surface: "#101b35" },
+  { name: "Tangerine", primary: "#fb923c", secondary: "#f472b6", background: "#130905", surface: "#26140f" },
+  { name: "Violet Night", primary: "#8b5cf6", secondary: "#c4b5fd", background: "#090615", surface: "#17102a" },
 ];
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
