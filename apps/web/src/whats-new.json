@@ -1,4 +1,26 @@
 {
+  "1.2.5": [
+    {
+      "icon": "speed",
+      "title": "Tdarr Queue Rows",
+      "body": "Queued Tdarr files now come from the same paged client data used by the Tdarr UI, so the Queue tab shows real media instead of only an aggregate count."
+    },
+    {
+      "icon": "movie",
+      "title": "Tdarr History Rows",
+      "body": "Finished and errored Tdarr jobs now display as history cards with the media name, posters, backdrops, finished format, source format, size changes, and saved space."
+    },
+    {
+      "icon": "magic",
+      "title": "Tdarr Refresh Reliability",
+      "body": "Active, queued, and history response mapping now keeps worker progress, queue rows, history rows, and summary counts in the correct views."
+    },
+    {
+      "icon": "speed",
+      "title": "Tdarr Endpoint Handling",
+      "body": "Tdarr refreshes no longer wait on the slow full database dump or blocking job-report lookups, keeping the dashboard responsive when optional endpoints are slow."
+    }
+  ],
   "1.2.3": [
     {
       "icon": "magic",

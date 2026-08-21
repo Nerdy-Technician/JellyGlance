@@ -813,8 +813,30 @@ function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
 }
 
 function getTdarrRecordPath(record = {}) {
-  const base = record.originalLibraryFile || record.libraryFile || record;
-  return firstDefined(base.file, base.path, base.filePath, record.file, record.path, record.filePath, record._id, "");
+  return firstDefined(
+    record.filename,
+    record.fileName,
+    record.filePath,
+    record.file,
+    record.path,
+    record.originalPath,
+    record.inputFile,
+    record.job?.filePath,
+    record.job?.file,
+    record.job?.path,
+    record.job?.inputFile,
+    record.fileDetails?.filePath,
+    record.fileDetails?.file,
+    record.fileDetails?.path,
+    record.originalLibraryFile?.filePath,
+    record.originalLibraryFile?.file,
+    record.originalLibraryFile?.path,
+    record.libraryFile?.filePath,
+    record.libraryFile?.file,
+    record.libraryFile?.path,
+    record._id,
+    ""
+  );
 }
 
 function getTdarrPathSuffix(pathValue = "") {
@@ -969,6 +991,28 @@ function sortTdarrFilesByDate(files = []) {
   });
 }
 
+function uniqueTdarrRows(rows = []) {
+  const seen = new Set();
+  return asArray(rows).filter((record) => {
+    if (!record || typeof record !== "object") return false;
+    const key = String(
+      firstDefined(
+        record._id,
+        record.id,
+        record.file,
+        record.fileId,
+        record.filePath,
+        record.path,
+        record.originalPath,
+        JSON.stringify(record).slice(0, 160)
+      )
+    );
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function extractTdarrActiveRows(root = {}) {
   const namedRows = flattenRecordCollections(root, [
     "active",
@@ -993,16 +1037,26 @@ function extractTdarrActiveRows(root = {}) {
   });
 }
 
-function normalizeTdarrBundle(data = {}, statistics = {}, stagedRows = [], fileRows = []) {
+function normalizeTdarrBundle(data = {}, statistics = {}, stagedRows = [], fileRows = [], queuedRows = [], historyRows = []) {
   const root = data.data && typeof data.data === "object" ? data.data : data;
   const queuedNames = ["queued", "queue", "transcodeQueue", "transcodeQueueItems", "staged", "pending", "waiting"];
   const historyNames = ["history", "recent", "recentlyFinished", "finished", "success", "completed", "transcodeHistory"];
   const normalizedStats = normalizeTdarrStatistics(statistics);
   const staged = Array.isArray(stagedRows) ? stagedRows : [];
   const files = Array.isArray(fileRows) ? fileRows : [];
+  const explicitQueued = uniqueTdarrRows(queuedRows).slice(0, 80);
+  const explicitHistory = sortTdarrFilesByDate(uniqueTdarrRows(historyRows)).slice(0, 80);
   const activeSource = staged.length ? staged : extractTdarrActiveRows(root);
-  const queuedSource = files.length ? files.filter(isTdarrQueuedFile).slice(0, 80) : flattenRecordCollections(root, queuedNames);
-  const historySource = files.length ? sortTdarrFilesByDate(files.filter(isTdarrHistoryFile)).slice(0, 80) : flattenRecordCollections(root, historyNames);
+  const queuedSource = explicitQueued.length
+    ? explicitQueued
+    : files.length
+      ? files.filter(isTdarrQueuedFile).slice(0, 80)
+      : flattenRecordCollections(root, queuedNames);
+  const historySource = explicitHistory.length
+    ? explicitHistory
+    : files.length
+      ? sortTdarrFilesByDate(files.filter(isTdarrHistoryFile)).slice(0, 80)
+      : flattenRecordCollections(root, historyNames);
   const active = activeSource.map((record, index) => normalizeTdarrRecord(record, "active", index));
   const queued = queuedSource.map((record, index) => normalizeTdarrRecord(record, "queued", index));
   const history = historySource.map((record, index) => normalizeTdarrRecord(record, "history", index));
@@ -1097,6 +1151,88 @@ async function fetchTdarrCollection(integration, collection) {
   }
 }
 
+async function fetchTdarrClientRows(integration, clientType, { start = 0, pageSize = 80, filters = [], sorts = [], table = clientType } = {}) {
+  try {
+    const url = cleanIntegrationUrl(integration.values?.url);
+    const response = await axios.post(
+      `${url}/api/v2/client/${encodeURIComponent(clientType)}`,
+      {
+        data: {
+          start,
+          pageSize,
+          filters,
+          sorts,
+          opts: { table },
+        },
+      },
+      {
+        timeout: 12000,
+        headers: {
+          ...getTdarrHeaders(integration),
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return Array.isArray(response.data?.array) ? response.data.array : [];
+  } catch (error) {
+    console.log(`Tdarr client ${clientType} load failed:`, getAxiosErrorMessage(error));
+    return [];
+  }
+}
+
+async function fetchTdarrJobReports(integration, searchTerms) {
+  const terms = String(searchTerms || "").trim();
+  if (!terms) return [];
+
+  try {
+    const url = cleanIntegrationUrl(integration.values?.url);
+    const response = await axios.post(
+      `${url}/api/v2/search-job-reports`,
+      { data: { searchTerms: terms } },
+      {
+        timeout: 12000,
+        headers: {
+          ...getTdarrHeaders(integration),
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return Array.isArray(response.data?.jobReports) ? response.data.jobReports : [];
+  } catch (error) {
+    console.log("Tdarr job report search failed:", getAxiosErrorMessage(error));
+    return [];
+  }
+}
+
+async function enrichTdarrHistoryRows(integration, rows = []) {
+  const reportCache = new Map();
+  const sourceRows = uniqueTdarrRows(rows);
+  const rowsToEnrich = sourceRows.slice(0, 12);
+  const enriched = await Promise.all(
+    rowsToEnrich.map(async (record) => {
+      const path = String(getTdarrRecordPath(record) || "");
+      const searchTerms = path.split(/[\\/]/).pop() || "";
+      if (!searchTerms) return record;
+
+      if (!reportCache.has(searchTerms)) {
+        reportCache.set(searchTerms, fetchTdarrJobReports(integration, searchTerms));
+      }
+      const reports = await reportCache.get(searchTerms);
+      const report = reports[0];
+      if (!report) return record;
+
+      return {
+        ...record,
+        ...(report.jobRecord && typeof report.jobRecord === "object" ? report.jobRecord : {}),
+        filename: report.filename || record.filename,
+        lastModifiedMs: report.lastModifiedMs || record.lastModifiedMs,
+        jobReport: report,
+      };
+    })
+  );
+  return [...enriched, ...sourceRows.slice(12)];
+}
+
 // Build a map from staged-file ID to live worker progress pulled from /api/v2/get-nodes.
 function mergeNodeProgressIntoStaged(staged, nodesData) {
   if (!nodesData || typeof nodesData !== "object" || !staged.length) return staged;
@@ -1141,7 +1277,7 @@ function mergeNodeProgressIntoStaged(staged, nodesData) {
 
 async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const [statusResponse, statistics, stagedRows, fileRows, nodesData] = await Promise.all([
+  const [statusResponse, statistics, stagedRows, fileRows, queuedSearchRows, historySuccessRows, historyErrorRows, nodesData] = await Promise.all([
     axios
       .get(`${url}/api/v2/status`, {
         timeout: 12000,
@@ -1151,9 +1287,18 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
         console.log("Tdarr status load failed:", getAxiosErrorMessage(error));
         return { data: {} };
       }),
-    activeOnly ? Promise.resolve({}) : fetchTdarrStatistics(integration),
+    fetchTdarrStatistics(integration),
     fetchTdarrCollection(integration, "StagedJSONDB"),
-    activeOnly ? Promise.resolve([]) : fetchTdarrCollection(integration, "FileJSONDB"),
+    // FileJSONDB is a very large, slow dump on real Tdarr installations. The
+    // paged client/search responses below are the primary queue/history source.
+    Promise.resolve([]),
+    activeOnly ? Promise.resolve([]) : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "Queued" }] }),
+    activeOnly
+      ? Promise.resolve([])
+      : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "success" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
+    activeOnly
+      ? Promise.resolve([])
+      : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "error" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
     axios.get(`${url}/api/v2/get-nodes`, {
       timeout: 10000,
       headers: getTdarrHeaders(integration),
@@ -1161,15 +1306,23 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   ]);
 
   const stagedWithProgress = mergeNodeProgressIntoStaged(stagedRows, nodesData);
-
-  const queuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
-  const historyFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
+  const queuedFiles = uniqueTdarrRows(queuedSearchRows).slice(0, 80);
+  const historyFiles = sortTdarrFilesByDate(uniqueTdarrRows([...historySuccessRows, ...historyErrorRows])).slice(0, 80);
+  const fallbackQueuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
+  const fallbackHistoryFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
   const [activeWithImages, queuedWithImages, historyWithImages] = await Promise.all([
     activeOnly ? Promise.resolve(stagedWithProgress) : attachJellyfinIdsToTdarrRecords(stagedWithProgress),
-    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles),
-    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles.length ? queuedFiles : fallbackQueuedFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles.length ? historyFiles : fallbackHistoryFiles),
   ]);
-  const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages.slice(0, 80), [...queuedWithImages, ...historyWithImages]);
+  const bundle = normalizeTdarrBundle(
+    statusResponse.data || {},
+    statistics,
+    activeWithImages.slice(0, 80),
+    fileRows,
+    queuedWithImages,
+    historyWithImages
+  );
   return {
     ...bundle,
     source: {

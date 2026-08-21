@@ -65,9 +65,10 @@ function formatSaved(job) {
 }
 
 function JobCard({ job, kind }) {
-  const bannerStyle = job.bannerUrl
+  const artUrl = job.bannerUrl || job.thumbnailUrl;
+  const bannerStyle = artUrl
     ? {
-        backgroundImage: `linear-gradient(90deg, rgba(7, 10, 16, 0.96), rgba(7, 10, 16, 0.72), rgba(7, 10, 16, 0.32)), url(${job.bannerUrl})`,
+        backgroundImage: `linear-gradient(90deg, rgba(7, 10, 16, 0.96), rgba(7, 10, 16, 0.72), rgba(7, 10, 16, 0.32)), url(${artUrl})`,
       }
     : {};
   const progress = Number(job.progress || 0);
