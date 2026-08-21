@@ -1653,7 +1653,26 @@
   }
 
   .Home {
-    padding: 14px 12px 32px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 12px 4px 28px;
+  }
+
+  .home-section-stack,
+  .home-section-stack > section,
+  .home-glass-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .home-section-stack {
+    gap: 12px;
+  }
+
+  .home-glass-card {
+    border-radius: 12px;
   }
 
   .home-order-toolbar {
@@ -1749,7 +1768,7 @@
   }
 
   .home-active-sessions h1 {
-    font-size: clamp(30px, 8vw, 40px);
+    font-size: clamp(28px, 7vw, 36px);
   }
 
   .home-hero-grid,
@@ -1771,6 +1790,27 @@
   .home-week-feature strong,
   .home-week-grid strong {
     font-size: 22px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .home-week-grid article,
+  .home-watch-party-list article,
+  .home-watch-party-list > span,
+  .home-metric-card,
+  .home-catalog-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .home-section-title {
+    gap: 8px;
+    margin: 18px 0 10px;
+  }
+
+  .home-section-title h2 {
+    font-size: 17px;
+    letter-spacing: 0.07em;
   }
 
   .home-metric-card,

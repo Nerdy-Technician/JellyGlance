@@ -1,4 +1,31 @@
 {
+  "1.2.7": [
+    {
+      "icon": "palette",
+      "title": "Ten New Themes",
+      "body": "Sakura, Volcanic, Deep Sea, Honey, Plasma, Moss, Paper, Electric Blue, Tangerine, and Violet Night are now available in Settings and the profile theme menu."
+    },
+    {
+      "icon": "movie",
+      "title": "Richer Active Session Cards",
+      "body": "Active session cards now show transcoded progress as a lighter progress-bar overlay, while expanded cards include the viewer profile picture and a client icon beside the client details."
+    },
+    {
+      "icon": "magic",
+      "title": "A Note About Today's Updates",
+      "body": "We are sorry for the three updates in one day. Route and proxy changes touched the frontend, API, authentication, artwork, activity, and third-party integrations together, so several quick releases were needed while those connected response paths were brought back into sync."
+    },
+    {
+      "icon": "speed",
+      "title": "More Reliable Pages",
+      "body": "Activity now avoids blank loading states and theme-related table crashes, while release notes continue to work when GitHub is rate-limited or older beta version names are present."
+    },
+    {
+      "icon": "palette",
+      "title": "Mobile Navigation Polish",
+      "body": "Mobile navigation and Settings tabs now stay within the viewport, scroll horizontally when needed, and no longer overlap the page content. Home cards and transcode cards are also more compact on smaller screens."
+    }
+  ],
   "1.2.6": [
     {
       "icon": "palette",

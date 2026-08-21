@@ -377,10 +377,31 @@
     grid-template-rows: auto;
   }
 
+  .transcodes-page {
+    gap: 10px;
+  }
+
+  .transcodes-header {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .transcodes-header h1 {
+    font-size: 28px;
+  }
+
   .transcode-job-thumbnail {
     grid-row: auto;
-    width: min(100%, 220px);
+    width: 88px;
     justify-self: start;
+    border-radius: 6px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+  }
+
+  .transcode-job-card {
+    gap: 9px;
+    min-height: 0;
+    padding: 12px;
   }
 
   .transcodes-header {
@@ -389,7 +410,28 @@
   }
 
   .transcode-job-main h2 {
+    margin: 4px 0 7px !important;
+    font-size: 20px;
     white-space: normal;
+  }
+
+  .transcode-route {
+    gap: 5px;
+    padding: 5px 8px;
+  }
+
+  .transcode-route strong {
+    font-size: 11px;
+  }
+
+  .transcode-job-meta {
+    gap: 5px;
+  }
+
+  .transcode-job-meta span {
+    min-height: 24px;
+    padding: 4px 7px;
+    font-size: 10px;
   }
 
   .transcode-job-meta {
@@ -402,5 +444,6 @@
 
   .transcode-progress {
     grid-column: 1;
+    height: 20px;
   }
 }

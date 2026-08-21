@@ -50,6 +50,14 @@ body {
   overflow-x: hidden;
 }
 
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  body {
+    width: 100%;
+    min-height: 100vh;
+    zoom: 1;
+  }
+}
+
 body.setup-mode {
   width: 100%;
   min-height: 100vh;

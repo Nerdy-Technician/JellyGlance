@@ -3025,8 +3025,8 @@
   }
 
   .has-mobile-settings-menu .settings-mobile-menu {
-    position: sticky;
-    top: calc(env(safe-area-inset-top, 0px) + 70px);
+    position: relative;
+    top: auto;
     z-index: 20;
     display: block;
     margin: 0 -12px 14px;
@@ -3340,7 +3340,7 @@
   }
 
   .has-mobile-settings-menu .settings-mobile-menu {
-    top: calc(env(safe-area-inset-top, 0px) + 66px);
+    top: auto;
     margin-right: -10px;
     margin-left: -10px;
     padding: 7px 10px;
@@ -3600,7 +3600,7 @@
   }
 
   .has-mobile-settings-menu .settings-mobile-menu {
-    top: calc(env(safe-area-inset-top, 0px) + 62px);
+    top: auto;
     margin-bottom: 10px;
     padding-block: 6px;
   }
