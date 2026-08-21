@@ -19,6 +19,11 @@
       "icon": "speed",
       "title": "Tdarr Endpoint Handling",
       "body": "Tdarr refreshes no longer wait on the slow full database dump or blocking job-report lookups, keeping the dashboard responsive when optional endpoints are slow."
+    },
+    {
+      "icon": "movie",
+      "title": "Tdarr Active Artwork",
+      "body": "Active transcode posters and backdrops now stay matched during live polling refreshes instead of disappearing between updates."
     }
   ],
   "1.2.3": [

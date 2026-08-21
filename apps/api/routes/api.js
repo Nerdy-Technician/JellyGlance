@@ -1311,7 +1311,7 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const fallbackQueuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
   const fallbackHistoryFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
   const [activeWithImages, queuedWithImages, historyWithImages] = await Promise.all([
-    activeOnly ? Promise.resolve(stagedWithProgress) : attachJellyfinIdsToTdarrRecords(stagedWithProgress),
+    attachJellyfinIdsToTdarrRecords(stagedWithProgress),
     activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles.length ? queuedFiles : fallbackQueuedFiles),
     activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles.length ? historyFiles : fallbackHistoryFiles),
   ]);
