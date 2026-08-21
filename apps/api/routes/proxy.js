@@ -6,6 +6,14 @@ const API = require("../classes/api-loader");
 
 const router = express.Router();
 
+function getJellyfinAuthHeaders(config) {
+  return {
+    Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+    "X-Emby-Authorization": `MediaBrowser Token="${config.JF_API_KEY}"`,
+    "X-MediaBrowser-Token": config.JF_API_KEY,
+  };
+}
+
 function toUnsignedInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -117,6 +125,7 @@ router.get("/Items/Images/Backdrop/", async (req, res) => {
   axios
     .get(url, {
       responseType: "arraybuffer",
+      headers: getJellyfinAuthHeaders(config),
     })
     .then((response) => {
       res.set("Content-Type", "image/jpeg");
@@ -156,6 +165,7 @@ router.get("/Items/Images/Primary/", async (req, res) => {
   axios
     .get(url, {
       responseType: "arraybuffer",
+      headers: getJellyfinAuthHeaders(config),
     })
     .then((response) => {
       res.set("Content-Type", "image/jpeg");
@@ -196,11 +206,7 @@ router.get("/Users/Images/Primary/", async (req, res) => {
   axios
     .get(url, {
       responseType: "arraybuffer",
-      headers: {
-        Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
-        "X-Emby-Authorization": `MediaBrowser Token="${config.JF_API_KEY}"`,
-        "X-MediaBrowser-Token": config.JF_API_KEY,
-      },
+      headers: getJellyfinAuthHeaders(config),
     })
     .then((response) => {
       const contentType = response.headers["content-type"] || "";
