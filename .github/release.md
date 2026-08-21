@@ -1,5 +1,5 @@
-version: v1.2.3
-title: JellyGlance v1.2.3
+version: v1.2.4
+title: JellyGlance v1.2.4
 ---
 feat: ship Maintainerr support and refresh 3rd party apps for v1.2.3
 
