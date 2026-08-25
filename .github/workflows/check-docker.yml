@@ -115,6 +115,4 @@ jobs:
           header: jellyglance-check-docker-report
           message: ${{ steps.summary.outputs.body }}
 
-      - name: Fail report if build failed
-        if: steps.summary.outputs.overall == 'FAILED'
-        run: exit 1
+      # Do not fail Report when Build fails — Build already gates the run.
