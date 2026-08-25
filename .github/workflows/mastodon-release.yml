@@ -1,9 +1,9 @@
-name: Post Release to Mastodon
+name: Notify / Mastodon Release
 
 on:
   workflow_run:
     workflows:
-      - Release Pipeline
+      - Release / Pipeline
     types:
       - completed
   workflow_dispatch:

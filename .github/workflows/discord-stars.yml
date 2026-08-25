@@ -1,4 +1,4 @@
-name: Discord Star Notifications
+name: Notify / Discord Stars
 
 on:
   workflow_dispatch:

@@ -220,7 +220,7 @@ export default defineConfig({
     siteTitle: "JellyGlance",
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
-      { text: "Integrations", link: "/intergrations" },
+      { text: "Integrations", link: "/integrations" },
       { text: "Screenshots", link: "/guide/screenshots" },
       { text: "Press", link: "/press" },
       { text: "Operations", link: "/operations/docker" },

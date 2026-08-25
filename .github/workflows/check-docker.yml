@@ -1,0 +1,120 @@
+name: Check / Docker
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**"
+      - "scripts/entrypoint.sh"
+      - ".github/workflows/check-docker.yml"
+  push:
+    branches:
+      - main
+      - BETA
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**"
+      - "scripts/entrypoint.sh"
+      - ".github/workflows/check-docker.yml"
+  schedule:
+    # Mondays 07:00 UTC — verify the image still builds
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: check-docker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          provenance: false
+          sbom: false
+          tags: jellyglance:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker summary
+        if: always()
+        run: |
+          {
+            echo "## Check / Docker"
+            echo "- linux/amd64 image build (no registry push)"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report:
+    name: Report
+    needs:
+      - build
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Build PR validation report
+        id: summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = '${{ needs.build.result }}';
+            const icon = result === 'success' ? '✅' : result === 'failure' ? '❌' : result === 'cancelled' ? '⏹️' : '❓';
+            const overall = result === 'success' ? 'PASSED' : result === 'cancelled' ? 'CANCELLED' : 'FAILED';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+
+            const body = [
+              '<!-- jellyglance-check-docker-report -->',
+              `## ${icon} JellyGlance Docker check · \`${overall}\``,
+              '',
+              `| Check | Result |`,
+              `| --- | --- |`,
+              `| Docker build (amd64, no push) | ${icon} \`${result}\` |`,
+              '',
+              `- Commit: \`${sha.slice(0, 7)}\``,
+              `- Run: [View details](${runUrl})`,
+              '',
+              '_Updated automatically by the **Check / Docker** workflow._',
+            ].join('\n');
+
+            core.setOutput('body', body);
+            core.setOutput('overall', overall);
+
+      - name: Post sticky PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: jellyglance-check-docker-report
+          message: ${{ steps.summary.outputs.body }}
+
+      - name: Fail report if build failed
+        if: steps.summary.outputs.overall == 'FAILED'
+        run: exit 1
