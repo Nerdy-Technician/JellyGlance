@@ -1,4 +1,4 @@
-name: Deploy / Docs
+name: JellyGlance Docs Bot
 
 on:
   workflow_dispatch:
@@ -10,6 +10,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/pages.yml"
+      - ".github/actions/mint-bot-token/**"
 
 permissions:
   contents: read
@@ -22,12 +23,20 @@ concurrency:
 
 jobs:
   build:
-    name: Build VitePress docs
+    name: "JellyGlance Docs Bot · Build"
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Docs Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Docs Bot
+          app-id: ${{ secrets.DOCS_BOT_APP_ID }}
+          private-key: ${{ secrets.DOCS_BOT_PRIVATE_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -50,7 +59,7 @@ jobs:
           path: docs/.vitepress/dist
 
   deploy:
-    name: Deploy GitHub Pages
+    name: "JellyGlance Docs Bot · Deploy"
     needs: build
     runs-on: ubuntu-latest
     environment:

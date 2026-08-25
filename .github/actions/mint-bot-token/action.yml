@@ -1,0 +1,71 @@
+# Mint a JellyGlance GitHub App token, or fall back to github-actions[bot].
+#
+# Secrets expected per bot (create matching GitHub Apps first):
+#   CHECK_BOT_APP_ID / CHECK_BOT_PRIVATE_KEY         → JellyGlance Check Bot
+#   SECURITY_BOT_APP_ID / SECURITY_BOT_PRIVATE_KEY   → JellyGlance Security Bot
+#   BUILD_BOT_APP_ID / BUILD_BOT_PRIVATE_KEY         → JellyGlance Build Bot
+#   PUBLISH_BOT_APP_ID / PUBLISH_BOT_PRIVATE_KEY     → JellyGlance Publish Bot
+#   RELEASE_BOT_APP_ID / RELEASE_BOT_PRIVATE_KEY     → JellyGlance Release Bot
+#   DOCS_BOT_APP_ID / DOCS_BOT_PRIVATE_KEY           → JellyGlance Docs Bot
+name: Mint JellyGlance bot token
+description: Create a GitHub App installation token for a JellyGlance bot, with GITHUB_TOKEN fallback
+
+inputs:
+  app-id:
+    description: GitHub App ID for this bot
+    required: false
+    default: ""
+  private-key:
+    description: GitHub App private key PEM for this bot
+    required: false
+    default: ""
+  bot-name:
+    description: Human-readable bot name for notices
+    required: true
+
+outputs:
+  token:
+    description: App token or fallback github.token
+    value: ${{ steps.resolve.outputs.token }}
+  app-slug:
+    description: App slug when minted; empty on fallback
+    value: ${{ steps.app.outputs.app-slug }}
+  using-bot:
+    description: true when the GitHub App token was minted
+    value: ${{ steps.resolve.outputs.using-bot }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create GitHub App token
+      id: app
+      if: ${{ inputs.app-id != '' && inputs.private-key != '' }}
+      continue-on-error: true
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+
+    - name: Resolve token
+      id: resolve
+      shell: bash
+      env:
+        APP_TOKEN: ${{ steps.app.outputs.token }}
+        FALLBACK_TOKEN: ${{ github.token }}
+        BOT_NAME: ${{ inputs.bot-name }}
+        APP_OUTCOME: ${{ steps.app.outcome }}
+      run: |
+        set -euo pipefail
+        if [ "${APP_OUTCOME:-skipped}" = "success" ] && [ -n "${APP_TOKEN:-}" ]; then
+          {
+            echo "token=${APP_TOKEN}"
+            echo "using-bot=true"
+          } >> "$GITHUB_OUTPUT"
+          echo "Authenticated as ${BOT_NAME}"
+        else
+          {
+            echo "token=${FALLBACK_TOKEN}"
+            echo "using-bot=false"
+          } >> "$GITHUB_OUTPUT"
+          echo "::notice::${BOT_NAME} app credentials missing or invalid; using github-actions[bot] until secrets are configured."
+        fi

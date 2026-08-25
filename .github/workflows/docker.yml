@@ -1,4 +1,4 @@
-name: Publish / Docker
+name: JellyGlance Publish Bot
 
 on:
   push:
@@ -19,16 +19,26 @@ permissions:
 
 jobs:
   image:
+    name: "JellyGlance Publish Bot · GHCR"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Publish Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Publish Bot
+          app-id: ${{ secrets.PUBLISH_BOT_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_BOT_PRIVATE_KEY }}
+
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ steps.bot.outputs.app-slug || github.actor }}
+          password: ${{ steps.bot.outputs.token }}
       - uses: docker/metadata-action@v5
         id: meta
         with:

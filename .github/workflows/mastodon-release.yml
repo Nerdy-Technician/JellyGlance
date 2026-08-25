@@ -3,7 +3,7 @@ name: Notify / Mastodon Release
 on:
   workflow_run:
     workflows:
-      - Release / Pipeline
+      - JellyGlance Release Bot
     types:
       - completed
   workflow_dispatch:

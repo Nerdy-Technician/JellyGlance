@@ -1,4 +1,4 @@
-name: Release / Manual
+name: JellyGlance Release Bot (Manual)
 
 on:
   workflow_dispatch:
@@ -10,11 +10,21 @@ permissions:
 
 jobs:
   release:
+    name: "JellyGlance Release Bot · Semantic"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Mint JellyGlance Release Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Release Bot
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -22,4 +32,4 @@ jobs:
       - run: npm ci
       - run: npm run release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}

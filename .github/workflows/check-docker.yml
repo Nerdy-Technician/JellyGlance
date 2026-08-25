@@ -1,4 +1,4 @@
-name: Check / Docker
+name: JellyGlance Build Bot
 
 on:
   pull_request:
@@ -11,6 +11,7 @@ on:
       - "apps/**"
       - "scripts/entrypoint.sh"
       - ".github/workflows/check-docker.yml"
+      - ".github/actions/mint-bot-token/**"
   push:
     branches:
       - main
@@ -24,6 +25,7 @@ on:
       - "apps/**"
       - "scripts/entrypoint.sh"
       - ".github/workflows/check-docker.yml"
+      - ".github/actions/mint-bot-token/**"
   schedule:
     # Mondays 07:00 UTC — verify the image still builds
     - cron: "0 7 * * 1"
@@ -39,23 +41,34 @@ permissions:
 
 jobs:
   build:
-    name: Build
+    name: "JellyGlance Build Bot · Multi-arch"
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Mint JellyGlance Build Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Build Bot
+          app-id: ${{ secrets.BUILD_BOT_APP_ID }}
+          private-key: ${{ secrets.BUILD_BOT_PRIVATE_KEY }}
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build image (no push)
+      # Multi-arch cannot use load:true; build only (no registry push).
+      - name: Build image (amd64, arm64, arm/v7 — no push)
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: false
-          load: true
           provenance: false
           sbom: false
           tags: jellyglance:ci
@@ -66,13 +79,14 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Check / Docker"
-            echo "- linux/amd64 image build (no registry push)"
+            echo "## JellyGlance Build Bot"
+            echo "- Platforms: \`linux/amd64\`, \`linux/arm64\`, \`linux/arm/v7\` (no registry push)"
+            echo "- Actor app configured: ${{ steps.bot.outputs.using-bot }}"
             echo "- Result: **${{ job.status }}**"
           } >> "$GITHUB_STEP_SUMMARY"
 
   report:
-    name: Report
+    name: "JellyGlance Build Bot · Report"
     needs:
       - build
     if: always() && github.event_name == 'pull_request'
@@ -81,16 +95,29 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Build Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Build Bot
+          app-id: ${{ secrets.BUILD_BOT_APP_ID }}
+          private-key: ${{ secrets.BUILD_BOT_PRIVATE_KEY }}
+
       - name: Build PR validation report
         id: summary
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.bot.outputs.token }}
           script: |
             const result = '${{ needs.build.result }}';
             const icon = result === 'success' ? '✅' : result === 'failure' ? '❌' : result === 'cancelled' ? '⏹️' : '❓';
             const overall = result === 'success' ? 'PASSED' : result === 'cancelled' ? 'CANCELLED' : 'FAILED';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const sha = context.payload.pull_request?.head?.sha || context.sha;
+            const usingBot = '${{ steps.bot.outputs.using-bot }}' === 'true';
 
             const body = [
               '<!-- jellyglance-check-docker-report -->',
@@ -98,12 +125,15 @@ jobs:
               '',
               `| Check | Result |`,
               `| --- | --- |`,
-              `| Docker build (amd64, no push) | ${icon} \`${result}\` |`,
+              `| Docker build (amd64 + arm64 + arm/v7, no push) | ${icon} \`${result}\` |`,
               '',
+              `- Platforms: \`linux/amd64\`, \`linux/arm64\`, \`linux/arm/v7\``,
               `- Commit: \`${sha.slice(0, 7)}\``,
               `- Run: [View details](${runUrl})`,
               '',
-              '_Updated automatically by the **Check / Docker** workflow._',
+              usingBot
+                ? '_Posted by **JellyGlance Build Bot**._'
+                : '_Posted by github-actions[bot] (configure BUILD_BOT_APP_ID / BUILD_BOT_PRIVATE_KEY to use JellyGlance Build Bot)._',
             ].join('\n');
 
             core.setOutput('body', body);
@@ -114,5 +144,6 @@ jobs:
         with:
           header: jellyglance-check-docker-report
           message: ${{ steps.summary.outputs.body }}
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
 
       # Do not fail Report when Build fails — Build already gates the run.
