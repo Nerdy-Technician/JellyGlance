@@ -76,13 +76,20 @@ jobs:
       - name: Block tracked env / credential files
         run: |
           set -euo pipefail
-          blocked="$(git ls-files | grep -E '(^|/)\.env($|\.)|credentials\.json|(^|/)id_rsa$|(^|/)id_ed25519$|\.pem$|\.p12$|\.pfx$' || true)"
+          # Allow committed templates like .env.example; block real secret material paths.
+          blocked="$(
+            git ls-files \
+              | grep -E '(^|/)\.env($|\.)|credentials\.json|(^|/)id_rsa$|(^|/)id_ed25519$|\.pem$|\.p12$|\.pfx$' \
+              | grep -Ev '(^|/)\.env\.example$|(^|/)\.env\.sample$|(^|/)\.env\.template$' \
+              || true
+          )"
           if [ -n "$blocked" ]; then
             echo "::error::Tracked secret-like files are not allowed:"
             echo "$blocked"
             exit 1
           fi
           echo "No tracked env/credential files found."
+          echo "Skipped templates: .env.example, .env.sample, .env.template"
 
       - name: Secrets summary
         if: always()
@@ -142,7 +149,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Filesystem vulnerability scan (Trivy)
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
