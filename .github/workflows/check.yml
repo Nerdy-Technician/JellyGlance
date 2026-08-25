@@ -1,0 +1,339 @@
+name: JellyGlance Check Bot
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - BETA
+  schedule:
+    # Mondays 06:00 UTC — catch bitrot / lockfile / tooling drift
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  quality:
+    name: "JellyGlance Check Bot · Quality"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check i18n locale sync
+        run: npm run i18n:check
+
+      - name: Lint web
+        run: npm run lint
+
+      - name: Build web
+        run: npm run build
+
+      - name: Build docs
+        run: npm run build:docs
+
+      - name: Quality summary
+        if: always()
+        run: |
+          {
+            echo "## Quality"
+            echo "- i18n check, lint, web build, docs build"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  secrets:
+    name: "JellyGlance Security Bot · Secrets"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Mint JellyGlance Security Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Security Bot
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_PRIVATE_KEY }}
+
+      - name: Scan for secrets (Gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
+
+      - name: Block tracked env / credential files
+        run: |
+          set -euo pipefail
+          # Allow committed templates like .env.example; block real secret material paths.
+          blocked="$(
+            git ls-files \
+              | grep -E '(^|/)\.env($|\.)|credentials\.json|(^|/)id_rsa$|(^|/)id_ed25519$|\.pem$|\.p12$|\.pfx$' \
+              | grep -Ev '(^|/)\.env\.example$|(^|/)\.env\.sample$|(^|/)\.env\.template$' \
+              || true
+          )"
+          if [ -n "$blocked" ]; then
+            echo "::error::Tracked secret-like files are not allowed:"
+            echo "$blocked"
+            exit 1
+          fi
+          echo "No tracked env/credential files found."
+          echo "Skipped templates: .env.example, .env.sample, .env.template"
+
+      - name: Secrets summary
+        if: always()
+        run: |
+          {
+            echo "## Secrets"
+            echo "- Gitleaks history/diff scan"
+            echo "- Tracked env/credential path guard"
+            echo "- Actor: JellyGlance Security Bot (app=${{ steps.bot.outputs.using-bot }})"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  security:
+    name: "JellyGlance Security Bot · Security"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Security Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Security Bot
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_PRIVATE_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+          repo-token: ${{ steps.bot.outputs.token }}
+
+      - name: npm audit report
+        run: |
+          set -euo pipefail
+          npm audit --json > npm-audit.json || true
+          npm audit | tee npm-audit.txt || true
+
+      - name: npm audit (fail on critical)
+        run: npm audit --audit-level=critical
+
+      - name: Upload npm audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: |
+            npm-audit.json
+            npm-audit.txt
+          if-no-files-found: ignore
+
+      - name: Filesystem vulnerability scan (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          format: table
+
+      - name: Security summary
+        if: always()
+        run: |
+          {
+            echo "## Security"
+            echo "- Dependency review (PRs): fail on high+"
+            echo "- npm audit: fail on critical (high reported)"
+            echo "- Trivy filesystem: CRITICAL/HIGH (fixed only)"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  compatibility:
+    name: "JellyGlance Check Bot · Compatibility (Node ${{ matrix.node-version }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Verify engines.node
+        run: |
+          set -euo pipefail
+          required="$(node -p "require('./package.json').engines.node")"
+          echo "package.json engines.node = ${required}"
+          node -e "
+            const required = require('./package.json').engines.node;
+            const major = Number(process.versions.node.split('.')[0]);
+            const match = String(required).match(/(\d+)/);
+            const min = match ? Number(match[1]) : 0;
+            if (major < min) {
+              console.error('Node ' + process.version + ' does not satisfy ' + required);
+              process.exit(1);
+            }
+            console.log('Node ' + process.version + ' satisfies ' + required);
+          "
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+      - name: Validate compose files
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.local.yml config --quiet
+          docker compose -f docker-compose.compare.yml config --quiet
+
+      - name: Compatibility summary
+        if: always()
+        run: |
+          {
+            echo "## Compatibility · Node ${{ matrix.node-version }}"
+            echo "- engines check, npm ci, web build, compose config"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report:
+    name: "JellyGlance Check Bot · Report"
+    needs:
+      - quality
+      - secrets
+      - security
+      - compatibility
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Check Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Check Bot
+          app-id: ${{ secrets.CHECK_BOT_APP_ID }}
+          private-key: ${{ secrets.CHECK_BOT_PRIVATE_KEY }}
+
+      - name: Build PR validation report
+        id: summary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.bot.outputs.token }}
+          script: |
+            const needs = {
+              Quality: '${{ needs.quality.result }}',
+              Secrets: '${{ needs.secrets.result }}',
+              Security: '${{ needs.security.result }}',
+              Compatibility: '${{ needs.compatibility.result }}',
+            };
+
+            const icon = (result) => {
+              switch (result) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '⏹️';
+                case 'skipped': return '⏭️';
+                default: return '❓';
+              }
+            };
+
+            const rows = Object.entries(needs)
+              .map(([name, result]) => `| ${name} | ${icon(result)} \`${result}\` |`)
+              .join('\n');
+
+            const failed = Object.values(needs).some((result) => result === 'failure');
+            const cancelled = Object.values(needs).some((result) => result === 'cancelled');
+            const overall = failed ? 'FAILED' : cancelled ? 'CANCELLED' : 'PASSED';
+            const overallIcon = failed ? '❌' : cancelled ? '⏹️' : '✅';
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+            const usingBot = '${{ steps.bot.outputs.using-bot }}' === 'true';
+
+            const body = [
+              '<!-- jellyglance-check-report -->',
+              `## ${overallIcon} JellyGlance checks · \`${overall}\``,
+              '',
+              `| Check | Result |`,
+              `| --- | --- |`,
+              rows,
+              '',
+              `- Commit: \`${sha.slice(0, 7)}\``,
+              `- Run: [View details](${runUrl})`,
+              '',
+              usingBot
+                ? '_Posted by **JellyGlance Check Bot**._'
+                : '_Posted by github-actions[bot] (configure CHECK_BOT_APP_ID / CHECK_BOT_PRIVATE_KEY to use JellyGlance Check Bot)._',
+            ].join('\n');
+
+            core.setOutput('body', body);
+            core.setOutput('overall', overall);
+
+            await core.summary
+              .addHeading('PR report')
+              .addRaw(body)
+              .write();
+
+      - name: Post sticky PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: jellyglance-check-report
+          message: ${{ steps.summary.outputs.body }}
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
+
+      # Do not fail Report when other jobs fail — Quality/Secrets/Security/Compatibility
+      # already gate the run. Report only publishes the sticky PR summary.

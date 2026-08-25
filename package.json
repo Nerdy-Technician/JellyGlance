@@ -1,6 +1,6 @@
 {
   "name": "jellyglance",
-  "version": "1.2.5",
+  "version": "1.2.7",
   "private": true,
   "description": "JellyGlance - a modern Jellyfin analytics and media control dashboard by Nerdy-Technician.",
   "keywords": [
@@ -59,7 +59,8 @@
   "overrides": {
     "@semantic-release/npm": {
       "npm": "^12.0.2"
-    }
+    },
+    "eslint": "9.39.1"
   },
   "engines": {
     "node": ">=22"

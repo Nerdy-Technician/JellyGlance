@@ -1,0 +1,171 @@
+name: JellyGlance Build Bot
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**"
+      - "scripts/entrypoint.sh"
+      - ".github/workflows/check-docker.yml"
+      - ".github/actions/mint-bot-token/**"
+  push:
+    branches:
+      - main
+      - BETA
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-compose*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**"
+      - "scripts/entrypoint.sh"
+      - ".github/workflows/check-docker.yml"
+      - ".github/actions/mint-bot-token/**"
+  schedule:
+    # Mondays 07:00 UTC — full multi-arch including arm/v7
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: check-docker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # PRs/pushes: amd64 + arm64 in parallel (fast enough for CI).
+  # Weekly/manual: also build arm/v7 (slow under QEMU — keep off the PR critical path).
+  prepare:
+    name: "JellyGlance Build Bot · Platforms"
+    runs-on: ubuntu-latest
+    outputs:
+      platforms: ${{ steps.platforms.outputs.platforms }}
+    steps:
+      - name: Select platforms
+        id: platforms
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo 'platforms=["linux/amd64","linux/arm64","linux/arm/v7"]' >> "$GITHUB_OUTPUT"
+            echo "Full multi-arch set (includes arm/v7)"
+          else
+            echo 'platforms=["linux/amd64","linux/arm64"]' >> "$GITHUB_OUTPUT"
+            echo "PR/push set (amd64 + arm64). arm/v7 runs on schedule/manual and Publish."
+          fi
+
+  build:
+    name: "JellyGlance Build Bot · ${{ matrix.platform }}"
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.prepare.outputs.platforms) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup QEMU
+        if: matrix.platform != 'linux/amd64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image (${{ matrix.platform }} — no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: true
+          provenance: false
+          sbom: false
+          tags: jellyglance:ci
+          cache-from: type=gha,scope=docker-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.platform }}
+
+      - name: Docker summary
+        if: always()
+        run: |
+          {
+            echo "## JellyGlance Build Bot · \`${{ matrix.platform }}\`"
+            echo "- Result: **${{ job.status }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report:
+    name: "JellyGlance Build Bot · Report"
+    needs:
+      - prepare
+      - build
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Mint JellyGlance Build Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Build Bot
+          app-id: ${{ secrets.BUILD_BOT_APP_ID }}
+          private-key: ${{ secrets.BUILD_BOT_PRIVATE_KEY }}
+
+      - name: Build PR validation report
+        id: summary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.bot.outputs.token }}
+          script: |
+            const build = '${{ needs.build.result }}';
+            const platforms = '${{ needs.prepare.outputs.platforms }}';
+            const icon = (result) => result === 'success' ? '✅' : result === 'failure' ? '❌' : result === 'cancelled' ? '⏹️' : '❓';
+            const overall = build === 'success' ? 'PASSED' : build === 'cancelled' ? 'CANCELLED' : 'FAILED';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+            const usingBot = '${{ steps.bot.outputs.using-bot }}' === 'true';
+
+            const body = [
+              '<!-- jellyglance-check-docker-report -->',
+              `## ${icon(build)} JellyGlance Docker check · \`${overall}\``,
+              '',
+              `| Check | Result |`,
+              `| --- | --- |`,
+              `| Docker build (parallel, no push) | ${icon(build)} \`${build}\` |`,
+              '',
+              `- Platforms: \`${platforms}\``,
+              `- Commit: \`${sha.slice(0, 7)}\``,
+              `- Run: [View details](${runUrl})`,
+              '',
+              '_PR/push builds \`amd64\` + \`arm64\` in parallel. \`arm/v7\` runs on weekly schedule, manual dispatch, and Publish._',
+              '',
+              usingBot
+                ? '_Posted by **JellyGlance Build Bot**._'
+                : '_Posted by github-actions[bot] (configure BUILD_BOT_APP_ID / BUILD_BOT_PRIVATE_KEY to use JellyGlance Build Bot)._',
+            ].join('\n');
+
+            core.setOutput('body', body);
+            core.setOutput('overall', overall);
+
+      - name: Post sticky PR comment
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: jellyglance-check-docker-report
+          message: ${{ steps.summary.outputs.body }}
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
+
+      # Do not fail Report when Build fails — Build already gates the run.

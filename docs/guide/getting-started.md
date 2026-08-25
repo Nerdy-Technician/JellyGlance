@@ -106,7 +106,7 @@ JellyGlance can connect to:
 - Discord-compatible and Gotify-style webhook endpoints for notifications and delivery history
 - SMTP servers for manual, weekly, or monthly newsletter digest delivery
 
-See [Integrations](/intergrations) for the complete setup map.
+See [Integrations](/integrations) for the complete setup map.
 
 ## Common Commands
 
@@ -120,6 +120,6 @@ npm run docs:dev
 ## Next Steps
 
 - Review [Architecture](./architecture.md) to understand the workspace.
-- Review [Integrations](/intergrations) to map your media stack.
+- Review [Integrations](/integrations) to map your media stack.
 - Review [Docker](../operations/docker.md) before deploying.
 - Review [Releases](../operations/releases.md) before tagging changes.

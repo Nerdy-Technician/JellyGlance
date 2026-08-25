@@ -1,4 +1,4 @@
-name: Discord Release Notifications
+name: Notify / Discord Release
 
 on:
   workflow_dispatch:
