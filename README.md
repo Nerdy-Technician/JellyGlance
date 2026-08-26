@@ -32,10 +32,10 @@
       src="https://img.shields.io/github/stars/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=github&logoColor=white&label=Stars&color=aa5cc3&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/docker.yml">
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/check-docker.yml">
     <img
       alt="Docker"
-      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
+      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/check-docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
   </a>
 
   <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/check.yml">
