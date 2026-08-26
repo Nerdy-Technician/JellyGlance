@@ -38,10 +38,10 @@
       src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/ci.yml">
+  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/check.yml">
     <img
       alt="CI"
-      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=3FB950&labelColor=16111f">
+      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/check.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=3FB950&labelColor=16111f">
   </a>
 
   <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE">
