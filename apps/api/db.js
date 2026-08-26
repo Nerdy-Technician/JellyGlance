@@ -53,7 +53,9 @@ async function deleteBulk(table_name, data, pkName) {
 
     if (table_name === "jf_playback_activity") {
       for (const view of materializedViews) {
-        refreshMaterializedView(view);
+        refreshMaterializedView(view).catch((error) => {
+          console.error(`Failed to refresh materialized view "${view}":`, error.message);
+        });
       }
     }
   } catch (error) {
@@ -168,7 +170,9 @@ async function insertBulk(table_name, data, columns) {
 
     if (table_name === "jf_playback_activity") {
       for (const view of materializedViews) {
-        refreshMaterializedView(view);
+        refreshMaterializedView(view).catch((error) => {
+          console.error(`Failed to refresh materialized view "${view}":`, error.message);
+        });
       }
     }
   } catch (error) {
@@ -194,7 +198,9 @@ async function query(text, params, refreshViews = false) {
 
     if (refreshViews) {
       for (const view of materializedViews) {
-        refreshMaterializedView(view);
+        refreshMaterializedView(view).catch((error) => {
+          console.error(`Failed to refresh materialized view "${view}":`, error.message);
+        });
       }
     }
 
