@@ -318,7 +318,7 @@
 .users-profile-actions {
   display: inline-flex;
   justify-content: flex-end;
-  min-width: 42px;
+  min-width: 84px;
 }
 
 .users-profile-name {
@@ -627,6 +627,15 @@
 .users-row-action-button.is-danger:focus-visible {
   border-color: rgba(248, 113, 113, 0.62) !important;
   background: rgba(248, 113, 113, 0.18) !important;
+}
+
+.users-folder-button.has-override {
+  border-color: rgba(var(--primary-light-rgb), 0.7) !important;
+  color: #fff !important;
+}
+
+.users-profile-actions .users-row-actions {
+  align-items: center;
 }
 
 .users-row-card > .form-select,

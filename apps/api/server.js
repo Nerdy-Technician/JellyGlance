@@ -7,7 +7,6 @@ const express = require("express");
 const compression = require("compression");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const knex = require("knex");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 const sanitizeFilename = require("./utils/sanitizer");
@@ -16,7 +15,6 @@ const { getBackupDir } = require("./utils/storage-paths");
 // db
 const dbInstance = require("./db");
 const createdb = require("./create_database");
-const knexConfig = require("./migrations");
 
 // routes
 const authRouter = require("./routes/auth");
@@ -25,6 +23,7 @@ const proxyRouter = require("./routes/proxy");
 const { router: syncRouter } = require("./routes/sync");
 const statsRouter = require("./routes/stats");
 const backupRouter = require("./routes/backup");
+const { firstRunRestoreHandler, getFirstRunRestoreStatusHandler } = require("./routes/backup");
 const tautulliRouter = require("./routes/tautulli");
 const jellystatRouter = require("./routes/jellystat");
 const logRouter = require("./routes/logging");
@@ -36,6 +35,9 @@ const newsletterRouter = require("./routes/newsletter");
 const ActivityMonitor = require("./tasks/ActivityMonitor");
 const TaskManager = require("./classes/task-manager-singleton");
 const TaskScheduler = require("./classes/task-scheduler-singleton");
+const { bootstrapFromEnv } = require("./classes/env-bootstrap");
+const { runLatestMigrations } = require("./classes/run-migrations");
+const { getWebhookCard } = require("./classes/discord-webhook-media");
 // const WebhookScheduler = require("./classes/webhook-scheduler");
 // const tasks = require("./tasks/tasks");
 
@@ -48,7 +50,6 @@ process.env.POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres";
 process.env.POSTGRES_ROLE = process.env.POSTGRES_ROLE ?? process.env.POSTGRES_USER;
 
 const app = express();
-const db = knex(knexConfig.development);
 
 const ensureSlashes = (url) => {
   if (!url.startsWith("/")) {
@@ -60,7 +61,7 @@ const ensureSlashes = (url) => {
   return url;
 };
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT || process.env.JS_PORT || 3000);
 const LISTEN_IP = process.env.JS_LISTEN_IP || "0.0.0.0";
 const JWT_SECRET = process.env.JWT_SECRET;
 const BASE_NAME = process.env.JS_BASE_URL ? ensureSlashes(process.env.JS_BASE_URL) : "";
@@ -314,7 +315,7 @@ app.use((req, res, next) => {
     return res.redirect(BASE_NAME);
   }
   // Ignore requests containing 'socket.io'
-  if (req.url.includes("socket.io") || req.url.includes("swagger") || req.url.startsWith("/backup")) {
+  if (req.url.includes("socket.io") || req.url.includes("swagger") || req.url.startsWith("/backup") || req.url.includes("webhook-cards")) {
     return next();
   }
 
@@ -360,6 +361,17 @@ app.use("/api/startTask", taskRateLimit);
 app.use("/api/server-management/action", taskRateLimit);
 app.use("/sync", taskRateLimit);
 app.use("/backup/beginBackup", taskRateLimit);
+app.post("/backup/first-run/restore", taskRateLimit, firstRunRestoreHandler);
+app.get("/backup/first-run/restore/status", getFirstRunRestoreStatusHandler);
+app.get("/webhook-cards/:id.jpg", (req, res) => {
+  const card = getWebhookCard(req.params.id);
+  if (!card) {
+    return res.status(404).type("text/plain").send("Not found");
+  }
+  res.setHeader("Content-Type", card.contentType || "image/jpeg");
+  res.setHeader("Cache-Control", "public, max-age=600");
+  return res.end(card.buffer);
+});
 app.use("/api", authenticate, authorizeApiRoute, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
@@ -650,9 +662,21 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
-  if ((pathName.startsWith("/requests/") && (pathName.endsWith("/actions") || pathName.endsWith("/edit"))) || pathName === "/requests/manage") {
+  if (
+    (pathName.startsWith("/requests/") && (pathName.endsWith("/actions") || pathName.endsWith("/edit"))) ||
+    pathName === "/requests/manage" ||
+    pathName.startsWith("/requests/issues")
+  ) {
     if (!["Owner", "Admin"].includes(req.user?.role)) {
       return res.status(403).json({ message: "Admin role required" });
+    }
+    next();
+    return;
+  }
+
+  if (pathName.startsWith("/requests/user-folders") || pathName === "/requests/folder-options") {
+    if (!req.permissions?.users && !["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Users permission required" });
     }
     next();
     return;
@@ -676,7 +700,7 @@ function authorizeApiRoute(req, res, next) {
             pathName.startsWith("/wizarr") ||
             pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
-            pathName.startsWith("/downloads/add") ||
+            pathName.startsWith("/downloads") ||
             pathName.startsWith("/starttask") ||
             pathName.startsWith("/stoptask") ||
             pathName.startsWith("/gettasksettings") ||
@@ -692,27 +716,36 @@ function authorizeApiRoute(req, res, next) {
 }
 
 // start server
-try {
-  createdb.createDatabase().then((result) => {
-    if (result) {
-      console.log("[JellyGlance] Database created");
-    } else {
-      console.log("[JellyGlance] Database exists. Skipping creation");
+(async () => {
+  try {
+    const created = await createdb.createDatabase();
+    console.log(created ? "[JellyGlance] Database created" : "[JellyGlance] Database exists. Skipping creation");
+
+    await runLatestMigrations();
+
+    try {
+      await bootstrapFromEnv({ afterTaskManager: false });
+    } catch (error) {
+      console.error("[BOOTSTRAP] Env setup failed:", error.message);
     }
 
-    db.migrate.latest().then(() => {
-      const server = http.createServer(app);
-
-      setupWebSocketServer(server, BASE_NAME);
-      server.listen(PORT, LISTEN_IP, async () => {
-        console.log(`[JellyGlance] Server listening on http://${LISTEN_IP}:${PORT}`);
-        ActivityMonitor.ActivityMonitor(1000);
-        new TaskManager();
-        new TaskScheduler();
-        // new WebhookScheduler();
-      });
+    const server = http.createServer(app);
+    server.requestTimeout = 0;
+    server.headersTimeout = 0;
+    setupWebSocketServer(server, BASE_NAME);
+    server.listen(PORT, LISTEN_IP, async () => {
+      console.log(`[JellyGlance] Server listening on http://${LISTEN_IP}:${PORT}`);
+      ActivityMonitor.ActivityMonitor(1000);
+      new TaskManager();
+      new TaskScheduler();
+      try {
+        await bootstrapFromEnv({ afterTaskManager: true });
+      } catch (error) {
+        console.error("[BOOTSTRAP] Post-task env setup failed:", error.message);
+      }
     });
-  });
-} catch (error) {
-  console.log("[JellyGlance] An error has occured on startup: " + error);
-}
+  } catch (error) {
+    console.error("[JellyGlance] Startup failed:", error.message || error);
+    process.exit(1);
+  }
+})();

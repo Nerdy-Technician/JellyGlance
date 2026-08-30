@@ -15,6 +15,7 @@ node_modules/
 /config/*
 !/config/.gitkeep
 /postgres-data/
+/compare-runtime/
 .vscode
 .idea
 .env

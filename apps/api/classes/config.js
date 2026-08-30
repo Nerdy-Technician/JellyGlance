@@ -53,10 +53,14 @@ class Config {
       //state 2 = Jellyfin configured and admin access configured
 
       if (Configured.length > 0) {
+        const row = Configured[0];
+        const settings = row.settings || {};
         const hasJellyfinApiKey =
-          Configured[0].JF_API_KEY !== null &&
-          !(typeof Configured[0].JF_API_KEY === "string" && Configured[0].JF_API_KEY.trim() === "");
-        const hasAdminUser = Configured[0].APP_USER !== null && Configured[0].APP_USER !== "";
+          row.JF_API_KEY !== null &&
+          !(typeof row.JF_API_KEY === "string" && row.JF_API_KEY.trim() === "");
+        const hasLegacyAdminUser = row.APP_USER !== null && row.APP_USER !== "";
+        const hasLocalUsers = Array.isArray(settings.localUsers) && settings.localUsers.some((user) => user?.username);
+        const hasAdminUser = hasLegacyAdminUser || hasLocalUsers || ["local-auth", "oidc", "jellyfin-quick-connect"].includes(row.APP_USER);
 
         if (hasJellyfinApiKey && hasAdminUser) state = 2;
         else if (hasJellyfinApiKey) state = 1;

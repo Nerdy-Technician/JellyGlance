@@ -1624,3 +1624,47 @@
     padding: 14px;
   }
 }
+
+.setup-restore-card .setup-jellyfin-logo {
+  display: grid;
+  place-items: center;
+  color: var(--primary-light-color, #c4b5fd);
+}
+
+.setup-restore-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.setup-restore-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px dashed rgba(var(--primary-light-rgb), 0.45);
+  border-radius: 14px;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.setup-restore-upload.is-disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.setup-restore-upload input {
+  display: none;
+}
+
+.setup-restore-hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+

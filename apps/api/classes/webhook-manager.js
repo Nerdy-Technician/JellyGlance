@@ -2,6 +2,7 @@ const axios = require('axios');
 const dbInstance = require('../db');
 const EventEmitter = require('events');
 const { addWebhookDelivery } = require('./admin-history');
+const { enrichDiscordPayload, enrichGotifyPayload, postDiscordWebhook } = require('./discord-webhook-media');
 
 class WebhookManager {
     constructor() {
@@ -10,6 +11,7 @@ class WebhookManager {
         }
 
         this.eventEmitter = new EventEmitter();
+        this.coalescedWebhooks = new Map();
         this.setupEventListeners();
         WebhookManager.instance = this;
     }
@@ -128,6 +130,8 @@ class WebhookManager {
                     MediaType: data.mediaInfo?.mediaType,
                     SeriesName: data.mediaInfo?.seriesName,
                     EpisodeId: data.mediaInfo?.episodeId,
+                    SeasonNumber: data.mediaInfo?.seasonNumber,
+                    EpisodeNumber: data.mediaInfo?.episodeNumber,
                     DeviceName: data.sessionInfo?.deviceName,
                     ClientName: data.sessionInfo?.clientName,
                     PlayMethod: data.sessionInfo?.playMethod || data.mediaInfo?.playMethod,
@@ -137,8 +141,16 @@ class WebhookManager {
                     EndTime: data.sessionInfo?.endTime,
                 });
             }
-            
-            const promises = webhooks.map(webhook => {
+
+            if (!this.shouldEmitPlaybackWebhook(eventType, enrichedData)) {
+                console.log(`[WEBHOOK] Skipping duplicate ${eventType}`);
+                return true;
+            }
+
+            const promises = webhooks.map((webhook) => {
+                if (!webhookIds && this.shouldCoalesceWebhook(webhook, eventType)) {
+                    return this.enqueueCoalescedWebhook(webhook, eventType, enrichedData);
+                }
                 return this.executeWebhook(webhook, enrichedData);
             });
             
@@ -180,7 +192,8 @@ class WebhookManager {
                 return false;
             }
 
-            const payloadIsEmpty = Object.keys(payload).length === 0;
+            const discordMetaKeys = new Set(["taskFilters", "events", "rows", "groupKey"]);
+            const payloadIsEmpty = Object.keys(payload).filter((key) => !discordMetaKeys.has(key)).length === 0;
             const title = this.getDefaultTitle(data);
             const message = this.getDefaultMessage(data);
 
@@ -188,31 +201,28 @@ class WebhookManager {
 
             if (isDiscordWebhook) {
                 console.log("[WEBHOOK] Webhook Discord detected");
-                const templatePayload = payloadIsEmpty
-                    ? {
-                        content: `**${title}**\n${message}`,
-                    }
-                    : payload;
-
-                response = await axios({
-                    method: webhook.method || 'POST',
-                    url: webhook.url,
-                    headers: { 'Content-Type': 'application/json' },
-                    data: this.compileTemplate(templatePayload, data),
-                    timeout: 10000
-                });
+                const templatePayload = payloadIsEmpty ? {} : payload;
+                const compiledPayload = this.compileTemplate(templatePayload, data);
+                try {
+                    const { payload: discordPayload, files } = await enrichDiscordPayload(compiledPayload, data);
+                    response = await postDiscordWebhook(webhook.url, discordPayload, files);
+                } catch (discordError) {
+                    console.warn("[WEBHOOK] Discord rich payload failed, sending text fallback:", discordError.message);
+                    response = await axios.post(webhook.url, { content: `**${title}**\n${message}` }, {
+                        headers: { "Content-Type": "application/json" },
+                        timeout: 10000,
+                    });
+                }
 
                 console.log(`[WEBHOOK] Discord webhook ${webhook.name} send successfully`);
             } else if (isGotifyWebhook) {
-                const templatePayload = payloadIsEmpty || !payload.message
-                    ? {
-                        title: data.title || title,
-                        message: data.message || message,
+                console.log("[WEBHOOK] Webhook Gotify detected");
+                const compiledPayload = payloadIsEmpty || !payload.message
+                    ? await enrichGotifyPayload({
                         priority: data.priority ?? payload.priority ?? 5,
-                        ...(payload.extras ? { extras: payload.extras } : {})
-                    }
-                    : payload;
-                const compiledPayload = this.compileTemplate(templatePayload, data);
+                        ...(payload.extras ? { extras: payload.extras } : {}),
+                    }, data)
+                    : this.compileTemplate(payload, data);
 
                 if (!compiledPayload.message) {
                     compiledPayload.message = data.message || message || 'JellyGlance webhook test';
@@ -223,7 +233,9 @@ class WebhookManager {
                     url: webhook.url,
                     headers: { 'Content-Type': 'application/json', ...headers },
                     data: compiledPayload,
-                    timeout: 10000
+                    timeout: 15000,
+                    maxBodyLength: Infinity,
+                    maxContentLength: Infinity,
                 });
 
                 console.log(`[WEBHOOK] Gotify webhook ${webhook.name} send successfully`);
@@ -294,6 +306,125 @@ class WebhookManager {
         }
     }
 
+    shouldEmitPlaybackWebhook(eventType, data = {}) {
+        if (eventType !== "playback_started" && eventType !== "playback_ended") {
+            return true;
+        }
+
+        if (!this.recentPlaybackEvents) {
+            this.recentPlaybackEvents = new Map();
+        }
+
+        const key = String(data.userData?.userId || data.UserId || data.userData?.username || data.UserName || "unknown");
+        const now = Date.now();
+        const previous = this.recentPlaybackEvents.get(key) || {};
+        const itemId = String(data.mediaInfo?.episodeId || data.mediaInfo?.itemId || data.ItemId || "");
+        const sameItem = Boolean(previous.itemId && itemId && previous.itemId === itemId);
+
+        if (eventType === "playback_started") {
+            if (data.sessionInfo?.isPaused || data.IsPaused) return false;
+            if (sameItem && previous.lastStart && now - previous.lastStart < 4 * 60 * 60 * 1000) return false;
+            if (previous.lastStart && now - previous.lastStart < 45000) return false;
+            if (previous.state === "playing" && sameItem) return false;
+            this.recentPlaybackEvents.set(key, { state: "playing", itemId, lastEventAt: now, lastStart: now });
+            return true;
+        }
+
+        if (previous.state !== "playing") return false;
+        if (previous.lastStart && now - previous.lastStart < 20000) return false;
+        this.recentPlaybackEvents.set(key, { state: "idle", itemId, lastEventAt: now, lastEnd: now, lastStart: previous.lastStart });
+        return true;
+    }
+
+    shouldCoalesceWebhook(webhook, eventType) {
+        const coalesced = new Set([
+            "task_started",
+            "task_completed",
+            "task_failed",
+            "download_queue_refreshed",
+            "calendar_refreshed",
+            "invite_links_refreshed",
+        ]);
+        if (!coalesced.has(eventType)) return false;
+        return webhook.webhook_type === "discord"
+            || webhook.webhook_type === "gotify"
+            || String(webhook.url || "").includes("discord.com/api/webhooks");
+    }
+
+    pickCoalescedEvent(events = []) {
+        if (events.includes("task_failed")) return "task_failed";
+        if (events.includes("task_completed")) return "task_completed";
+        const refreshed = events.find((event) => String(event).endsWith("_refreshed"));
+        if (refreshed) return refreshed;
+        return events[events.length - 1];
+    }
+
+    enqueueCoalescedWebhook(webhook, eventType, data = {}) {
+        if (!this.coalescedWebhooks) this.coalescedWebhooks = new Map();
+        const family = data.taskKey || data.taskName || eventType;
+        const key = `${webhook.url}::${family}`;
+        const existing = this.coalescedWebhooks.get(key);
+        if (existing?.timer) clearTimeout(existing.timer);
+
+        const events = [...(existing?.events || []), eventType];
+        const webhooksByEvent = { ...(existing?.webhooksByEvent || {}), [eventType]: webhook };
+        const merged = {
+            ...(existing?.data || {}),
+            ...data,
+            coalescedEvents: events,
+            event: this.pickCoalescedEvent(events),
+            startedAt: existing?.data?.startedAt || Date.now(),
+            clientCount: data.clientCount ?? existing?.data?.clientCount,
+            releaseCount: data.releaseCount ?? existing?.data?.releaseCount,
+            inviteCount: data.inviteCount ?? existing?.data?.inviteCount,
+            sourceCount: data.sourceCount ?? existing?.data?.sourceCount,
+            downloadActiveCount: eventType === "download_queue_refreshed" && data.activeCount != null
+                ? data.activeCount
+                : existing?.data?.downloadActiveCount,
+            inviteActiveCount: eventType === "invite_links_refreshed" && data.activeCount != null
+                ? data.activeCount
+                : existing?.data?.inviteActiveCount,
+        };
+        if (eventType === "task_completed" || eventType === "task_failed") {
+            merged.durationMs = Date.now() - merged.startedAt;
+        }
+
+        const delay = eventType === "task_completed" || eventType === "task_failed" ? 80 : 400;
+        const entry = {
+            events,
+            data: merged,
+            webhooksByEvent,
+            timer: null,
+        };
+        entry.timer = setTimeout(() => {
+            const current = this.coalescedWebhooks.get(key);
+            if (current !== entry) return;
+            this.coalescedWebhooks.delete(key);
+            const displayEvent = current.data.event;
+            const target = current.webhooksByEvent[displayEvent] || webhook;
+            this.executeWebhook(target, current.data).catch((error) => {
+                console.error("[WEBHOOK] Coalesced webhook failed:", error.message);
+            });
+        }, delay);
+
+        this.coalescedWebhooks.set(key, entry);
+        return true;
+    }
+
+    async flushCoalescedWebhooks() {
+        if (!this.coalescedWebhooks?.size) return true;
+        const entries = [...this.coalescedWebhooks.values()];
+        this.coalescedWebhooks.clear();
+        const results = await Promise.all(entries.map((entry) => {
+            if (entry.timer) clearTimeout(entry.timer);
+            const displayEvent = entry.data.event;
+            const target = entry.webhooksByEvent[displayEvent] || Object.values(entry.webhooksByEvent)[0];
+            if (!target) return true;
+            return this.executeWebhook(target, entry.data);
+        }));
+        return results.every(Boolean);
+    }
+
     getDefaultTitle(data = {}) {
         if (data.event === 'playback_started') {
             return `${data.UserName || data.userData?.username || 'A user'} started playback`;
@@ -303,23 +434,35 @@ class WebhookManager {
             return `${data.UserName || data.userData?.username || 'A user'} stopped playback`;
         }
 
-        if (data.event?.startsWith('download_')) {
-            return data.integrationEvent || 'JellyGlance download update';
+        if (data.event === 'download_added' || data.event === 'download_started' || data.event === 'download_completed' || data.event === 'download_failed') {
+            return data.integrationEvent || data.itemName || 'Download update';
         }
 
         if (data.taskName) {
-            return `JellyGlance task ${data.status || 'updated'}`;
+            return data.taskName;
+        }
+
+        if (data.event === 'download_queue_refreshed') {
+            return 'Download queue';
+        }
+
+        if (data.event === 'calendar_refreshed') {
+            return 'Calendar';
+        }
+
+        if (data.event === 'invite_links_refreshed') {
+            return 'Invites';
         }
 
         if (data.count) {
-            return 'JellyGlance media sync';
+            return 'Library sync';
         }
 
         if (data.integrationEvent) {
-            return `JellyGlance ${data.integrationEvent}`;
+            return data.integrationEvent.replace(/\b\w/g, (char) => char.toUpperCase());
         }
 
-        return 'JellyGlance notification';
+        return 'JellyGlance';
     }
 
     getDefaultMessage(data = {}) {
@@ -330,12 +473,29 @@ class WebhookManager {
             return `${data.UserName || data.userData?.username || 'A user'} ${action} ${itemName}${detail}.`;
         }
 
-        if (data.event?.startsWith('download_')) {
+        if (data.event === 'download_added' || data.event === 'download_started' || data.event === 'download_completed' || data.event === 'download_failed') {
             return data.message || data.itemName || data.item?.name || `${data.event} fired.`;
         }
 
-        if (data.taskName) {
-            return `${data.taskName} ${data.status || 'updated'}${data.error ? `: ${data.error}` : ''}`;
+        const stats = [
+            data.clientCount != null ? `${data.clientCount} client${Number(data.clientCount) === 1 ? '' : 's'}` : null,
+            data.activeCount != null ? `${data.activeCount} active` : null,
+            data.releaseCount != null ? `${data.releaseCount} release${Number(data.releaseCount) === 1 ? '' : 's'}` : null,
+            data.inviteCount != null ? `${data.inviteCount} invite${Number(data.inviteCount) === 1 ? '' : 's'}` : null,
+            data.count != null ? `${data.count} item${Number(data.count) === 1 ? '' : 's'}` : null,
+        ].filter(Boolean).join(' · ');
+
+        if (data.event === 'task_started') {
+            return stats ? `Started · ${stats}` : 'Started';
+        }
+        if (data.event === 'task_completed') {
+            return stats ? `Completed · ${stats}` : 'Completed';
+        }
+        if (data.event === 'task_failed') {
+            return data.error ? `Failed · ${data.error}` : 'Failed';
+        }
+        if (String(data.event || '').endsWith('_refreshed')) {
+            return stats ? `Synced · ${stats}` : 'Synced';
         }
 
         if (data.count) {
@@ -343,10 +503,10 @@ class WebhookManager {
         }
 
         if (data.integrationEvent) {
-            return data.message || `${data.integrationEvent} fired.`;
+            return data.message || stats || `${data.integrationEvent} fired.`;
         }
 
-        return `${data.event || 'Event'} fired at ${data.triggeredAt || new Date().toISOString()}`;
+        return data.message || `${data.event || 'Event'} fired at ${data.triggeredAt || new Date().toISOString()}`;
     }
 
     compileTemplate(template, data) {

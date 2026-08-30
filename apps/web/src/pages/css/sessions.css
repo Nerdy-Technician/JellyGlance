@@ -21,11 +21,13 @@
   grid-template-columns: 72px minmax(0, 1fr);
   column-gap: 8px;
   align-items: baseline;
-  width: min(100%, 360px);
+  width: 100%;
+  max-width: 100%;
   margin: 0 0 3px !important;
   padding: 0;
   border-radius: 999px;
   background: transparent;
+  min-width: 0;
 }
 
 .session-details-list {
@@ -46,6 +48,7 @@
   font-weight: 900;
   letter-spacing: 0.1em;
   text-shadow: 0 0 14px rgba(var(--primary-rgb), 0.2);
+  white-space: nowrap;
 }
 
 .session-details-title + .session-details-value {
@@ -59,13 +62,16 @@
   display: block !important;
   padding: 0 !important;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-details-value {
   display: block !important;
   width: 100% !important;
   min-width: 0;
-  max-width: min(270px, 100%);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .session-details-value-short {
@@ -77,6 +83,7 @@
 .session-details-value .MuiTooltip-popper + span {
   display: block !important;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap !important;
@@ -387,6 +394,10 @@
 .session-subtitle {
   margin: 0 !important;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-title a {

@@ -16,6 +16,7 @@ import PriceTag3LineIcon from "remixicon-react/PriceTag3LineIcon";
 import UserAddLineIcon from "remixicon-react/UserAddLineIcon";
 import UserSettingsLineIcon from "remixicon-react/UserSettingsLineIcon";
 import ShieldKeyholeLineIcon from "remixicon-react/ShieldKeyholeLineIcon";
+import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
 import { Alert, Badge, Button, ButtonGroup, Form, FormControl, FormSelect, Modal, Spinner } from "react-bootstrap";
 
 import "./css/users/users.css";
@@ -102,6 +103,12 @@ export default function Users() {
   const [newRole, setNewRole] = useState("");
   const [resetPassword, setResetPassword] = useState("");
   const [previewRole, setPreviewRole] = useState("Viewer");
+  const [folderTarget, setFolderTarget] = useState(null);
+  const [folderOptions, setFolderOptions] = useState({ movie: [], tv: [] });
+  const [userFoldersMap, setUserFoldersMap] = useState({});
+  const [folderDraft, setFolderDraft] = useState({ movieValue: "", tvValue: "" });
+  const [folderMessage, setFolderMessage] = useState("");
+  const [savingFolders, setSavingFolders] = useState(false);
 
   async function fetchAccess() {
     const response = await axios.get("/api/userAccess", {
@@ -141,7 +148,7 @@ export default function Users() {
       try {
         const newConfig = await Config.getConfig();
         setConfig(newConfig);
-        await Promise.all([fetchAccess(), fetchData()]);
+        await Promise.all([fetchAccess(), fetchData(), fetchUserFolders()]);
       } catch (error) {
         console.log(error);
       }
@@ -281,6 +288,113 @@ export default function Users() {
   }, [access, previewRole]);
   const selectedRolePermissions = previewPermissions;
   const selectedRoleLocked = LOCKED_PERMISSION_ROLES.has(previewRole);
+
+  async function fetchUserFolders() {
+    try {
+      const response = await axios.get("/api/requests/user-folders", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUserFoldersMap(response.data?.folders || {});
+    } catch (error) {
+      console.log("Unable to load user request folders", error);
+    }
+  }
+
+  function folderOptionValue(option) {
+    return JSON.stringify({
+      sourceId: option.sourceId,
+      serverId: option.serverId,
+      path: option.path,
+    });
+  }
+
+  function folderSelectValue(folders, mediaType) {
+    const path = mediaType === "tv" ? folders?.tvRootFolder : folders?.movieRootFolder;
+    if (!path) return "";
+    return JSON.stringify({
+      sourceId: mediaType === "tv" ? folders.tvSourceId : folders.movieSourceId,
+      serverId: mediaType === "tv" ? folders.tvServerId : folders.movieServerId,
+      path,
+    });
+  }
+
+  function folderDraftLabel(value) {
+    try {
+      return JSON.parse(value)?.path || value;
+    } catch {
+      return value;
+    }
+  }
+
+  function hasFolderOverride(user) {
+    const folders = userFoldersMap[user?.UserId];
+    return Boolean(folders?.movieRootFolder || folders?.tvRootFolder);
+  }
+
+  async function openFolderModal(user) {
+    const folders = userFoldersMap[user.UserId] || {};
+    setFolderTarget(user);
+    setFolderMessage("");
+    setFolderDraft({
+      movieValue: folderSelectValue(folders, "movie"),
+      tvValue: folderSelectValue(folders, "tv"),
+    });
+    try {
+      const response = await axios.get("/api/requests/folder-options", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFolderOptions({ movie: response.data?.movie || [], tv: response.data?.tv || [] });
+    } catch (error) {
+      setFolderOptions({ movie: [], tv: [] });
+      setFolderMessage(error.response?.data?.error || "Unable to load Seerr folders. You can still reset this user to default.");
+    }
+  }
+
+  async function saveFolderOverride(event) {
+    event.preventDefault();
+    if (!folderTarget?.UserId) return;
+    setSavingFolders(true);
+    setFolderMessage("");
+    try {
+      let movie = {};
+      let tv = {};
+      if (folderDraft.movieValue) movie = JSON.parse(folderDraft.movieValue);
+      if (folderDraft.tvValue) tv = JSON.parse(folderDraft.tvValue);
+      const response = await axios.put(
+        `/api/requests/user-folders/${encodeURIComponent(folderTarget.UserId)}`,
+        {
+          movieRootFolder: movie.path || "",
+          movieServerId: movie.serverId ?? null,
+          movieSourceId: movie.sourceId || null,
+          tvRootFolder: tv.path || "",
+          tvServerId: tv.serverId ?? null,
+          tvSourceId: tv.sourceId || null,
+        },
+        { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+      );
+      setUserFoldersMap((current) => {
+        const next = { ...current };
+        const saved = response.data?.folders;
+        if (!saved?.movieRootFolder && !saved?.tvRootFolder) delete next[folderTarget.UserId];
+        else next[folderTarget.UserId] = saved;
+        return next;
+      });
+      setFolderTarget(null);
+      const synced = Number(response.data?.sync?.updated || 0);
+      const syncErrors = response.data?.sync?.errors?.length || 0;
+      setAlert({
+        variant: syncErrors ? "warning" : "success",
+        message:
+          synced > 0
+            ? `Request folders updated for ${folderTarget.UserName}. Updated ${synced} Seerr/Arr item${synced === 1 ? "" : "s"}${syncErrors ? ` (${syncErrors} failed)` : ""}.`
+            : `Request folders saved for ${folderTarget.UserName}${syncErrors ? `, but sync reported errors` : ""}. Open approved/pending requests already matched in Seerr and Radarr/Sonarr, or none were found.`,
+      });
+    } catch (error) {
+      setFolderMessage(error.response?.data?.error || "Unable to save request folders");
+    } finally {
+      setSavingFolders(false);
+    }
+  }
 
   async function toggleTrackedState(userid) {
     try {
@@ -527,23 +641,39 @@ export default function Users() {
   }
 
   function renderUserActions(user) {
+    const folderButton = user.Source !== "OIDC" ? (
+      <Button
+        type="button"
+        className={`users-row-action-button users-folder-button${hasFolderOverride(user) ? " has-override" : ""}`}
+        title="Request folders"
+        aria-label={`Request folders for ${user.UserName}`}
+        onClick={() => openFolderModal(user)}
+      >
+        <Settings3LineIcon size={17} />
+      </Button>
+    ) : null;
+
     if (user.Source === "Jellyfin") {
       return (
-        <Button
-          className={`users-track-button ${user.Tracked ? "is-tracked" : ""}`}
-          type="button"
-          onClick={() => toggleTrackedState(user.UserId)}
-          disabled={savingUserId === user.UserId}
-          title={user.Tracked ? "Hide user" : "Unhide user"}
-        >
-          {savingUserId === user.UserId ? <Spinner size="sm" animation="border" /> : user.Tracked ? <EyeLineIcon size={20} /> : <EyeOffLineIcon size={20} />}
-        </Button>
+        <div className="users-row-actions">
+          {folderButton}
+          <Button
+            className={`users-track-button ${user.Tracked ? "is-tracked" : ""}`}
+            type="button"
+            onClick={() => toggleTrackedState(user.UserId)}
+            disabled={savingUserId === user.UserId}
+            title={user.Tracked ? "Hide user" : "Unhide user"}
+          >
+            {savingUserId === user.UserId ? <Spinner size="sm" animation="border" /> : user.Tracked ? <EyeLineIcon size={20} /> : <EyeOffLineIcon size={20} />}
+          </Button>
+        </div>
       );
     }
 
     if (user.IsLocalAccount) {
       return (
         <div className="users-row-actions">
+          {folderButton}
           <Button
             type="button"
             className="users-row-action-button"
@@ -1027,6 +1157,56 @@ export default function Users() {
             </Button>
             <Button type="submit" className="users-primary-action" disabled={!newRole.trim()}>
               Add New Role
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={Boolean(folderTarget)} onHide={() => setFolderTarget(null)} centered contentClassName="users-modal">
+        <Form onSubmit={saveFolderOverride}>
+          <Modal.Header closeButton>
+            <Modal.Title>Request folders</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="users-modal-copy">
+              Override Seerr movie and TV root folders for {folderTarget?.UserName}. Leave as default to use the Seerr / Radarr / Sonarr folder.
+            </p>
+            {folderMessage ? <Alert variant="warning">{folderMessage}</Alert> : null}
+            <Form.Group className="mb-3">
+              <Form.Label>Films folder</Form.Label>
+              <FormSelect value={folderDraft.movieValue} onChange={(event) => setFolderDraft((current) => ({ ...current, movieValue: event.target.value }))}>
+                <option value="">Seerr default</option>
+                {(folderOptions.movie || []).map((option) => (
+                  <option key={`movie-${option.sourceId}-${option.serverId}-${option.path}`} value={folderOptionValue(option)}>
+                    {option.label}
+                  </option>
+                ))}
+                {folderDraft.movieValue && !(folderOptions.movie || []).some((option) => folderOptionValue(option) === folderDraft.movieValue) ? (
+                  <option value={folderDraft.movieValue}>{folderDraftLabel(folderDraft.movieValue)}</option>
+                ) : null}
+              </FormSelect>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>TV folder</Form.Label>
+              <FormSelect value={folderDraft.tvValue} onChange={(event) => setFolderDraft((current) => ({ ...current, tvValue: event.target.value }))}>
+                <option value="">Seerr default</option>
+                {(folderOptions.tv || []).map((option) => (
+                  <option key={`tv-${option.sourceId}-${option.serverId}-${option.path}`} value={folderOptionValue(option)}>
+                    {option.label}
+                  </option>
+                ))}
+                {folderDraft.tvValue && !(folderOptions.tv || []).some((option) => folderOptionValue(option) === folderDraft.tvValue) ? (
+                  <option value={folderDraft.tvValue}>{folderDraftLabel(folderDraft.tvValue)}</option>
+                ) : null}
+              </FormSelect>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={() => setFolderTarget(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="users-primary-action" disabled={savingFolders}>
+              {savingFolders ? "Saving..." : "Save folders"}
             </Button>
           </Modal.Footer>
         </Form>

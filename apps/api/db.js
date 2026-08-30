@@ -52,11 +52,7 @@ async function deleteBulk(table_name, data, pkName) {
     message = data.length + " Rows removed.";
 
     if (table_name === "jf_playback_activity") {
-      for (const view of materializedViews) {
-        refreshMaterializedView(view).catch((error) => {
-          console.error(`Failed to refresh materialized view "${view}":`, error.message);
-        });
-      }
+      scheduleMaterializedViewRefreshes();
     }
   } catch (error) {
     await client.query("ROLLBACK");
@@ -109,11 +105,18 @@ async function updateSingleFieldBulk(table_name, data, field_name, new_value, wh
   return { Result: result, message: "" + message };
 }
 
+// Dependency order: stats overview reads latest playback activity.
 const materializedViews = [
   "js_latest_playback_activity",
   "js_library_stats_overview",
   "js_library_items_with_playcount_playtime",
 ];
+
+const DEBOUNCE_MS = Number(process.env.MATERIALIZED_VIEW_REFRESH_DEBOUNCE_MS) || 3000;
+
+let debounceTimer = null;
+let inFlight = null;
+let pendingRefresh = false;
 
 async function refreshMaterializedView(view_name) {
   const client = await pool.connect();
@@ -137,6 +140,50 @@ async function refreshMaterializedView(view_name) {
     client.release();
   }
   return { Result: result, message: "" + message };
+}
+
+async function runRefreshBatch() {
+  if (inFlight) {
+    pendingRefresh = true;
+    return inFlight;
+  }
+
+  pendingRefresh = false;
+  inFlight = (async () => {
+    for (const view of materializedViews) {
+      const result = await refreshMaterializedView(view);
+      if (result.Result === "ERROR") {
+        console.error(`Failed to refresh materialized view "${view}":`, result.message);
+      }
+    }
+  })();
+
+  try {
+    await inFlight;
+  } finally {
+    inFlight = null;
+    if (pendingRefresh) {
+      await runRefreshBatch();
+    }
+  }
+}
+
+function scheduleMaterializedViewRefreshes() {
+  pendingRefresh = true;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    runRefreshBatch().catch((error) => {
+      console.error("Materialized view refresh batch failed:", error.message);
+    });
+  }, DEBOUNCE_MS);
+}
+
+async function flushMaterializedViewRefreshes() {
+  clearTimeout(debounceTimer);
+  debounceTimer = null;
+  pendingRefresh = true;
+  await runRefreshBatch();
 }
 
 async function insertBulk(table_name, data, columns) {
@@ -169,11 +216,7 @@ async function insertBulk(table_name, data, columns) {
     await client.query("COMMIT");
 
     if (table_name === "jf_playback_activity") {
-      for (const view of materializedViews) {
-        refreshMaterializedView(view).catch((error) => {
-          console.error(`Failed to refresh materialized view "${view}":`, error.message);
-        });
-      }
+      scheduleMaterializedViewRefreshes();
     }
   } catch (error) {
     await client.query("ROLLBACK");
@@ -197,11 +240,7 @@ async function query(text, params, refreshViews = false) {
     const result = await pool.query(text, params);
 
     if (refreshViews) {
-      for (const view of materializedViews) {
-        refreshMaterializedView(view).catch((error) => {
-          console.error(`Failed to refresh materialized view "${view}":`, error.message);
-        });
-      }
+      scheduleMaterializedViewRefreshes();
     }
 
     const skippedColumns = [
@@ -274,6 +313,8 @@ module.exports = {
   updateSingleFieldBulk: updateSingleFieldBulk,
   querySingle: querySingle,
   refreshMaterializedView: refreshMaterializedView,
+  scheduleMaterializedViewRefreshes: scheduleMaterializedViewRefreshes,
+  flushMaterializedViewRefreshes: flushMaterializedViewRefreshes,
   materializedViews: materializedViews,
 
   // initDB: initDB,

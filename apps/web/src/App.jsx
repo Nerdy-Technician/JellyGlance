@@ -28,6 +28,14 @@ const Login = lazy(() => import("./pages/login"));
 const Navbar = lazy(() => import("./pages/components/general/navbar"));
 const WhatsNewModal = lazy(() => import("./pages/components/general/WhatsNewModal"));
 
+// Warm common authenticated routes after login so navigation feels instant.
+function preloadCriticalRoutes() {
+  import("./pages/home");
+  import("./pages/requests");
+  import("./pages/activity");
+  import("./pages/settings");
+}
+
 function notificationKind(message) {
   const type = String(message?.type || "").toLowerCase();
   if (type === "error") return "error";
@@ -256,6 +264,7 @@ function App() {
   useEffect(() => {
     if (setupState === 2 && token !== undefined && token !== null) {
       prewarmActiveSessions(token);
+      preloadCriticalRoutes();
     }
   }, [setupState, token]);
 

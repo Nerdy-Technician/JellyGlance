@@ -27,6 +27,21 @@ const emptySettings = {
   history: [],
 };
 
+const emptyCampaign = {
+  name: "",
+  type: "global",
+  frequency: "manual",
+  enabled: false,
+  audience: { recipients: [], roles: [] },
+  sections: {
+    recentlyAdded: true,
+    topWatched: true,
+    activeUsers: true,
+    repairSummary: true,
+    customHtml: "",
+  },
+};
+
 function headers() {
   return {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -73,13 +88,42 @@ export default function NewsletterSettings() {
   const [recipientText, setRecipientText] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
   const [preview, setPreview] = useState(null);
-  const [activeTab, setActiveTab] = useState("settings");
+  const [activeTab, setActiveTab] = useState("campaigns");
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState("");
   const [message, setMessage] = useState(null);
+  const [campaignList, setCampaignList] = useState([]);
+  const [campaignHistory, setCampaignHistory] = useState([]);
+  const [campaignSchemaReady, setCampaignSchemaReady] = useState(true);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [campaignDraft, setCampaignDraft] = useState(emptyCampaign);
+  const [campaignRecipients, setCampaignRecipients] = useState("");
 
   const recipientCount = useMemo(() => textToRecipients(recipientText).length, [recipientText]);
   const previewHtml = preview?.html || "";
+  const selectedCampaign = campaignList.find((campaign) => campaign.id === selectedCampaignId) || null;
+
+  async function loadCampaigns() {
+    const response = await axios.get("/newsletter/campaigns", { headers: headers() });
+    const nextCampaigns = response.data?.campaigns || [];
+    setCampaignSchemaReady(response.data?.schemaReady !== false);
+    setCampaignList(nextCampaigns);
+    setCampaignHistory(response.data?.history || []);
+    const nextId = selectedCampaignId && nextCampaigns.some((campaign) => campaign.id === selectedCampaignId)
+      ? selectedCampaignId
+      : nextCampaigns[0]?.id || "";
+    setSelectedCampaignId(nextId);
+    const current = nextCampaigns.find((campaign) => campaign.id === nextId);
+    if (current) {
+      setCampaignDraft({
+        ...emptyCampaign,
+        ...current,
+        sections: { ...emptyCampaign.sections, ...(current.sections || {}) },
+        audience: { recipients: [], roles: [], ...(current.audience || {}) },
+      });
+      setCampaignRecipients(recipientsToText(current.audience?.recipients || []));
+    }
+  }
 
   async function loadNewsletter() {
     try {
@@ -91,18 +135,11 @@ export default function NewsletterSettings() {
         smtp: { ...emptySettings.smtp, ...(settingsResponse.data?.smtp || {}) },
       });
       setRecipientText(recipientsToText(settingsResponse.data?.recipients || []));
+      await loadCampaigns();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to load newsletter settings." });
     } finally {
       setLoading(false);
-    }
-
-    try {
-      const previewResponse = await axios.get("/newsletter/preview", { headers: headers() });
-      const nextPreview = normalizePreviewPayload(previewResponse.data);
-      if (nextPreview) setPreview(nextPreview);
-    } catch (error) {
-      setPreview((current) => current);
     }
   }
 
@@ -116,6 +153,19 @@ export default function NewsletterSettings() {
 
   function updateSmtp(field, value) {
     setSettings((current) => ({ ...current, smtp: { ...current.smtp, [field]: value } }));
+  }
+
+  function selectCampaign(campaignId) {
+    setSelectedCampaignId(campaignId);
+    const current = campaignList.find((campaign) => campaign.id === campaignId);
+    if (!current) return;
+    setCampaignDraft({
+      ...emptyCampaign,
+      ...current,
+      sections: { ...emptyCampaign.sections, ...(current.sections || {}) },
+      audience: { recipients: [], roles: [], ...(current.audience || {}) },
+    });
+    setCampaignRecipients(recipientsToText(current.audience?.recipients || []));
   }
 
   async function saveSettings(event) {
@@ -137,9 +187,63 @@ export default function NewsletterSettings() {
         smtp: { ...emptySettings.smtp, ...(response.data?.smtp || {}) },
       });
       setRecipientText(recipientsToText(response.data?.recipients || []));
-      setMessage({ type: "success", text: "Newsletter settings saved." });
+      setMessage({ type: "success", text: "Shared SMTP settings saved." });
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to save newsletter settings." });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function saveCampaign() {
+    try {
+      setBusyAction("campaign-save");
+      setMessage(null);
+      const payload = {
+        ...campaignDraft,
+        audience: {
+          ...(campaignDraft.audience || {}),
+          recipients: textToRecipients(campaignRecipients),
+        },
+      };
+      if (selectedCampaignId) {
+        await axios.put(`/newsletter/campaigns/${encodeURIComponent(selectedCampaignId)}`, payload, { headers: headers() });
+      } else {
+        const created = await axios.post("/newsletter/campaigns", payload, { headers: headers() });
+        setSelectedCampaignId(created.data.id);
+      }
+      await loadCampaigns();
+      setMessage({ type: "success", text: "Campaign saved." });
+    } catch (error) {
+      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to save campaign." });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function createCampaign() {
+    setSelectedCampaignId("");
+    setCampaignDraft({ ...emptyCampaign, name: "New campaign" });
+    setCampaignRecipients("");
+  }
+
+  async function sendCampaign() {
+    if (!selectedCampaignId) return;
+    const count = textToRecipients(campaignRecipients).length;
+    const confirmed = window.confirm(`Send “${campaignDraft.name}” to ${count || "configured"} recipients?`);
+    if (!confirmed) return;
+    try {
+      setBusyAction("campaign-send");
+      const response = await axios.post(
+        `/newsletter/campaigns/${encodeURIComponent(selectedCampaignId)}/send`,
+        { recipients: textToRecipients(campaignRecipients) },
+        { headers: headers() }
+      );
+      setMessage({ type: "success", text: `Campaign sent to ${response.data.recipientCount} recipient${response.data.recipientCount === 1 ? "" : "s"}.` });
+      await loadCampaigns();
+    } catch (error) {
+      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to send campaign." });
+      await loadCampaigns();
     } finally {
       setBusyAction("");
     }
@@ -148,7 +252,10 @@ export default function NewsletterSettings() {
   async function generatePreview() {
     try {
       setBusyAction("preview");
-      const response = await axios.get("/newsletter/preview", { headers: headers() });
+      const response = await axios.get("/newsletter/preview", {
+        headers: headers(),
+        params: selectedCampaignId ? { campaignId: selectedCampaignId } : undefined,
+      });
       const nextPreview = normalizePreviewPayload(response.data);
       if (!nextPreview) {
         throw new Error("Preview endpoint did not return newsletter HTML.");
@@ -166,28 +273,15 @@ export default function NewsletterSettings() {
   async function sendTest() {
     try {
       setBusyAction("test");
-      const response = await axios.post("/newsletter/test", { recipients: [testRecipient] }, { headers: headers() });
+      const response = await axios.post(
+        "/newsletter/test",
+        { recipients: [testRecipient], campaignId: selectedCampaignId || undefined },
+        { headers: headers() }
+      );
       setMessage({ type: "success", text: `Test newsletter sent to ${response.data.recipientCount} recipient.` });
       await loadNewsletter();
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data?.error || "Unable to send test newsletter." });
-      await loadNewsletter();
-    } finally {
-      setBusyAction("");
-    }
-  }
-
-  async function sendNewsletter() {
-    const confirmed = window.confirm(`Send this newsletter to ${recipientCount} recipient${recipientCount === 1 ? "" : "s"}?`);
-    if (!confirmed) return;
-
-    try {
-      setBusyAction("send");
-      const response = await axios.post("/newsletter/send", { recipients: textToRecipients(recipientText) }, { headers: headers() });
-      setMessage({ type: "success", text: `Newsletter sent to ${response.data.recipientCount} recipient${response.data.recipientCount === 1 ? "" : "s"}.` });
-      await loadNewsletter();
-    } catch (error) {
-      setMessage({ type: "danger", text: error.response?.data?.error || "Unable to send newsletter." });
       await loadNewsletter();
     } finally {
       setBusyAction("");
@@ -220,8 +314,8 @@ export default function NewsletterSettings() {
       <header className="settings-section-header">
         <div>
           <span>Digest email</span>
-          <h2>Newsletter Generator</h2>
-          <p>Generate a JellyGlance digest with recently added media, weekly watch stats, active viewers, and repair status.</p>
+          <h2>Newsletter Campaigns</h2>
+          <p>One shared SMTP setup powers global, role-based, and personal campaigns with section toggles and scheduling.</p>
         </div>
         <Button type="button" variant="outline-primary" onClick={generatePreview} disabled={Boolean(busyAction)}>
           {busyAction === "preview" ? <Spinner size="sm" animation="border" /> : <RefreshLineIcon size={17} />}
@@ -235,14 +329,173 @@ export default function NewsletterSettings() {
         </Alert>
       ) : null}
 
-      <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab(key || "settings")} variant="pills" className="newsletter-tabs" transition={false}>
-        <Tab eventKey="settings" title="Settings" className="newsletter-tab-pane">
+      {!campaignSchemaReady ? (
+        <Alert variant="info">
+          Campaign tables are still initializing. Shared SMTP and legacy send still work; restart JellyGlance once if this message persists after an upgrade.
+        </Alert>
+      ) : null}
+
+      <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab(key || "campaigns")} variant="pills" className="newsletter-tabs" transition={false}>
+        <Tab eventKey="campaigns" title="Campaigns" className="newsletter-tab-pane">
+          <div className="newsletter-settings-grid">
+            <div className="newsletter-campaign-sidebar">
+              <section className="newsletter-panel">
+                <div className="newsletter-panel-title">
+                  <ArticleLineIcon size={19} />
+                  <h3>Campaigns</h3>
+                  <Button type="button" size="sm" variant="outline-primary" onClick={createCampaign}>
+                    New campaign
+                  </Button>
+                </div>
+                <div className="newsletter-history">
+                  {campaignList.map((campaign) => (
+                    <article
+                      key={campaign.id}
+                      role="button"
+                      tabIndex={0}
+                      className={campaign.id === selectedCampaignId ? "is-ok" : ""}
+                      onClick={() => selectCampaign(campaign.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") selectCampaign(campaign.id);
+                      }}
+                    >
+                      <strong>{campaign.name}</strong>
+                      <span>
+                        {campaign.type} · {campaign.frequency}
+                        {campaign.enabled ? " · enabled" : " · paused"}
+                      </span>
+                      <time>Last sent {formatDate(campaign.lastSentAt)}</time>
+                    </article>
+                  ))}
+                  {!campaignList.length ? <div className="newsletter-empty">No campaigns yet. Create one to get started.</div> : null}
+                </div>
+              </section>
+
+              <section className="newsletter-panel newsletter-history-panel">
+                <div className="newsletter-panel-title">
+                  <MailCheckLineIcon size={19} />
+                  <h3>Campaign History</h3>
+                </div>
+                <div className="newsletter-history">
+                  {campaignHistory.map((entry) => (
+                    <article key={entry.id} className={entry.status === "ok" ? "is-ok" : "is-error"}>
+                      <strong>{entry.campaignName || "Campaign"} · {entry.mode}</strong>
+                      <span>{entry.status === "ok" ? `${entry.recipientCount || 0} recipients` : entry.error}</span>
+                      <time>{formatDate(entry.sentAt)}</time>
+                    </article>
+                  ))}
+                  {!campaignHistory.length ? <div className="newsletter-empty">No campaign sends yet.</div> : null}
+                </div>
+              </section>
+            </div>
+
+            <Form
+              className="newsletter-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveCampaign();
+              }}
+            >
+              <section className="newsletter-panel">
+                <div className="newsletter-panel-title">
+                  <MailCheckLineIcon size={19} />
+                  <h3>{selectedCampaign ? "Edit campaign" : "New campaign"}</h3>
+                </div>
+                <div className="newsletter-form-grid">
+                  <Form.Group>
+                    <Form.Label>Name</Form.Label>
+                    <Form.Control value={campaignDraft.name} onChange={(event) => setCampaignDraft((current) => ({ ...current, name: event.target.value }))} />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Type</Form.Label>
+                    <Form.Select value={campaignDraft.type} onChange={(event) => setCampaignDraft((current) => ({ ...current, type: event.target.value }))}>
+                      <option value="global">Global admin</option>
+                      <option value="role">Role-based</option>
+                      <option value="personal">Personal</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Frequency</Form.Label>
+                    <Form.Select value={campaignDraft.frequency} onChange={(event) => setCampaignDraft((current) => ({ ...current, frequency: event.target.value }))}>
+                      <option value="manual">Manual only</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Test recipient</Form.Label>
+                    <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
+                  </Form.Group>
+                </div>
+                <Form.Group className="newsletter-recipient-box">
+                  <Form.Label>Campaign recipients</Form.Label>
+                  <Form.Control as="textarea" rows={4} value={campaignRecipients} onChange={(event) => setCampaignRecipients(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
+                </Form.Group>
+                <div className="newsletter-toggle-row">
+                  <Form.Check
+                    type="switch"
+                    id="campaign-enabled"
+                    label="Enable campaign"
+                    checked={Boolean(campaignDraft.enabled)}
+                    onChange={(event) => setCampaignDraft((current) => ({ ...current, enabled: event.target.checked }))}
+                  />
+                  {["recentlyAdded", "topWatched", "activeUsers", "repairSummary"].map((section) => (
+                    <Form.Check
+                      key={section}
+                      type="switch"
+                      id={`campaign-section-${section}`}
+                      label={section.replace(/([A-Z])/g, " $1")}
+                      checked={Boolean(campaignDraft.sections?.[section])}
+                      onChange={(event) =>
+                        setCampaignDraft((current) => ({
+                          ...current,
+                          sections: { ...current.sections, [section]: event.target.checked },
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
+                <Form.Group className="newsletter-recipient-box">
+                  <Form.Label>Custom HTML block</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={campaignDraft.sections?.customHtml || ""}
+                    onChange={(event) =>
+                      setCampaignDraft((current) => ({
+                        ...current,
+                        sections: { ...current.sections, customHtml: event.target.value },
+                      }))
+                    }
+                    placeholder="Optional custom HTML appended to the digest"
+                  />
+                </Form.Group>
+                <div className="newsletter-actions">
+                  <Button type="submit" disabled={Boolean(busyAction)}>
+                    {busyAction === "campaign-save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
+                    Save campaign
+                  </Button>
+                  <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || Boolean(busyAction)}>
+                    {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
+                    Send test
+                  </Button>
+                  <Button type="button" variant="primary" onClick={sendCampaign} disabled={!selectedCampaignId || Boolean(busyAction)}>
+                    {busyAction === "campaign-send" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
+                    Send campaign
+                  </Button>
+                </div>
+              </section>
+            </Form>
+          </div>
+        </Tab>
+
+        <Tab eventKey="settings" title="Shared SMTP" className="newsletter-tab-pane">
           <div className="newsletter-settings-grid">
             <Form className="newsletter-form" onSubmit={saveSettings}>
               <section className="newsletter-panel">
                 <div className="newsletter-panel-title">
                   <MailSettingsLineIcon size={19} />
-                  <h3>SMTP Options</h3>
+                  <h3>Shared SMTP</h3>
                 </div>
                 <div className="newsletter-form-grid">
                   <Form.Group>
@@ -267,19 +520,6 @@ export default function NewsletterSettings() {
                       autoComplete="new-password"
                     />
                   </Form.Group>
-                </div>
-                <div className="newsletter-toggle-row">
-                  <Form.Check type="switch" id="newsletter-secure" label="Use implicit TLS" checked={settings.smtp.secure} onChange={(event) => updateSmtp("secure", event.target.checked)} />
-                  <Form.Check type="switch" id="newsletter-tls-verify" label="Verify TLS certificates" checked={settings.smtp.rejectUnauthorized} onChange={(event) => updateSmtp("rejectUnauthorized", event.target.checked)} />
-                </div>
-              </section>
-
-              <section className="newsletter-panel">
-                <div className="newsletter-panel-title">
-                  <ArticleLineIcon size={19} />
-                  <h3>Newsletter</h3>
-                </div>
-                <div className="newsletter-form-grid">
                   <Form.Group>
                     <Form.Label>Sender name</Form.Label>
                     <Form.Control value={settings.senderName} onChange={(event) => updateField("senderName", event.target.value)} />
@@ -288,64 +528,29 @@ export default function NewsletterSettings() {
                     <Form.Label>Sender email</Form.Label>
                     <Form.Control type="email" value={settings.senderEmail} onChange={(event) => updateField("senderEmail", event.target.value)} placeholder="jellyglance@example.com" />
                   </Form.Group>
-                  <Form.Group>
-                    <Form.Label>Frequency</Form.Label>
-                    <Form.Select value={settings.frequency} onChange={(event) => updateField("frequency", event.target.value)}>
-                      <option value="manual">Manual only</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </Form.Select>
-                  </Form.Group>
-                  <Form.Group>
-                    <Form.Label>Test recipient</Form.Label>
-                    <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
-                  </Form.Group>
+                </div>
+                <div className="newsletter-toggle-row">
+                  <Form.Check type="switch" id="newsletter-secure" label="Use implicit TLS" checked={settings.smtp.secure} onChange={(event) => updateSmtp("secure", event.target.checked)} />
+                  <Form.Check type="switch" id="newsletter-tls-verify" label="Verify TLS certificates" checked={settings.smtp.rejectUnauthorized} onChange={(event) => updateSmtp("rejectUnauthorized", event.target.checked)} />
+                  <Form.Check type="switch" id="newsletter-enabled" label="Enable shared SMTP config" checked={settings.enabled} onChange={(event) => updateField("enabled", event.target.checked)} />
                 </div>
                 <Form.Group className="newsletter-recipient-box">
-                  <Form.Label>Recipients</Form.Label>
-                  <Form.Control as="textarea" rows={5} value={recipientText} onChange={(event) => setRecipientText(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
-                  <Form.Text>{recipientCount} recipient{recipientCount === 1 ? "" : "s"} configured.</Form.Text>
+                  <Form.Label>Legacy default recipients</Form.Label>
+                  <Form.Control as="textarea" rows={4} value={recipientText} onChange={(event) => setRecipientText(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
+                  <Form.Text>{recipientCount} recipient{recipientCount === 1 ? "" : "s"} used when a campaign has none configured.</Form.Text>
                 </Form.Group>
-                <div className="newsletter-toggle-row">
-                  <Form.Check type="switch" id="newsletter-enabled" label="Enable newsletter config" checked={settings.enabled} onChange={(event) => updateField("enabled", event.target.checked)} />
-                </div>
                 <div className="newsletter-actions">
                   <Button type="submit" disabled={Boolean(busyAction)}>
                     {busyAction === "save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
-                    Save settings
-                  </Button>
-                  <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || Boolean(busyAction)}>
-                    {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                    Send test
-                  </Button>
-                  <Button type="button" variant="primary" onClick={sendNewsletter} disabled={!recipientCount || Boolean(busyAction)}>
-                    {busyAction === "send" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                    Send newsletter
+                    Save SMTP
                   </Button>
                 </div>
               </section>
             </Form>
-
-            <section className="newsletter-panel newsletter-history-panel">
-              <div className="newsletter-panel-title">
-                <MailCheckLineIcon size={19} />
-                <h3>Send History</h3>
-              </div>
-              <div className="newsletter-history">
-                {(settings.history || []).map((entry) => (
-                  <article key={`${entry.timestamp}-${entry.mode}-${entry.messageId || entry.error}`} className={entry.ok ? "is-ok" : "is-error"}>
-                    <strong>{entry.mode === "test" ? "Test email" : "Newsletter send"}</strong>
-                    <span>{entry.ok ? `${entry.recipientCount || 0} recipient${entry.recipientCount === 1 ? "" : "s"}` : entry.error}</span>
-                    <time>{formatDate(entry.timestamp)}</time>
-                  </article>
-                ))}
-                {!(settings.history || []).length ? <div className="newsletter-empty">No newsletter sends yet.</div> : null}
-              </div>
-            </section>
           </div>
         </Tab>
 
-        <Tab eventKey="preview" title="Newsletter Preview" className="newsletter-tab-pane">
+        <Tab eventKey="preview" title="Preview" className="newsletter-tab-pane">
           <section className="newsletter-panel newsletter-preview-panel">
             <div className="newsletter-panel-title">
               <div>

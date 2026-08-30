@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import axios from "../lib/axios_instance";
+import { cachedGet } from "../lib/api-cache";
 import Config from "../lib/config";
 
 import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
@@ -450,10 +451,15 @@ export default function Home({ kioskMode = false }) {
     if (!token) return;
 
     try {
-      const response = await axios.get("/api/home/operations", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: forceRequests ? { forceRequests: "true" } : undefined,
-      });
+      const response = await cachedGet(
+        axios,
+        "/api/home/operations",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: forceRequests ? { forceRequests: "true" } : undefined,
+        },
+        forceRequests ? 0 : 25000
+      );
       const nextOperations = response.data || { requests: null, health: null };
       setOperations(nextOperations);
       saveHomeCache(HOME_OPERATIONS_CACHE_KEY, nextOperations);
@@ -1425,7 +1431,7 @@ export default function Home({ kioskMode = false }) {
             {recentRequests.length ? (
               recentRequests.map((request) => (
                 <article key={request.id}>
-                  <span className={`home-request-status is-${String(request.status || "unknown").toLowerCase()}`}>{request.status}</span>
+                  <span className={`home-request-status is-${String(request.pipelineStatus || request.status || "unknown").toLowerCase()}`}>{request.pipelineLabel || request.status}</span>
                   <div>
                     <strong>{request.title}{request.year ? ` (${request.year})` : ""}</strong>
                     <small>{request.requestedBy} · {request.source}</small>

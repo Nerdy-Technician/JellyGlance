@@ -66,9 +66,9 @@ async function backup(refLog) {
       return;
     }
 
-    const ExcludedTables = config.settings?.ExcludedTables || [];
+    const ExcludedTables = (config.settings?.ExcludedTables || []).filter((table) => table !== "app_config");
 
-    let filteredTables = tables.filter((table) => !ExcludedTables.includes(table.value));
+    let filteredTables = tables.filter((table) => table.value === "app_config" || !ExcludedTables.includes(table.value));
 
     if (filteredTables.length === 0) {
       refLog.logData.push({ color: "red", Message: "Backup Failed: No tables to backup" });

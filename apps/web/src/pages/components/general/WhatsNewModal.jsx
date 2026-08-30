@@ -6,6 +6,10 @@ import PaletteLineIcon from "remixicon-react/PaletteLineIcon";
 import SpeedLineIcon from "remixicon-react/SpeedLineIcon";
 import Movie2LineIcon from "remixicon-react/Movie2LineIcon";
 import MailLineIcon from "remixicon-react/MailLineIcon";
+import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
+import RocketLineIcon from "remixicon-react/RocketLineIcon";
+import ChatCheckLineIcon from "remixicon-react/ChatCheckLineIcon";
+import GroupLineIcon from "remixicon-react/GroupLineIcon";
 import axios from "../../../lib/axios_instance";
 import { APP_VERSION_STORAGE_KEY, OPEN_WHATS_NEW_EVENT } from "../../../lib/events";
 import releaseNotes from "../../../whats-new.json";
@@ -19,6 +23,10 @@ const iconMap = {
   speed: SpeedLineIcon,
   upload: UploadCloud2LineIcon,
   mail: MailLineIcon,
+  shield: ShieldCheckLineIcon,
+  rocket: RocketLineIcon,
+  chat: ChatCheckLineIcon,
+  users: GroupLineIcon,
 };
 
 function getNotes(version) {

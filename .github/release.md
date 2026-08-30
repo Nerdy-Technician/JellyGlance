@@ -1,22 +1,42 @@
-version: v1.2.7
-title: JellyGlance v1.2.7
+version: v1.2.8
+title: JellyGlance v1.2.8
 ---
-feat: improve mobile navigation and layout
-
-We are sorry for the three updates in one day. The recent work crossed several connected parts of JellyGlance: frontend routes, API routes, proxy endpoints, authentication, and third-party integrations. Small changes to one response shape or proxy path could affect artwork, activity, Tdarr data, or page loading elsewhere, so several quick updates were needed while those pieces were brought back into sync.
+feat: stabilize playback sync, richer notifications, and requests tooling
 
 Added
-- Ten new theme presets: Sakura, Volcanic, Deep Sea, Honey, Plasma, Moss, Paper, Electric Blue, Tangerine, and Violet Night
-- Theme choices are available from both Settings and the profile theme menu
-- Active session cards now show transcoded progress as a lighter overlay on the playback progress bar
-- Expanded session cards now show the viewer profile picture and a client icon beside the client details
-- Mobile navigation stays within the viewport and Settings tabs scroll horizontally when needed
-- Mobile Settings tabs no longer overlap the page content
-- Home and Tdarr transcode cards use a more compact mobile layout
-
+- Optional `.env` bootstrap to skip the first-run wizard (`JF_HOST`, `JF_API_KEY`, `JS_AUTH_MODE=local`, `JS_USER`, `JS_PASSWORD`, `JS_SKIP_FIRST_RUN`, `JS_AUTO_START_SYNC`)
+- First-run backup restore path for headless / Compose installs
+- Debounced materialized-view refreshes under heavy playback webhook load
+- Discord and Gotify media cards for playback and download events (poster artwork, viewer avatar on Discord, client/device details)
+- Requests status pipeline (requested → approved → grabbed → available) with stage filters and richer cards
+- Seerr Issues inbox on the Requests page for Overseerr/Jellyseerr reports
+- Per-user Films/TV root-folder overrides on user cards, with sync to Seerr plus linked Radarr/Sonarr paths
+- Multi-campaign newsletters (global, role-based, and personal) with shared SMTP, section toggles, preview, and schedules
+- Downloads queue remove action when the download client supports it
+- Brief Home/Requests API response caching and finer Vite vendor chunk splitting
+- Dedicated JellyGlance GitHub Action bots plus PR validation / Actions naming standards
 
 Fixed
-- Activity no longer goes black while authenticated configuration is loading
-- Activity table rendering no longer crashes when Material UI theme contexts differ
+- Webhook bursts no longer crash-loop JellyGlance on native/systemd installs ([#80](https://github.com/Nerdy-Technician/JellyGlance/pull/80))
+- Playback webhook spam from session flicker / device-id churn is filtered; episode start alerts are more reliable
+- Discord rich embeds no longer drop when multipart image uploads fail (text card still sends)
+- Active Sessions cards truncate long stream labels and titles so desktop/mobile layouts no longer overlap
+- Requests Issues layout no longer leaves a large empty gap under the filters
+- Outbound HTTPS prefers IPv4 to avoid dual-stack timeouts to Cloudflare-hosted Seerr/Arr hosts
+- Release pipeline now commits package version bumps back to the branch so GitHub tags stay in sync with `package.json`
 
-- Release notes remain available when GitHub API requests are rate-limited
+Changed
+- Release documentation now describes the file-driven Release Bot pipeline as the canonical release path
+- Dependency bumps for production and development packages
+
+## What's Changed
+* chore(deps-dev): bump the development-dependencies group with 6 updates by @dependabot[bot] in https://github.com/Nerdy-Technician/JellyGlance/pull/77
+* chore(deps): bump the production-dependencies group with 5 updates by @dependabot[bot] in https://github.com/Nerdy-Technician/JellyGlance/pull/76
+* Feat  add PR validation checks and standardize Actions naming by @Nerdy-Technician in https://github.com/Nerdy-Technician/JellyGlance/pull/78
+* fix: prevent crash-restart loop from unhandled refreshMaterializedView rejections by @mcgarrah in https://github.com/Nerdy-Technician/JellyGlance/pull/80
+* Update README.md by @Nerdy-Technician in https://github.com/Nerdy-Technician/JellyGlance/pull/81
+
+## New Contributors
+* @mcgarrah made their first contribution in https://github.com/Nerdy-Technician/JellyGlance/pull/80
+
+**Full Changelog**: https://github.com/Nerdy-Technician/JellyGlance/compare/v1.2.7...v1.2.8

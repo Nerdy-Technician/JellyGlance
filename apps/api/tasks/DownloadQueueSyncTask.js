@@ -47,6 +47,7 @@ function normalizeQbittorrentTorrent(client, torrent) {
     down: formatSpeed(torrent.dlspeed),
     up: formatSpeed(torrent.upspeed),
     addedAt: torrent.added_on ? new Date(Number(torrent.added_on) * 1000).toISOString() : new Date().toISOString(),
+    hash: torrent.hash || null,
   };
 }
 
@@ -66,6 +67,7 @@ function normalizeSabnzbdJob(client, slot) {
     down: formatSpeed(slot.kbpersec ? Number(slot.kbpersec) * 1024 : 0),
     up: "0 B/s",
     addedAt: slot.time_added || new Date().toISOString(),
+    nzoId: slot.nzo_id || null,
   };
 }
 
@@ -204,12 +206,15 @@ async function runDownloadQueueSyncTask() {
     });
 
     await webhookManager.triggerEventWebhooks("download_queue_refreshed", {
-      integrationEvent: "download queue refreshed",
+      taskKey: "DownloadQueueSync",
+      taskName: "Download Queue Sync",
+      integrationEvent: "Download queue synced",
       source: "Download clients",
       clientCount: clients.length,
       activeCount: syncedItems.filter((item) => Number(item.progress || 0) < 100).length,
-      message: "Download client queue sync completed.",
+      message: "Download queue synced.",
     });
+    await webhookManager.flushCoalescedWebhooks();
     parentPort.postMessage({ status: "complete" });
   } catch (error) {
     parentPort.postMessage({ status: "error", message: error.message });

@@ -5,6 +5,13 @@ const taskstate = require("../logging/taskstate");
 const db = require("../db");
 const WebhookManager = require("./webhook-manager");
 
+const DOMAIN_EVENT_TASKS = new Set([
+  "Download Queue Sync",
+  "Arr Calendar Sync",
+  "Invite Sync",
+  "Integration Sync",
+]);
+
 class TaskManager {
   constructor() {
     this.tasks = {};
@@ -14,6 +21,9 @@ class TaskManager {
 
   async notifyTaskWebhook(eventType, task, extra = {}) {
     try {
+      if ((eventType === "task_started" || eventType === "task_completed") && DOMAIN_EVENT_TASKS.has(task.name)) {
+        return;
+      }
       const webhookManager = new WebhookManager();
       await webhookManager.triggerEventWebhooks(eventType, {
         taskName: task.name,

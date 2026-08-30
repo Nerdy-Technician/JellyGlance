@@ -15,6 +15,7 @@ const { getBackupDir } = require("../utils/storage-paths");
 const db = require("../db");
 const { addAuditEntry } = require("../classes/admin-history");
 const { tables } = require("../global/backup_tables");
+const configClass = require("../classes/config");
 
 const { sendUpdate } = require("../ws");
 
@@ -118,7 +119,75 @@ function getBackupTableEntry(table) {
   return { tableName, data };
 }
 
-async function restore(file, refLog) {
+const RESTORE_BATCH_SIZE = Number(process.env.RESTORE_BATCH_SIZE || 500);
+
+function normalizeRestoreValue(value) {
+  return value && typeof value === "object" ? JSON.stringify(value) : value;
+}
+
+async function insertRestoreRows(pool, tableName, tableColumns, data, skippedColumns) {
+  let restoredRows = 0;
+  const validRows = [];
+  const usedColumns = new Set();
+
+  for (const row of data) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      continue;
+    }
+
+    const rowKeys = Object.keys(row);
+    const filteredKeys = rowKeys.filter((key) => tableColumns.has(key));
+    const ignoredKeys = rowKeys.filter((key) => !tableColumns.has(key));
+
+    if (ignoredKeys.length > 0) {
+      skippedColumns[tableName] = Array.from(new Set([...(skippedColumns[tableName] || []), ...ignoredKeys]));
+    }
+
+    if (filteredKeys.length === 0) {
+      continue;
+    }
+
+    filteredKeys.forEach((key) => usedColumns.add(key));
+    validRows.push(row);
+  }
+
+  if (validRows.length === 0) {
+    return 0;
+  }
+
+  const keys = [...usedColumns].sort();
+  const keyString = keys.map(quoteIdentifier).join(", ");
+  // App config is a single-row table; always replace so auth/settings come back on restore.
+  const conflictClause =
+    tableName === "app_config"
+      ? `ON CONFLICT ("ID") DO UPDATE SET ${keys
+          .filter((key) => key !== "ID")
+          .map((key) => `${quoteIdentifier(key)} = EXCLUDED.${quoteIdentifier(key)}`)
+          .join(", ")}`
+      : "ON CONFLICT DO NOTHING";
+
+  for (let offset = 0; offset < validRows.length; offset += RESTORE_BATCH_SIZE) {
+    const batch = validRows.slice(offset, offset + RESTORE_BATCH_SIZE);
+    const values = [];
+    let paramIndex = 1;
+    const rowPlaceholders = batch.map((row) => {
+      const placeholders = keys.map((key) => {
+        values.push(Object.prototype.hasOwnProperty.call(row, key) ? normalizeRestoreValue(row[key]) : null);
+        return `$${paramIndex++}`;
+      });
+      return `(${placeholders.join(", ")})`;
+    });
+
+    const query = `INSERT INTO ${quoteIdentifier(tableName)} (${keyString}) VALUES ${rowPlaceholders.join(", ")} ${conflictClause}`;
+    const result = await pool.query(query, values);
+    restoredRows += result.rowCount;
+  }
+
+  return restoredRows;
+}
+
+async function restore(file, refLog, options = {}) {
+  const deferViewRefresh = options.deferViewRefresh === true;
   refLog.logData.push({ color: "lawngreen", Message: "Starting Restore" });
   refLog.logData.push({
     color: "yellow",
@@ -128,7 +197,6 @@ async function restore(file, refLog) {
   let jsonData;
 
   try {
-    // Use await to wait for the Promise to resolve
     jsonData = await readFile(file);
   } catch (err) {
     refLog.logData.push({
@@ -137,6 +205,9 @@ async function restore(file, refLog) {
     });
     Logging.updateLog(refLog.uuid, refLog.logData, taskstate.FAILED);
     console.error(err);
+    if (err instanceof SyntaxError) {
+      throw new Error("Backup file is not valid JSON. Re-export the backup or upload a complete .json file.");
+    }
     throw err;
   }
 
@@ -195,46 +266,36 @@ async function restore(file, refLog) {
       refLog.logData.push({
         color: "dodgerblue",
         key: tableName,
-        Message: `Restoring ${tableName}`,
+        Message: `Restoring ${tableName} (${data.length.toLocaleString()} rows)`,
       });
-      for (let index in data) {
-        const row = data[index];
+      console.log(`[BACKUP] Restoring ${tableName} (${data.length.toLocaleString()} rows)...`);
+      const tableStartedAt = Date.now();
+      restoredRows += await insertRestoreRows(pool, tableName, tableColumns, data, skippedColumns);
+      console.log(`[BACKUP] Finished ${tableName} in ${((Date.now() - tableStartedAt) / 1000).toFixed(1)}s`);
+    }
 
-        if (!row || typeof row !== "object" || Array.isArray(row)) {
-          continue;
-        }
-
-        const rowKeys = Object.keys(row);
-        const filteredKeys = rowKeys.filter((key) => tableColumns.has(key));
-        const ignoredKeys = rowKeys.filter((key) => !tableColumns.has(key));
-
-        if (ignoredKeys.length > 0) {
-          skippedColumns[tableName] = Array.from(new Set([...(skippedColumns[tableName] || []), ...ignoredKeys]));
-        }
-
-        if (filteredKeys.length === 0) {
-          continue;
-        }
-
-        const keyString = filteredKeys.map(quoteIdentifier).join(", ");
-        const placeholders = filteredKeys.map((_, keyIndex) => `$${keyIndex + 1}`).join(", ");
-        const values = filteredKeys.map((key) => {
-          const value = row[key];
-          return value && typeof value === "object" ? JSON.stringify(value) : value;
+    if (deferViewRefresh) {
+      db.scheduleMaterializedViewRefreshes();
+      refLog.logData.push({
+        color: "yellow",
+        Message: "Scheduled materialized view refresh in background",
+      });
+    } else {
+      for (const view of db.materializedViews) {
+        const refresh = await db.refreshMaterializedView(view);
+        refLog.logData.push({
+          color: refresh.Result === "SUCCESS" ? "lawngreen" : "red",
+          Message: refresh.message,
         });
-
-        const query = `INSERT INTO ${quoteIdentifier(tableName)} (${keyString}) VALUES(${placeholders}) ON CONFLICT DO NOTHING`;
-        const result = await pool.query(query, values);
-        restoredRows += result.rowCount;
       }
     }
 
-    for (const view of db.materializedViews) {
-      const refresh = await db.refreshMaterializedView(view);
+    if (!restoredTables.includes("app_config")) {
       refLog.logData.push({
-        color: refresh.Result === "SUCCESS" ? "lawngreen" : "red",
-        Message: refresh.message,
+        color: "yellow",
+        Message: "Backup did not include app_config. Auth method was not restored — finish setup or re-save authentication.",
       });
+      console.warn("[BACKUP] Restore finished without app_config; auth method was not restored");
     }
 
     refLog.logData.push({ color: "lawngreen", Message: "Restore Complete" });
@@ -248,6 +309,81 @@ async function restore(file, refLog) {
     };
   } finally {
     await pool.end();
+  }
+}
+
+function createPool() {
+  return new Pool({
+    user: postgresUser,
+    password: postgresPassword,
+    host: postgresIp,
+    port: postgresPort,
+    database: postgresDatabase,
+    ...(process.env.POSTGRES_SSL_ENABLED === "true"
+      ? { ssl: { rejectUnauthorized: postgresSslRejectUnauthorized } }
+      : {}),
+  });
+}
+
+async function clearRestorableTables(pool) {
+  for (const tableName of restorableTables) {
+    const columns = await getTableColumns(pool, tableName);
+    if (!columns.size) continue;
+    await pool.query(`TRUNCATE TABLE ${quoteIdentifier(tableName)} CASCADE`);
+  }
+}
+
+async function assertFirstRunAvailable() {
+  const config = await new configClass().getConfig();
+  if (config.state != null && config.state >= 2) {
+    const error = new Error("Setup is already complete. Sign in instead, or restore backups from Settings > Backups.");
+    error.statusCode = 403;
+    throw error;
+  }
+}
+
+const firstRunRestoreStatus = {
+  status: "idle",
+  setupState: null,
+  restoredRows: 0,
+  error: null,
+  updatedAt: null,
+};
+
+function setFirstRunRestoreStatus(nextStatus) {
+  Object.assign(firstRunRestoreStatus, nextStatus, { updatedAt: new Date().toISOString() });
+}
+
+function getFirstRunRestoreStatusHandler(req, res) {
+  res.json(firstRunRestoreStatus);
+}
+
+async function runFirstRunRestore(filePath) {
+  const uuid = randomUUID();
+  const refLog = { logData: [], uuid };
+  Logging.insertLog(uuid, triggertype.Manual, taskName.restore);
+
+  const pool = createPool();
+  try {
+    await clearRestorableTables(pool);
+    refLog.logData.push({ color: "yellow", Message: "Cleared existing tables for first-run restore" });
+  } finally {
+    await pool.end();
+  }
+
+  try {
+    const restoreResult = await restore(filePath, refLog, { deferViewRefresh: true });
+    Logging.updateLog(uuid, refLog.logData, taskstate.SUCCESS);
+    const config = await new configClass().getConfig();
+    return {
+      ...restoreResult,
+      setupState: config.state ?? 0,
+      message: "Restore completed successfully",
+    };
+  } catch (error) {
+    refLog.logData.push({ color: "red", Message: `Restore failed: ${error.message}` });
+    Logging.updateLog(uuid, refLog.logData, taskstate.FAILED);
+    throw error;
   }
 }
 
@@ -294,16 +430,26 @@ router.get("/restore/:filename", async (req, res) => {
     const filename = sanitizeFilename(req.params.filename);
     const filePath = path.join(getBackupDir(), filename);
 
-    const restoreResult = await restore(filePath, refLog);
+    const pool = createPool();
+    try {
+      await clearRestorableTables(pool);
+      refLog.logData.push({ color: "yellow", Message: "Cleared existing tables before restore" });
+    } finally {
+      await pool.end();
+    }
+
+    const restoreResult = await restore(filePath, refLog, { deferViewRefresh: true });
     Logging.updateLog(uuid, refLog.logData, taskstate.SUCCESS);
     await addAuditEntry(req, "backup.restored", { filename, restoredRows: restoreResult?.restoredRows || 0 });
 
+    const config = await new configClass().getConfig();
     res.json({
       message: "Restore completed successfully",
+      setupState: config.state ?? 0,
       ...restoreResult,
     });
     sendUpdate("GeneralAlert", { type: "Success", message: "Restore completed successfully. Dashboard data refreshed.", triggerType: triggertype.Manual, taskName: taskName.restore });
-    sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", triggerType: triggertype.Manual, taskName: taskName.restore, ...restoreResult });
+    sendUpdate("BackupRestore", { type: "Success", message: "Restore completed successfully", triggerType: triggertype.Manual, taskName: taskName.restore, setupState: config.state ?? 0, ...restoreResult });
   } catch (error) {
     console.error(error);
     refLog.logData.push({ color: "red", Message: `Restore failed: ${error.message}` });
@@ -496,9 +642,92 @@ router.post("/upload", (req, res) => {
   });
 });
 
+async function firstRunRestoreHandler(req, res) {
+  upload.single("file")(req, res, async (error) => {
+    if (error) {
+      const message = /boundary not found/i.test(error.message)
+        ? "Upload failed. Try choosing the backup file again."
+        : error.message;
+      res.status(400).json({ error: message });
+      return;
+    }
+
+    try {
+      await assertFirstRunAvailable();
+
+      if (!req.file) {
+        res.status(400).json({ error: "No backup file received. Choose a .json backup file and try again." });
+        return;
+      }
+
+      const filePath = req.file.path;
+      const filename = req.file.filename;
+
+      setFirstRunRestoreStatus({
+        status: "running",
+        setupState: null,
+        restoredRows: 0,
+        error: null,
+      });
+
+      res.status(202).json({
+        status: "processing",
+        message: "Backup uploaded. Restore is running in the background.",
+        filename,
+      });
+
+      runFirstRunRestore(filePath)
+        .then(async (restoreResult) => {
+          setFirstRunRestoreStatus({
+            status: "complete",
+            setupState: restoreResult?.setupState ?? 0,
+            restoredRows: restoreResult?.restoredRows || 0,
+            error: null,
+          });
+          await addAuditEntry(req, "backup.first_run_restored", {
+            filename,
+            restoredRows: restoreResult?.restoredRows || 0,
+            setupState: restoreResult?.setupState,
+          }).catch(() => {});
+
+          sendUpdate("BackupRestore", {
+            type: "Success",
+            message: "First-run restore completed successfully",
+            triggerType: triggertype.Manual,
+            taskName: taskName.restore,
+            ...restoreResult,
+          });
+        })
+        .catch((restoreError) => {
+          console.error("[BACKUP] First-run restore failed:", restoreError);
+          setFirstRunRestoreStatus({
+            status: "failed",
+            setupState: null,
+            restoredRows: 0,
+            error: restoreError.message || "Restore failed",
+          });
+          sendUpdate("BackupRestore", {
+            type: "Error",
+            message: restoreError.message || "Restore failed",
+            triggerType: triggertype.Manual,
+            taskName: taskName.restore,
+          });
+        });
+    } catch (restoreError) {
+      console.error("[BACKUP] First-run restore failed:", restoreError);
+      res.status(restoreError.statusCode || 500).json({
+        error: restoreError.message || "Restore failed",
+      });
+    }
+  });
+}
+
 // Handle other routes
 router.use((req, res) => {
   res.status(404).send({ error: "Not Found" });
 });
 
 module.exports = router;
+module.exports.firstRunRestoreHandler = firstRunRestoreHandler;
+module.exports.getFirstRunRestoreStatusHandler = getFirstRunRestoreStatusHandler;
+module.exports.runFirstRunRestore = runFirstRunRestore;

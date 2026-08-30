@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react-swc";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, "../api", "JS_");
+  const apiTarget = process.env.JS_API_URL || env.JS_API_URL || "http://127.0.0.1:3000";
+  const devPort = Number(process.env.JS_DEV_PORT || env.JS_DEV_PORT || 3001);
 
   return {
     envPrefix: "JS_",
@@ -24,28 +26,40 @@ export default defineConfig(({ mode }) => {
     },
 
     server: {
-      port: 3001,
-      proxy: {
-        "/api":      { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/proxy":    { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/stats":    { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/sync":     { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/auth":     { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/backup":   { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/logs":     { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/swagger":  { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/utils":    { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/webhooks": { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/newsletter": { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/tautulli": { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/jellystat": { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/env.js":   { target: "http://127.0.0.1:3000", changeOrigin: true },
-        "/socket.io": {
-          target: "http://127.0.0.1:3000",
-          changeOrigin: true,
-          ws: true,
-        },
-      },
+      port: devPort,
+      strictPort: false,
+      proxy: (() => {
+        const proxyPaths = [
+          "/api",
+          "/proxy",
+          "/stats",
+          "/sync",
+          "/auth",
+          "/backup",
+          "/logs",
+          "/swagger",
+          "/utils",
+          "/webhooks",
+          "/newsletter",
+          "/tautulli",
+          "/jellystat",
+          "/env.js",
+        ];
+        const proxy = Object.fromEntries(
+          proxyPaths.map((pathName) => [
+            pathName,
+            {
+              target: apiTarget,
+              changeOrigin: true,
+              ...(pathName === "/backup"
+                ? { timeout: 0, proxyTimeout: 0 }
+                : {}),
+            },
+          ])
+        );
+        proxy["/socket.io"] = { target: apiTarget, changeOrigin: true, ws: true };
+        return proxy;
+      })(),
     },
 
     build: {
@@ -65,6 +79,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes("/@mui/x-")) return "vendor-mui-x";
             if (id.includes("/@mui/") || id.includes("/@emotion/")) return "vendor-mui";
             if (id.includes("/material-react-table/") || id.includes("/@tanstack/")) return "vendor-table";
+            if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-")) return "vendor-charts";
             if (id.includes("/i18next") || id.includes("/react-i18next")) return "vendor-i18n";
             if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/react/")) return "vendor-react";
             if (

@@ -161,6 +161,7 @@ function normalizeQbittorrentTorrent(client, torrent) {
     down: formatSpeed(torrent.dlspeed),
     up: formatSpeed(torrent.upspeed),
     addedAt: torrent.added_on ? new Date(Number(torrent.added_on) * 1000).toISOString() : new Date().toISOString(),
+    hash: torrent.hash || null,
   };
 }
 
@@ -337,29 +338,36 @@ async function runIntegrationSyncTask() {
 
     const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("calendar_refreshed", {
-      integrationEvent: "calendar refreshed",
+      taskKey: "IntegrationSync",
+      taskName: "Integration Sync",
+      integrationEvent: "Calendar synced",
       releaseCount: releases.length,
       sourceCount: sources.length,
       failedSources,
-      message: `Integration sync refreshed ${releases.length} calendar releases.`,
+      message: `Calendar synced · ${releases.length} release${releases.length === 1 ? "" : "s"}.`,
     });
     if (connectedClients.length) {
       await webhookManager.triggerEventWebhooks("download_queue_refreshed", {
-        integrationEvent: "download queue refreshed",
+        taskKey: "IntegrationSync",
+        taskName: "Integration Sync",
+        integrationEvent: "Download queue synced",
         clientCount: clients.length,
         activeCount: syncedDownloadItems.filter((item) => Number(item.progress || 0) < 100).length,
-        message: "Integration sync refreshed download queues.",
+        message: "Download queue synced.",
       });
     }
     if (inviteIntegrations.length) {
       await webhookManager.triggerEventWebhooks("invite_links_refreshed", {
-        integrationEvent: "invite links refreshed",
+        taskKey: "IntegrationSync",
+        taskName: "Integration Sync",
+        integrationEvent: "Invites synced",
         sourceCount: inviteIntegrations.length,
         inviteCount: syncedInviteItems.length,
         activeCount: syncedInviteItems.filter((invite) => invite.status !== "used" && invite.status !== "expired").length,
-        message: `Integration sync refreshed ${syncedInviteItems.length} invite link${syncedInviteItems.length === 1 ? "" : "s"}.`,
+        message: `Invites synced · ${syncedInviteItems.length} link${syncedInviteItems.length === 1 ? "" : "s"}.`,
       });
     }
+    await webhookManager.flushCoalescedWebhooks();
 
     parentPort.postMessage({ status: "complete" });
   } catch (error) {

@@ -107,12 +107,15 @@ async function runInviteSyncTask() {
 
     const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("invite_links_refreshed", {
-      integrationEvent: "invite links refreshed",
+      taskKey: "InviteSync",
+      taskName: "Invite Sync",
+      integrationEvent: "Invites synced",
       sourceCount: sources.length,
       inviteCount: items.length,
       activeCount: items.filter((invite) => invite.status !== "used" && invite.status !== "expired").length,
-      message: `Invite sync refreshed ${items.length} invite link${items.length === 1 ? "" : "s"}.`,
+      message: `Invites synced · ${items.length} link${items.length === 1 ? "" : "s"}.`,
     });
+    await webhookManager.flushCoalescedWebhooks();
 
     parentPort.postMessage({ status: "complete" });
   } catch (error) {
