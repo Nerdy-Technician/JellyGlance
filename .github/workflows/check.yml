@@ -47,7 +47,7 @@ jobs:
         run: npm run build
 
       - name: Bundle budget
-        run: node scripts/check-bundle-budget.js
+        run: node scripts/check-bundle-budget.cjs
 
       - name: Build docs
         run: npm run build:docs

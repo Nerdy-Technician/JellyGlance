@@ -2,8 +2,8 @@
 /**
  * Compare Vite build output against apps/web/bundle-budget.json.
  * Usage:
- *   node scripts/check-bundle-budget.js          # verify (CI)
- *   node scripts/check-bundle-budget.js --update # refresh baseline from current build
+ *   node scripts/check-bundle-budget.cjs          # verify (CI)
+ *   node scripts/check-bundle-budget.cjs --update # refresh baseline from current build
  */
 const fs = require("fs");
 const path = require("path");
