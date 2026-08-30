@@ -43,12 +43,6 @@ jobs:
           app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
-      - name: Authenticate checkout for branch push
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          token: ${{ steps.bot.outputs.token }}
-
       - name: Read release file
         id: release
         run: |
@@ -182,26 +176,13 @@ jobs:
       - name: Build docs
         run: npm run build:docs
 
-      - name: Configure git identity for release commit
-        run: |
-          git config user.name "JellyGlance Release Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit and push release version bumps
-        env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
+      - name: Report build-local package version changes
         run: |
           git add package.json package-lock.json apps/*/package.json docs/package.json
           if git diff --cached --quiet; then
             echo "Package files already match ${{ steps.release.outputs.version }}"
           else
-            git commit -m "$(cat <<EOF
-          chore(release): v${{ steps.release.outputs.version }} [skip ci]
-
-          Release ${{ steps.release.outputs.tag }}
-          EOF
-          )"
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:${{ github.ref_name }}"
+            echo "::notice::Package files were updated locally for this release build only. Protected branches are not modified by the release workflow."
           fi
 
       - name: Setup QEMU
@@ -214,8 +195,11 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ steps.bot.outputs.app-slug || github.actor }}
-          password: ${{ steps.bot.outputs.token }}
+          # Repo-scoped App tokens often cannot write user GHCR packages even with
+          # Packages: write. GITHUB_TOKEN works because this package already grants
+          # Actions access to Nerdy-Technician/JellyGlance. Git push/tag still use the Release Bot.
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker metadata
         id: meta
@@ -240,12 +224,15 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Configure git identity for release tag
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
       - name: Create and push git tag
-        env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
         run: |
           git tag -a "${{ steps.release.outputs.tag }}" -m "${{ steps.release.outputs.title }}"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "${{ steps.release.outputs.tag }}"
+          git push origin "${{ steps.release.outputs.tag }}"
 
       - name: Create GitHub release
         env:
