@@ -1,4 +1,5 @@
 const tables = [
+  { value: "app_config", name: "App Config" },
   { value: "jf_libraries", name: "Libraries" },
   { value: "jf_library_items", name: "Library Items" },
   { value: "jf_library_seasons", name: "Seasons" },

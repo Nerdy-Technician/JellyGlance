@@ -12,100 +12,27 @@ import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SearchLineIcon from "remixicon-react/SearchLineIcon";
 import { Modal } from "react-bootstrap";
 import axios from "../lib/axios_instance";
+import { cachedGet, clearApiCache } from "../lib/api-cache";
 import "./css/integrations.css";
-
-function formatDate(value) {
-  if (!value) return "Unknown";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function getRequestAge(value) {
-  const createdAt = value ? new Date(value).getTime() : 0;
-  if (!createdAt) return { label: "Unknown age", level: "unknown", hours: 0 };
-
-  const hours = Math.max(0, Math.floor((Date.now() - createdAt) / 3600000));
-  if (hours >= 168) return { label: `${Math.floor(hours / 24)}d old`, level: "week", hours };
-  if (hours >= 24) return { label: `${Math.floor(hours / 24)}d old`, level: "day", hours };
-  if (hours >= 1) return { label: `${hours}h old`, level: "fresh", hours };
-  return { label: "New", level: "fresh", hours };
-}
+import RequestTimeline from "./requests/RequestTimeline";
+import RequestSkeleton from "./requests/RequestSkeleton";
+import {
+  formatDate,
+  formatPercentScore,
+  formatTenPointScore,
+  getCurrentRequestOwnerCandidates,
+  getInitials,
+  getRequestAge,
+  getRequesterAvatarUrl,
+  getRequesterName,
+  hasRatingValue,
+  isOwnRequest,
+  matchesPipelineFilter,
+  PIPELINE_FILTERS,
+} from "./requests/helpers";
 
 function brandIconUrl(slug, color = "FFFFFF") {
   return `https://cdn.simpleicons.org/${slug}/${color}`;
-}
-
-function formatPercentScore(value) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) return "";
-  return `${Math.round(score > 10 ? score : score * 10)}%`;
-}
-
-function formatTenPointScore(value) {
-  const score = Number(value);
-  if (!Number.isFinite(score)) return "";
-  return score > 10 ? (score / 10).toFixed(1) : score.toFixed(1);
-}
-
-function hasRatingValue(value) {
-  const score = Number(value);
-  return Number.isFinite(score) && score > 0;
-}
-
-function getRequesterName(request) {
-  return request?.requester?.name || request?.requestedBy || "Unknown user";
-}
-
-function normalizeOwnerValue(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function getCurrentRequestOwnerCandidates(config = {}) {
-  const auth = config.settings?.auth || {};
-  const jellyfinUser = auth.jellyfinUser || {};
-  return [
-    config.username,
-    auth.username,
-    auth.email,
-    jellyfinUser.id,
-    jellyfinUser.Id,
-    jellyfinUser.name,
-    jellyfinUser.Name,
-    jellyfinUser.username,
-    jellyfinUser.UserName,
-  ]
-    .map(normalizeOwnerValue)
-    .filter(Boolean);
-}
-
-function isOwnRequest(request, ownerCandidates = []) {
-  if (!ownerCandidates.length) return false;
-  const requester = request?.requester || {};
-  return [
-    request?.requestedBy,
-    requester.id,
-    requester.userId,
-    requester.jellyfinUserId,
-    requester.name,
-    requester.username,
-    requester.email,
-  ]
-    .map(normalizeOwnerValue)
-    .filter(Boolean)
-    .some((candidate) => ownerCandidates.includes(candidate));
-}
-
-function getInitials(value) {
-  return String(value || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "?";
 }
 
 function RequestFilterOptionAvatar({ option }) {
@@ -161,14 +88,6 @@ function RequestFilterDropdown({ label, value, options, onChange }) {
       ) : null}
     </div>
   );
-}
-
-function getRequesterAvatarUrl(request) {
-  const requester = request?.requester || {};
-  if (requester.jellyfinUserId) {
-    return `/proxy/Users/Images/Primary?id=${encodeURIComponent(requester.jellyfinUserId)}&fillWidth=96&quality=80`;
-  }
-  return requester.avatar && /^https?:\/\//i.test(requester.avatar) ? requester.avatar : "";
 }
 
 function RequesterIdentity({ request, compact = false }) {
@@ -263,12 +182,22 @@ export default function Requests() {
   const [requestOptionForms, setRequestOptionForms] = useState({});
   const [requestOptionsLoading, setRequestOptionsLoading] = useState({});
   const [statusFilter, setStatusFilter] = useState("All");
+  const [pipelineFilter, setPipelineFilter] = useState("all");
   const [requesterFilter, setRequesterFilter] = useState("all");
   const [sortMode, setSortMode] = useState("newest");
   const [queueView, setQueueView] = useState("cards");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [selectedRequestLoading, setSelectedRequestLoading] = useState(false);
   const [editingRequestId, setEditingRequestId] = useState("");
+  const [requestPreferences, setRequestPreferences] = useState({ is4k: false });
+  const [userRequestFolders, setUserRequestFolders] = useState({ movieRootFolder: "", tvRootFolder: "" });
+  const [pageSection, setPageSection] = useState("queue");
+  const [issues, setIssues] = useState([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
+  const [issueFilter, setIssueFilter] = useState("Open");
+  const [issueSearch, setIssueSearch] = useState("");
+  const [selectedIssue, setSelectedIssue] = useState(null);
+  const [issueComment, setIssueComment] = useState("");
   const currentConfig = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("config") || "{}");
@@ -287,9 +216,10 @@ export default function Requests() {
       if (canManageRequests && requesterFilter !== "all" && getRequesterName(request) !== requesterFilter) return false;
       const statusMatches = statusFilter === "All" || String(request.status).toLowerCase() === statusFilter.toLowerCase();
       if (!statusMatches) return false;
+      if (!matchesPipelineFilter(request, pipelineFilter)) return false;
       if (!normalizedSearch) return true;
 
-      return [request.title, request.requestedBy, request.source, request.mediaType, request.status, request.availability?.status]
+      return [request.title, request.requestedBy, request.source, request.mediaType, request.status, request.pipelineLabel, request.availability?.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedSearch));
     });
@@ -299,13 +229,14 @@ export default function Requests() {
       if (sortMode === "oldest") return new Date(first.createdAt || 0).getTime() - new Date(second.createdAt || 0).getTime();
       if (sortMode === "requester") return String(first.requestedBy || "").localeCompare(String(second.requestedBy || ""));
       if (sortMode === "status") return String(first.status || "").localeCompare(String(second.status || ""));
+      if (sortMode === "pipeline") return String(first.pipelineStatus || "").localeCompare(String(second.pipelineStatus || ""));
       if (sortMode === "availability") {
         return String(first.availability?.status || "").localeCompare(String(second.availability?.status || ""));
       }
       return new Date(second.createdAt || 0).getTime() - new Date(first.createdAt || 0).getTime();
     });
     return sorted;
-  }, [canManageRequests, currentOwnerCandidates, data.requests, mediaSearch, requesterFilter, sortMode, statusFilter]);
+  }, [canManageRequests, currentOwnerCandidates, data.requests, mediaSearch, pipelineFilter, requesterFilter, sortMode, statusFilter]);
 
   const statuses = useMemo(() => ["All", ...new Set((data.requests || []).map((request) => request.status).filter(Boolean))], [data.requests]);
   const sortOptions = useMemo(
@@ -314,10 +245,20 @@ export default function Requests() {
       { value: "oldest", label: "Oldest first" },
       { value: "requester", label: "Requester" },
       { value: "status", label: "Status" },
+      { value: "pipeline", label: "Pipeline stage" },
       { value: "availability", label: "Availability" },
     ],
     []
   );
+  const pipelineCounts = useMemo(() => {
+    const counts = Object.fromEntries(PIPELINE_FILTERS.map((filter) => [filter.id, 0]));
+    counts.all = (data.requests || []).length;
+    (data.requests || []).forEach((request) => {
+      const key = request.pipelineStatus || "requested";
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [data.requests]);
   const requesterOptions = useMemo(
     () => {
       const requesters = new Map();
@@ -340,14 +281,43 @@ export default function Requests() {
     [data.requests]
   );
   const seerrSources = data.sources || [];
+  const visibleIssues = useMemo(() => {
+    const normalizedSearch = issueSearch.trim().toLowerCase();
+    return (issues || []).filter((issue) => {
+      if (issueFilter !== "All" && String(issue.status) !== issueFilter) return false;
+      if (!normalizedSearch) return true;
+      return [issue.title, issue.createdBy, issue.issueType, issue.message, issue.source]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+    });
+  }, [issueFilter, issueSearch, issues]);
 
-  function getDefaultOptionForm(options) {
-    const preferredServer = options?.servers?.find((entry) => entry.server.isDefault && !entry.server.is4k) || options?.servers?.find((entry) => !entry.server.is4k) || options?.servers?.[0];
-    const preferredProfile = preferredServer?.profiles?.find((profile) => profile.id === preferredServer.server.activeProfileId) || preferredServer?.profiles?.[0];
+  function getDefaultOptionForm(options, mediaType) {
+    const overrideFolder = String(mediaType || "").toLowerCase() === "tv" ? userRequestFolders.tvRootFolder : userRequestFolders.movieRootFolder;
+    const overrideServerId = String(mediaType || "").toLowerCase() === "tv" ? userRequestFolders.tvServerId : userRequestFolders.movieServerId;
+    const preferredServer =
+      (overrideServerId != null &&
+        options?.servers?.find((entry) => String(entry.server.id) === String(overrideServerId))) ||
+      (requestPreferences.defaultServerId != null &&
+        options?.servers?.find((entry) => String(entry.server.id) === String(requestPreferences.defaultServerId))) ||
+      (requestPreferences.is4k
+        ? options?.servers?.find((entry) => entry.server.is4k)
+        : options?.servers?.find((entry) => entry.server.isDefault && !entry.server.is4k) || options?.servers?.find((entry) => !entry.server.is4k)) ||
+      options?.servers?.[0];
+    const preferredProfile =
+      (requestPreferences.defaultProfileId != null &&
+        preferredServer?.profiles?.find((profile) => String(profile.id) === String(requestPreferences.defaultProfileId))) ||
+      preferredServer?.profiles?.find((profile) => profile.id === preferredServer.server.activeProfileId) ||
+      preferredServer?.profiles?.[0];
     const preferredRoot =
+      (overrideFolder && preferredServer?.rootFolders?.find((folder) => folder.path === overrideFolder)) ||
+      (requestPreferences.defaultRootFolder &&
+        preferredServer?.rootFolders?.find((folder) => folder.path === requestPreferences.defaultRootFolder)) ||
       preferredServer?.rootFolders?.find((folder) => folder.path === preferredServer.server.activeDirectory) ||
       preferredServer?.rootFolders?.[0];
     const preferredLanguage =
+      (requestPreferences.defaultLanguageProfileId != null &&
+        preferredServer?.languageProfiles?.find((profile) => String(profile.id) === String(requestPreferences.defaultLanguageProfileId))) ||
       preferredServer?.languageProfiles?.find((profile) => profile.id === preferredServer.server.activeLanguageProfileId) ||
       preferredServer?.languageProfiles?.[0];
 
@@ -356,9 +326,36 @@ export default function Requests() {
       profileId: preferredProfile?.id ?? "",
       rootFolder: preferredRoot?.path || preferredServer?.server.activeDirectory || "",
       languageProfileId: preferredLanguage?.id ?? "",
-      tags: preferredServer?.server.activeTags || [],
-      is4k: Boolean(preferredServer?.server.is4k),
+      tags: Array.isArray(requestPreferences.defaultTags) && requestPreferences.defaultTags.length
+        ? requestPreferences.defaultTags
+        : preferredServer?.server.activeTags || [],
+      is4k: requestPreferences.is4k != null ? Boolean(requestPreferences.is4k) : Boolean(preferredServer?.server.is4k),
     };
+  }
+
+  async function loadRequestPreferences() {
+    try {
+      const response = await axios.get("/api/requests/preferences", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setRequestPreferences(response.data?.preferences || { is4k: false });
+      setUserRequestFolders(response.data?.userFolders || { movieRootFolder: "", tvRootFolder: "" });
+    } catch (error) {
+      console.log("Unable to load request preferences", error);
+    }
+  }
+
+  async function persistRequestPreferences(updates) {
+    try {
+      const response = await axios.put(
+        "/api/requests/preferences",
+        { ...requestPreferences, ...updates },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      setRequestPreferences(response.data?.preferences || { ...requestPreferences, ...updates });
+    } catch (error) {
+      console.log("Unable to save request preferences", error);
+    }
   }
 
   function getSelectedServer(result) {
@@ -400,12 +397,14 @@ export default function Requests() {
         `/api/requests/${encodeURIComponent(request.requestId)}/edit`,
         {
           sourceId: request.sourceId,
+          mediaType: request.mediaType,
           serverId: optionForm.serverId,
           profileId: optionForm.profileId,
           rootFolder: optionForm.rootFolder,
           languageProfileId: optionForm.languageProfileId,
           tags: optionForm.tags || [],
           is4k: optionForm.is4k,
+          seasons: (request.requestedSeasons || []).map((season) => season.seasonNumber).filter((season) => Number.isFinite(Number(season)) && Number(season) > 0),
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       );
@@ -487,16 +486,83 @@ export default function Requests() {
   async function loadRequests(force = false) {
     try {
       setLoading(true);
-      const response = await axios.get("/api/requests", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        params: force ? { force: "true" } : undefined,
-      });
+      const params = force ? { force: "true" } : undefined;
+      if (force) clearApiCache("/api/requests");
+      const response = await cachedGet(
+        axios,
+        "/api/requests",
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          params,
+        },
+        force ? 0 : 20000
+      );
       setData(response.data || { sources: [], requests: [], syncedAt: null });
       const badgeCount = Number(response.data?.stats?.badgeCount || 0);
       localStorage.setItem("jellyglance_request_badge_count", String(badgeCount));
       window.dispatchEvent(new CustomEvent("jellyglance-request-count", { detail: badgeCount }));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadIssues() {
+    if (!canManageRequests) return [];
+    try {
+      setIssuesLoading(true);
+      const response = await axios.get("/api/requests/issues", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const nextIssues = response.data?.issues || [];
+      setIssues(nextIssues);
+      if (response.data?.errors?.length) {
+        setActionMessage(response.data.errors.map((error) => `${error.source}: ${error.message}`).join(" · "));
+      }
+      return nextIssues;
+    } catch (error) {
+      setActionMessage(error.response?.data?.error || error.message || "Unable to load issues");
+      return [];
+    } finally {
+      setIssuesLoading(false);
+    }
+  }
+
+  function issueKey(issue) {
+    return `${issue.sourceId}-${issue.id}`;
+  }
+
+  function issueEpisodeLabel(issue) {
+    if (issue?.season == null || Number(issue.season) <= 0) return "";
+    const season = `S${String(issue.season).padStart(2, "0")}`;
+    if (issue.episode == null || Number(issue.episode) <= 0) return season;
+    return `${season}E${String(issue.episode).padStart(2, "0")}`;
+  }
+
+  async function runIssueAction(issue, action, event) {
+    event?.stopPropagation();
+    if (!issue?.id || !issue?.sourceId) return;
+    if (action === "delete" && !window.confirm("Delete this Seerr issue?")) return;
+
+    try {
+      setBusyAction(`${issueKey(issue)}-${action}`);
+      setActionMessage("");
+      await axios.post(
+        `/api/requests/issues/${encodeURIComponent(issue.id)}/actions`,
+        { sourceId: issue.sourceId, action, comment: action === "comment" ? issueComment : undefined },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      if (action === "comment") setIssueComment("");
+      setActionMessage(`${action.charAt(0).toUpperCase()}${action.slice(1)} sent to ${issue.source}.`);
+      const nextIssues = await loadIssues();
+      if (action === "delete") {
+        setSelectedIssue(null);
+      } else {
+        setSelectedIssue(nextIssues.find((item) => issueKey(item) === issueKey(issue)) || null);
+      }
+    } catch (error) {
+      setActionMessage(error.response?.data?.error || error.message || "Issue action failed");
+    } finally {
+      setBusyAction("");
     }
   }
 
@@ -598,7 +664,7 @@ export default function Requests() {
       setRequestOptions((current) => ({ ...current, [result.id]: options }));
       setRequestOptionForms((current) => ({
         ...current,
-        [result.id]: current[result.id] || getDefaultOptionForm(options),
+        [result.id]: current[result.id] || getDefaultOptionForm(options, result.mediaType),
       }));
     } catch (error) {
       setRequestOptions((current) => ({
@@ -617,7 +683,7 @@ export default function Requests() {
 
   function handleServerChange(result, serverId) {
     const selected = requestOptions[result.id]?.servers?.find((entry) => String(entry.server.id) === String(serverId));
-    const nextForm = getDefaultOptionForm({ servers: selected ? [selected] : [] });
+    const nextForm = getDefaultOptionForm({ servers: selected ? [selected] : [] }, result.mediaType);
     updateOptionForm(result, {
       ...nextForm,
       serverId,
@@ -668,7 +734,7 @@ export default function Requests() {
 
   async function runMediaSearch(force = false) {
     const query = mediaSearch.trim();
-    if (query.length < 2) {
+    if (pageSection !== "queue" || query.length < 2) {
       setMediaResults([]);
       setMediaSearchMessage("");
       return;
@@ -713,15 +779,24 @@ export default function Requests() {
   }
 
   useEffect(() => {
+    loadRequestPreferences();
     loadRequests();
     const intervalId = setInterval(loadRequests, 60000);
     return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
+    if (pageSection !== "issues" || !canManageRequests) return;
+    loadIssues();
+    const intervalId = setInterval(loadIssues, 60000);
+    return () => clearInterval(intervalId);
+  }, [pageSection, canManageRequests]);
+
+  useEffect(() => {
+    if (pageSection !== "queue") return;
     const searchTimer = setTimeout(runMediaSearch, 450);
     return () => clearTimeout(searchTimer);
-  }, [mediaSearch, mediaSourceId]);
+  }, [mediaSearch, mediaSourceId, pageSection]);
 
   const selectedRequestOptions = selectedRequest ? requestOptions[selectedRequest.id] : null;
   const selectedRequestServer = selectedRequest ? getSelectedServer(selectedRequest) : null;
@@ -735,18 +810,39 @@ export default function Requests() {
       <section className="requests-discovery">
         <div className="requests-discovery-head">
           <div>
-            <h2>Find or request media</h2>
-            <span>Search once to filter existing requests and request new media from Seerr results.</span>
+            <h2>{pageSection === "issues" ? "Seerr issues" : "Find or request media"}</h2>
+            <span>
+              {pageSection === "issues"
+                ? "Review, comment, resolve, or delete issue reports from Jellyseerr and Overseerr."
+                : "Search once to filter existing requests and request new media from Seerr results."}
+            </span>
           </div>
-          <div className="requests-view-toggle" role="group" aria-label="Request queue view">
-            <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title="Card view" aria-label="Card view">
-              <GridLineIcon size={18} />
-            </button>
-            <button type="button" className={queueView === "list" ? "is-active" : ""} aria-pressed={queueView === "list"} onClick={() => setQueueView("list")} title="List view" aria-label="List view">
-              <FileList3LineIcon size={18} />
-            </button>
+          <div className="requests-discovery-tools">
+            {canManageRequests ? (
+              <div className="requests-section-tabs" role="tablist" aria-label="Requests sections">
+                <button type="button" role="tab" aria-selected={pageSection === "queue"} className={pageSection === "queue" ? "is-active" : ""} onClick={() => setPageSection("queue")}>
+                  Queue
+                </button>
+                <button type="button" role="tab" aria-selected={pageSection === "issues"} className={pageSection === "issues" ? "is-active" : ""} onClick={() => setPageSection("issues")}>
+                  Issues
+                  {issues.filter((issue) => issue.status === "Open").length ? <em>{issues.filter((issue) => issue.status === "Open").length}</em> : null}
+                </button>
+              </div>
+            ) : null}
+            {pageSection === "queue" ? (
+              <div className="requests-view-toggle" role="group" aria-label="Request queue view">
+                <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title="Card view" aria-label="Card view">
+                  <GridLineIcon size={18} />
+                </button>
+                <button type="button" className={queueView === "list" ? "is-active" : ""} aria-pressed={queueView === "list"} onClick={() => setQueueView("list")} title="List view" aria-label="List view">
+                  <FileList3LineIcon size={18} />
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
+        {pageSection === "queue" ? (
+          <>
         <label className="requests-media-search">
           <SearchLineIcon size={18} />
           <input
@@ -772,6 +868,31 @@ export default function Requests() {
               {status}
             </button>
           ))}
+        </nav>
+        <nav className="requests-pipeline-strip" aria-label="Request pipeline filters">
+          {PIPELINE_FILTERS.map((filter) => (
+            <button
+              type="button"
+              key={filter.id}
+              className={pipelineFilter === filter.id ? "is-active" : ""}
+              onClick={() => setPipelineFilter(filter.id)}
+            >
+              {filter.label}
+              <em>{pipelineCounts[filter.id] || 0}</em>
+            </button>
+          ))}
+          <label className="requests-pref-4k">
+            <input
+              type="checkbox"
+              checked={Boolean(requestPreferences.is4k)}
+              onChange={(event) => {
+                const is4k = event.target.checked;
+                setRequestPreferences((current) => ({ ...current, is4k }));
+                persistRequestPreferences({ is4k });
+              }}
+            />
+            Prefer 4K by default
+          </label>
         </nav>
         {mediaSearchMessage ? <div className="requests-discovery-message">{mediaSearchMessage}</div> : null}
         {mediaResults.length ? (
@@ -811,7 +932,7 @@ export default function Requests() {
                       <ChatCheckFillIcon size={16} />
                       {requestLabel}
                     </button>
-                    {result.openUrl ? (
+                    {canManageRequests && result.openUrl ? (
                       <button
                         type="button"
                         title={`Open in ${result.source}`}
@@ -831,9 +952,33 @@ export default function Requests() {
         ) : mediaSearch.trim().length >= 2 && !mediaSearchLoading ? (
           <div className="requests-discovery-empty">No Seerr results found.</div>
         ) : null}
+          </>
+        ) : (
+          <>
+            <label className="requests-media-search">
+              <SearchLineIcon size={18} />
+              <input
+                type="search"
+                value={issueSearch}
+                onChange={(event) => setIssueSearch(event.target.value)}
+                placeholder="Search issues..."
+              />
+            </label>
+            <nav className="requests-filter-strip" aria-label="Issue status filters">
+              {["Open", "Resolved", "All"].map((status) => (
+                <button type="button" key={status} className={issueFilter === status ? "is-active" : ""} onClick={() => setIssueFilter(status)}>
+                  {status}
+                </button>
+              ))}
+              <strong>{visibleIssues.length} shown from {issues.length}</strong>
+            </nav>
+          </>
+        )}
       </section>
 
+      {pageSection === "queue" ? (
       <section className={`requests-board is-${queueView}`}>
+        {loading && !(data.requests || []).length ? <RequestSkeleton /> : null}
         {visibleRequests.map((request) => {
           const age = getRequestAge(request.createdAt);
           return (
@@ -862,13 +1007,15 @@ export default function Requests() {
               </div>
               <div className="requests-card-meta">
                 <div className="requests-card-status">
-                  <b>{request.status}</b>
+                  <b>{request.pipelineLabel || request.status}</b>
                 </div>
                 <div className={`requests-availability is-${String(request.availability?.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
                   <b>{request.availability?.status || "Unknown"}</b>
                 </div>
                 <span className={`requests-age-badge is-${age.level}`}>{age.label}</span>
+                {request.rootFolder ? <span className="requests-root-folder" title="Root folder">{request.rootFolder}</span> : null}
               </div>
+              <RequestTimeline request={request} />
               {request.genres?.length ? (
                 <div className="requests-card-tags">
                   {request.genres.slice(0, 4).map((genre) => (
@@ -905,7 +1052,7 @@ export default function Requests() {
                     <span>Edit</span>
                   </button>
                 ) : null}
-                {request.openUrl ? (
+                {canManageRequests && request.openUrl ? (
                   <button type="button" title={`Open in ${request.source}`} onClick={(event) => openSeerrRequest(request, event)}>
                     <ExternalLinkLineIcon size={16} />
                     <span>Open</span>
@@ -924,6 +1071,73 @@ export default function Requests() {
           </div>
         ) : null}
       </section>
+      ) : (
+      <section className="requests-board is-cards requests-issues-board">
+        {issuesLoading && !issues.length ? <RequestSkeleton /> : null}
+        {visibleIssues.map((issue) => (
+          <article
+            key={issueKey(issue)}
+            className={issue.status === "Resolved" ? "is-resolved" : ""}
+            role="button"
+            tabIndex={0}
+            onClick={() => { setSelectedIssue(issue); setIssueComment(""); }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                setSelectedIssue(issue);
+                setIssueComment("");
+              }
+            }}
+          >
+            <div className="requests-card-poster">
+              <RequestPoster request={issue} />
+            </div>
+            <div className="requests-card-title">
+              <div>
+                <strong>{issue.title}</strong>
+                <span>{issue.mediaType || "Media"}{issueEpisodeLabel(issue) ? ` · ${issueEpisodeLabel(issue)}` : ""}</span>
+              </div>
+            </div>
+            <div className="requests-card-meta">
+              <div className="requests-card-status">
+                <b>{issue.status}</b>
+              </div>
+              <div className="requests-availability">
+                <b>{issue.issueType}</b>
+              </div>
+            </div>
+            {issue.message ? <p className="requests-card-overview">{issue.message}</p> : null}
+            <div className="requests-card-footer">
+              <time>{formatDate(issue.createdAt)}</time>
+              <span>Reported by {issue.createdBy}</span>
+            </div>
+            <div className="requests-card-actions">
+              {issue.status === "Open" ? (
+                <button type="button" title="Resolve" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "resolve", event)}>
+                  <CheckboxCircleLineIcon size={16} />
+                  <span>Resolve</span>
+                </button>
+              ) : (
+                <button type="button" title="Reopen" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "reopen", event)}>
+                  <RefreshLineIcon size={16} />
+                  <span>Reopen</span>
+                </button>
+              )}
+              <button type="button" title="Delete" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "delete", event)}>
+                <CloseCircleLineIcon size={16} />
+                <span>Delete</span>
+              </button>
+            </div>
+          </article>
+        ))}
+        {!visibleIssues.length && !issuesLoading ? (
+          <div className="requests-empty-state">
+            <ErrorWarningLineIcon size={30} />
+            <strong>No issues found</strong>
+            <span>{issues.length ? "Try a different status filter." : "No Seerr issue reports yet."}</span>
+          </div>
+        ) : null}
+      </section>
+      )}
 
       <Modal show={Boolean(selectedRequest)} onHide={() => { setSelectedRequest(null); setEditingRequestId(""); }} centered size="xl" contentClassName="requests-modal">
         {selectedRequest ? (
@@ -989,6 +1203,8 @@ export default function Requests() {
                     {selectedRequest.userInterest?.watchlistedBy?.length ? <span className="is-interest">Watchlisted by {selectedRequest.userInterest.watchlistedBy.join(", ")}</span> : null}
                     {selectedRequest.userInterest?.favouritedBy?.length ? <span className="is-interest">Favourited by {selectedRequest.userInterest.favouritedBy.join(", ")}</span> : null}
                   </div>
+
+                  {!selectedRequest.isSearchResult ? <RequestTimeline request={selectedRequest} /> : null}
 
                   <div className="requests-detail-actions">
                     {!selectedRequest.isSearchResult && canManageRequests && selectedRequest.status === "Pending" ? (
@@ -1296,6 +1512,80 @@ export default function Requests() {
                       ))}
                     </div>
                   ) : null}
+                </div>
+              </div>
+            </Modal.Body>
+          </>
+        ) : null}
+      </Modal>
+      <Modal show={Boolean(selectedIssue)} onHide={() => setSelectedIssue(null)} centered size="lg" contentClassName="requests-modal">
+        {selectedIssue ? (
+          <>
+            <Modal.Body>
+              <button type="button" className="requests-modal-close" aria-label="Close" onClick={() => setSelectedIssue(null)}>
+                <CloseCircleLineIcon size={22} />
+              </button>
+              <div className="requests-detail">
+                <div className="requests-detail-art">
+                  <RequestPoster request={selectedIssue} large />
+                </div>
+                <div className="requests-detail-copy">
+                  <div className="requests-detail-heading">
+                    <span>{selectedIssue.issueType} issue</span>
+                    <div className="requests-detail-title-row">
+                      <h3>{selectedIssue.title}</h3>
+                    </div>
+                  </div>
+                  <div className="requests-detail-meta">
+                    <span className="is-type">{selectedIssue.mediaType || "Media"}</span>
+                    {issueEpisodeLabel(selectedIssue) ? <span className="is-fact">{issueEpisodeLabel(selectedIssue)}</span> : null}
+                    <span className={`is-status is-${String(selectedIssue.status).toLowerCase()}`}>{selectedIssue.status}</span>
+                    <span className="is-fact">Reported by {selectedIssue.createdBy}</span>
+                  </div>
+                  <div className="requests-detail-actions">
+                    {selectedIssue.status === "Open" ? (
+                      <button type="button" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(selectedIssue, "resolve", event)}>
+                        <CheckboxCircleLineIcon size={17} />
+                        Resolve
+                      </button>
+                    ) : (
+                      <button type="button" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(selectedIssue, "reopen", event)}>
+                        <RefreshLineIcon size={17} />
+                        Reopen
+                      </button>
+                    )}
+                    <button type="button" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(selectedIssue, "delete", event)}>
+                      <CloseCircleLineIcon size={17} />
+                      Delete
+                    </button>
+                    {canManageRequests && selectedIssue.openUrl ? (
+                      <button type="button" onClick={(event) => openSeerrRequest(selectedIssue, event)}>
+                        <ExternalLinkLineIcon size={17} />
+                        Open in {selectedIssue.source}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="requests-issue-comments">
+                    <strong>Comments</strong>
+                    {selectedIssue.comments?.length ? (
+                      selectedIssue.comments.map((comment) => (
+                        <p key={comment.id || comment.createdAt}>
+                          <b>{comment.user || "User"}</b>
+                          <span>{comment.message}</span>
+                          {comment.createdAt ? <time>{formatDate(comment.createdAt)}</time> : null}
+                        </p>
+                      ))
+                    ) : (
+                      <span>No comments yet.</span>
+                    )}
+                    <label>
+                      <span>Add a comment</span>
+                      <textarea value={issueComment} onChange={(event) => setIssueComment(event.target.value)} rows={3} placeholder="Reply in Seerr..." />
+                    </label>
+                    <button type="button" disabled={Boolean(busyAction) || !issueComment.trim()} onClick={(event) => runIssueAction(selectedIssue, "comment", event)}>
+                      Send comment
+                    </button>
+                  </div>
                 </div>
               </div>
             </Modal.Body>

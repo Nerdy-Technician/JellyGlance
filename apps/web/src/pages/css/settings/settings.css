@@ -1995,6 +1995,12 @@
   align-items: start;
 }
 
+.newsletter-campaign-sidebar {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
 .newsletter-form,
 .newsletter-preview-column {
   display: grid;

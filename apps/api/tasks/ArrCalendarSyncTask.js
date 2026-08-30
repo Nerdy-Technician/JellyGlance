@@ -149,13 +149,16 @@ async function runArrCalendarSyncTask() {
 
     const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("calendar_refreshed", {
-      integrationEvent: "calendar refreshed",
+      taskKey: "ArrCalendarSync",
+      taskName: "Arr Calendar Sync",
+      integrationEvent: "Calendar synced",
       source: "Arr apps",
       releaseCount: releases.length,
       sourceCount: sources.length,
       failedSources,
-      message: `Arr calendar sync completed with ${releases.length} releases.`,
+      message: `Calendar synced · ${releases.length} release${releases.length === 1 ? "" : "s"}.`,
     });
+    await webhookManager.flushCoalescedWebhooks();
     parentPort.postMessage({ status: "complete" });
   } catch (error) {
     parentPort.postMessage({ status: "error", message: error.message });

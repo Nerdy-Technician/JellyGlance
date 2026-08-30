@@ -1762,7 +1762,9 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 100%;
+  min-height: 0;
+  align-content: start;
+  align-items: stretch;
   padding: 10px;
   color: #f8fafc;
   overflow-x: hidden;
@@ -2692,6 +2694,123 @@
   color: #fff;
 }
 
+.requests-discovery-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.requests-section-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.22);
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.requests-section-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #aebbd0;
+  font-weight: 900;
+}
+
+.requests-section-tabs button.is-active {
+  background:
+    linear-gradient(180deg, rgba(var(--primary-light-rgb), 0.26), rgba(var(--primary-rgb), 0.28)),
+    rgba(var(--primary-rgb), 0.18);
+  color: #fff;
+}
+
+.requests-section-tabs em {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.22);
+  color: #fecaca;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 18px;
+  text-align: center;
+}
+
+.requests-filter-strip > strong {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  margin-left: auto;
+  color: #f8d6ff;
+  font-weight: 900;
+}
+
+.requests-issues-board article.is-resolved {
+  opacity: 0.72;
+}
+
+.requests-issue-comments {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.requests-issue-comments strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.requests-issue-comments p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.16);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.requests-issue-comments p b,
+.requests-issue-comments p span {
+  color: #e2e8f0;
+}
+
+.requests-issue-comments p time {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.requests-issue-comments label {
+  display: grid;
+  gap: 6px;
+}
+
+.requests-issue-comments textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  resize: vertical;
+}
+
+.requests-issue-comments > button {
+  justify-self: start;
+}
+
 .requests-board {
   display: grid;
   grid-template-columns: 1fr;
@@ -2904,6 +3023,18 @@
   border-color: rgba(248, 113, 113, 0.34);
   background: rgba(127, 29, 29, 0.2);
   color: #fecaca !important;
+}
+
+.requests-root-folder {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .requests-card-status,
@@ -3150,10 +3281,10 @@
 .requests-empty-state {
   display: grid;
   grid-column: 1 / -1;
-  min-height: 180px;
+  min-height: 120px;
   place-items: center;
   gap: 6px;
-  padding: 24px;
+  padding: 20px 16px;
   color: #aebbd0;
   text-align: center;
 }
@@ -5653,7 +5784,8 @@
     "message"
     "discover"
     "board";
-  align-items: start;
+  align-content: start;
+  align-items: stretch;
   gap: 16px;
   padding: 18px;
   background:
@@ -5863,4 +5995,134 @@
   .requests-board.is-cards .requests-card-poster {
     width: 96px;
   }
+}
+
+.requests-pipeline-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 4px;
+}
+
+.requests-pipeline-strip button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.2);
+  border-radius: 999px;
+  background: rgba(8, 12, 20, 0.72);
+  color: #c7d3e6;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.requests-pipeline-strip button em {
+  font-style: normal;
+  opacity: 0.7;
+}
+
+.requests-pipeline-strip button.is-active {
+  border-color: rgba(var(--primary-light-rgb), 0.55);
+  background: rgba(var(--primary-rgb), 0.28);
+  color: #fff;
+}
+
+.requests-pref-4k {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: #9fb0c7;
+  font-size: 12px;
+}
+
+.requests-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  grid-column: 2 / -1;
+}
+
+.requests-timeline li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #7f90a8;
+  font-size: 11px;
+}
+
+.requests-timeline li.is-complete,
+.requests-timeline li.is-current {
+  color: #d7e4f7;
+}
+
+.requests-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b4a60;
+}
+
+.requests-timeline li.is-complete .requests-timeline-dot {
+  background: #34d399;
+}
+
+.requests-timeline li.is-current .requests-timeline-dot {
+  background: var(--primary-light-color, #6ee7f9);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
+}
+
+.requests-skeleton-board {
+  pointer-events: none;
+}
+
+.requests-skeleton-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  min-height: 140px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 14, 22, 0.7);
+}
+
+.requests-skeleton-poster,
+.requests-skeleton-lines span {
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: requests-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.requests-skeleton-poster {
+  aspect-ratio: 2 / 3;
+}
+
+.requests-skeleton-lines {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+}
+
+.requests-skeleton-lines span {
+  height: 12px;
+  width: 100%;
+}
+
+.requests-skeleton-lines span:nth-child(2) {
+  width: 70%;
+}
+
+.requests-skeleton-lines span:nth-child(3) {
+  width: 45%;
+}
+
+@keyframes requests-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }

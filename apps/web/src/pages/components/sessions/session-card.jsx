@@ -70,11 +70,11 @@ function SessionDetailItem({ label, value, wide = false }) {
   );
 }
 
-function SessionCardDetailRow({ label, children, className = "" }) {
+function SessionCardDetailRow({ label, children, className = "", short = false }) {
   return (
     <div className={`session-details-row ${className}`.trim()}>
       <span className="session-details-title text-end text-uppercase">{label}</span>
-      <div className="ellipse session-details-value">{children}</div>
+      <div className={`ellipse session-details-value${short ? " session-details-value-short" : ""}`}>{children}</div>
     </div>
   );
 }
@@ -343,92 +343,44 @@ function SessionCard(props) {
                         </Tooltip>
                     </SessionCardDetailRow>
                     {props.data.session.NowPlayingItem.ContainerStream !== "" && (
-                      <SessionCardDetailRow label={<Trans i18nKey="CONTAINER" />} className="mt-2">
+                      <SessionCardDetailRow label={<Trans i18nKey="CONTAINER" />} className="mt-2" short>
                           <Tooltip title={props.data.session.NowPlayingItem.ContainerStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.ContainerStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.ContainerStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.VideoStream !== "" && (
-                      <SessionCardDetailRow label={<Trans i18nKey="VIDEO" />}>
+                      <SessionCardDetailRow label={<Trans i18nKey="VIDEO" />} short>
                           <Tooltip title={props.data.session.NowPlayingItem.VideoStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.VideoStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.VideoStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.VideoBitrateStream !== "" && (
-                      <SessionCardDetailRow label="">
+                      <SessionCardDetailRow label="" short>
                           <Tooltip title={props.data.session.NowPlayingItem.VideoBitrateStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.VideoBitrateStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.VideoBitrateStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.AudioStream !== "" && (
-                      <SessionCardDetailRow label={<Trans i18nKey="AUDIO" />}>
+                      <SessionCardDetailRow label={<Trans i18nKey="AUDIO" />} short>
                           <Tooltip title={props.data.session.NowPlayingItem.AudioStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.AudioStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.AudioStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.AudioBitrateStream !== "" && (
-                      <SessionCardDetailRow label="">
+                      <SessionCardDetailRow label="" short>
                           <Tooltip title={props.data.session.NowPlayingItem.AudioBitrateStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.AudioBitrateStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.AudioBitrateStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}
                     {props.data.session.NowPlayingItem.SubtitleStream !== "" && (
-                      <SessionCardDetailRow label={<Trans i18nKey="SUBTITLES" />}>
+                      <SessionCardDetailRow label={<Trans i18nKey="SUBTITLES" />} short>
                           <Tooltip title={props.data.session.NowPlayingItem.SubtitleStream}>
-                            <span
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                WebkitLineClamp: 1,
-                              }}
-                            >
-                              {props.data.session.NowPlayingItem.SubtitleStream}
-                            </span>
+                            <span>{props.data.session.NowPlayingItem.SubtitleStream}</span>
                           </Tooltip>
                       </SessionCardDetailRow>
                     )}

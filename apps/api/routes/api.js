@@ -32,8 +32,16 @@ const {
 } = require("../classes/integration-store");
 
 const dayjs = require("dayjs");
+const {
+  router: requestsExtrasRouter,
+  enrichRequest,
+  enrichRequestPayload,
+} = require("./requests");
+const { fetchSeerrIssues, runSeerrIssueAction } = require("../classes/seerr-issues");
+const { addDownload, deleteDownload, setDownloadPaused } = require("../classes/download-client");
 
 const router = express.Router();
+router.use(requestsExtrasRouter);
 const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
 const REQUEST_CACHE_TTL_MS = 45000;
 const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -2856,6 +2864,12 @@ async function normalizeSeerrRequest(item, source, options = {}) {
       imdbId: media.imdbId || mediaDetails.imdbId || mediaDetails.imdb_id || null,
     },
     mediaId: media.id || media.mediaId || item.mediaId || null,
+    serverId: item.serverId ?? null,
+    profileId: item.profileId ?? null,
+    rootFolder: item.rootFolder || "",
+    languageProfileId: item.languageProfileId ?? null,
+    is4k: Boolean(item.is4k),
+    tags: Array.isArray(item.tags) ? item.tags : [],
   };
 
   normalized.openUrl = buildSeerrOpenUrl(source, normalized);
@@ -2970,6 +2984,7 @@ async function buildSeerrRequests(options = {}) {
   const integrations = await getIntegrations();
   const seerrApps = (integrations.arrApps || []).filter((integration) => integration.connected && isSeerrIntegration(integration));
   const results = [];
+  const { repairSeerrRequestFolders } = require("../classes/request-provider");
 
   for (const app of seerrApps) {
     const url = cleanIntegrationUrl(app.values?.url);
@@ -2978,11 +2993,18 @@ async function buildSeerrRequests(options = {}) {
 
     try {
       const response = await axios.get(`${url}/api/v1/request`, {
-        timeout: 10000,
+        timeout: 15000,
         headers: { "X-Api-Key": apiKey },
-        params: { take: 50, skip: 0 },
+        params: { take: 100, skip: 0, filter: "all", sort: "added" },
       });
       const requests = Array.isArray(response.data?.results) ? response.data.results : Array.isArray(response.data) ? response.data : [];
+      if (!options.skipFolderRepair && !options.lightweight) {
+        try {
+          await repairSeerrRequestFolders(app, requests);
+        } catch (error) {
+          console.log(`[REQUESTS] Folder repair skipped for ${app.name}:`, error.message || error);
+        }
+      }
       results.push(...(await Promise.all(requests.map((item) => normalizeSeerrRequest(item, app, options)))));
     } catch (error) {
       results.push({
@@ -3181,6 +3203,20 @@ async function runSeerrRequestAction({ requestId, sourceId, action }) {
     throw error;
   }
 
+  if (action === "approve" || action === "retry") {
+    try {
+      const { applyStoredFolderOverrideToRequest } = require("../classes/request-provider");
+      await applyStoredFolderOverrideToRequest({
+        requestId,
+        sourceId,
+        updateRequest: updateSeerrRequest,
+        fetchRequest: fetchSeerrRequestDetail,
+      });
+    } catch (error) {
+      console.log(`[REQUESTS] Folder override before ${action} failed:`, error.message || error);
+    }
+  }
+
   const url = cleanIntegrationUrl(app.values?.url);
   const apiKey = app.values?.secret;
   const actionPaths = {
@@ -3210,7 +3246,7 @@ async function runSeerrRequestAction({ requestId, sourceId, action }) {
   throw error;
 }
 
-async function updateSeerrRequest({ requestId, sourceId, serverId, profileId, rootFolder, languageProfileId, tags, is4k }) {
+async function updateSeerrRequest({ requestId, sourceId, serverId, profileId, rootFolder, languageProfileId, tags, is4k, mediaType, seasons }) {
   const integrations = await getIntegrations();
   const app = (integrations.arrApps || []).find((integration) => integration.instanceId === sourceId && isSeerrIntegration(integration));
   if (!app) {
@@ -3222,15 +3258,28 @@ async function updateSeerrRequest({ requestId, sourceId, serverId, profileId, ro
   const url = cleanIntegrationUrl(app.values?.url);
   const apiKey = app.values?.secret;
   const payload = {};
+  const normalizedType = String(mediaType || "").toLowerCase();
 
+  if (normalizedType) payload.mediaType = normalizedType;
   if (serverId !== undefined && serverId !== "") payload.serverId = Number(serverId);
   if (profileId !== undefined && profileId !== "") payload.profileId = Number(profileId);
   if (rootFolder) payload.rootFolder = rootFolder;
   if (languageProfileId !== undefined && languageProfileId !== "") payload.languageProfileId = Number(languageProfileId);
   if (Array.isArray(tags)) payload.tags = tags.map(Number).filter((tag) => Number.isFinite(tag));
   if (is4k !== undefined) payload.is4k = Boolean(is4k);
+  if (normalizedType === "tv") {
+    const seasonNumbers = Array.isArray(seasons)
+      ? seasons.map((season) => (typeof season === "number" ? season : Number(season?.seasonNumber))).filter((season) => Number.isFinite(season) && season > 0)
+      : [];
+    if (!seasonNumbers.length) {
+      const error = new Error("TV request updates require seasons");
+      error.statusCode = 400;
+      throw error;
+    }
+    payload.seasons = seasonNumbers;
+  }
 
-  if (!Object.keys(payload).length) {
+  if (!Object.keys(payload).length || (Object.keys(payload).length === 1 && payload.mediaType)) {
     const error = new Error("No request changes were provided");
     error.statusCode = 400;
     throw error;
@@ -4053,13 +4102,10 @@ async function purgeLibraryItems(id, withActivity, purgeAll = false) {
       text: `DELETE FROM jf_playback_activity WHERE${
         episodeIds.length > 0 ? ` "EpisodeId" IN (${pgp.as.csv(episodeIds)})  OR` : ""
       }${seasonIds.length > 0 ? ` "SeasonId" IN (${pgp.as.csv(seasonIds)}) OR` : ""} "NowPlayingItemId"='${id}'`,
-      refreshViews: true,
     };
     await db.query(deleteQuery);
   }
-  for (const view of db.materializedViews) {
-    await db.refreshMaterializedView(view);
-  }
+  await db.flushMaterializedViewRefreshes();
 }
 
 //////////////////////////////
@@ -4085,7 +4131,10 @@ router.get("/home/operations", async (req, res) => {
     ]);
 
     res.send({
-      requests: requestsResult.status === "fulfilled" ? requestsResult.value : null,
+      requests:
+        requestsResult.status === "fulfilled"
+          ? enrichRequestPayload(filterSeerrRequestsForUser(requestsResult.value, req.user))
+          : null,
       health: healthResult.status === "fulfilled" ? healthResult.value : null,
       maintainerr: maintainerrResult.status === "fulfilled" ? maintainerrResult.value : null,
     });
@@ -4110,10 +4159,27 @@ router.get("/requests", async (req, res) => {
       force: req.query?.force === "true",
       includeInterest: req.query?.includeInterest === "true",
     });
-    res.send(filterSeerrRequestsForUser(data, req.user));
+    res.send(enrichRequestPayload(filterSeerrRequestsForUser(data, req.user)));
   } catch (error) {
     console.error("Get Seerr requests failed:", error);
     res.status(503).send({ error: "Unable to load requests" });
+  }
+});
+
+router.get("/requests/home", async (req, res) => {
+  try {
+    const data = await fetchSeerrRequests({ lightweight: true, force: req.query?.force === "true" });
+    const filtered = enrichRequestPayload(filterSeerrRequestsForUser(data, req.user));
+    res.send({
+      stats: filtered.stats,
+      pipeline: filtered.pipeline,
+      recent: (filtered.requests || []).slice(0, 8),
+      syncedAt: filtered.syncedAt,
+      sources: filtered.sources,
+    });
+  } catch (error) {
+    console.error("Get request home summary failed:", error);
+    res.status(503).send({ error: "Unable to load request home summary" });
   }
 });
 
@@ -4170,13 +4236,39 @@ router.get("/automation-health", async (req, res) => {
   }
 });
 
+router.get("/requests/issues", async (req, res) => {
+  try {
+    res.send(await fetchSeerrIssues());
+  } catch (error) {
+    console.error("Get Seerr issues failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to load issues" });
+  }
+});
+
+router.post("/requests/issues/:issueId/actions", async (req, res) => {
+  try {
+    const result = await runSeerrIssueAction({
+      issueId: req.params.issueId,
+      sourceId: req.body?.sourceId,
+      action: req.body?.action,
+      comment: req.body?.comment,
+    });
+    res.send(result);
+  } catch (error) {
+    console.error("Seerr issue action failed:", error);
+    res.status(error.statusCode || error.response?.status || 503).send({
+      error: getAxiosErrorMessage(error) || error.message || "Unable to update issue",
+    });
+  }
+});
+
 router.get("/requests/:requestId/detail", async (req, res) => {
   try {
     const request = await fetchSeerrRequestDetail({ requestId: req.params.requestId, sourceId: req.query?.sourceId });
     if (!canViewAllRequests(req.user) && !isUserRequestOwner(request, getRequestOwnerCandidates(req.user))) {
       return res.status(404).send({ error: "Request not found" });
     }
-    res.send(request);
+    res.send(enrichRequest(request));
   } catch (error) {
     console.error("Seerr request detail failed:", error);
     res.status(error.statusCode || 503).send({ error: error.message || "Unable to load request detail" });
@@ -4185,18 +4277,26 @@ router.get("/requests/:requestId/detail", async (req, res) => {
 
 router.post("/requests/media", async (req, res) => {
   try {
+    const { getRequestPreferences, getUserRequestFolders, applyUserFolderOverride } = require("../classes/request-provider");
+    const preferences = await getRequestPreferences();
+    const userFolders = await getUserRequestFolders(req.user);
+    const override = applyUserFolderOverride(userFolders, req.body?.mediaType, {
+      sourceId: req.body?.sourceId,
+      serverId: req.body?.serverId ?? preferences.defaultServerId,
+      rootFolder: req.body?.rootFolder ?? preferences.defaultRootFolder,
+    });
     res.send(
       await createSeerrMediaRequest({
-        sourceId: req.body?.sourceId,
+        sourceId: override.sourceId,
         mediaType: req.body?.mediaType,
         mediaId: req.body?.mediaId,
         seasons: req.body?.seasons,
-        serverId: req.body?.serverId,
-        profileId: req.body?.profileId,
-        rootFolder: req.body?.rootFolder,
-        languageProfileId: req.body?.languageProfileId,
-        tags: req.body?.tags,
-        is4k: req.body?.is4k,
+        serverId: override.serverId,
+        profileId: req.body?.profileId ?? preferences.defaultProfileId,
+        rootFolder: override.rootFolder,
+        languageProfileId: req.body?.languageProfileId ?? preferences.defaultLanguageProfileId,
+        tags: req.body?.tags ?? preferences.defaultTags,
+        is4k: req.body?.is4k ?? preferences.is4k,
       })
     );
   } catch (error) {
@@ -4231,6 +4331,8 @@ router.put("/requests/:requestId/edit", async (req, res) => {
       languageProfileId: req.body?.languageProfileId,
       tags: req.body?.tags,
       is4k: req.body?.is4k,
+      mediaType: req.body?.mediaType,
+      seasons: req.body?.seasons,
     });
     clearRequestCache();
     res.send(result);
@@ -5814,15 +5916,12 @@ router.delete("/item/purge", async (req, res) => {
           }${
             seasons.length > 0 ? ` "SeasonId" IN (${pgp.as.csv(seasons.map((item) => item.SeasonId))}) OR` : ""
           } "NowPlayingItemId"='${id}'`,
-          refreshViews: true,
         };
         await db.query(deleteQuery);
       }
     }
 
-    for (const view of db.materializedViews) {
-      await db.refreshMaterializedView(view);
-    }
+    await db.flushMaterializedViewRefreshes();
 
     sendUpdate("GeneralAlert", {
       type: "Success",
@@ -5916,6 +6015,12 @@ router.post("/setExcludedBackupTable", async (req, res) => {
   if (table === undefined || tables.map((item) => item.value).indexOf(table) === -1) {
     res.status(400);
     res.send("Invalid table provided");
+    return;
+  }
+
+  if (table === "app_config") {
+    res.status(400);
+    res.send("App Config must stay included so auth settings are backed up");
     return;
   }
 
@@ -6946,10 +7051,10 @@ router.get("/integrations/downloads", async (req, res) => {
 });
 
 router.post("/downloads/add", async (req, res) => {
-  const { client, value, fileName } = req.body || {};
+  const { client, instanceId, value, fileName } = req.body || {};
   const downloadName = fileName || value?.trim();
 
-  if (!client) {
+  if (!client && !instanceId) {
     return res.status(400).send({ error: "Download client is required" });
   }
 
@@ -6960,47 +7065,45 @@ router.post("/downloads/add", async (req, res) => {
   const isMagnet = typeof value === "string" && value.trim().startsWith("magnet:");
   const isTorrentUrl = typeof value === "string" && /^https?:\/\/.+\.torrent(\?.*)?$/i.test(value.trim());
 
-  if (!fileName && !isMagnet && !isTorrentUrl) {
-    return res.status(400).send({ error: "Use a magnet link, a .torrent URL, or upload a .torrent file" });
+  if (!isMagnet && !isTorrentUrl) {
+    return res.status(400).send({ error: "Use a magnet link or a .torrent URL. File upload is not sent to the client yet." });
   }
 
   try {
-    const integrationData = await getIntegrationData();
-    const nextItem = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name: downloadName,
-      client,
-      source: "Other",
-      state: "Queued",
-      progress: 0,
-      size: "Queued",
-      down: "0 B/s",
-      up: "0 B/s",
-      addedAt: new Date().toISOString(),
-    };
-
-    await saveIntegrationData({
-      downloads: {
-        ...integrationData.downloads,
-        items: [nextItem, ...(integrationData.downloads.items || [])],
-        syncedAt: new Date().toISOString(),
-      },
-    });
+    await addDownload({ instanceId, client, value });
 
     const webhookManager = new WebhookManager();
     await webhookManager.triggerEventWebhooks("download_added", {
       integrationEvent: "download added",
       client,
       downloadName,
-      sourceType: fileName ? "torrent_file" : isMagnet ? "magnet" : "torrent_url",
+      sourceType: isMagnet ? "magnet" : "torrent_url",
       message: `${downloadName} queued for ${client}.`,
     });
 
     sendUpdate("GeneralAlert", { type: "Success", message: `${downloadName} queued for ${client}` });
-    return res.send({ ok: true, downloadName, item: nextItem });
+    return res.send({ ok: true, downloadName });
   } catch (error) {
     console.error("Download add event failed:", error);
-    return res.status(500).send({ error: "Unable to queue download event" });
+    return res.status(error.statusCode || 500).send({ error: error.message || "Unable to queue download" });
+  }
+});
+
+router.post("/downloads/remove", async (req, res) => {
+  try {
+    res.send(await deleteDownload(req.body?.id, { deleteFiles: Boolean(req.body?.deleteFiles) }));
+  } catch (error) {
+    console.error("Download remove failed:", error);
+    res.status(error.statusCode || 500).send({ error: error.message || "Unable to remove download" });
+  }
+});
+
+router.post("/downloads/pause", async (req, res) => {
+  try {
+    res.send(await setDownloadPaused(req.body?.id, Boolean(req.body?.paused)));
+  } catch (error) {
+    console.error("Download pause failed:", error);
+    res.status(error.statusCode || 500).send({ error: error.message || "Unable to update download" });
   }
 });
 
@@ -7170,6 +7273,43 @@ router.get("/startTask", async (req, res) => {
   taskManager.startTask(taskConfig, triggertype.Manual);
   sendUpdate("GeneralAlert", { type: "Start", message: `${taskConfig.name} started`, triggerType: triggertype.Manual, taskName: taskConfig.name });
   res.send(`${taskConfig.name} started`);
+});
+
+router.get("/newsletter/my-subscriptions", async (req, res) => {
+  try {
+    const newsletterCampaigns = require("../classes/newsletter-campaigns");
+    const userId = req.user?.id || req.user?.username || req.user?.email;
+    if (!userId) return res.status(401).send({ error: "Unauthorized" });
+    const [subscribable, subscriptions] = await Promise.all([
+      newsletterCampaigns.listCampaigns({ includePersonal: true }),
+      newsletterCampaigns.getSubscriptionsForUser(String(userId)),
+    ]);
+    res.send({
+      campaigns: subscribable.filter((campaign) => campaign.type === "global" || campaign.type === "personal" || campaign.enabled),
+      subscriptions,
+    });
+  } catch (error) {
+    console.error("Load newsletter subscriptions failed:", error);
+    res.status(503).send({ error: "Unable to load newsletter subscriptions" });
+  }
+});
+
+router.put("/newsletter/my-subscriptions", async (req, res) => {
+  try {
+    const newsletterCampaigns = require("../classes/newsletter-campaigns");
+    const userId = req.user?.id || req.user?.username || req.user?.email;
+    if (!userId) return res.status(401).send({ error: "Unauthorized" });
+    const subscriptions = await newsletterCampaigns.upsertSubscription({
+      userId: String(userId),
+      campaignId: req.body?.campaignId,
+      optedIn: req.body?.optedIn !== false,
+      extraRecipients: Array.isArray(req.body?.extraRecipients) ? req.body.extraRecipients : [],
+    });
+    res.send({ subscriptions });
+  } catch (error) {
+    console.error("Save newsletter subscription failed:", error);
+    res.status(503).send({ error: "Unable to save newsletter subscription" });
+  }
 });
 
 // Handle other routes

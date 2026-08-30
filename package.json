@@ -44,6 +44,8 @@
     "i18n:check": "node scripts/i18n-sync.mjs --check",
     "i18n:sync": "node scripts/i18n-sync.mjs",
     "lint": "npm run lint -w @jellyglance/web",
+    "bundle:budget": "node scripts/check-bundle-budget.cjs",
+    "bundle:budget:update": "npm run build && node scripts/check-bundle-budget.cjs --update",
     "start": "npm run start -w @jellyglance/api",
     "release": "semantic-release"
   },

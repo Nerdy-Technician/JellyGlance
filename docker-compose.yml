@@ -30,6 +30,14 @@ services:
       TZ: Europe/London
       CONFIG_DIR: /app/config
       BACKUP_DIR: /app/backups
+      # Optional first-run bootstrap (uncomment to skip the setup wizard):
+      # JF_HOST: https://jellyfin.example.com
+      # JF_API_KEY: your-jellyfin-api-key
+      # JS_AUTH_MODE: local
+      # JS_USER: admin
+      # JS_PASSWORD: choose-a-strong-password
+      # JS_SKIP_FIRST_RUN: "true"
+      # JS_AUTO_START_SYNC: "true"
     volumes:
       - ./config:/app/config
       - ./backups:/app/backups

@@ -162,8 +162,8 @@ function BackupPage() {
       await axios.post("/backup/upload", formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
         },
+        timeout: 0,
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             setUploadProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));

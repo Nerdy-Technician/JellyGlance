@@ -62,6 +62,10 @@ class TaskScheduler {
         Interval: 60,
         ...TaskList.IntegrationHealthCheck,
       },
+      NewsletterCampaigns: {
+        Interval: 60,
+        ...TaskList.NewsletterCampaigns,
+      },
     };
 
     // Initialize tasks with default intervals

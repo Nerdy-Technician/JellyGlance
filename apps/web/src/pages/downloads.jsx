@@ -32,6 +32,11 @@ function friendlyTorrentName(value, file) {
   return trimmed.split("/").pop() || "Torrent download";
 }
 
+function isDownloadPaused(download) {
+  const state = String(download?.state || "").toLowerCase();
+  return state.includes("paus") || state.includes("stopp") || state === "paused" || state === "stopped";
+}
+
 export default function Downloads() {
   const fileInputRef = useRef(null);
   const [integrations, setIntegrations] = useState(loadSavedIntegrations({ clients: [] }));
@@ -43,6 +48,7 @@ export default function Downloads() {
   const [downloads, setDownloads] = useState([]);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busyDownloadId, setBusyDownloadId] = useState("");
 
   const selectedClient = usableClients.find((client) => client.instanceId === selectedClientId) || usableClients[0];
   const clientByName = useMemo(() => {
@@ -104,14 +110,17 @@ export default function Downloads() {
       return;
     }
 
-    if (!torrentValue.trim() && !torrentFile) return;
+    if (!torrentValue.trim()) {
+      setMessage("Use a magnet link or a .torrent URL. File upload is not sent to the client yet.");
+      return;
+    }
 
     const nextDownload = {
       id: `${Date.now()}`,
       name: friendlyTorrentName(torrentValue, torrentFile),
       client: selectedClient.name,
       source: "Other",
-      state: torrentFile ? "torrentFile" : torrentValue.trim().startsWith("magnet:") ? "magnet" : "torrentURL",
+      state: torrentValue.trim().startsWith("magnet:") ? "magnet" : "torrentURL",
       progress: 0,
       size: "Queued",
       down: "0 B/s",
@@ -123,27 +132,54 @@ export default function Downloads() {
     try {
       await axios.post("/api/downloads/add", {
         client: selectedClient.name,
+        instanceId: selectedClient.instanceId,
         value: torrentValue,
         fileName: torrentFile?.name,
       });
-      setMessage(`${nextDownload.name} queued for ${selectedClient.name}`);
+      setMessage(`${nextDownload.name} sent to ${selectedClient.name}`);
+      setTorrentValue("");
+      setTorrentFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      await runDownloadSync();
     } catch (error) {
       setMessage(error?.response?.data?.error || "Unable to queue download");
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    setDownloads((current) => [nextDownload, ...current]);
-    setTorrentValue("");
-    setTorrentFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    setIsSubmitting(false);
   }
 
-  function removeDownload(id) {
-    setDownloads((current) => current.filter((download) => download.id !== id));
+  async function removeDownload(id) {
+    if (!window.confirm("Remove this torrent from the client? Downloaded files will be kept.")) return;
+    setBusyDownloadId(id);
+    setMessage("");
+    try {
+      await axios.post("/api/downloads/remove", { id });
+      setDownloads((current) => current.filter((download) => download.id !== id));
+      window.setTimeout(loadDownloadData, 1500);
+    } catch (error) {
+      setMessage(error?.response?.data?.error || "Unable to remove download");
+    } finally {
+      setBusyDownloadId("");
+    }
+  }
+
+  async function toggleDownloadPaused(download) {
+    const paused = !isDownloadPaused(download);
+    setBusyDownloadId(download.id);
+    setMessage("");
+    try {
+      await axios.post("/api/downloads/pause", { id: download.id, paused });
+      setDownloads((current) =>
+        current.map((item) => (item.id === download.id ? { ...item, state: paused ? "paused" : "downloading" } : item))
+      );
+      window.setTimeout(loadDownloadData, 1500);
+    } catch (error) {
+      setMessage(error?.response?.data?.error || "Unable to update download");
+    } finally {
+      setBusyDownloadId("");
+    }
   }
 
   return (
@@ -211,10 +247,21 @@ export default function Downloads() {
                   </div>
                   <div className="download-row-actions">
                     <small>{download.progress}%</small>
-                    <button type="button" aria-label="Pause or resume">
-                      {download.progress >= 100 ? <PauseLineIcon size={17} /> : <PlayLineIcon size={17} />}
+                    <button
+                      type="button"
+                      aria-label={isDownloadPaused(download) ? "Resume download" : "Pause download"}
+                      disabled={Boolean(busyDownloadId)}
+                      onClick={() => toggleDownloadPaused(download)}
+                    >
+                      {isDownloadPaused(download) ? <PlayLineIcon size={17} /> : <PauseLineIcon size={17} />}
                     </button>
-                    <button type="button" className="is-danger" aria-label="Remove download" onClick={() => removeDownload(download.id)}>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      aria-label="Remove download"
+                      disabled={Boolean(busyDownloadId)}
+                      onClick={() => removeDownload(download.id)}
+                    >
                       <CloseLineIcon size={17} />
                     </button>
                   </div>

@@ -1,4 +1,51 @@
 {
+  "1.2.8": [
+    {
+      "icon": "shield",
+      "title": "More Stable Under Playback Load",
+      "body": "Webhook bursts and overlapping playback activity no longer crash-loop JellyGlance. Materialized view refreshes are debounced and run in a safer order."
+    },
+    {
+      "icon": "upload",
+      "title": "Richer Discord and Gotify Alerts",
+      "body": "Playback and download webhooks can send poster cards (with the viewer avatar on Discord). Session flicker spam is filtered, episode starts notify cleanly, and Gotify gets image-friendly extras when your server supports them."
+    },
+    {
+      "icon": "rocket",
+      "title": "Skip the First-Run Wizard",
+      "body": "Docker and Compose installs can seed Jellyfin plus a local admin from environment variables and optionally skip first-run extras, restore a backup on first run, and start the initial sync automatically."
+    },
+    {
+      "icon": "chat",
+      "title": "Requests Pipeline and Seerr Issues",
+      "body": "Requests show a clearer requested → approved → grabbed → available timeline, with stage filters, richer cards, and an admin Issues inbox for Overseerr/Jellyseerr reports."
+    },
+    {
+      "icon": "users",
+      "title": "Per-User Request Folders",
+      "body": "Set Films and TV root-folder overrides from the cog on user cards. Saving syncs open Seerr requests and moves linked Radarr/Sonarr titles onto those paths."
+    },
+    {
+      "icon": "mail",
+      "title": "Multi-Campaign Newsletters",
+      "body": "Create global, role-based, and personal newsletter campaigns with shared SMTP, section toggles, preview, and scheduled weekly or monthly sends."
+    },
+    {
+      "icon": "movie",
+      "title": "Downloads and Sessions Polish",
+      "body": "Remove items from the Downloads queue when supported, while Active Sessions cards truncate long titles and stream labels cleanly on desktop and mobile."
+    },
+    {
+      "icon": "speed",
+      "title": "Snappier Loads and Steadier Integrations",
+      "body": "Vendor chunks split further, common routes preload after login, Home/Requests responses cache briefly, and outbound HTTPS prefers IPv4 so Cloudflare-hosted Seerr/Arr hosts are more reliable on IPv6-less networks."
+    },
+    {
+      "icon": "magic",
+      "title": "Release and CI Tooling",
+      "body": "PR validation checks and dedicated GitHub Action bots are in place, and the release pipeline commits package version bumps so the app version matches the published GitHub tag."
+    }
+  ],
   "1.2.7": [
     {
       "icon": "palette",

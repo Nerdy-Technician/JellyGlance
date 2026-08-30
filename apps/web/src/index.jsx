@@ -31,7 +31,11 @@ i18n
   .init({
     fallbackLng: "en-GB",
     supportedLngs: languages.map((language) => language.id),
+    load: "currentOnly",
+    partialBundledLanguages: true,
     debug: false,
+    ns: ["translation"],
+    defaultNS: "translation",
     backend: {
       loadPath: `${baseUrl}/locales/{{lng}}/{{ns}}.json`,
     },

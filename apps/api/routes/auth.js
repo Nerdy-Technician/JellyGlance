@@ -741,13 +741,36 @@ router.get("/oidc/callback", async (req, res) => {
   }
 });
 
+function resolveAuthSummary(config) {
+  const auth = config.settings?.auth;
+  if (auth?.mode) {
+    return auth;
+  }
+
+  if (config.APP_USER === "jellyfin-quick-connect") {
+    return { mode: "quick-connect", label: "Jellyfin Quick Connect" };
+  }
+  if (config.APP_USER === "oidc") {
+    return { mode: "oidc", label: "OIDC / Authentik" };
+  }
+  if (config.APP_USER === "local-auth" || (config.APP_USER && config.APP_PASSWORD)) {
+    return { mode: "local", username: config.APP_USER === "local-auth" ? config.settings?.auth?.username || undefined : config.APP_USER };
+  }
+
+  if (Array.isArray(config.settings?.localUsers) && config.settings.localUsers.some((user) => user?.username)) {
+    return { mode: "local", username: config.settings.localUsers.find((user) => user?.username)?.username };
+  }
+
+  return auth || null;
+}
+
 router.get("/isConfigured", async (req, res) => {
   try {
     const config = await new configClass().getConfig();
     res.json({
       state: config.state,
       version: packageJson.version,
-      auth: config.settings?.auth || null,
+      auth: resolveAuthSummary(config),
       requireLogin: config.REQUIRE_LOGIN,
     });
   } catch (error) {
