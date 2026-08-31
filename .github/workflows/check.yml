@@ -271,7 +271,7 @@ jobs:
 
       - name: Build PR validation report
         id: summary
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ steps.bot.outputs.token }}
           script: |
