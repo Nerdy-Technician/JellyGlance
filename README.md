@@ -276,6 +276,7 @@ docker compose up -d
 ```
 
 ## Community
+This Project will always be free: no ads, no ssotax, no buyouts, no subscription plan, Free Forever.
 
 Need help, want to show off a dashboard, or have an idea for the next Jellyfin-friendly feature? Join the JellyGlance Discord:
 
