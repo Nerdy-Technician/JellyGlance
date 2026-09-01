@@ -1,0 +1,98 @@
+name: Notify / Discord Pull Requests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify:
+    name: Post new pull request to Discord
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post pull request notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_PR_WEBHOOK }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ', ') }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_ACTION: ${{ github.event.action }}
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_PR_WEBHOOK is not set. Skipping pull request notification."
+            exit 0
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          title = os.environ.get("PR_TITLE", "New pull request")
+          url = os.environ.get("PR_URL", "")
+          number = os.environ.get("PR_NUMBER", "")
+          author = os.environ.get("PR_AUTHOR", "someone")
+          base = os.environ.get("PR_BASE", "main")
+          head = os.environ.get("PR_HEAD", "")
+          labels = os.environ.get("PR_LABELS", "")
+          body = (os.environ.get("PR_BODY", "").strip()[:1200] or "No description provided.")
+          action = os.environ.get("PR_ACTION", "opened")
+
+          action_label = "Reopened" if action == "reopened" else "Opened"
+          color = 0x9b59b6 if action == "opened" else 0x61a0ff
+
+          payload = {
+            "username": "JellyGlance Pull Requests",
+            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
+            "embeds": [
+              {
+                "title": f"PR #{number}: {title}",
+                "url": url,
+                "description": body,
+                "color": color,
+                "fields": [
+                  {"name": "Status", "value": action_label, "inline": True},
+                  {"name": "Author", "value": f"@{author}", "inline": True},
+                  {"name": "Branch", "value": f"`{head}` → `{base}`", "inline": False},
+                  {"name": "Labels", "value": labels or "(none)", "inline": False},
+                ],
+              }
+            ],
+          }
+
+          req = urllib.request.Request(
+            os.environ["DISCORD_WEBHOOK_URL"],
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+              "Content-Type": "application/json",
+              "User-Agent": "JellyGlance-GitHub-Actions/1.0",
+            },
+            method="POST",
+          )
+          try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+              if response.status >= 400:
+                body = response.read().decode("utf-8", errors="ignore")
+                print(f"::warning::Discord webhook failed with {response.status}: {body}")
+          except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="ignore")
+            print(f"::warning::Discord webhook failed with {error.code}: {body}")
+            sys.exit(0)
+          except urllib.error.URLError as error:
+            print(f"::warning::Discord webhook request failed: {error.reason}")
+            sys.exit(0)
+          PY

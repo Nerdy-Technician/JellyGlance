@@ -1,0 +1,113 @@
+name: Notify / Discord Build
+
+on:
+  workflow_run:
+    workflows:
+      - JellyGlance Build Bot
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    name: Post build failure to Discord
+    if: ${{ github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'cancelled' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post build notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_BUILD_WEBHOOK }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event }}
+          DISPLAY_TITLE: ${{ github.event.workflow_run.display_title }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number || '' }}
+          PR_URL: ${{ github.event.workflow_run.pull_requests[0].html_url || '' }}
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_BUILD_WEBHOOK is not set. Skipping build notification."
+            exit 0
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          workflow_name = os.environ.get("WORKFLOW_NAME", "JellyGlance Build Bot")
+          workflow_url = os.environ.get("WORKFLOW_URL", "")
+          conclusion = os.environ.get("CONCLUSION", "failure")
+          branch = os.environ.get("BRANCH", "")
+          sha = (os.environ.get("SHA", "") or "")[:7]
+          trigger = os.environ.get("TRIGGER_EVENT", "unknown")
+          display_title = os.environ.get("DISPLAY_TITLE", "")
+          pr_number = os.environ.get("PR_NUMBER", "")
+          pr_url = os.environ.get("PR_URL", "")
+
+          status_label = "Failed" if conclusion == "failure" else "Cancelled"
+          color = 0xE74C3C if conclusion == "failure" else 0xF39C12
+
+          fields = [
+            {"name": "Status", "value": status_label, "inline": True},
+            {"name": "Trigger", "value": trigger, "inline": True},
+            {"name": "Branch", "value": f"`{branch}`" if branch else "(unknown)", "inline": True},
+          ]
+          if sha:
+            fields.append({"name": "Commit", "value": f"`{sha}`", "inline": True})
+          if pr_number and pr_url:
+            fields.append({"name": "Pull request", "value": f"[#{pr_number}]({pr_url})", "inline": False})
+          elif display_title:
+            fields.append({"name": "Run", "value": display_title, "inline": False})
+
+          fields.extend(
+            [
+              {"name": "Checks", "value": "Docker build (multi-arch, no push)", "inline": False},
+              {"name": "Actions", "value": f"[View workflow run]({workflow_url})" if workflow_url else "(no link)", "inline": False},
+            ]
+          )
+
+          payload = {
+            "username": "JellyGlance Build",
+            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
+            "embeds": [
+              {
+                "title": f"{workflow_name} · {status_label}",
+                "url": workflow_url or None,
+                "description": "A JellyGlance Build Bot workflow did not pass.",
+                "color": color,
+                "fields": fields,
+              }
+            ],
+          }
+
+          req = urllib.request.Request(
+            os.environ["DISCORD_WEBHOOK_URL"],
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+              "Content-Type": "application/json",
+              "User-Agent": "JellyGlance-GitHub-Actions/1.0",
+            },
+            method="POST",
+          )
+          try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+              if response.status >= 400:
+                body = response.read().decode("utf-8", errors="ignore")
+                print(f"::warning::Discord webhook failed with {response.status}: {body}")
+          except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="ignore")
+            print(f"::warning::Discord webhook failed with {error.code}: {body}")
+            sys.exit(0)
+          except urllib.error.URLError as error:
+            print(f"::warning::Discord webhook request failed: {error.reason}")
+            sys.exit(0)
+          PY
