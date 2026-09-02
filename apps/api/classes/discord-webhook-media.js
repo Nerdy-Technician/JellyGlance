@@ -22,10 +22,13 @@ const OPERATIONAL_EVENTS = new Set([
   "invite_created",
   "invite_deleted",
   "integration_health_warning",
+  "ops_digest",
+  "playback_digest",
 ]);
 const EVENT_COLORS = {
   playback_started: 5763719,
   playback_ended: 15548997,
+  playback_digest: 5763719,
   download_added: 3447003,
   download_started: 3447003,
   download_completed: 5763719,

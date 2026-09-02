@@ -179,6 +179,7 @@ export default function UserProfilePage() {
       setMediaListsLoading(true);
       try {
         const response = await axios.get(`/api/users/${encodeURIComponent(matchedUser.UserId)}/media-lists`, {
+          params: { full: "true" },
           headers: { Authorization: `Bearer ${token}` },
         });
         if (active) {
@@ -207,6 +208,7 @@ export default function UserProfilePage() {
     setMediaListsLoading(true);
     try {
       const response = await axios.get(`/api/users/${encodeURIComponent(matchedUser.UserId)}/media-lists`, {
+        params: { full: "true" },
         headers: { Authorization: `Bearer ${token}` },
       });
       setMediaLists(response.data || { favourites: [], watchlist: [] });

@@ -1,6 +1,6 @@
 export const NAV_ORDER_STORAGE_KEY = "jellyglance_nav_order";
 export const NAV_HIDDEN_STORAGE_KEY = "jellyglance_nav_hidden";
-export const LOCKED_NAV_LINKS = new Set(["", "settings", "about"]);
+export const LOCKED_NAV_LINKS = new Set(["", "me", "settings", "about"]);
 
 export function getDefaultReorderableNavLinks(navItems = []) {
   return navItems.filter((item) => !LOCKED_NAV_LINKS.has(item.link)).map((item) => item.link);
@@ -55,9 +55,10 @@ export function resetHiddenNavLinks() {
   window.dispatchEvent(new CustomEvent("jellyglance-nav-visibility-updated", { detail: [] }));
 }
 
-export function applyNavOrder(navItems = [], order = getStoredNavOrder(navItems)) {
+export function applyNavOrder(navItems = [], order = getStoredNavOrder(navItems), options = {}) {
   const orderMap = new Map(order.map((link, index) => [link, index]));
   const homeItems = navItems.filter((item) => item.link === "");
+  const myGlanceItems = navItems.filter((item) => item.link === "me");
   const settingsItems = navItems.filter((item) => item.link === "settings");
   const aboutItems = navItems.filter((item) => item.link === "about");
   const middleItems = navItems
@@ -68,5 +69,9 @@ export function applyNavOrder(navItems = [], order = getStoredNavOrder(navItems)
       return firstOrder - secondOrder || first.id - second.id;
     });
 
-  return [...homeItems, ...middleItems, ...settingsItems, ...aboutItems];
+  if (options.myGlanceFirst) {
+    return [...myGlanceItems, ...homeItems, ...middleItems, ...settingsItems, ...aboutItems];
+  }
+
+  return [...homeItems, ...middleItems, ...myGlanceItems, ...settingsItems, ...aboutItems];
 }

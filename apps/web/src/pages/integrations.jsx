@@ -65,6 +65,7 @@ const automationApps = [
   { name: "SickChill", slug: "sickchill", purpose: "Series automation", accent: "#d35b5b" },
   { name: "Radarr", slug: "radarr", purpose: "Movie automation", accent: "#f4c430" },
   { name: "Lidarr", slug: "lidarr", purpose: "Music automation", accent: "var(--secondary-color)" },
+  { name: "Readarr", slug: "readarr", purpose: "Book automation", accent: "#e8a87c" },
   { name: "Prowlarr", slug: "prowlarr", purpose: "Indexer management", accent: "#4aa8f0" },
   { name: "Bazarr", slug: "bazarr", purpose: "Subtitle automation", accent: "#84d160" },
   { name: "Jellyseerr", slug: "jellyseerr", purpose: "Request management", accent: "#6366f1" },
@@ -77,14 +78,19 @@ const downloadClientOptions = [
   { name: "Deluge", slug: "deluge", protocol: "Torrent", auth: "password" },
   { name: "SABnzbd", slug: "sabnzbd", protocol: "Usenet" },
   { name: "NZBGet", slug: "nzbget", protocol: "Usenet" },
+  { name: "rTorrent", slug: "rtorrent", protocol: "Torrent", auth: "userpass" },
   { name: "BitTorrent", slug: null, protocol: "Torrent" },
-  { name: "rTorrent", slug: null, protocol: "Torrent" },
 ];
 
 const thirdPartyOptions = [
   { name: "Tdarr", slug: "tdarr", purpose: "Active transcodes", accent: "var(--primary-light-color)", secretOptional: true },
   { name: "Wizarr", slug: "wizarr", purpose: "Jellyfin invite links", accent: "#8b5cf6" },
   { name: "Maintainerr", slug: "maintainerr", purpose: "Cleanup schedule", accent: "#1abca1" },
+  { name: "Unpackerr", slug: "unpackerr", purpose: "Extract status", accent: "#f59e0b", secretOptional: true },
+  { name: "Kometa", slug: "kometa", purpose: "Collections and overlays", accent: "#ec4899", secretOptional: true },
+  { name: "Notifiarr", slug: "notifiarr", purpose: "Arr notify status", accent: "#f97316" },
+  { name: "Recyclarr", slug: "recyclarr", purpose: "Arr config health", accent: "#22d3ee", secretOptional: true },
+  { name: "autobrr", slug: "autobrr", purpose: "Filter hits", accent: "#fb7185" },
 ];
 const firstRunIntegrationPickerOptions = [
   ...automationApps.map((app) => ({ ...app, key: `arr:${app.slug}`, label: app.name, description: app.purpose, kind: "Arr Apps" })),
@@ -118,6 +124,7 @@ const defaultAgentMeta = {
   Radarr: { slug: "radarr", accent: "#f4c430", role: "Movie automation" },
   Tdarr: { slug: "tdarr", accent: "#38bdf8", role: "Media processing" },
   Lidarr: { slug: "lidarr", accent: "var(--secondary-color)", role: "Music automation" },
+  Readarr: { slug: "readarr", accent: "#e8a87c", role: "Book automation" },
   Jellyfin: { slug: "jellyfin", accent: "#8b5cf6", role: "Media server" },
 };
 
@@ -228,14 +235,30 @@ function buildHealthTimeline(entries = []) {
     .slice(-24);
 }
 
+function isLiveConnected(app) {
+  if (app?.connected) return true;
+  if (app?.messageType === "error") return false;
+  const message = String(app?.message || "");
+  return Boolean(app?.version) || /connected to/i.test(message);
+}
+
 function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopySecret, removable = false }) {
   const usesUserPass = type === "download" && app.auth === "userpass";
   const usesPasswordOnly = type === "download" && app.auth === "password";
-  const secretOptional = Boolean(app.secretOptional) || String(app.name || app.slug || "").toLowerCase().includes("tdarr");
+  const secretOptional =
+    Boolean(app.secretOptional) ||
+    ["tdarr", "unpackerr", "kometa", "recyclarr"].some((slug) => String(app.name || app.slug || "").toLowerCase().includes(slug));
   const authLabel = usesUserPass || usesPasswordOnly ? "Password" : secretOptional ? "API key (optional)" : "API key";
-  const connected = Boolean(app.connected);
+  const connected = isLiveConnected(app);
   const values = app.values || {};
-  const secretPlaceholder = usesPasswordOnly || usesUserPass ? `${app.name} password` : secretOptional ? "Paste API key if auth is enabled" : "Paste API key";
+  const hasStoredSecret = Boolean(values.secret) || connected;
+  const secretPlaceholder = usesPasswordOnly || usesUserPass
+    ? `${app.name} password`
+    : secretOptional
+      ? "Paste API key if auth is enabled"
+      : hasStoredSecret && !values.secret
+        ? "Saved on server — paste to replace"
+        : "Paste API key";
   const [showSecret, setShowSecret] = useState(false);
 
   return (
@@ -334,6 +357,12 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   const [healthHistory, setHealthHistory] = useState([]);
   const [diagnostics, setDiagnostics] = useState([]);
   const [busyAction, setBusyAction] = useState("");
+  const arrAppsRef = useRef(arrApps);
+  const clientsRef = useRef(clients);
+  const thirdPartyRef = useRef(thirdParty);
+  arrAppsRef.current = arrApps;
+  clientsRef.current = clients;
+  thirdPartyRef.current = thirdParty;
   const [notice, setNotice] = useState("");
   const [savedIntegrationsAvailable, setSavedIntegrationsAvailable] = useState(false);
   const [loadedSavedIntegrations, setLoadedSavedIntegrations] = useState(!firstRun);
@@ -566,7 +595,34 @@ export default function Integrations({ embedded = false, firstRun = false, activ
   }
 
   function persistForList(listName, next) {
-    persist(listName === "arrApps" ? next : arrApps, listName === "clients" ? next : clients, listName === "thirdParty" ? next : thirdParty);
+    persist(
+      listName === "arrApps" ? next : arrAppsRef.current,
+      listName === "clients" ? next : clientsRef.current,
+      listName === "thirdParty" ? next : thirdPartyRef.current
+    );
+  }
+
+  function applyTestResults(results = []) {
+    const byId = new Map(results.map((row) => [row.instanceId, row]));
+    const patch = (list) =>
+      list.map((item) => {
+        const row = byId.get(item.instanceId);
+        if (!row) return item;
+        return {
+          ...item,
+          connected: Boolean(row.ok),
+          version: row.version || item.version,
+          message: row.message || item.message,
+          messageType: row.ok ? "success" : "error",
+        };
+      });
+    const nextArrApps = patch(arrAppsRef.current);
+    const nextClients = patch(clientsRef.current);
+    const nextThirdParty = patch(thirdPartyRef.current);
+    setArrApps(nextArrApps);
+    setClients(nextClients);
+    setThirdParty(nextThirdParty);
+    persist(nextArrApps, nextClients, nextThirdParty);
   }
 
   async function testAllIntegrations() {
@@ -582,6 +638,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
       );
       setDiagnostics(response.data.results || []);
       setHealthHistory(response.data.history || []);
+      applyTestResults(response.data.results || []);
       setNotice("Integration diagnostics complete.");
     } catch (error) {
       setNotice(error?.response?.data?.error || "Unable to run integration diagnostics.");
@@ -646,13 +703,16 @@ export default function Integrations({ embedded = false, firstRun = false, activ
     const needsUsername = listName === "clients" && selectedIntegration.auth === "userpass";
     const missingUrl = !values.url?.trim();
     const missingUsername = needsUsername && !values.username?.trim();
-    const secretOptional = listName === "thirdParty" && (selectedIntegration.secretOptional || String(selectedIntegration.name || selectedIntegration.slug || "").toLowerCase().includes("tdarr"));
-    const missingSecret = !secretOptional && !values.secret?.trim();
+    const secretOptional =
+      listName === "thirdParty" &&
+      (selectedIntegration.secretOptional ||
+        ["tdarr", "unpackerr", "kometa", "recyclarr"].some((slug) => String(selectedIntegration.name || selectedIntegration.slug || "").toLowerCase().includes(slug)));
+    const missingSecret = !secretOptional && !values.secret?.trim() && !isLiveConnected(selectedIntegration);
     const invalidUrl = values.url?.trim() && !/^https?:\/\//i.test(values.url.trim());
     const validationError = invalidUrl ? "URL must start with http:// or https://" : "Fill in all required fields before testing";
 
-    setList((current) => {
-      const next = current.map((item) => {
+    setList((current) =>
+      current.map((item) => {
         if (item.instanceId !== instanceId) return item;
 
         if (missingUrl || missingUsername || missingSecret || invalidUrl) {
@@ -666,14 +726,11 @@ export default function Integrations({ embedded = false, firstRun = false, activ
 
         return {
           ...item,
-          connected: false,
           message: "Testing connection...",
           messageType: "success",
         };
-      });
-      persistForList(listName, next);
-      return next;
-    });
+      })
+    );
 
     if (missingUrl || missingUsername || missingSecret || invalidUrl) {
       return;
@@ -978,7 +1035,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
           <div className="integration-section-title">
             <div>
               <h2>Arr Apps</h2>
-              <span>Sonarr, Radarr, Lidarr, Prowlarr, and Bazarr</span>
+              <span>Sonarr, Radarr, Lidarr, Readarr, Prowlarr, and Bazarr</span>
             </div>
             <Settings3LineIcon />
           </div>
@@ -1025,7 +1082,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
             <div className="integration-subsection">
               <div className="integration-subsection-title">
                 <strong>TV alternative</strong>
-                <span>SickChill can be used instead of Sonarr for series automation.</span>
+                <span>Connect SickChill for health checks. It does not fill the JellyGlance release calendar — use Sonarr for that.</span>
               </div>
               <div className="integration-grid integration-grid-single-row">
                 {sickChillApps.map((app) => (
@@ -1169,7 +1226,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
           <div className="integration-section-title">
             <div>
               <h2>3rd party apps</h2>
-              <span>Wizarr invites, Tdarr active transcodes, and Maintainerr cleanup automation</span>
+              <span>Wizarr, Tdarr, Maintainerr, Unpackerr, and Kometa</span>
             </div>
             <UserAddLineIcon />
           </div>

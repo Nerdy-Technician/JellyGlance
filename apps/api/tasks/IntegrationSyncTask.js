@@ -1,34 +1,12 @@
 const { parentPort } = require("worker_threads");
 const { axios } = require("../classes/axios");
 const { getIntegrations, getIntegrationData, saveIntegrationData } = require("../classes/integration-store");
+const { fetchClientQueue } = require("../classes/download-client");
+const { fetchAutobrrHits } = require("../classes/command-center");
 const WebhookManager = require("../classes/webhook-manager");
 
 function cleanUrl(url = "") {
   return String(url).trim().replace(/\/+$/, "");
-}
-
-function normalizeName(value = "") {
-  return String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function formatBytes(bytes = 0) {
-  const value = Number(bytes || 0);
-  if (!value) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function formatSpeed(bytes = 0) {
-  return `${formatBytes(bytes)}/s`;
-}
-
-function sourceFromCategory(category = "") {
-  const normalized = normalizeName(category);
-  if (normalized.includes("sonarr") || normalized.includes("tv")) return "Sonarr";
-  if (normalized.includes("radarr") || normalized.includes("movie")) return "Radarr";
-  if (normalized.includes("lidarr") || normalized.includes("music")) return "Lidarr";
-  return "Other";
 }
 
 function addDays(date, days) {
@@ -53,6 +31,10 @@ async function fetchMediaDetails(app, item) {
     apiPath = `/api/v3/series/${item.seriesId || item.series.id}`;
   } else if (service === "lidarr" && (item.artistId || item.artist?.id)) {
     apiPath = `/api/v1/artist/${item.artistId || item.artist.id}`;
+  } else if (service === "readarr" && (item.bookId || item.book?.id)) {
+    apiPath = `/api/v1/book/${item.bookId || item.book.id}`;
+  } else if (service === "readarr" && (item.authorId || item.author?.id)) {
+    apiPath = `/api/v1/author/${item.authorId || item.author.id}`;
   }
 
   if (!apiPath) {
@@ -73,10 +55,10 @@ async function fetchMediaDetails(app, item) {
 
 async function normalizeRelease(app, item) {
   const isMovie = Boolean(item.movie || item.movieId || item.tmdbId);
-  const baseMedia = item.movie || item.series || item.artist || item;
+  const baseMedia = item.movie || item.series || item.artist || item.book || item.author || item;
   const mediaDetails = Array.isArray(baseMedia?.images) && baseMedia.images.length ? null : await fetchMediaDetails(app, item);
   const media = mediaDetails || baseMedia;
-  const title = media?.title || item.artist?.artistName || item.title || "Untitled release";
+  const title = media?.title || item.artist?.artistName || item.book?.title || item.author?.authorName || item.title || "Untitled release";
   const episode = item.episodeNumber || item.absoluteEpisodeNumber;
   const season = item.seasonNumber;
   const episodeTitle = !isMovie && season && episode ? item.title || item.episode?.title || "" : "";
@@ -126,8 +108,8 @@ async function fetchArrCalendar(app) {
     return [];
   }
 
-  const isLidarr = String(app.name).toLowerCase() === "lidarr";
-  const apiPath = isLidarr ? "/api/v1/calendar" : "/api/v3/calendar";
+  const isV1Calendar = ["lidarr", "readarr"].includes(String(app.name).toLowerCase());
+  const apiPath = isV1Calendar ? "/api/v1/calendar" : "/api/v3/calendar";
   const start = new Date();
   const end = addDays(start, 90);
   const response = await axios.get(`${url}${apiPath}`, {
@@ -143,64 +125,6 @@ async function fetchArrCalendar(app) {
   });
 
   return Array.isArray(response.data) ? await Promise.all(response.data.map((item) => normalizeRelease(app, item))) : [];
-}
-
-function normalizeQbittorrentTorrent(client, torrent) {
-  const downloaded = Number(torrent.downloaded || torrent.completed || 0);
-  const size = Number(torrent.size || torrent.total_size || 0);
-  const progress = Math.round(Number(torrent.progress || 0) * 100);
-
-  return {
-    id: `${client.instanceId || client.name}-${torrent.hash || torrent.name}`,
-    name: torrent.name || "qBittorrent download",
-    client: client.name,
-    source: sourceFromCategory(torrent.category),
-    state: torrent.state || "unknown",
-    progress: Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0,
-    size: `${formatBytes(downloaded)} / ${formatBytes(size)}`,
-    down: formatSpeed(torrent.dlspeed),
-    up: formatSpeed(torrent.upspeed),
-    addedAt: torrent.added_on ? new Date(Number(torrent.added_on) * 1000).toISOString() : new Date().toISOString(),
-    hash: torrent.hash || null,
-  };
-}
-
-async function fetchQbittorrentQueue(client) {
-  const url = cleanUrl(client.values?.url);
-  const username = client.values?.username;
-  const password = client.values?.secret;
-
-  if (!url || !username || !password) {
-    return { items: [], error: "Missing qBittorrent URL, username, or password" };
-  }
-
-  const login = await axios.post(`${url}/api/v2/auth/login`, new URLSearchParams({ username, password }), {
-    timeout: 15000,
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    validateStatus: () => true,
-  });
-
-  if (login.status >= 400 || String(login.data).toLowerCase().includes("fails")) {
-    return { items: [], error: "qBittorrent login failed" };
-  }
-
-  const response = await axios.get(`${url}/api/v2/torrents/info`, {
-    timeout: 15000,
-    headers: { Cookie: login.headers["set-cookie"]?.join("; ") || "" },
-    params: { filter: "all" },
-  });
-
-  const torrents = Array.isArray(response.data) ? response.data : [];
-  return { items: torrents.map((torrent) => normalizeQbittorrentTorrent(client, torrent)) };
-}
-
-async function fetchClientQueue(client) {
-  const name = normalizeName(client.name);
-  if (name.includes("qbittorrent") || name === "bittorrent") {
-    return fetchQbittorrentQueue(client);
-  }
-
-  return { items: [], error: client.connected ? "Queue polling not implemented for this client yet" : "Needs setup" };
 }
 
 function isWizarrIntegration(integration) {
@@ -266,7 +190,10 @@ async function runIntegrationSyncTask() {
   try {
     const integrations = await getIntegrations();
     const integrationData = await getIntegrationData();
-    const sources = (integrations.arrApps || []).filter((app) => app.connected);
+    const sources = (integrations.arrApps || []).filter((app) => {
+      const name = String(app.name || app.slug || "").toLowerCase();
+      return app.connected && (name.includes("sonarr") || name.includes("radarr") || name.includes("lidarr") || name.includes("readarr"));
+    });
     const connectedClients = (integrations.clients || []).filter((client) => client.connected);
     const inviteIntegrations = (integrations.thirdParty || []).filter((integration) => integration.connected && isWizarrIntegration(integration));
     const calendarResults = await Promise.allSettled(sources.map((app) => fetchArrCalendar(app)));
@@ -310,6 +237,8 @@ async function runIntegrationSyncTask() {
       };
     });
 
+    const autobrrHits = await fetchAutobrrHits().catch(() => []);
+
     await saveIntegrationData({
       calendar: {
         releases,
@@ -332,6 +261,10 @@ async function runIntegrationSyncTask() {
         ...integrationData.invites,
         items: syncedInviteItems,
         sources: inviteSources,
+        syncedAt: new Date().toISOString(),
+      },
+      autobrr: {
+        hits: autobrrHits,
         syncedAt: new Date().toISOString(),
       },
     });

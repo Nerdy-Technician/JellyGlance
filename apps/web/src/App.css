@@ -23,7 +23,7 @@
   overflow-x: clip;
 }
 
-.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .transcodes-page, .watch-stats, .user-profile-page, .Home) {
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .transcodes-page, .watch-stats, .user-profile-page, .my-glance-page, .Home) {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -67,9 +67,14 @@
   }
 }
 
+html {
+  color-scheme: dark;
+}
+
 html body {
   background-color: var(--background-color);
   color: var(--text-color);
+  color-scheme: dark;
 }
 
 h1 {
@@ -171,29 +176,104 @@ h2 {
   background-color: var(--primary-color) !important;
 }
 
+.form-select,
+select {
+  color-scheme: dark;
+  accent-color: var(--primary-color);
+  border-color: var(--surface-border-color);
+  border-radius: 8px;
+  background-color: var(--secondary-background-color);
+  color: var(--text-color);
+}
+
 .form-select {
   background-color: var(--secondary-background-color) !important;
-  border-color: var(--surface-border-color) !important ;
-  color: white !important;
+  border-color: var(--surface-border-color) !important;
+  color: var(--text-color) !important;
   border-radius: 8px !important;
+}
+
+select:not(.form-select):not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23c9a7e6' d='M1.15 1.4 6 6.25 10.85 1.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 8px;
+  padding-right: 2.15rem;
+}
+
+.form-select:focus,
+select:focus {
+  box-shadow: none;
+  outline: none;
+  border-color: var(--primary-color);
+  color: var(--text-color);
 }
 
 .form-select:focus {
   box-shadow: none !important;
   border-color: var(--primary-color) !important;
-  color: white !important;
+  color: var(--text-color) !important;
 }
 
-.form-select option {
-  background-color: var(--secondary-background-color) !important;
-  padding: 0 !important;
-  border-radius: 8px !important;
-  border-color: var(--primary-color) !important;
+.form-select:disabled,
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.form-select option:hover {
+.form-select option,
+.form-select optgroup,
+select option,
+select optgroup {
+  background-color: var(--tertiary-background-color) !important;
+  color: var(--text-color) !important;
+}
+
+.form-select option:checked,
+.form-select option:hover,
+select option:checked,
+select option:hover {
   background-color: var(--primary-color) !important;
-  color: white !important;
+  color: #ffffff !important;
+}
+
+.dropdown-menu {
+  --bs-dropdown-bg: var(--secondary-background-color);
+  --bs-dropdown-color: var(--text-color);
+  --bs-dropdown-border-color: var(--surface-border-color);
+  --bs-dropdown-link-color: var(--text-color);
+  --bs-dropdown-link-hover-color: #ffffff;
+  --bs-dropdown-link-hover-bg: rgba(var(--primary-rgb), 0.42);
+  --bs-dropdown-link-active-color: #ffffff;
+  --bs-dropdown-link-active-bg: var(--primary-color);
+  --bs-dropdown-header-color: var(--muted-text-color);
+  --bs-dropdown-divider-bg: var(--surface-border-color);
+  overflow: hidden;
+  border: 1px solid var(--surface-border-color) !important;
+  border-radius: 10px !important;
+  background-color: var(--secondary-background-color) !important;
+  color: var(--text-color) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
+}
+
+.dropdown-item,
+.dropdown-item-text,
+.dropdown-header {
+  color: var(--text-color) !important;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus,
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: rgba(var(--primary-rgb), 0.42) !important;
+  color: #ffffff !important;
+}
+
+.dropdown-divider {
+  border-color: var(--surface-border-color) !important;
 }
 
 .bg-primary-1 {
@@ -425,4 +505,41 @@ h2 {
   .whats-new-list article {
     min-height: 0;
   }
+}
+
+.pwa-install-banner {
+  position: fixed;
+  z-index: 40;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(11, 17, 23, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.pwa-install-banner span {
+  flex: 1 1 180px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.pwa-install-banner button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 700;
+}
+
+.pwa-install-banner button.is-quiet {
+  background: transparent;
+  color: #9cabbe;
 }

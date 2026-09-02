@@ -82,6 +82,8 @@ router.get("/repair-hub", async (req, res) => {
       orphanedActivity,
       importedUnmatched,
       recentTaskFailures,
+      transcodeClients,
+      failedStarts,
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -152,6 +154,34 @@ router.get("/repair-hub", async (req, res) => {
         ORDER BY "TimeRun" DESC
         LIMIT 6
       `),
+      db.query(`
+        SELECT
+          COALESCE(NULLIF("Client", ''), 'Unknown') AS "Client",
+          COALESCE(NULLIF("DeviceName", ''), 'Unknown') AS "DeviceName",
+          count(*)::int AS "Plays",
+          count(*) FILTER (WHERE lower(COALESCE("PlayMethod", '')) LIKE '%transcode%')::int AS "Transcodes"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" > NOW() - INTERVAL '30 days'
+        GROUP BY 1, 2
+        HAVING count(*) FILTER (WHERE lower(COALESCE("PlayMethod", '')) LIKE '%transcode%') >= 3
+        ORDER BY "Transcodes" DESC, "Plays" DESC
+        LIMIT 8
+      `).catch(() => ({ rows: [] })),
+      db.query(`
+        SELECT
+          COALESCE("NowPlayingItemId", '') AS "Id",
+          COALESCE(NULLIF("SeriesName", ''), "NowPlayingItemName") AS "Name",
+          count(*)::int AS "Fails",
+          max("ActivityDateInserted") AS "LastSeen"
+        FROM jf_playback_activity
+        WHERE "ActivityDateInserted" > NOW() - INTERVAL '30 days'
+          AND COALESCE("PlaybackDuration", 0) < 20
+          AND COALESCE("NowPlayingItemId", '') <> ''
+        GROUP BY 1, 2
+        HAVING count(*) >= 3
+        ORDER BY "Fails" DESC, max("ActivityDateInserted") DESC
+        LIMIT 8
+      `).catch(() => ({ rows: [] })),
     ]);
 
     const counts = issueCounts.rows[0] || {};
@@ -168,6 +198,8 @@ router.get("/repair-hub", async (req, res) => {
         orphanedActivity: Number(orphaned.Count || 0),
         unmatchedImports: Number(unmatched.Count || 0),
         taskFailures: recentTaskFailures.rowCount,
+        transcodeClients: (transcodeClients.rows || []).length,
+        failedStarts: (failedStarts.rows || []).length,
       },
       samples: {
         missingPosters: missingPosters.rows,
@@ -175,6 +207,8 @@ router.get("/repair-hub", async (req, res) => {
         missingRuntime: missingRuntime.rows,
         emptySeries: emptySeries.rows,
         taskFailures: recentTaskFailures.rows,
+        transcodeClients: transcodeClients.rows,
+        failedStarts: failedStarts.rows,
       },
       activityLinks: {
         orphanedLastSeen: orphaned.LastSeen || null,

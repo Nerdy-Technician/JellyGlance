@@ -49,6 +49,8 @@ Main surfaces:
 | `server.js` | Express startup and web asset serving |
 | `routes/auth.js` | Login, Quick Connect, OIDC-ready auth |
 | `routes/api.js` | Core config, users, libraries, integrations |
+| `routes/command-center.js` | Item glance, ops digest, storage, homepage widgets, audit export |
+| `classes/command-center.js` | Correlation helpers across Jellyfin, Seerr, Arr, and downloads |
 | `routes/sync.js` | Jellyfin sync and library scan routes |
 | `routes/stats.js` | Dashboard and statistics data |
 | `routes/webhooks.js` | Webhook setup and tests |
@@ -64,10 +66,11 @@ Integrations are optional. If request or download clients are not configured, Je
 | --- | --- |
 | Jellyfin | users, sessions, libraries, activity, jobs, devices, plugins |
 | Jellyseerr / Overseerr | requests, availability, actions |
-| Sonarr / Radarr / Lidarr | release calendar and health |
+| Sonarr / Radarr / Lidarr / Readarr | release calendar and health |
 | Bazarr | subtitle service health |
-| qBittorrent / Transmission / Deluge | torrent queues |
-| SABnzbd / NZBGet | Usenet queues |
+| qBittorrent / Transmission / Deluge / rTorrent | torrent queues (add, pause, remove) |
+| SABnzbd / NZBGet | Usenet queues (add, pause, remove) |
+| SickChill | connect and health; not a calendar source |
 | Tautulli | legacy playback imports |
 | SMTP | newsletter digest |
 | Webhooks | task and health notifications |

@@ -122,6 +122,7 @@
   border-radius: 0 !important;
   min-width: 118px;
   padding-right: 36px;
+  color-scheme: dark;
 }
 
 .activity-search-input {

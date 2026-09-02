@@ -68,7 +68,7 @@ Once Jellyfin is connected, the most useful follow-up configuration lives in **S
 | Integrations | Jellyfin, 3rd Party Apps, Seerr apps, Arr apps, download clients, health checks, and integration event sources |
 | Tasks | Manual and scheduled sync jobs for Jellyfin, calendar, downloads, health checks, and backups |
 | Webhooks | One or many webhook destinations with event toggles, test delivery, and delivery history |
-| API Key | Scoped JellyGlance access tokens for automation or dashboards |
+| API Key | Scoped JellyGlance access tokens for automation, Homepage/Homarr widgets, and `/api/widgets/homepage` |
 | Library Settings | Library sync behavior and manual scan options |
 | Imports | Tautulli backup upload, preview, safe import, and manual media linking for unmatched history |
 | Newsletter | SMTP settings, recipients, preview generation, test sends, manual digest sends, and send history |
@@ -84,7 +84,7 @@ After the first Jellyfin sync, these areas are worth opening first:
 | Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. |
 | Settings > Integrations > 3rd Party Apps | Connect Wizarr, Tdarr, Maintainerr, or SickChill for invites, transcodes, cleanup visibility, and alternative TV automation. |
 | Requests | Connect Jellyseerr or Overseerr to review request cards, posters, availability, requester info, status filters, and actions. |
-| Downloads | Connect qBittorrent, Transmission, Deluge, SABnzbd, or NZBGet to monitor queue state, stalled items, and active jobs. |
+| Downloads | Connect qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or rTorrent for live queues, add, pause, and remove. |
 | Active Transcodes | Connect Tdarr to monitor active, queued, and historical transcode work with progress and media artwork. |
 | Invites | Connect Wizarr to create, copy, open, and remove invite links inside JellyGlance. |
 | Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. |
@@ -101,9 +101,9 @@ JellyGlance can connect to:
 - Wizarr, Tdarr, Maintainerr, and SickChill under **3rd Party Apps**
 - Tautulli backup files for legacy Plex watch-history imports
 - Jellyseerr and Overseerr for media requests and availability checks
-- Sonarr, Radarr, Lidarr, Bazarr, and Prowlarr for automation status, indexer health, and release calendars
-- qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet for download queues and torrent/magnet submission
-- Discord-compatible and Gotify-style webhook endpoints for notifications and delivery history
+- Sonarr, Radarr, and Lidarr for release calendars; Bazarr and Prowlarr for automation health; SickChill for connect/health only (not calendar sync)
+- qBittorrent, Transmission, Deluge, rTorrent, SABnzbd, and NZBGet for download queues and torrent/magnet submission
+- Discord, Gotify, ntfy, and Telegram webhook endpoints for notifications and delivery history
 - SMTP servers for manual, weekly, or monthly newsletter digest delivery
 
 See [Integrations](/integrations) for the complete setup map.
@@ -121,5 +121,6 @@ npm run docs:dev
 
 - Review [Architecture](./architecture.md) to understand the workspace.
 - Review [Integrations](/integrations) to map your media stack.
+- Review the [Roadmap](/roadmap) and [v1.2.9 implementation](../operations/v1.2.9.md) for what is next.
 - Review [Docker](../operations/docker.md) before deploying.
 - Review [Releases](../operations/releases.md) before tagging changes.

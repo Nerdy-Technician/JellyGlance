@@ -6,6 +6,7 @@ const configClass = require("./config");
 const dayjs = require("dayjs");
 const Logging = require("./logging");
 const { getBackupDir } = require("../utils/storage-paths");
+const { uploadBackupRemote } = require("./command-center");
 
 const taskstate = require("../logging/taskstate");
 const { tables } = require("../global/backup_tables");
@@ -97,9 +98,14 @@ async function backup(refLog) {
       backup_data.push({ [table.value]: rows });
     }
 
-    await stream.write(JSON.stringify(backup_data, null, 2));
-    stream.end();
+    await new Promise((resolve, reject) => {
+      stream.on("finish", resolve);
+      stream.on("error", reject);
+      stream.write(JSON.stringify(backup_data, null, 2));
+      stream.end();
+    });
     refLog.logData.push({ color: "lawngreen", Message: "Backup Complete" });
+    await uploadBackupRemote(directoryPath, refLog);
     refLog.logData.push({ color: "dodgerblue", Message: "Removing old backups" });
 
     //Cleanup excess backups

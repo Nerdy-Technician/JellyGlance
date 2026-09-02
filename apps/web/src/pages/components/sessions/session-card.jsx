@@ -6,16 +6,36 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Container from "react-bootstrap/Container";
 import Modal from "react-bootstrap/Modal";
+import Form from "react-bootstrap/Form";
 
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
+import ChatSmile2LineIcon from "remixicon-react/ChatSmile2LineIcon";
+import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
 import PlayFillIcon from "remixicon-react/PlayFillIcon";
 import PauseFillIcon from "remixicon-react/PauseFillIcon";
+import StopCircleLineIcon from "remixicon-react/StopCircleLineIcon";
 
 import { PlatformIcon } from "../../../lib/platform-icons";
 import Tooltip from "@mui/material/Tooltip";
 import IpInfoModal from "../ip-info";
 import { Trans } from "react-i18next";
 import baseUrl from "../../../lib/baseurl";
+import axios from "../../../lib/axios_instance";
+
+function formatTranscodeReasons(session) {
+  const reasons = session?.TranscodingInfo?.TranscodeReasons;
+  if (Array.isArray(reasons) && reasons.length) {
+    return reasons
+      .map((reason) => String(reason).replace(/([a-z])([A-Z])/g, "$1 $2"))
+      .join(", ");
+  }
+  const transcoding = session?.TranscodingInfo;
+  if (!transcoding) return "";
+  const parts = [];
+  if (transcoding.IsVideoDirect === false) parts.push("Video remux/transcode");
+  if (transcoding.IsAudioDirect === false) parts.push("Audio remux/transcode");
+  return parts.join(", ");
+}
 
 function ticksToTimeString(ticks) {
   // Convert ticks to seconds
@@ -79,9 +99,86 @@ function SessionCardDetailRow({ label, children, className = "", short = false }
   );
 }
 
+function defaultMessageDateTime(minutesAhead = 15) {
+  const date = new Date(Date.now() + minutesAhead * 60 * 1000);
+  date.setSeconds(0, 0);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function tonightMessageDateTime() {
+  const date = new Date();
+  date.setHours(22, 0, 0, 0);
+  if (date.getTime() <= Date.now()) {
+    date.setDate(date.getDate() + 1);
+  }
+  return defaultMessageDateTime(Math.max(1, Math.round((date.getTime() - Date.now()) / 60000)));
+}
+
+function formatMessageTime(value) {
+  if (!value) return "the scheduled time";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  let twelveHour = false;
+  try {
+    twelveHour = JSON.parse(localStorage.getItem("12hr"));
+  } catch {
+    twelveHour = false;
+  }
+  return date.toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: Boolean(twelveHour),
+  });
+}
+
+function applySessionMessageTemplate(template, session, title, timeValue) {
+  return String(template || "")
+    .replaceAll("{user}", session.UserName || "there")
+    .replaceAll("{device}", session.DeviceName || session.Client || "your device")
+    .replaceAll("{title}", title || session.NowPlayingItem?.Name || "this")
+    .replaceAll("{time}", formatMessageTime(timeValue));
+}
+
+const SESSION_MESSAGE_TEMPLATES = [
+  { id: "custom", label: "Custom", emoji: "✏️", group: "Write your own", text: "" },
+  { id: "pause", label: "Please pause", emoji: "⏸️", group: "Playback", text: "{user}, please pause when you can." },
+  { id: "enjoy", label: "No rush", emoji: "🎬", group: "Playback", text: "No rush — enjoy {title}." },
+  { id: "credits", label: "Skip credits", emoji: "⏭️", group: "Playback", text: "Skip the credits when you can so the next episode does not autoplay." },
+  { id: "volume", label: "Volume down", emoji: "🔉", group: "Playback", text: "Please turn the volume down a bit." },
+  { id: "buffer", label: "Buffering?", emoji: "🔄", group: "Playback", text: "If {title} is buffering, try pausing for a few seconds or dropping quality." },
+  { id: "stopping", label: "Stopping soon", emoji: "⏹️", group: "Playback", text: "Playback may be stopped at {time}.", needsTime: true, defaultMinutes: 10 },
+  { id: "dinner", label: "Dinner's ready", emoji: "🍽️", group: "Household", text: "Dinner's ready — pause {title} when you get to a good spot." },
+  { id: "bedtime", label: "Bedtime", emoji: "🌙", group: "Household", text: "Heading to bed around {time}. Please wrap up {title} soon.", needsTime: true, defaultMinutes: 20 },
+  { id: "downstairs", label: "Come downstairs", emoji: "🏠", group: "Household", text: "{user}, can you come downstairs when you hit a pause?" },
+  { id: "phone", label: "Someone needs you", emoji: "📞", group: "Household", text: "{user}, someone needs you — pause when you can." },
+  { id: "leaving", label: "Leaving soon", emoji: "🚗", group: "Household", text: "We are heading out at {time}. Please pause {title} and wrap up.", needsTime: true, defaultMinutes: 30 },
+  { id: "checkin", label: "Check in", emoji: "👋", group: "Household", text: "Hi {user} on {device} — can you check in when you get a moment?" },
+  { id: "quality", label: "Lower quality", emoji: "📉", group: "Server", text: "This stream is loading the server. Please drop quality or switch to direct play if you can." },
+  { id: "busy", label: "Server is busy", emoji: "🔥", group: "Server", text: "The server is busy right now. Please pause or lower quality on {device}." },
+  { id: "direct", label: "Direct play please", emoji: "📡", group: "Server", text: "Please switch to Direct Play if your client allows it — transcoding is heavy right now." },
+  { id: "wifi", label: "Wi-Fi issue", emoji: "📶", group: "Server", text: "Wi-Fi looks unhappy. Pause {title}, move closer to the access point, then resume." },
+  { id: "maintenance", label: "Maintenance soon", emoji: "🛠️", group: "Maintenance", text: "Server maintenance starts at {time}. Please pause {title} and save your place.", needsTime: true, defaultMinutes: 20 },
+  { id: "restart", label: "Restarting Jellyfin", emoji: "🔁", group: "Maintenance", text: "Jellyfin is restarting at {time}. Playback on {device} will drop — pause before then.", needsTime: true, defaultMinutes: 10 },
+  { id: "scheduled", label: "Scheduled restart", emoji: "🗓️", group: "Maintenance", text: "Scheduled server restart at {time}. Please pause {title} on {device} before it drops.", needsTime: true, defaultMinutes: 15 },
+  { id: "scheduled-15", label: "Restart in 15 min", emoji: "⏰", group: "Maintenance", text: "Scheduled restart at {time} (about 15 minutes). Wrap up {title} soon.", needsTime: true, defaultMinutes: 15 },
+  { id: "scheduled-tonight", label: "Restart tonight", emoji: "🌙", group: "Maintenance", text: "The server restarts tonight at {time}. Finish {title} before then if you can.", needsTime: true, defaultTonight: true },
+  { id: "update", label: "Update in progress", emoji: "⬆️", group: "Maintenance", text: "The server is updating. {title} may stop. You can resume after maintenance." },
+  { id: "downtime", label: "Short downtime", emoji: "⛔", group: "Maintenance", text: "Short downtime at {time}. Wrap up {title} when you hit a good stopping point.", needsTime: true, defaultMinutes: 15 },
+  { id: "library-scan", label: "Library scan", emoji: "📚", group: "Maintenance", text: "A library scan is running, so streams may hitch. Pause if it gets choppy." },
+  { id: "disk", label: "Storage work", emoji: "💾", group: "Maintenance", text: "Disk / storage work is in progress. Please pause playback until it finishes." },
+  { id: "back-up", label: "We're back", emoji: "✅", group: "Maintenance", text: "Maintenance is done. You can start {title} again on {device}." },
+];
+
+const SESSION_MESSAGE_TEMPLATE_GROUPS = [...new Set(SESSION_MESSAGE_TEMPLATES.map((template) => template.group))];
+
 function SessionCard(props) {
   const session = props.data.session;
   const hideIpAddress = Boolean(props.hideIpAddress);
+  const canManage = Boolean(props.canManage) && !props.kiosk;
   const nowPlaying = session.NowPlayingItem;
   const playState = session.PlayState;
   const mediaItemId = props.data.session.NowPlayingItem.SeriesId
@@ -89,11 +186,22 @@ function SessionCard(props) {
     : props.data.session.NowPlayingItem.Id;
   const [loadBackdrop, setLoadBackdrop] = useState(false);
   const [sessionModalVisible, setSessionModalVisible] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [messageTemplateId, setMessageTemplateId] = useState("custom");
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const [messageWhen, setMessageWhen] = useState(() => defaultMessageDateTime(15));
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => setLoadBackdrop(true));
     return () => window.cancelAnimationFrame(frameId);
   }, [mediaItemId]);
+
+  useEffect(() => {
+    if (!messageOpen) setTemplateMenuOpen(false);
+  }, [messageOpen]);
 
   const cardStyle = {
     backgroundImage: loadBackdrop
@@ -127,6 +235,7 @@ function SessionCard(props) {
       : "";
   const playbackMethod = playState.PlayMethod || "Unknown";
   const isTranscoding = Boolean(session.TranscodingInfo);
+  const transcodeReason = formatTranscodeReasons(session);
   const title =
     nowPlaying.Type === "Episode" && nowPlaying.SeriesName
       ? nowPlaying.SeriesName
@@ -138,6 +247,16 @@ function SessionCard(props) {
         ? nowPlaying.Artists[0]
         : nowPlaying.SeriesName || nowPlaying.Type;
   const timecode = `${ticksToTimeString(playState.PositionTicks)}${nowPlaying.RunTimeTicks ? `/${ticksToTimeString(nowPlaying.RunTimeTicks)}` : ""}`;
+  const selectedMessageTemplate = SESSION_MESSAGE_TEMPLATES.find((item) => item.id === messageTemplateId) || SESSION_MESSAGE_TEMPLATES[0];
+
+  function fillMessageTemplate(template, when = messageWhen) {
+    return applySessionMessageTemplate(template?.text, session, title, when);
+  }
+
+  function timeForTemplate(template) {
+    if (template?.defaultTonight) return tonightMessageDateTime();
+    return defaultMessageDateTime(Number(template?.defaultMinutes || 15));
+  }
 
   const ipv4Regex = new RegExp(
     /\b(?!(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168))(?:(?:2(?:[0-4][0-9]|5[0-5])|[0-1]?[0-9]?[0-9])\.){3}(?:(?:2([0-4][0-9]|5[0-5])|[0-1]?[0-9]?[0-9]))\b/
@@ -234,6 +353,7 @@ function SessionCard(props) {
                 <span>{playbackMethod}</span>
                 {isTranscoding ? <span className="is-transcoding">Transcoding</span> : <span>Direct</span>}
               </div>
+              {transcodeReason ? <p className="session-popout-reason">{transcodeReason}</p> : null}
               <h2>{title}</h2>
               <p>{subtitle}</p>
               <div className="session-popout-progress" aria-label={`Playback progress ${Math.round(progressPercent)} percent`}>
@@ -288,8 +408,176 @@ function SessionCard(props) {
             <SessionDetailItem label="Audio" value={nowPlaying.AudioStream} wide />
             <SessionDetailItem label="Audio bitrate" value={nowPlaying.AudioBitrateStream} />
             <SessionDetailItem label="Subtitles" value={nowPlaying.SubtitleStream} />
+            {transcodeReason ? <SessionDetailItem label="Transcode reason" value={transcodeReason} wide /> : null}
           </div>
+          {canManage ? (
+            <div className="session-popout-actions" data-session-card-ignore>
+              {actionError ? <p className="session-action-error">{actionError}</p> : null}
+              <button
+                type="button"
+                className="session-command is-message"
+                disabled={actionBusy}
+                onClick={() => {
+                  setActionError("");
+                  setMessageTemplateId("custom");
+                  setMessageWhen(defaultMessageDateTime(15));
+                  setMessageOpen(true);
+                }}
+              >
+                <ChatSmile2LineIcon size={17} />
+                Message
+              </button>
+              <button
+                type="button"
+                className="session-command is-stop"
+                disabled={actionBusy}
+                onClick={async () => {
+                  if (!window.confirm(`Stop playback for ${session.UserName}?`)) return;
+                  setActionBusy(true);
+                  setActionError("");
+                  try {
+                    await axios.post("/api/sessions/stop", { sessionId: session.Id }, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+                    setSessionModalVisible(false);
+                  } catch (error) {
+                    setActionError(error?.response?.data?.error || "Unable to stop this session");
+                  } finally {
+                    setActionBusy(false);
+                  }
+                }}
+              >
+                <StopCircleLineIcon size={17} />
+                Stop playback
+              </button>
+            </div>
+          ) : null}
         </Modal.Body>
+      </Modal>
+      <Modal
+        show={messageOpen}
+        onHide={() => {
+          setMessageOpen(false);
+          setTemplateMenuOpen(false);
+        }}
+        centered
+        contentClassName="session-message-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Message {session.UserName}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="session-message-hint">Choose a template from the menu, then edit before sending. It shows as an on-screen notice on their Jellyfin client.</p>
+          <div className={`session-message-picker${templateMenuOpen ? " is-open" : ""}`}>
+            <span className="session-message-select-label">Message template</span>
+            <button
+              type="button"
+              className="session-message-trigger"
+              aria-haspopup="listbox"
+              aria-expanded={templateMenuOpen}
+              onClick={() => setTemplateMenuOpen((open) => !open)}
+            >
+              <span className="session-message-trigger-emoji">{selectedMessageTemplate.emoji}</span>
+              <span className="session-message-trigger-copy">
+                <strong>{selectedMessageTemplate.label}</strong>
+                <small>{selectedMessageTemplate.group}</small>
+              </span>
+              <ArrowDownSLineIcon size={20} />
+            </button>
+            {templateMenuOpen ? (
+              <div className="session-message-menu" role="listbox">
+                {SESSION_MESSAGE_TEMPLATE_GROUPS.map((group) => (
+                  <div key={group} className="session-message-menu-group">
+                    <span>{group}</span>
+                    {SESSION_MESSAGE_TEMPLATES.filter((template) => template.group === group).map((template) => (
+                      <button
+                        type="button"
+                        key={template.id}
+                        role="option"
+                        aria-selected={messageTemplateId === template.id}
+                        className={messageTemplateId === template.id ? "is-selected" : ""}
+                        onClick={() => {
+                          const when = timeForTemplate(template);
+                          setMessageTemplateId(template.id);
+                          setMessageWhen(when);
+                          setTemplateMenuOpen(false);
+                          if (template.id !== "custom") {
+                            setMessageText(fillMessageTemplate(template, when));
+                          }
+                        }}
+                      >
+                        <span className="session-message-trigger-emoji">{template.emoji}</span>
+                        <span className="session-message-trigger-copy">
+                          <strong>{template.label}</strong>
+                          <small>{template.id === "custom" ? "Write your own message" : fillMessageTemplate(template, timeForTemplate(template))}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {selectedMessageTemplate.needsTime ? (
+            <label className="session-message-time-label">
+              <span>When</span>
+              <input
+                type="datetime-local"
+                className="session-message-time"
+                value={messageWhen}
+                onChange={(event) => {
+                  const when = event.target.value;
+                  setMessageWhen(when);
+                  if (selectedMessageTemplate.needsTime && messageTemplateId !== "custom") {
+                    setMessageText(fillMessageTemplate(selectedMessageTemplate, when));
+                  }
+                }}
+              />
+              <small>Fills into the message as {formatMessageTime(messageWhen)}</small>
+            </label>
+          ) : null}
+          <Form.Control
+            as="textarea"
+            rows={3}
+            value={messageText}
+            onChange={(event) => {
+              setMessageTemplateId("custom");
+              setMessageText(event.target.value);
+            }}
+            placeholder="Keep it short — this pops up over playback."
+          />
+        </Modal.Body>
+        <Modal.Footer>
+          <button type="button" className="session-command is-ghost" onClick={() => setMessageOpen(false)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="session-command is-message"
+            disabled={actionBusy || !messageText.trim()}
+            onClick={async () => {
+              setActionBusy(true);
+              setActionError("");
+              try {
+                await axios.post(
+                  "/api/sessions/message",
+                  { sessionId: session.Id, header: "JellyGlance", text: messageText.trim() },
+                  { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+                );
+                setMessageOpen(false);
+                setMessageText("");
+                setMessageTemplateId("custom");
+                setMessageWhen(defaultMessageDateTime(15));
+                setTemplateMenuOpen(false);
+              } catch (error) {
+                setActionError(error?.response?.data?.error || "Unable to send message");
+              } finally {
+                setActionBusy(false);
+              }
+            }}
+          >
+            <ChatSmile2LineIcon size={17} />
+            {actionBusy ? "Sending…" : "Send message"}
+          </button>
+        </Modal.Footer>
       </Modal>
       <div style={cardBgStyle} className="session-card-main rounded-top">
         <Row className="h-100 p-0 m-0">

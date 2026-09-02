@@ -1,0 +1,326 @@
+.my-glance-page {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: #f8fafc;
+}
+
+.my-glance-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.2);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(var(--primary-rgb), 0.2), rgba(var(--secondary-rgb), 0.08)),
+    rgba(9, 12, 19, 0.94);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+}
+
+.my-glance-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 18px;
+}
+
+.my-glance-avatar {
+  position: relative;
+  display: grid;
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid rgba(var(--secondary-rgb), 0.85);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--primary-light-color);
+}
+
+.my-glance-avatar img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.my-glance-avatar svg {
+  position: absolute;
+}
+
+.my-glance-hero p {
+  margin: 0 0 4px;
+  color: var(--secondary-color);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.my-glance-hero h1 {
+  margin: 0 !important;
+  color: #fff;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 950;
+  line-height: 0.95;
+}
+
+.my-glance-hero span {
+  display: block;
+  margin-top: 8px;
+  color: #a7b4c8;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.my-glance-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.my-glance-hero-actions a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.34);
+  border-radius: 12px;
+  background: rgba(var(--primary-rgb), 0.22);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.my-glance-hero-actions a.is-ghost {
+  background: transparent;
+  color: #dbe7f7;
+}
+
+.my-glance-hero-actions a:hover {
+  border-color: rgba(var(--primary-light-rgb), 0.55);
+  color: #fff;
+}
+
+.my-glance-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.my-glance-stats div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(8, 11, 17, 0.88);
+}
+
+.my-glance-stats strong {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.my-glance-stats span {
+  color: #9cabbe;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.my-glance-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.my-glance-toolbar input {
+  height: 42px;
+  min-width: 0;
+  padding: 0 14px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
+  border-radius: 12px;
+  background: rgba(5, 8, 13, 0.72);
+  color: #fff;
+  font-weight: 850;
+  outline: none;
+}
+
+.my-glance-toolbar em {
+  color: #94a3b8;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.my-glance-page .user-media-poster {
+  position: relative;
+}
+
+.my-glance-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.my-glance-progress i {
+  display: block;
+  height: 100%;
+  background: var(--secondary-color, #00c8ff);
+}
+
+.my-glance-live {
+  padding: 18px 20px;
+  border: 1px solid rgba(var(--secondary-rgb), 0.28);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(var(--secondary-rgb), 0.14), rgba(var(--primary-rgb), 0.08)),
+    rgba(8, 11, 17, 0.92);
+}
+
+.my-glance-live.is-idle {
+  color: #9cabbe;
+}
+
+.my-glance-live p,
+.my-glance-taste p {
+  margin: 0 0 6px;
+  color: var(--secondary-color);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.my-glance-live h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 950;
+}
+
+.my-glance-live-link {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.my-glance-live-poster {
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.my-glance-live-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.my-glance-live span {
+  display: block;
+  margin-top: 6px;
+  color: #a7b4c8;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.my-glance-live-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.my-glance-live-bar {
+  position: relative;
+  display: block;
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.my-glance-taste,
+.my-glance-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.my-glance-taste {
+  align-items: center;
+}
+
+.my-glance-taste div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.my-glance-taste span,
+.my-glance-pipeline button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #dbe7f7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.my-glance-pipeline button {
+  cursor: pointer;
+}
+
+.my-glance-pipeline button.is-active {
+  border-color: rgba(var(--primary-light-rgb), 0.45);
+  background: rgba(var(--primary-rgb), 0.22);
+  color: #fff;
+}
+
+.my-glance-pipeline strong {
+  color: var(--secondary-color);
+  font-weight: 950;
+}
+
+@media (max-width: 900px) {
+  .my-glance-hero,
+  .my-glance-identity {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .my-glance-stats,
+  .my-glance-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .my-glance-toolbar em {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .my-glance-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}

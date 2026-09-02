@@ -20,6 +20,20 @@ import {
   shouldHideActiveSessionIp,
 } from "../../../lib/privacy-settings";
 
+function canManageSessions(config) {
+  const role = String(config?.settings?.auth?.role || "").toLowerCase();
+  if (role.includes("owner") || role.includes("admin")) return true;
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+    const payload = JSON.parse(window.atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const tokenRole = String(payload?.role || payload?.Role || "").toLowerCase();
+    return tokenRole.includes("owner") || tokenRole.includes("admin");
+  } catch {
+    return false;
+  }
+}
+
 function Sessions({ surface = "home" }) {
   const [data, setData] = useState(() => getCachedActiveSessions());
   const [ipPrivacy, setIpPrivacy] = useState(() => getActiveSessionIpPrivacy());
@@ -30,6 +44,7 @@ function Sessions({ surface = "home" }) {
       return null;
     }
   });
+  const canManage = canManageSessions(config);
 
   useEffect(() => {
     const handleIpPrivacyUpdate = () => setIpPrivacy(getActiveSessionIpPrivacy());
@@ -122,7 +137,7 @@ function Sessions({ surface = "home" }) {
             .sort((a, b) => a.Id.padStart(12, "0").localeCompare(b.Id.padStart(12, "0")))
             .map((session) => (
               <ErrorBoundary key={session.Id}>
-                <SessionCard data={{ session: session, base_url: config?.base_url }} hideIpAddress={hideIpAddress} />
+                <SessionCard data={{ session: session, base_url: config?.base_url }} hideIpAddress={hideIpAddress} kiosk={surface === "kiosk"} canManage={canManage} />
               </ErrorBoundary>
             ))}
       </div>

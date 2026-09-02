@@ -1,12 +1,13 @@
 export const HOME_SETTINGS_STORAGE_PREFIX = "jellyglance_home_settings";
 export const LEGACY_HOME_ORDER_STORAGE_KEY = "jellyglance_home_section_order";
-export const HOME_LAYOUT_VERSION = 3;
+export const HOME_LAYOUT_VERSION = 4;
 
 const DEFAULT_HIDDEN_SECTION_IDS = ["seasonGaps", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"];
 const INTEGRATION_WIDGET_SECTION_IDS = ["tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"];
 
 export const HOME_SECTION_DEFINITIONS = [
   { id: "sessions", label: "Active sessions" },
+  { id: "streamCapacity", label: "Stream capacity" },
   { id: "overview", label: "Overview" },
   { id: "hall", label: "Hall of Fame" },
   { id: "library", label: "Library health" },
@@ -32,6 +33,7 @@ export const DEFAULT_HOME_ORDER = HOME_SECTION_DEFINITIONS.map((section) => sect
 const KIOSK_DEFAULT_HIDDEN = DEFAULT_HOME_ORDER.filter((sectionId) => sectionId !== "sessions");
 export const CURATED_DEFAULT_HOME_ORDER = [
   "sessions",
+  "streamCapacity",
   "attention",
   "overview",
   "operations",
@@ -62,10 +64,11 @@ export const DEFAULT_HOME_SETTINGS = {
   preset: "default",
   title: "",
   theme: "default",
-  alertRules: { backupDays: 7, requestThreshold: 1, missingPosterThreshold: 1 },
+  alertRules: { backupDays: 7, requestThreshold: 1, missingPosterThreshold: 1, streamCap: 0, transcodeCap: 0 },
   dismissedAlerts: {},
   sizes: {
     sessions: "large",
+    streamCapacity: "small",
     overview: "large",
     hall: "large",
     operations: "large",
@@ -97,7 +100,7 @@ export const HOME_PRESETS = {
   },
   admin: {
     label: "Admin",
-    order: ["attention", "operations", "quickActions", "automation", "tdarr", "maintainerr", "bazarr", "prowlarr", "wizarr", "sessions", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
+    order: ["attention", "operations", "quickActions", "automation", "tdarr", "maintainerr", "bazarr", "prowlarr", "wizarr", "sessions", "streamCapacity", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
     hidden: ["watchParty", ...INTEGRATION_WIDGET_SECTION_IDS],
     density: "compact",
     sizes: {
@@ -115,7 +118,7 @@ export const HOME_PRESETS = {
   family: {
     label: "Family",
     order: ["sessions", "watchParty", "week", "milestones", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "automation", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"],
-    hidden: ["issues", "seasonGaps", "automation", ...INTEGRATION_WIDGET_SECTION_IDS],
+    hidden: ["issues", "seasonGaps", "automation", "streamCapacity", ...INTEGRATION_WIDGET_SECTION_IDS],
     density: "comfortable",
     sizes: {
       sessions: "large",

@@ -17,6 +17,7 @@ const calendarSourceDefaults = [
   { name: "Sonarr", slug: "sonarr", connected: false },
   { name: "Radarr", slug: "radarr", connected: false },
   { name: "Lidarr", slug: "lidarr", connected: false },
+  { name: "Readarr", slug: "readarr", connected: false },
 ];
 
 function appIcon(app) {

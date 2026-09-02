@@ -19,6 +19,7 @@ const createdb = require("./create_database");
 // routes
 const authRouter = require("./routes/auth");
 const apiRouter = require("./routes/api");
+const commandCenterRouter = require("./routes/command-center");
 const proxyRouter = require("./routes/proxy");
 const { router: syncRouter } = require("./routes/sync");
 const statsRouter = require("./routes/stats");
@@ -372,7 +373,7 @@ app.get("/webhook-cards/:id.jpg", (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=600");
   return res.end(card.buffer);
 });
-app.use("/api", authenticate, authorizeApiRoute, apiRouter, () => {
+app.use("/api", authenticate, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
 app.use("/sync", authenticate, requirePermission("settings"), syncRouter, () => {
@@ -650,6 +651,22 @@ function authorizeApiRoute(req, res, next) {
   const pathName = req.path.toLowerCase();
 
   if (pathName === "/getconfig") {
+    next();
+    return;
+  }
+
+  if (pathName === "/sessions/stop" || pathName === "/sessions/message") {
+    if (!["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Admin role required" });
+    }
+    next();
+    return;
+  }
+
+  if (pathName.startsWith("/jellyfin/refresh")) {
+    if (!["Owner", "Admin"].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Admin role required" });
+    }
     next();
     return;
   }

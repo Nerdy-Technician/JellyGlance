@@ -206,6 +206,7 @@
   border-radius: 8px;
   background: rgba(8, 10, 15, 0.9);
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 12px;
   font-weight: 650;
 }
@@ -309,10 +310,14 @@
 .home-order-list select {
   width: 42px;
   min-height: 30px;
+  padding: 0 12px 0 4px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.22);
   border-radius: 8px;
-  background: rgba(8, 10, 15, 0.9);
+  background-color: rgba(8, 10, 15, 0.9);
+  background-position: right 4px center;
+  background-size: 8px 6px;
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 11px;
   font-weight: 720;
 }
@@ -350,6 +355,7 @@
 .home-density-compact .home-ops-card,
 .home-density-compact .home-integration-widget,
 .home-density-compact .home-week-pulse,
+.home-density-compact .home-milestones,
 .home-density-compact .home-attention-section,
 .home-density-compact .home-watch-party,
 .home-density-compact .home-quick-actions {
@@ -795,11 +801,35 @@
   white-space: nowrap;
 }
 
-.home-attention-section,
-.home-watch-party,
-.home-quick-actions,
-.home-milestones {
+.home-stream-capacity {
   padding: 18px;
+}
+
+.home-stream-capacity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-stream-capacity-grid span {
+  display: block;
+  color: #9cabbe;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.home-stream-capacity-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 28px;
+}
+
+.home-stream-capacity small {
+  display: block;
+  margin-top: 12px;
+  color: #9cabbe;
 }
 
 .home-attention-section .home-section-title,
@@ -813,27 +843,43 @@
   color: #f87171;
 }
 
+.home-attention-section,
+.home-quick-actions {
+  min-width: 0;
+  max-width: 100%;
+  padding: 18px;
+  overflow: hidden;
+}
+
 .home-attention-list {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
+  width: 100%;
+  min-width: 0;
 }
 
 .home-attention-list span {
   display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
   min-height: 32px;
   align-items: center;
   gap: 8px;
-  padding: 0 11px;
+  padding: 6px 11px;
+  overflow: hidden;
   border: 1px solid rgba(248, 113, 113, 0.26);
   border-radius: 999px;
   background: rgba(127, 29, 29, 0.16);
   color: #fecaca;
   font-size: 12px;
   font-weight: 900;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .home-attention-list button {
+  flex: 0 0 auto;
   height: 22px;
   border: 1px solid rgba(248, 113, 113, 0.32);
   border-radius: 999px;
@@ -924,21 +970,33 @@
   margin-top: 7px;
 }
 
+.home-milestones {
+  min-width: 0;
+  max-width: 100%;
+  padding: 18px;
+  overflow: hidden;
+}
+
 .home-milestone-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
   gap: 10px;
 }
 
 .home-milestone-card {
   position: relative;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, max-content);
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   min-height: 98px;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
-  padding: 14px;
+  padding: 14px 14px 18px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 10px;
   background:
@@ -965,6 +1023,7 @@
   display: grid;
   width: 42px;
   height: 42px;
+  flex: 0 0 42px;
   place-items: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.25);
   border-radius: 12px;
@@ -976,6 +1035,10 @@
   border-color: rgba(251, 191, 36, 0.34);
   background: rgba(251, 191, 36, 0.14);
   color: #facc15;
+}
+
+.home-milestone-card > div {
+  min-width: 0;
 }
 
 .home-milestone-card strong,
@@ -1003,6 +1066,7 @@
 
 .home-milestone-card em {
   justify-self: end;
+  max-width: 5.5rem;
   color: #f8fafc;
   font-size: 18px;
   font-style: normal;
@@ -1029,15 +1093,23 @@
 
 .home-quick-action-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
   gap: 10px;
 }
 
 .home-quick-action-grid button,
 .home-quick-action-grid a {
+  min-width: 0;
+  max-width: 100%;
   min-height: 42px;
+  overflow: hidden;
   padding: 0 12px;
+  text-overflow: ellipsis;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .home-quick-action-grid button:disabled {
@@ -1080,6 +1152,28 @@
 .home-detail-row small {
   color: #9cabbe;
   font-size: 12px;
+  font-weight: 800;
+}
+
+.home-jellyfin-down {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(180, 70, 70, 0.2);
+  color: #ffd8d8;
+}
+
+.home-jellyfin-down strong,
+.home-jellyfin-down span {
+  display: block;
+}
+
+.home-jellyfin-down a {
+  margin-left: auto;
+  color: inherit;
   font-weight: 800;
 }
 
@@ -1628,8 +1722,6 @@
   .home-trend-grid,
   .home-issue-grid,
   .home-watch-party-list,
-  .home-milestone-grid,
-  .home-quick-action-grid,
   .home-order-options,
   .home-integration-stat-grid,
   .home-ops-grid {
@@ -1964,11 +2056,14 @@
   width: 28px;
   min-height: 28px;
   border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(5, 8, 13, 0.86);
+  background-color: rgba(5, 8, 13, 0.86);
 }
 
 .home-order-list select {
   width: 36px;
+  padding-right: 12px;
+  background-position: right 4px center;
+  background-size: 8px 6px;
   font-size: 10px;
 }
 

@@ -614,6 +614,295 @@
   background: rgba(7, 9, 13, 0.92);
 }
 
+.session-popout-reason {
+  margin: 8px 0 0;
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.session-popout-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: stretch;
+  padding: 4px 18px 20px;
+  background: rgba(7, 9, 13, 0.92);
+}
+
+.session-command {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.session-command svg {
+  flex: 0 0 auto;
+}
+
+.session-command.is-message {
+  border-color: rgba(218, 122, 229, 0.42);
+  background: linear-gradient(135deg, rgba(218, 122, 229, 0.96), rgba(156, 72, 176, 0.9));
+  box-shadow: 0 14px 28px rgba(218, 122, 229, 0.22);
+}
+
+.session-command.is-stop {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.38);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.72), rgba(69, 10, 10, 0.88));
+  box-shadow: 0 12px 24px rgba(127, 29, 29, 0.28);
+}
+
+.session-command.is-ghost {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.session-command:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.session-command.is-message:hover:not(:disabled) {
+  box-shadow: 0 18px 34px rgba(218, 122, 229, 0.3);
+}
+
+.session-command.is-stop:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(252, 165, 165, 0.55);
+  background: linear-gradient(180deg, rgba(185, 28, 28, 0.86), rgba(127, 29, 29, 0.94));
+}
+
+.session-command:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+}
+
+.session-action-error {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  color: #f87171;
+  font-size: 13px;
+}
+
+.session-message-modal {
+  overflow: visible;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(var(--primary-rgb), 0.16), rgba(12, 15, 22, 0.98)),
+    #080b10;
+  color: #f8fafc;
+}
+
+.session-message-modal .modal-body {
+  overflow: visible;
+}
+
+.session-message-modal .modal-header,
+.session-message-modal .modal-footer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.session-message-modal .btn-close {
+  filter: invert(1);
+}
+
+.session-message-hint {
+  margin: 0 0 10px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.session-message-select-label {
+  display: block;
+  margin: 0 0 6px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.session-message-picker {
+  position: relative;
+  margin: 0 0 12px;
+}
+
+.session-message-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(7, 9, 13, 0.92));
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-message-picker.is-open .session-message-trigger {
+  border-color: rgba(218, 122, 229, 0.55);
+  box-shadow: 0 0 0 3px rgba(218, 122, 229, 0.16);
+}
+
+.session-message-trigger svg {
+  margin-left: auto;
+  color: #cbd5e1;
+  transition: transform 160ms ease;
+}
+
+.session-message-picker.is-open .session-message-trigger svg {
+  transform: rotate(180deg);
+}
+
+.session-message-trigger-emoji {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(218, 122, 229, 0.14);
+  font-size: 18px;
+}
+
+.session-message-trigger-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.session-message-trigger-copy strong,
+.session-message-menu button strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-message-trigger-copy small,
+.session-message-menu button small {
+  display: block;
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-message-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(10, 13, 20, 0.98);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+}
+
+.session-message-menu-group {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.session-message-menu-group > span {
+  padding: 6px 8px 2px;
+  color: #d6a3f1;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.session-message-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-message-menu button:hover,
+.session-message-menu button.is-selected {
+  background: rgba(218, 122, 229, 0.16);
+}
+
+.session-message-time-label {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.session-message-time-label small {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.session-message-time {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(7, 9, 13, 0.92));
+  font-size: 14px;
+  font-weight: 750;
+  color-scheme: dark;
+}
+
+.session-message-modal textarea {
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(7, 9, 13, 0.72);
+}
+
+.session-message-modal .modal-footer {
+  display: flex;
+  gap: 10px;
+}
+
+.session-message-modal .modal-footer .session-command {
+  flex: 1;
+}
+
 .session-popout-detail {
   min-width: 0;
   padding: 12px;
@@ -837,6 +1126,10 @@
 
   .session-popout-detail.is-wide {
     grid-column: auto;
+  }
+
+  .session-popout-actions {
+    grid-template-columns: 1fr;
   }
 }
 

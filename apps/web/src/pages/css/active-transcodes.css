@@ -28,11 +28,14 @@
 .transcode-job-kicker,
 .transcode-summary-grid span {
   margin: 0;
+  overflow: hidden;
   color: var(--primary-light-color);
   font-size: 11px;
   font-weight: 760;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transcodes-header h1 {
@@ -142,11 +145,12 @@
 .transcode-job-card {
   position: relative;
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr) minmax(180px, auto);
+  grid-template-columns: 116px minmax(0, 1fr) minmax(0, 32%);
   grid-template-rows: minmax(88px, auto) auto;
   align-items: center;
   gap: 12px 18px;
   min-height: 168px;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--surface-border-color);
   border-radius: 8px;
@@ -259,6 +263,35 @@
   color: #cbd5e1;
   font-size: 11px;
   font-weight: 700;
+}
+
+.transcode-job-meta span.is-node {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e2e8f0;
+}
+
+.transcode-job-meta span.is-gpu {
+  border-color: rgba(52, 211, 153, 0.38);
+  background: rgba(6, 78, 59, 0.42);
+  color: #6ee7b7;
+}
+
+.transcode-job-meta span.is-cpu {
+  border-color: rgba(125, 211, 252, 0.38);
+  background: rgba(12, 74, 110, 0.42);
+  color: #7dd3fc;
+}
+
+.transcode-job-meta span.is-healthcheck {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: rgba(113, 63, 18, 0.38);
+  color: #fde68a;
+}
+
+.transcode-job-meta span.is-transcode {
+  border-color: rgba(var(--primary-light-rgb), 0.42);
+  background: rgba(var(--primary-rgb), 0.18);
+  color: #e9d5ff;
 }
 
 .transcode-progress {

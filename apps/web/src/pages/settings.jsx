@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import "./css/settings/settings.css";
-import { Trans } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import ErrorBoundary from "./components/general/ErrorBoundary";
 import Loading from "./components/general/loading";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
@@ -61,41 +61,41 @@ function SettingsPane({ children }) {
 }
 
 const settingsTabItems = [
-  { key: "tabGeneral", Icon: Settings3LineIcon, label: "General", group: "Core" },
-  { key: "tabSecurity", Icon: ShieldKeyholeLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.SECURITY"} />, group: "Core" },
-  { key: "tabKiosk", Icon: Tv2LineIcon, label: "Kiosk", group: "Core" },
-  { key: "tabLibraries", Icon: GalleryLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LIBRARY_SETTINGS"} />, group: "Media" },
-  { key: "tabActivityMonitor", Icon: PulseLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.ACTIVITY_MONITOR"} defaults="Activity Monitor" />, group: "Media" },
-  { key: "tabJellyfinDevices", Icon: DeviceLineIcon, label: "Authorised Devices", group: "Media" },
-  { key: "tabJellyfinPlugins", Icon: AppsLineIcon, label: "Plugins", group: "Media" },
-  { key: "tabIntegrations", Icon: Plug2LineIcon, label: "Integrations", group: "Connections" },
-  { key: "tabKeys", Icon: Key2LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.API_KEY"} />, group: "Connections" },
-  { key: "tabWebhooks", Icon: Notification3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.WEBHOOKS"} />, group: "Connections" },
-  { key: "tabNotifications", Icon: Notification3LineIcon, label: "Notifications", group: "Connections" },
-  { key: "tabNewsletter", Icon: MailSettingsLineIcon, label: "Newsletter", group: "Connections" },
-  { key: "tabTasks", Icon: TaskLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.TASKS"} />, group: "Operations" },
-  { key: "tabBackup", Icon: ArchiveLineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.BACKUP"} />, group: "Operations" },
-  { key: "tabImports", Icon: Database2LineIcon, label: "Imports", group: "Operations" },
-  { key: "tabHealth", Icon: HeartPulseLineIcon, label: "Health", group: "Operations" },
-  { key: "tabRepair", Icon: ToolsLineIcon, label: "Repair", group: "Operations" },
-  { key: "tabLogs", Icon: FileList3LineIcon, label: <Trans i18nKey={"SETTINGS_PAGE.LOGS"} />, group: "Operations" },
+  { key: "tabGeneral", Icon: Settings3LineIcon, labelKey: "SETTINGS_PAGE.GENERAL", groupKey: "SETTINGS_PAGE.GROUP_CORE" },
+  { key: "tabSecurity", Icon: ShieldKeyholeLineIcon, labelKey: "SETTINGS_PAGE.SECURITY", groupKey: "SETTINGS_PAGE.GROUP_CORE" },
+  { key: "tabKiosk", Icon: Tv2LineIcon, labelKey: "SETTINGS_PAGE.KIOSK", groupKey: "SETTINGS_PAGE.GROUP_CORE" },
+  { key: "tabLibraries", Icon: GalleryLineIcon, labelKey: "SETTINGS_PAGE.LIBRARY_SETTINGS", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
+  { key: "tabActivityMonitor", Icon: PulseLineIcon, labelKey: "SETTINGS_PAGE.ACTIVITY_MONITOR", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
+  { key: "tabJellyfinDevices", Icon: DeviceLineIcon, labelKey: "SETTINGS_PAGE.AUTHORISED_DEVICES", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
+  { key: "tabJellyfinPlugins", Icon: AppsLineIcon, labelKey: "SETTINGS_PAGE.PLUGINS", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
+  { key: "tabIntegrations", Icon: Plug2LineIcon, labelKey: "SETTINGS_PAGE.INTEGRATIONS", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
+  { key: "tabKeys", Icon: Key2LineIcon, labelKey: "SETTINGS_PAGE.API_KEY", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
+  { key: "tabWebhooks", Icon: Notification3LineIcon, labelKey: "SETTINGS_PAGE.WEBHOOKS", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
+  { key: "tabNotifications", Icon: Notification3LineIcon, labelKey: "SETTINGS_PAGE.NOTIFICATIONS", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
+  { key: "tabNewsletter", Icon: MailSettingsLineIcon, labelKey: "SETTINGS_PAGE.NEWSLETTER", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
+  { key: "tabTasks", Icon: TaskLineIcon, labelKey: "SETTINGS_PAGE.TASKS", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
+  { key: "tabBackup", Icon: ArchiveLineIcon, labelKey: "SETTINGS_PAGE.BACKUP", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
+  { key: "tabImports", Icon: Database2LineIcon, labelKey: "SETTINGS_PAGE.IMPORTS", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
+  { key: "tabHealth", Icon: HeartPulseLineIcon, labelKey: "SETTINGS_PAGE.HEALTH", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
+  { key: "tabRepair", Icon: ToolsLineIcon, labelKey: "SETTINGS_PAGE.REPAIR", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
+  { key: "tabLogs", Icon: FileList3LineIcon, labelKey: "SETTINGS_PAGE.LOGS", groupKey: "SETTINGS_PAGE.GROUP_OPERATIONS" },
 ];
 
 const settingsTabs = settingsTabItems.map((item) => item.key);
 const settingsTabGroups = settingsTabItems.reduce((groups, item) => {
-  const group = groups.find((entry) => entry.label === item.group);
+  const group = groups.find((entry) => entry.groupKey === item.groupKey);
   if (group) {
     group.items.push(item);
   } else {
-    groups.push({ label: item.group, items: [item] });
+    groups.push({ groupKey: item.groupKey, items: [item] });
   }
   return groups;
 }, []);
 const settingsTabItemMap = Object.fromEntries(settingsTabItems.map((item) => [item.key, item]));
 
-function tabTitleFor(key) {
+function tabTitleFor(key, t) {
   const item = settingsTabItemMap[key] || settingsTabItems[0];
-  return tabTitle(item.Icon, item.label);
+  return tabTitle(item.Icon, t(item.labelKey));
 }
 const settingsTabHashes = {
   tabGeneral: "general",
@@ -235,6 +235,7 @@ function getSettingsPath(tabName, integrationTab = "") {
 }
 
 export default function Settings() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => getSettingsInitialTab(location));
@@ -417,7 +418,7 @@ export default function Settings() {
     <div className="settings has-mobile-settings-menu">
       <div className="settings-mobile-menu">
         <div className="settings-mobile-menu-list" role="tablist" aria-label="Settings sections">
-          {settingsTabItems.map(({ key, Icon, label }) => (
+          {settingsTabItems.map(({ key, Icon, labelKey }) => (
             <button
               key={key}
               type="button"
@@ -426,7 +427,7 @@ export default function Settings() {
               role="tab"
               aria-selected={activeTab === key}
             >
-              {tabTitle(Icon, label)}
+              {tabTitle(Icon, t(labelKey))}
             </button>
           ))}
         </div>
@@ -434,8 +435,8 @@ export default function Settings() {
 
       <nav className="nav nav-pills settings-sidebar-nav" role="tablist" aria-label="Settings sections">
         {settingsTabGroups.map((group) => (
-          <div className="settings-sidebar-group" key={group.label}>
-            <span className="settings-sidebar-category">{group.label}</span>
+          <div className="settings-sidebar-group" key={group.groupKey}>
+            <span className="settings-sidebar-category">{t(group.groupKey)}</span>
             {group.items.map(({ key }) => (
               <button
                 key={key}
@@ -445,7 +446,7 @@ export default function Settings() {
                 role="tab"
                 aria-selected={activeTab === key}
               >
-                {tabTitleFor(key)}
+                {tabTitleFor(key, t)}
               </button>
             ))}
           </div>

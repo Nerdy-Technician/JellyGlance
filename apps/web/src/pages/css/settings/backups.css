@@ -292,6 +292,29 @@
   font-weight: 760;
 }
 
+.backup-destination-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding: 0 18px 18px;
+}
+
+.backup-destination-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+.backup-destination-grid input,
+.backup-destination-grid select {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 12, 20, 0.7);
+  color: inherit;
+  color-scheme: dark;
+  padding: 8px 10px;
+}
+
 @media (max-width: 920px) {
   .backup-hero,
   .backup-file-card {

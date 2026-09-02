@@ -7,6 +7,7 @@ import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SendPlaneLineIcon from "remixicon-react/SendPlaneLineIcon";
 import axios from "../../../lib/axios_instance";
+import { useTranslation } from "react-i18next";
 import "../../css/settings/settings.css";
 
 const emptySettings = {
@@ -84,6 +85,7 @@ function normalizePreviewPayload(payload) {
 }
 
 export default function NewsletterSettings() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState(emptySettings);
   const [recipientText, setRecipientText] = useState("");
   const [testRecipient, setTestRecipient] = useState("");
@@ -313,13 +315,13 @@ export default function NewsletterSettings() {
     <div className="newsletter-settings">
       <header className="settings-section-header">
         <div>
-          <span>Digest email</span>
-          <h2>Newsletter Campaigns</h2>
-          <p>One shared SMTP setup powers global, role-based, and personal campaigns with section toggles and scheduling.</p>
+          <span>{t("FEATURES.NEWSLETTER.KICKER")}</span>
+          <h2>{t("FEATURES.NEWSLETTER.TITLE")}</h2>
+          <p>{t("FEATURES.NEWSLETTER.INTRO")}</p>
         </div>
         <Button type="button" variant="outline-primary" onClick={generatePreview} disabled={Boolean(busyAction)}>
           {busyAction === "preview" ? <Spinner size="sm" animation="border" /> : <RefreshLineIcon size={17} />}
-          Generate preview
+          {t("FEATURES.NEWSLETTER.PREVIEW")}
         </Button>
       </header>
 
@@ -331,20 +333,20 @@ export default function NewsletterSettings() {
 
       {!campaignSchemaReady ? (
         <Alert variant="info">
-          Campaign tables are still initializing. Shared SMTP and legacy send still work; restart JellyGlance once if this message persists after an upgrade.
+          {t("FEATURES.NEWSLETTER.SCHEMA_INIT")}
         </Alert>
       ) : null}
 
       <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab(key || "campaigns")} variant="pills" className="newsletter-tabs" transition={false}>
-        <Tab eventKey="campaigns" title="Campaigns" className="newsletter-tab-pane">
+        <Tab eventKey="campaigns" title={t("FEATURES.NEWSLETTER.TAB_CAMPAIGNS")} className="newsletter-tab-pane">
           <div className="newsletter-settings-grid">
             <div className="newsletter-campaign-sidebar">
               <section className="newsletter-panel">
                 <div className="newsletter-panel-title">
                   <ArticleLineIcon size={19} />
-                  <h3>Campaigns</h3>
+                  <h3>{t("FEATURES.NEWSLETTER.CAMPAIGNS")}</h3>
                   <Button type="button" size="sm" variant="outline-primary" onClick={createCampaign}>
-                    New campaign
+                    {t("FEATURES.NEWSLETTER.NEW")}
                   </Button>
                 </div>
                 <div className="newsletter-history">
@@ -367,14 +369,14 @@ export default function NewsletterSettings() {
                       <time>Last sent {formatDate(campaign.lastSentAt)}</time>
                     </article>
                   ))}
-                  {!campaignList.length ? <div className="newsletter-empty">No campaigns yet. Create one to get started.</div> : null}
+                  {!campaignList.length ? <div className="newsletter-empty">{t("FEATURES.NEWSLETTER.EMPTY")}</div> : null}
                 </div>
               </section>
 
               <section className="newsletter-panel newsletter-history-panel">
                 <div className="newsletter-panel-title">
                   <MailCheckLineIcon size={19} />
-                  <h3>Campaign History</h3>
+                  <h3>{t("FEATURES.NEWSLETTER.HISTORY")}</h3>
                 </div>
                 <div className="newsletter-history">
                   {campaignHistory.map((entry) => (
@@ -399,15 +401,15 @@ export default function NewsletterSettings() {
               <section className="newsletter-panel">
                 <div className="newsletter-panel-title">
                   <MailCheckLineIcon size={19} />
-                  <h3>{selectedCampaign ? "Edit campaign" : "New campaign"}</h3>
+                  <h3>{selectedCampaign ? t("FEATURES.NEWSLETTER.EDIT_CAMPAIGN") : t("FEATURES.NEWSLETTER.NEW")}</h3>
                 </div>
                 <div className="newsletter-form-grid">
                   <Form.Group>
-                    <Form.Label>Name</Form.Label>
+                    <Form.Label>{t("FEATURES.NEWSLETTER.NAME")}</Form.Label>
                     <Form.Control value={campaignDraft.name} onChange={(event) => setCampaignDraft((current) => ({ ...current, name: event.target.value }))} />
                   </Form.Group>
                   <Form.Group>
-                    <Form.Label>Type</Form.Label>
+                    <Form.Label>{t("FEATURES.NEWSLETTER.TYPE")}</Form.Label>
                     <Form.Select value={campaignDraft.type} onChange={(event) => setCampaignDraft((current) => ({ ...current, type: event.target.value }))}>
                       <option value="global">Global admin</option>
                       <option value="role">Role-based</option>
@@ -415,7 +417,7 @@ export default function NewsletterSettings() {
                     </Form.Select>
                   </Form.Group>
                   <Form.Group>
-                    <Form.Label>Frequency</Form.Label>
+                    <Form.Label>{t("FEATURES.NEWSLETTER.FREQUENCY")}</Form.Label>
                     <Form.Select value={campaignDraft.frequency} onChange={(event) => setCampaignDraft((current) => ({ ...current, frequency: event.target.value }))}>
                       <option value="manual">Manual only</option>
                       <option value="weekly">Weekly</option>
@@ -423,12 +425,12 @@ export default function NewsletterSettings() {
                     </Form.Select>
                   </Form.Group>
                   <Form.Group>
-                    <Form.Label>Test recipient</Form.Label>
+                    <Form.Label>{t("FEATURES.NEWSLETTER.TEST_RECIPIENT")}</Form.Label>
                     <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
                   </Form.Group>
                 </div>
                 <Form.Group className="newsletter-recipient-box">
-                  <Form.Label>Campaign recipients</Form.Label>
+                  <Form.Label>{t("FEATURES.NEWSLETTER.CAMPAIGN_RECIPIENTS")}</Form.Label>
                   <Form.Control as="textarea" rows={4} value={campaignRecipients} onChange={(event) => setCampaignRecipients(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
                 </Form.Group>
                 <div className="newsletter-toggle-row">
@@ -456,7 +458,7 @@ export default function NewsletterSettings() {
                   ))}
                 </div>
                 <Form.Group className="newsletter-recipient-box">
-                  <Form.Label>Custom HTML block</Form.Label>
+                  <Form.Label>{t("FEATURES.NEWSLETTER.CUSTOM_HTML")}</Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={3}
@@ -473,15 +475,15 @@ export default function NewsletterSettings() {
                 <div className="newsletter-actions">
                   <Button type="submit" disabled={Boolean(busyAction)}>
                     {busyAction === "campaign-save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
-                    Save campaign
+                    {t("FEATURES.NEWSLETTER.SAVE_CAMPAIGN")}
                   </Button>
                   <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || Boolean(busyAction)}>
                     {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                    Send test
+                    {t("FEATURES.NEWSLETTER.SEND_TEST")}
                   </Button>
                   <Button type="button" variant="primary" onClick={sendCampaign} disabled={!selectedCampaignId || Boolean(busyAction)}>
                     {busyAction === "campaign-send" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
-                    Send campaign
+                    {t("FEATURES.NEWSLETTER.SEND_CAMPAIGN")}
                   </Button>
                 </div>
               </section>
@@ -489,13 +491,13 @@ export default function NewsletterSettings() {
           </div>
         </Tab>
 
-        <Tab eventKey="settings" title="Shared SMTP" className="newsletter-tab-pane">
+        <Tab eventKey="settings" title={t("FEATURES.NEWSLETTER.TAB_SMTP")} className="newsletter-tab-pane">
           <div className="newsletter-settings-grid">
             <Form className="newsletter-form" onSubmit={saveSettings}>
               <section className="newsletter-panel">
                 <div className="newsletter-panel-title">
                   <MailSettingsLineIcon size={19} />
-                  <h3>Shared SMTP</h3>
+                  <h3>{t("FEATURES.NEWSLETTER.TAB_SMTP")}</h3>
                 </div>
                 <div className="newsletter-form-grid">
                   <Form.Group>
@@ -542,7 +544,7 @@ export default function NewsletterSettings() {
                 <div className="newsletter-actions">
                   <Button type="submit" disabled={Boolean(busyAction)}>
                     {busyAction === "save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
-                    Save SMTP
+                    {t("FEATURES.NEWSLETTER.SAVE_SMTP")}
                   </Button>
                 </div>
               </section>
@@ -550,12 +552,12 @@ export default function NewsletterSettings() {
           </div>
         </Tab>
 
-        <Tab eventKey="preview" title="Preview" className="newsletter-tab-pane">
+        <Tab eventKey="preview" title={t("FEATURES.NEWSLETTER.TAB_PREVIEW")} className="newsletter-tab-pane">
           <section className="newsletter-panel newsletter-preview-panel">
             <div className="newsletter-panel-title">
               <div>
                 <ArticleLineIcon size={19} />
-                <h3>Preview</h3>
+                <h3>{t("FEATURES.NEWSLETTER.TAB_PREVIEW")}</h3>
               </div>
               <div className="newsletter-preview-actions">
                 <Button type="button" variant="outline-primary" size="sm" onClick={generatePreview} disabled={Boolean(busyAction)}>
@@ -573,7 +575,7 @@ export default function NewsletterSettings() {
               <span>Generated {formatDate(preview?.generatedAt)}</span>
             </div>
             <div className="newsletter-preview-frame">
-              {previewHtml ? <iframe title="Newsletter preview" srcDoc={previewHtml} /> : <div className="newsletter-empty">Generate a preview to see the newsletter.</div>}
+              {previewHtml ? <iframe title={t("FEATURES.NEWSLETTER.PREVIEW_SUBJECT")} srcDoc={previewHtml} /> : <div className="newsletter-empty">{t("FEATURES.NEWSLETTER.PREVIEW_EMPTY")}</div>}
             </div>
           </section>
         </Tab>

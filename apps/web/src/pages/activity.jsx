@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 import axios from "../lib/axios_instance";
 
@@ -345,7 +346,7 @@ function Activity() {
           <h1>
             <Trans i18nKey="MENU_TABS.ACTIVITY" />
           </h1>
-          <span>Review watch history, playback method, device, and session details.</span>
+          <span>Review watch history, playback method, device, and session details. <Link to="/timeline">Open Timeline view</Link>.</span>
         </div>
 
         <div className="activity-controls">

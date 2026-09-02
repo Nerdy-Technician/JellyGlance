@@ -12,7 +12,9 @@ import Config from "./lib/config";
 import { applyFontWeightPreference } from "./lib/appearance";
 import { INTEGRATIONS_STORAGE_KEY } from "./lib/integrations-storage";
 import { prewarmActiveSessions } from "./lib/session-cache";
-import { DEFAULT_THEME, applyTheme } from "./lib/theme";
+import { applyPwaStartUrl, isOpsRole, pwaStartPath } from "./lib/pwa-manifest";
+import { getStoredWorkspaceMode, WORKSPACE_MODE_UPDATED_EVENT } from "./lib/workspace-mode";
+import { DEFAULT_THEME, applyTheme, hydrateThemeFromPreferences } from "./lib/theme";
 import { getStoredNotificationSettings, normalizeNotificationSettings, storeNotificationSettings } from "./lib/notification-settings";
 
 import Loading from "./pages/components/general/loading";
@@ -27,13 +29,22 @@ const FirstRunExtras = lazy(() => import("./pages/first-run-extras"));
 const Login = lazy(() => import("./pages/login"));
 const Navbar = lazy(() => import("./pages/components/general/navbar"));
 const WhatsNewModal = lazy(() => import("./pages/components/general/WhatsNewModal"));
+const PwaInstallBanner = lazy(() => import("./pages/components/general/PwaInstallBanner"));
 
 // Warm common authenticated routes after login so navigation feels instant.
 function preloadCriticalRoutes() {
-  import("./pages/home");
-  import("./pages/requests");
-  import("./pages/activity");
-  import("./pages/settings");
+  const warm = () => {
+    import("./pages/home");
+    import("./pages/my-glance");
+    import("./pages/requests");
+    import("./pages/activity");
+    import("./pages/settings");
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(warm, { timeout: 4000 });
+    return;
+  }
+  window.setTimeout(warm, 2500);
 }
 
 function notificationKind(message) {
@@ -206,6 +217,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    function handleWorkspaceMode(event) {
+      const role = config?.settings?.auth?.role;
+      applyPwaStartUrl(pwaStartPath(role, event.detail || getStoredWorkspaceMode(isOpsRole(role))));
+    }
+    window.addEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceMode);
+    return () => window.removeEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceMode);
+  }, [config]);
+
+  useEffect(() => {
     const fetchConfig = async () => {
       try {
         const newConfig = await Config.getConfig(true);
@@ -230,6 +250,8 @@ function App() {
         setLoading(false);
         if (!newConfig.response) {
           setNotificationSettings(storeNotificationSettings(newConfig.settings?.notifications));
+          applyPwaStartUrl(pwaStartPath(newConfig.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(newConfig.settings?.auth?.role))));
+          hydrateThemeFromPreferences(newConfig.settings?.preferences);
         }
       } catch (error) {
         console.log(error);
@@ -340,6 +362,12 @@ function App() {
           progressClassName="jellyglance-toast-progress"
         />
         <WhatsNewModal enabled={!kioskMode} />
+        {kioskMode ? null : (
+          <PwaInstallBanner
+            enabled
+            viewerStart={pwaStartPath(config?.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(config?.settings?.auth?.role))) === "/me"}
+          />
+        )}
       </div>
     );
   }

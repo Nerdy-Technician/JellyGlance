@@ -221,9 +221,11 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Integrations", link: "/integrations" },
+      { text: "Roadmap", link: "/roadmap" },
       { text: "Screenshots", link: "/guide/screenshots" },
       { text: "Press", link: "/press" },
       { text: "Operations", link: "/operations/docker" },
+      { text: "Widgets", link: "/operations/widgets" },
       { text: "Releases", link: "/operations/releases" }
     ],
     sidebar: false,

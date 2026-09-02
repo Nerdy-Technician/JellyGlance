@@ -3,7 +3,7 @@ const router = express.Router();
 const dbInstance = require('../db');
 const WebhookManager = require('../classes/webhook-manager');
 const WebhookScheduler = require('../classes/webhook-scheduler');
-const { addAuditEntry, getWebhookDeliveryHistory } = require('../classes/admin-history');
+const { addAuditEntry, getWebhookDeliveryHistory, mergeSettings, getSettings } = require('../classes/admin-history');
 
 const webhookScheduler = new WebhookScheduler();
 const webhookManager = new WebhookManager();
@@ -23,7 +23,10 @@ const eventTypes = [
     'invite_created',
     'invite_deleted',
     'invite_links_refreshed',
-    'integration_health_warning'
+    'integration_health_warning',
+    'device_authorized',
+    'ops_digest',
+    'playback_digest'
 ];
 
 function formatWebhookDeliveryError(errorDetail) {
@@ -87,6 +90,65 @@ router.get('/delivery-history', async (req, res) => {
     } catch (error) {
         console.error('Error fetching webhook delivery history:', error);
         res.status(500).json({ error: 'Failed to fetch webhook delivery history' });
+    }
+});
+
+router.get('/quiet-hours', async (req, res) => {
+    try {
+        const settings = await getSettings();
+        const quiet = settings.WebhookQuietHours || {};
+        res.json({
+            enabled: Boolean(quiet.enabled),
+            start: quiet.start || '22:00',
+            end: quiet.end || '08:00',
+            digest: quiet.digest !== false,
+            events: Array.isArray(quiet.events) && quiet.events.length ? quiet.events : ['playback_started', 'playback_ended'],
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load quiet hours' });
+    }
+});
+
+router.post('/quiet-hours', async (req, res) => {
+    try {
+        const start = String(req.body?.start || '22:00');
+        const end = String(req.body?.end || '08:00');
+        const events = Array.isArray(req.body?.events) && req.body.events.length
+            ? req.body.events.filter(Boolean)
+            : ['playback_started', 'playback_ended'];
+        const quiet = {
+            enabled: Boolean(req.body?.enabled),
+            start: /^\d{1,2}:\d{2}$/.test(start) ? start : '22:00',
+            end: /^\d{1,2}:\d{2}$/.test(end) ? end : '08:00',
+            digest: req.body?.digest !== false,
+            events,
+        };
+        await mergeSettings({ WebhookQuietHours: quiet });
+        await addAuditEntry(req, 'webhook.quiet-hours', quiet);
+        res.json(quiet);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save quiet hours' });
+    }
+});
+
+router.post('/retry/:id', async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const result = await dbInstance.query('SELECT * FROM webhooks WHERE id = $1', [id]);
+        const webhook = result.rows[0];
+        if (!webhook) {
+            return res.status(404).json({ error: 'Webhook not found' });
+        }
+        const ok = await webhookManager.executeWebhook(webhook, {
+            event: 'manual_retry',
+            message: 'Manual retry from JellyGlance Health',
+            triggeredAt: new Date().toISOString(),
+        });
+        await addAuditEntry(req, 'webhook.retry', { webhookId: id, name: webhook.name, ok });
+        res.json({ ok });
+    } catch (error) {
+        console.error('Error retrying webhook:', error);
+        res.status(500).json({ error: error.message || 'Failed to retry webhook' });
     }
 });
 
@@ -275,6 +337,30 @@ router.post('/:id/test', async (req, res) => {
                 priority: 5
             };
 
+            success = await webhookManager.executeWebhook(webhook, testData);
+        }
+        else if (webhook.webhook_type === 'ntfy') {
+            testData = {
+                title: "JellyGlance test notification",
+                message: "ntfy is connected to JellyGlance.",
+                event: "webhook_test",
+            };
+            success = await webhookManager.executeWebhook(webhook, testData);
+        }
+        else if (webhook.webhook_type === 'telegram') {
+            testData = {
+                title: "JellyGlance test notification",
+                message: "Telegram is connected to JellyGlance.",
+                event: "webhook_test",
+            };
+            success = await webhookManager.executeWebhook(webhook, testData);
+        }
+        else if (webhook.webhook_type === 'pushover') {
+            testData = {
+                title: "JellyGlance test notification",
+                message: "Pushover is connected to JellyGlance.",
+                event: "webhook_test",
+            };
             success = await webhookManager.executeWebhook(webhook, testData);
         }
         else if (webhook.url.includes('discord.com/api/webhooks') || webhook.webhook_type === 'discord') {

@@ -20,6 +20,8 @@ const WebhookManager = require("../classes/webhook-manager");
 const { axios } = require("../classes/axios");
 const triggertype = require("../logging/triggertype");
 const { addAuditEntry, getAuditLog, getWebhookDeliveryHistory } = require("../classes/admin-history");
+const { getUserPreferences } = require("../classes/user-preferences");
+const { buildOpsDigest, buildLibraryStorage, rememberDevices, pingThirdParty } = require("../classes/command-center");
 const { sendConfiguredMail, validateEmail } = require("../classes/smtp-mailer");
 const { getBackupDir } = require("../utils/storage-paths");
 const {
@@ -38,14 +40,14 @@ const {
   enrichRequestPayload,
 } = require("./requests");
 const { fetchSeerrIssues, runSeerrIssueAction } = require("../classes/seerr-issues");
-const { addDownload, deleteDownload, setDownloadPaused } = require("../classes/download-client");
+const { addDownload, deleteDownload, setDownloadPaused, testDownloadClient } = require("../classes/download-client");
 
 const router = express.Router();
 router.use(requestsExtrasRouter);
 const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
 const REQUEST_CACHE_TTL_MS = 45000;
 const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
-const TDARR_TRANSCODE_CACHE_TTL_MS = 5000;
+const TDARR_TRANSCODE_CACHE_TTL_MS = 15000;
 const requestCache = new Map();
 const seerrMediaDetailCache = new Map();
 const tdarrTranscodeCache = new Map();
@@ -217,7 +219,13 @@ async function buildHealthStatus() {
       checks.push({ key: "jellyfin", label: "Media server", ok: false, message: config.error });
     } else {
       const systemInfo = await API.systemInfo();
-      checks.push({ key: "jellyfin", label: "Media server", ok: Boolean(systemInfo), message: systemInfo?.ServerName || "Connected" });
+      const version = systemInfo?.Version ? ` · ${systemInfo.Version}` : "";
+      checks.push({
+        key: "jellyfin",
+        label: "Media server",
+        ok: Boolean(systemInfo),
+        message: `${systemInfo?.ServerName || "Connected"}${version}`,
+      });
     }
   } catch (error) {
     checks.push({ key: "jellyfin", label: "Media server", ok: false, message: error.message });
@@ -292,7 +300,7 @@ async function testArrIntegration(integration) {
   }
   const isSeerr = name.includes("jellyseerr") || name.includes("overseerr");
   const isBazarr = name === "bazarr";
-  const isLidarr = name === "lidarr";
+  const isLidarr = name === "lidarr" || name === "readarr";
   const isProwlarr = name === "prowlarr";
   const isSickChill = name === "sickchill";
   const apiPaths = isSeerr
@@ -344,45 +352,7 @@ async function testArrIntegration(integration) {
 }
 
 async function testDownloadIntegration(integration) {
-  const url = cleanIntegrationUrl(integration.values?.url);
-  const secret = integration.values?.secret;
-  const username = integration.values?.username;
-  const name = String(integration.name).toLowerCase();
-
-  if (!url || !secret) {
-    return { ok: false, error: "URL and password/API key are required" };
-  }
-
-  if ((name.includes("qbittorrent") || name === "bittorrent") && username) {
-    const login = await axios.post(`${url}/api/v2/auth/login`, new URLSearchParams({ username, password: secret }), {
-      timeout: 10000,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      validateStatus: () => true,
-    });
-    if (login.status >= 400 || String(login.data).toLowerCase().includes("fails")) {
-      return { ok: false, error: "qBittorrent login failed" };
-    }
-    const response = await axios.get(`${url}/api/v2/app/version`, {
-      timeout: 10000,
-      headers: { Cookie: login.headers["set-cookie"]?.join("; ") || "" },
-    });
-    return { ok: true, version: response.data, message: `Connected to ${response.data}` };
-  }
-
-  if (name.includes("sab")) {
-    const response = await axios.get(`${url}/api`, {
-      timeout: 10000,
-      params: { mode: "version", apikey: secret, output: "json" },
-    });
-    const version = extractIntegrationVersion(response.data) || "unknown version";
-    return { ok: true, version, message: `Connected to ${version}` };
-  }
-
-  return {
-    ok: true,
-    version: "saved credentials",
-    message: "Connected to saved credentials",
-  };
+  return testDownloadClient(integration);
 }
 
 function isWizarrIntegration(integration) {
@@ -488,11 +458,7 @@ async function testThirdPartyIntegration(integration) {
   if (isMaintainerrIntegration(integration)) {
     return testMaintainerrIntegration(integration);
   }
-  return {
-    ok: true,
-    version: "saved credentials",
-    message: "Connected to saved credentials",
-  };
+  return pingThirdParty(integration);
 }
 
 async function testMaintainerrIntegration(integration) {
@@ -776,6 +742,222 @@ function findTdarrProgressValue(value, depth = 0) {
   return undefined;
 }
 
+function looksLikeTdarrSessionId(value) {
+  return /^[A-Za-z0-9]{8,12}$/.test(String(value || ""));
+}
+
+function tdarrDisplayName(...values) {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const text = value.trim();
+    if (!text || text === "[object Object]") continue;
+    if (/^(\/|[A-Za-z]:[\\/]|\\\\)/.test(text)) continue;
+    if (looksLikeTdarrSessionId(text)) continue;
+    return text;
+  }
+  return "";
+}
+
+function getTdarrNodeId(source = {}) {
+  if (!source || typeof source !== "object") return looksLikeTdarrSessionId(source) ? String(source) : "";
+  const candidates = [
+    source.nodeSessionId,
+    source.nodeSessionID,
+    source.sessionID,
+    source.sessionId,
+    source.nodeID,
+    source.nodeId,
+    source.config?.nodeID,
+    source.config?.nodeId,
+    looksLikeTdarrSessionId(source._id) ? source._id : "",
+  ];
+  return String(candidates.find((value) => typeof value === "string" && looksLikeTdarrSessionId(value)) || "");
+}
+
+function getTdarrNodeDisplayName(source = {}, depth = 0) {
+  if (typeof source === "string") return tdarrDisplayName(source);
+  if (!source || typeof source !== "object" || depth > 3) return "";
+  const skip = /^(workers|Workers|workerList|job|fullWorker|originalLibraryFile|libraryFile|ffProbe|mediainfo|history|logs)$/;
+  const direct = tdarrDisplayName(
+    source.nodeName,
+    source.config?.nodeName,
+    source.node?.nodeName,
+    typeof source.node === "string" ? source.node : "",
+    source.NodeName,
+    source.node_name,
+    source.hostname,
+    source.hostName,
+    looksLikeTdarrSessionId(source._id) ? "" : source._id,
+    source.workerType || source.file || source.filePath ? "" : source.name
+  );
+  if (direct) return direct;
+  for (const [key, value] of Object.entries(source)) {
+    if (skip.test(key)) continue;
+    if (/nodename/i.test(key) && typeof value === "string") {
+      const name = tdarrDisplayName(value);
+      if (name) return name;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = getTdarrNodeDisplayName(value, depth + 1);
+      if (nested) return nested;
+    }
+  }
+  return "";
+}
+
+function unwrapTdarrNodesPayload(nodesData) {
+  if (!nodesData || typeof nodesData !== "object") return {};
+  if (Array.isArray(nodesData)) return nodesData;
+  if (nodesData.nodes && typeof nodesData.nodes === "object") return nodesData.nodes;
+  if (nodesData.data?.nodes && typeof nodesData.data.nodes === "object") return nodesData.data.nodes;
+  if (nodesData.data && typeof nodesData.data === "object" && !nodesData.workers && !nodesData.nodeName) {
+    return nodesData.data;
+  }
+  return nodesData;
+}
+
+function isTdarrNodeLike(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Boolean(
+    value.workers ||
+      value.Workers ||
+      value.workerLimits ||
+      value.nodeName ||
+      value.config?.nodeName ||
+      value.nodeSessionId ||
+      (value.nodeID && (value.gpuSelect !== undefined || value.queue !== undefined || value.workers))
+  );
+}
+
+function listTdarrNodes(nodesData) {
+  const root = unwrapTdarrNodesPayload(nodesData);
+  const nodes = [];
+  const add = (value, sessionId = "") => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const nodeSessionId = looksLikeTdarrSessionId(sessionId) ? sessionId : getTdarrNodeId(value) || sessionId;
+    nodes.push({
+      ...value,
+      nodeSessionId,
+      nodeID: value.nodeID || value.nodeId || nodeSessionId,
+    });
+  };
+  if (Array.isArray(root)) {
+    root.forEach((value) => add(value, getTdarrNodeId(value)));
+    return nodes;
+  }
+  const childNodes = Object.entries(root || {}).filter(([key, value]) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    return looksLikeTdarrSessionId(key) || isTdarrNodeLike(value) || value.workers || value.Workers;
+  });
+  if (childNodes.length) {
+    childNodes.forEach(([sessionId, value]) => add(value, sessionId));
+    return nodes;
+  }
+  if (isTdarrNodeLike(root)) add(root, getTdarrNodeId(root));
+  return nodes;
+}
+
+function tdarrNodeRowsFromDb(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.docs)) return data.docs;
+  if (Array.isArray(data?.data)) return data.data;
+  if (data && typeof data === "object") {
+    return Object.entries(data)
+      .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+      .map(([key, value]) => ({ ...value, _id: value._id || key }));
+  }
+  return [];
+}
+
+function buildTdarrNodeNameIndex(nodesData, nodeDirectory = []) {
+  const nameById = new Map();
+  const remember = (id, name) => {
+    if (!id || !name || looksLikeTdarrSessionId(name)) return;
+    nameById.set(String(id), name);
+  };
+  for (const node of listTdarrNodes(nodesData)) {
+    const name = getTdarrNodeDisplayName(node);
+    remember(node.nodeSessionId, name);
+    remember(node.nodeID, name);
+    remember(getTdarrNodeId(node), name);
+  }
+  for (const row of nodeDirectory) {
+    const name = getTdarrNodeDisplayName(row) || tdarrDisplayName(row._id, row.id);
+    remember(row.nodeID, name);
+    remember(row.nodeId, name);
+    remember(row.nodeSessionId, name);
+    remember(getTdarrNodeId(row), name);
+  }
+  const directoryNames = [...new Set(nodeDirectory.map((row) => getTdarrNodeDisplayName(row) || tdarrDisplayName(row._id, row.id)).filter(Boolean))];
+  const liveNodes = listTdarrNodes(nodesData);
+  if (directoryNames.length === 1) {
+    for (const node of liveNodes) {
+      remember(node.nodeSessionId, directoryNames[0]);
+      remember(node.nodeID, directoryNames[0]);
+    }
+  }
+
+  return nameById;
+}
+
+async function fetchTdarrNodeDirectory(integration) {
+  try {
+    const data = await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "NodeJSONDB",
+        mode: "getAll",
+      },
+    });
+    return tdarrNodeRowsFromDb(data);
+  } catch (error) {
+    console.log("Tdarr node directory load failed:", getAxiosErrorMessage(error));
+    return [];
+  }
+}
+
+function parseTdarrWorkMeta(record = {}) {
+  const workerType = String(
+    firstDefined(record.workerType, record.worker?.workerType, record.job?.workerType, record.process, record.type, "")
+  )
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+  let workKind = "";
+  let hardware = "";
+  if (workerType.includes("health")) workKind = "healthcheck";
+  else if (workerType.includes("transcode")) workKind = "transcode";
+  if (workerType.includes("gpu")) hardware = "gpu";
+  else if (workerType.includes("cpu")) hardware = "cpu";
+
+  if (!workKind) {
+    const health = String(firstDefined(record.HealthCheck, record.originalLibraryFile?.HealthCheck, record.libraryFile?.HealthCheck, "")).toLowerCase();
+    const transcode = String(firstDefined(record.TranscodeDecisionMaker, record.originalLibraryFile?.TranscodeDecisionMaker, record.libraryFile?.TranscodeDecisionMaker, "")).toLowerCase();
+    const healthBusy = /queued|searching|in.?progress|working|hold/.test(health);
+    const transcodeBusy = /queued|transcod|searching|in.?progress|working|hold/.test(transcode);
+    if (healthBusy && !transcodeBusy) workKind = "healthcheck";
+    else if (transcodeBusy) workKind = "transcode";
+    else {
+      const healthDate = toNumber(record.lastHealthCheckDate || record.originalLibraryFile?.lastHealthCheckDate);
+      const transcodeDate = toNumber(record.lastTranscodeDate || record.originalLibraryFile?.lastTranscodeDate);
+      if (healthDate && healthDate >= transcodeDate && /success|error|cancel/.test(health)) workKind = "healthcheck";
+      else if (transcodeDate || /success|error|cancel|not required/.test(transcode)) workKind = "transcode";
+      else if (/success|error|cancel/.test(health)) workKind = "healthcheck";
+    }
+  }
+
+  const nodeName =
+    getTdarrNodeDisplayName(record) ||
+    getTdarrNodeDisplayName(record.node) ||
+    getTdarrNodeDisplayName(record.config) ||
+    getTdarrNodeDisplayName(record.job);
+
+  return {
+    nodeName,
+    workerType,
+    workKind,
+    hardware,
+  };
+}
+
 function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
   const id = String(firstDefined(record.id, record._id, record.fileId, record.jobId, record.jobID, record.file, record.path, `${status}-${index}`));
   const progress = getTdarrExplicitProgress(record);
@@ -784,9 +966,10 @@ function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
   const posterId = firstDefined(record.jellyglancePosterId, imageId, itemId);
   const base = record.originalLibraryFile || record.libraryFile || record;
   const sourceCodec = getTdarrFormatLabel(base);
+  const workMeta = parseTdarrWorkMeta(record);
   const activeStatus = status === "active" ? firstDefined(record.status, record.handling, record.job?.type) : "";
   const decision = normalizeTdarrDisplayStatus(firstDefined(activeStatus, record.TranscodeDecisionMaker, base.TranscodeDecisionMaker, record.HealthCheck, base.HealthCheck, status));
-  const targetLabel = getTdarrTargetLabel(record, status);
+  const targetLabel = workMeta.workKind === "healthcheck" ? (status === "history" ? "Checked" : "Health check") : getTdarrTargetLabel(record, status);
   const reasonLabel = normalizeTdarrDisplayStatus(firstDefined(record.reason, record.error, record.message, record.pluginName, record.lastPluginDetails, base.lastPluginDetails));
   const oldSizeBytes = tdarrSizeToBytes(firstDefined(record.oldSize, base.oldSize, record.originalSizeGb, base.originalSizeGb));
   const newSizeBytes = tdarrSizeToBytes(firstDefined(record.newSize, base.newSize, record.outputSizeGb, base.outputSizeGb));
@@ -802,7 +985,11 @@ function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
     id,
     title: extractTdarrTitle(record),
     library: firstDefined(record.libraryName, record.library, base.DB, record.DB?.libraryName, record.meta?.LibraryName, ""),
-    worker: firstDefined(record.workerName, record.nodeName, record.nodeID, record.nodeId, record.worker?.name, record.workerType, ""),
+    worker: workMeta.nodeName || firstDefined(record.workerName, record.workerType, ""),
+    nodeName: workMeta.nodeName,
+    workKind: workMeta.workKind,
+    hardware: workMeta.hardware,
+    workerType: workMeta.workerType,
     status: decision || status,
     from: status === "history" ? firstDefined(historyFrom, "Previous version") : firstDefined(sourceCodec, extractTdarrCodec(record, "from"), "Source"),
     to: status === "history" ? firstDefined(historyTo, targetLabel, "After") : targetLabel,
@@ -866,7 +1053,8 @@ function getTdarrEpisodeKey(pathValue = "") {
 }
 
 async function attachJellyfinIdsToTdarrRecords(records = []) {
-  const paths = [...new Set(records.map(getTdarrRecordPath).filter(Boolean))];
+  const recordsToMatch = records.slice(0, 40);
+  const paths = [...new Set(recordsToMatch.map(getTdarrRecordPath).filter(Boolean))];
   if (!paths.length) return records;
 
   try {
@@ -1159,7 +1347,7 @@ async function fetchTdarrCollection(integration, collection) {
   }
 }
 
-async function fetchTdarrClientRows(integration, clientType, { start = 0, pageSize = 80, filters = [], sorts = [], table = clientType } = {}) {
+async function fetchTdarrClientRows(integration, clientType, { start = 0, pageSize = 40, filters = [], sorts = [], table = clientType } = {}) {
   try {
     const url = cleanIntegrationUrl(integration.values?.url);
     const response = await axios.post(
@@ -1283,12 +1471,109 @@ function mergeNodeProgressIntoStaged(staged, nodesData) {
   });
 }
 
+function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
+  if (!nodesData || typeof nodesData !== "object") return [];
+  const workers = [];
+  const nodes = listTdarrNodes(nodesData);
+  const nameById = buildTdarrNodeNameIndex(nodesData, nodeDirectory);
+
+  function resolveNodeName(node, worker) {
+    const ids = [
+      node?.nodeSessionId,
+      node?.nodeID,
+      getTdarrNodeId(node),
+      getTdarrNodeId(worker),
+      getTdarrNodeId(worker?.job),
+      worker?.nodeID,
+      worker?.nodeId,
+    ].filter(Boolean).map(String);
+    return (
+      getTdarrNodeDisplayName(node) ||
+      getTdarrNodeDisplayName(worker) ||
+      ids.map((id) => nameById.get(id)).find(Boolean) ||
+      ""
+    );
+  }
+
+  function pushWorker(worker, node) {
+    if (!worker || typeof worker !== "object") return;
+    const file = worker.file || worker.fileId || worker.filePath || worker.path || worker.originalfile || worker.originalFile || worker.source || worker.sourceFile || worker.job?.file || worker.job?.filePath || worker.job?._id;
+    const progress = worker.percentage ?? worker.transcodePercent ?? worker.TranscodePercent ?? worker.Progress ?? worker.progress ?? worker.percent;
+    const workerType = worker.workerType || worker.type || worker.job?.workerType || "";
+    if (!file || (progress == null && !worker.status && !worker.job && !workerType)) return;
+    const nodeId = node?.nodeSessionId || getTdarrNodeId(node) || getTdarrNodeId(worker) || getTdarrNodeId(worker.job);
+    workers.push({
+      ...worker,
+      file,
+      nodeName: resolveNodeName(node, worker),
+      nodeID: nodeId,
+      nodeSessionId: nodeId,
+      workerType,
+    });
+  }
+
+  function walkWorkers(value, node, depth = 0) {
+    if (!value || typeof value !== "object" || depth > 5) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => walkWorkers(item, node, depth + 1));
+      return;
+    }
+    pushWorker(value, node);
+    ["fullWorker", "workerItem", "current", "job"].forEach((key) => {
+      if (value[key] && typeof value[key] === "object" && !Array.isArray(value[key])) {
+        walkWorkers(value[key], node, depth + 1);
+      }
+    });
+    const looksLikeBucket = !value.workerType && !value.file && !value.filePath && progressIsMissing(value);
+    if (looksLikeBucket || value.workers || value.Workers) {
+      Object.values(value).forEach((child) => {
+        if (child && typeof child === "object") walkWorkers(child, node, depth + 1);
+      });
+    }
+  }
+
+  function progressIsMissing(value) {
+    return value.percentage == null && value.progress == null && value.percent == null;
+  }
+
+  for (const node of nodes) {
+    const workerRoots = [node.workers, node.Workers, node.workerList, typeof node.queue === "object" ? node.queue : null].filter(Boolean);
+    if (workerRoots.length) {
+      workerRoots.forEach((root) => walkWorkers(root, node));
+      continue;
+    }
+    Object.entries(node).forEach(([key, value]) => {
+      if (/^(nodeName|nodeID|nodeId|nodeSessionId|config|_id)$/.test(key)) return;
+      if (value && typeof value === "object") walkWorkers(value, node);
+    });
+  }
+
+  if (!workers.length) {
+    function walk(value, depth = 0, node = null) {
+      if (!value || typeof value !== "object" || depth > 6) return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => walk(item, depth + 1, node));
+        return;
+      }
+      const nextNode = isTdarrNodeLike(value) ? value : node;
+      if (value.workers || value.Workers) walkWorkers(value.workers || value.Workers, nextNode);
+      const progress = value.percentage ?? value.transcodePercent ?? value.TranscodePercent ?? value.Progress ?? value.progress ?? value.percent;
+      const file = value.file || value.fileId || value.filePath || value.path || value.source || value.sourceFile;
+      if (file != null && progress != null) pushWorker(value, nextNode);
+      Object.values(value).forEach((child) => walk(child, depth + 1, nextNode));
+    }
+    walk(unwrapTdarrNodesPayload(nodesData));
+  }
+
+  return uniqueTdarrRows(workers).slice(0, 40);
+}
+
 async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const [statusResponse, statistics, stagedRows, fileRows, queuedSearchRows, historySuccessRows, historyErrorRows, nodesData] = await Promise.all([
+  const [statusResponse, statistics, queuedSearchRows, healthQueuedRows, historySuccessRows, historyErrorRows, nodesData, nodeDirectory] = await Promise.all([
     axios
       .get(`${url}/api/v2/status`, {
-        timeout: 12000,
+        timeout: 8000,
         headers: getTdarrHeaders(integration),
       })
       .catch((error) => {
@@ -1296,41 +1581,34 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
         return { data: {} };
       }),
     fetchTdarrStatistics(integration),
-    fetchTdarrCollection(integration, "StagedJSONDB"),
-    // FileJSONDB is a very large, slow dump on real Tdarr installations. The
-    // paged client/search responses below are the primary queue/history source.
-    Promise.resolve([]),
-    activeOnly ? Promise.resolve([]) : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "Queued" }] }),
+    activeOnly ? Promise.resolve([]) : fetchTdarrClientRows(integration, "search", { pageSize: 40, table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "Queued" }] }),
+    activeOnly ? Promise.resolve([]) : fetchTdarrClientRows(integration, "search", { pageSize: 40, table: "search", filters: [{ id: "HealthCheck", value: "Queued" }] }),
     activeOnly
       ? Promise.resolve([])
-      : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "success" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
+      : fetchTdarrClientRows(integration, "search", { pageSize: 40, table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "success" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
     activeOnly
       ? Promise.resolve([])
-      : fetchTdarrClientRows(integration, "search", { table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "error" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
-    axios.get(`${url}/api/v2/get-nodes`, {
-      timeout: 10000,
-      headers: getTdarrHeaders(integration),
-    }).then((r) => r.data || {}).catch(() => ({})),
+      : fetchTdarrClientRows(integration, "search", { pageSize: 40, table: "search", filters: [{ id: "TranscodeDecisionMaker", value: "error" }], sorts: [{ id: "lastTranscodeDate", desc: true }] }),
+    axios
+      .get(`${url}/api/v2/get-nodes`, {
+        timeout: 8000,
+        headers: getTdarrHeaders(integration),
+      })
+      .then((response) => response.data || {})
+      .catch(() => ({})),
+    fetchTdarrNodeDirectory(integration),
   ]);
 
-  const stagedWithProgress = mergeNodeProgressIntoStaged(stagedRows, nodesData);
-  const queuedFiles = uniqueTdarrRows(queuedSearchRows).slice(0, 80);
-  const historyFiles = sortTdarrFilesByDate(uniqueTdarrRows([...historySuccessRows, ...historyErrorRows])).slice(0, 80);
-  const fallbackQueuedFiles = fileRows.filter(isTdarrQueuedFile).slice(0, 80);
-  const fallbackHistoryFiles = sortTdarrFilesByDate(fileRows.filter(isTdarrHistoryFile)).slice(0, 80);
+  const workerRows = extractTdarrWorkersFromNodes(nodesData, nodeDirectory);
+  const stagedWithProgress = mergeNodeProgressIntoStaged(workerRows, nodesData);
+  const queuedFiles = uniqueTdarrRows([...queuedSearchRows, ...healthQueuedRows]).slice(0, 40);
+  const historyFiles = sortTdarrFilesByDate(uniqueTdarrRows([...historySuccessRows, ...historyErrorRows])).slice(0, 40);
   const [activeWithImages, queuedWithImages, historyWithImages] = await Promise.all([
     attachJellyfinIdsToTdarrRecords(stagedWithProgress),
-    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles.length ? queuedFiles : fallbackQueuedFiles),
-    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles.length ? historyFiles : fallbackHistoryFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(queuedFiles),
+    activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
   ]);
-  const bundle = normalizeTdarrBundle(
-    statusResponse.data || {},
-    statistics,
-    activeWithImages.slice(0, 80),
-    fileRows,
-    queuedWithImages,
-    historyWithImages
-  );
+  const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages, [], queuedWithImages, historyWithImages);
   return {
     ...bundle,
     source: {
@@ -3351,7 +3629,7 @@ async function fetchJellyfinUserItems(userId, params = {}) {
     params: {
       Recursive: true,
       Limit: 24,
-      Fields: "DateCreated,Genres,Overview,CommunityRating,PremiereDate,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData,Studios,People",
+      Fields: "DateCreated,Genres,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ImageTags,PrimaryImageTag,SeriesPrimaryImageTag,RunTimeTicks,UserData",
       ExcludeLocationTypes: "Virtual",
       ...params,
     },
@@ -3691,13 +3969,18 @@ const userMediaListsCache = new Map();
 const userMediaListsInflight = new Map();
 
 function clearUserMediaListsCache(userId) {
-  if (userId) {
-    userMediaListsCache.delete(userId);
-    userMediaListsInflight.delete(userId);
+  if (!userId) return;
+  for (const key of [...userMediaListsCache.keys()]) {
+    if (key === userId || key.startsWith(`${userId}:`)) userMediaListsCache.delete(key);
+  }
+  for (const key of [...userMediaListsInflight.keys()]) {
+    if (key === userId || key.startsWith(`${userId}:`)) userMediaListsInflight.delete(key);
   }
 }
 
-async function fetchUserMediaLists(userId) {
+async function fetchUserMediaLists(userId, options = {}) {
+  const includeNetwork = options.includeNetwork === true;
+  const includeRecommendations = options.includeRecommendations === true;
   const includeItemTypes = "Movie,Series,Episode";
   const [favourites, jellyfinWatchlist, taggedWatchlist, watchlistContainers, continueWatching, recentlyWatched] = await Promise.all([
     fetchJellyfinUserItems(userId, {
@@ -3766,8 +4049,8 @@ async function fetchUserMediaLists(userId) {
     .filter(Boolean);
   const [nextEpisodes, recommendations, mediaNetwork] = await Promise.all([
     fetchNextEpisodes(userId, watchlistedSeriesIds.length ? watchlistedSeriesIds : contextualSeriesIds),
-    buildRecommendations(userId, watchlist),
-    fetchUserMediaNetwork(userId, normalizedFavourites, watchlist),
+    includeRecommendations ? buildRecommendations(userId, watchlist) : Promise.resolve([]),
+    includeNetwork ? fetchUserMediaNetwork(userId, normalizedFavourites, watchlist) : Promise.resolve({ sharedFavourites: [], familyWatchlist: splitMediaTypes([]) }),
   ]);
   const allTasteItems = [...normalizedFavourites, ...watchlist, ...recentlyWatched];
   const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -4120,7 +4403,7 @@ router.get("/health", async (req, res) => {
 
 router.get("/home/operations", async (req, res) => {
   try {
-    const [requestsResult, healthResult, maintainerrResult] = await Promise.allSettled([
+    const [requestsResult, healthResult, maintainerrResult, digestResult, storageResult, jobsResult] = await Promise.allSettled([
       fetchSeerrRequests({ force: req.query?.forceRequests === "true" }),
       buildHealthStatus(),
       (async () => {
@@ -4128,7 +4411,13 @@ router.get("/home/operations", async (req, res) => {
         if (!integration) return null;
         return fetchMaintainerrBundle(integration);
       })(),
+      buildOpsDigest(),
+      buildLibraryStorage(),
+      buildServerManagementStatus(),
     ]);
+
+    const jellyfinTasks = jobsResult.status === "fulfilled" ? jobsResult.value?.jellyfinTasks || [] : [];
+    const runningJobs = jellyfinTasks.filter((task) => String(task.state || "").toLowerCase().includes("run"));
 
     res.send({
       requests:
@@ -4137,6 +4426,12 @@ router.get("/home/operations", async (req, res) => {
           : null,
       health: healthResult.status === "fulfilled" ? healthResult.value : null,
       maintainerr: maintainerrResult.status === "fulfilled" ? maintainerrResult.value : null,
+      digest: digestResult.status === "fulfilled" ? digestResult.value : null,
+      storage: storageResult.status === "fulfilled" ? storageResult.value : null,
+      jobs: {
+        running: runningJobs.slice(0, 6),
+        count: runningJobs.length,
+      },
     });
   } catch (error) {
     console.error("Home operations failed:", error);
@@ -4345,22 +4640,24 @@ router.put("/requests/:requestId/edit", async (req, res) => {
 router.get("/users/:userId/media-lists", async (req, res) => {
   try {
     const { userId } = req.params;
-    const cached = userMediaListsCache.get(userId);
+    const full = req.query?.full === "true";
+    const cacheKey = `${userId}:${full ? "full" : "lite"}`;
+    const cached = userMediaListsCache.get(cacheKey);
     if (cached && Date.now() - cached.createdAt < USER_MEDIA_LISTS_CACHE_TTL_MS) {
       return res.send(cached.data);
     }
 
-    let request = userMediaListsInflight.get(userId);
+    let request = userMediaListsInflight.get(cacheKey);
     if (!request) {
-      request = fetchUserMediaLists(userId)
+      request = fetchUserMediaLists(userId, { includeNetwork: full, includeRecommendations: full })
         .then((data) => {
-          userMediaListsCache.set(userId, { createdAt: Date.now(), data });
+          userMediaListsCache.set(cacheKey, { createdAt: Date.now(), data });
           return data;
         })
         .finally(() => {
-          userMediaListsInflight.delete(userId);
+          userMediaListsInflight.delete(cacheKey);
         });
-      userMediaListsInflight.set(userId, request);
+      userMediaListsInflight.set(cacheKey, request);
     }
 
     res.send(await request);
@@ -4391,6 +4688,7 @@ router.get("/getconfig", async (req, res) => {
     }
 
     const settings = { ...(config.settings || {}) };
+    delete settings.UserPreferences;
     const auth = { ...(settings.auth || {}) };
     if (req.user?.authMode === "quick-connect" && req.user?.jellyfinUser) {
       auth.mode = "quick-connect";
@@ -4413,6 +4711,9 @@ router.get("/getconfig", async (req, res) => {
       auth.permissions = req.user.permissions;
       settings.auth = auth;
     }
+
+    const preferences = await getUserPreferences(req.user).catch(() => ({ theme: null }));
+    settings.preferences = preferences;
 
     const payload = {
       JF_HOST: config.JF_HOST,
@@ -4798,26 +5099,32 @@ router.post("/setconfig", async (req, res) => {
 
 router.post("/setExternalUrl", async (req, res) => {
   try {
-    const { ExternalUrl } = req.body;
-
-    if (ExternalUrl === undefined) {
+    if (!Object.prototype.hasOwnProperty.call(req.body || {}, "ExternalUrl")) {
       res.status(400);
-      res.send("ExternalUrl is required for configuration");
+      res.send({ errorMessage: "ExternalUrl is required for configuration" });
       return;
     }
 
+    const ExternalUrl = typeof req.body.ExternalUrl === "string" ? req.body.ExternalUrl.trim() : "";
     const config = await new configClass().getConfig();
-    const validation = await API.validateSettings(ExternalUrl, config.JF_API_KEY);
-    if (validation.isValid === false) {
-      res.status(validation.status);
-      res.send(validation);
-      return;
+    const settings = config.settings || {};
+
+    if (ExternalUrl) {
+      const validation = await API.validateSettings(ExternalUrl, config.JF_API_KEY);
+      if (validation.isValid === false) {
+        res.status(validation.status || 400);
+        res.send({
+          errorMessage: validation.errorMessage || "Unable to validate the external URL",
+          ...validation,
+        });
+        return;
+      }
+      settings.EXTERNAL_URL = validation.cleanedUrl || ExternalUrl;
+    } else {
+      delete settings.EXTERNAL_URL;
     }
 
     try {
-      const settings = config.settings || {};
-      settings.EXTERNAL_URL = ExternalUrl;
-
       const query = 'UPDATE app_config SET settings=$1 where "ID"=1';
 
       await db.query(query, [settings]);
@@ -4825,12 +5132,12 @@ router.post("/setExternalUrl", async (req, res) => {
       res.send(config);
     } catch (error) {
       res.status(503);
-      res.send({ error: "Error: " + error });
+      res.send({ errorMessage: "Error: " + error });
     }
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send({ error: "Error: " + error });
+    res.send({ errorMessage: "Error: " + error });
   }
 });
 
@@ -6672,11 +6979,22 @@ router.post("/deletePlaybackActivity", async (req, res) => {
   }
 });
 
+router.get("/getTimelineUsers", async (req, res) => {
+  try {
+    const { rows } = await db.query(`SELECT "Id" AS "UserId", "Name" AS "UserName" FROM jf_users ORDER BY "Name"`);
+    res.send(rows);
+  } catch (error) {
+    console.log(error);
+    res.status(503);
+    res.send(error);
+  }
+});
+
 router.post("/getActivityTimeLine", async (req, res) => {
   try {
     const { userId, libraries } = req.body;
 
-    if (libraries === undefined || !Array.isArray(libraries)) {
+    if (libraries !== undefined && !Array.isArray(libraries)) {
       res.status(400);
       res.send("A list of IDs is required. EG: [1,2,3]");
       return;
@@ -6688,8 +7006,18 @@ router.post("/getActivityTimeLine", async (req, res) => {
       return;
     }
 
-    const { rows } = await db.query(`SELECT * FROM fs_get_user_activity($1, $2);`, [userId, libraries]);
-    res.send(rows);
+    const libraryIds = Array.isArray(libraries) ? libraries : [];
+    const limit = Math.min(Math.max(Number(req.body.limit) || 40, 1), 100);
+    const offset = Math.max(Number(req.body.offset) || 0, 0);
+
+    const { rows } = await db.query(`SELECT * FROM fs_get_user_activity($1, $2::text[]) LIMIT $3 OFFSET $4`, [
+      userId,
+      libraryIds,
+      limit + 1,
+      offset,
+    ]);
+    const hasMore = rows.length > limit;
+    res.send({ results: rows.slice(0, limit), hasMore });
   } catch (error) {
     console.log(error);
     res.status(503);
@@ -6820,6 +7148,24 @@ router.post("/integrations/test-all", async (req, res) => {
   }
 });
 
+async function hydrateIntegrationForTest(integration, type) {
+  const integrations = await getIntegrations();
+  const list =
+    type === "download" ? integrations.clients : type === "thirdParty" ? integrations.thirdParty : integrations.arrApps;
+  const current = (list || []).find(
+    (item) => item.instanceId === integration.instanceId || (integration.slug && item.slug === integration.slug)
+  );
+  if (!current?.values?.secret || integration.values?.secret) return integration;
+  return {
+    ...integration,
+    values: {
+      ...(integration.values || {}),
+      secret: current.values.secret,
+      username: integration.values?.username || current.values.username,
+    },
+  };
+}
+
 router.post("/integrations/test", async (req, res) => {
   const { integration, type } = req.body || {};
 
@@ -6828,7 +7174,8 @@ router.post("/integrations/test", async (req, res) => {
   }
 
   try {
-    const result = type === "download" ? await testDownloadIntegration(integration) : type === "thirdParty" ? await testThirdPartyIntegration(integration) : await testArrIntegration(integration);
+    const hydrated = await hydrateIntegrationForTest(integration, type);
+    const result = type === "download" ? await testDownloadIntegration(hydrated) : type === "thirdParty" ? await testThirdPartyIntegration(hydrated) : await testArrIntegration(hydrated);
     if (!result.ok) {
       return res.status(400).send(result);
     }
@@ -7107,6 +7454,41 @@ router.post("/downloads/pause", async (req, res) => {
   }
 });
 
+router.post("/sessions/stop", async (req, res) => {
+  try {
+    const sessionId = String(req.body?.sessionId || "").trim();
+    if (!sessionId) {
+      return res.status(400).send({ error: "Missing sessionId" });
+    }
+    await API.stopSession(sessionId);
+    await addAuditEntry(req, "session.stopped", { sessionId });
+    res.send({ ok: true });
+  } catch (error) {
+    console.error("Session stop failed:", error);
+    res.status(error.statusCode || error.response?.status || 500).send({ error: error.message || "Unable to stop session" });
+  }
+});
+
+router.post("/sessions/message", async (req, res) => {
+  try {
+    const sessionId = String(req.body?.sessionId || "").trim();
+    const text = String(req.body?.text || "").trim();
+    if (!sessionId || !text) {
+      return res.status(400).send({ error: "Missing sessionId or message text" });
+    }
+    await API.sendSessionMessage(sessionId, {
+      header: req.body?.header || "JellyGlance",
+      text,
+      timeoutMs: req.body?.timeoutMs,
+    });
+    await addAuditEntry(req, "session.messaged", { sessionId });
+    res.send({ ok: true });
+  } catch (error) {
+    console.error("Session message failed:", error);
+    res.status(error.statusCode || error.response?.status || 500).send({ error: error.message || "Unable to send session message" });
+  }
+});
+
 //Tasks
 
 router.get("/stopTask", async (req, res) => {
@@ -7185,9 +7567,12 @@ router.get("/jellyfin/devices", async (req, res) => {
   try {
     const response = await jellyfinRequest("/Devices");
     const devices = Array.isArray(response.data?.Items) ? response.data.Items : Array.isArray(response.data) ? response.data : [];
+    const normalized = devices.map(normalizeJellyfinDevice).sort((a, b) => new Date(b.dateLastActivity || 0) - new Date(a.dateLastActivity || 0));
+    const seen = await rememberDevices(normalized).catch(() => ({ fresh: [] }));
     res.send({
-      devices: devices.map(normalizeJellyfinDevice).sort((a, b) => new Date(b.dateLastActivity || 0) - new Date(a.dateLastActivity || 0)),
+      devices: normalized,
       total: Number(response.data?.TotalRecordCount ?? devices.length),
+      newDevices: seen.fresh || [],
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {

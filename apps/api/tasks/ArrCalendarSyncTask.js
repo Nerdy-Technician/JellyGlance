@@ -29,6 +29,10 @@ async function fetchMediaDetails(app, item) {
     apiPath = `/api/v3/series/${item.seriesId || item.series.id}`;
   } else if (service === "lidarr" && (item.artistId || item.artist?.id)) {
     apiPath = `/api/v1/artist/${item.artistId || item.artist.id}`;
+  } else if (service === "readarr" && (item.bookId || item.book?.id)) {
+    apiPath = `/api/v1/book/${item.bookId || item.book.id}`;
+  } else if (service === "readarr" && (item.authorId || item.author?.id)) {
+    apiPath = `/api/v1/author/${item.authorId || item.author.id}`;
   }
 
   if (!apiPath) {
@@ -49,10 +53,10 @@ async function fetchMediaDetails(app, item) {
 
 async function normalizeRelease(app, item) {
   const isMovie = Boolean(item.movie || item.movieId || item.tmdbId);
-  const baseMedia = item.movie || item.series || item.artist || item;
+  const baseMedia = item.movie || item.series || item.artist || item.book || item.author || item;
   const mediaDetails = Array.isArray(baseMedia?.images) && baseMedia.images.length ? null : await fetchMediaDetails(app, item);
   const media = mediaDetails || baseMedia;
-  const title = media?.title || item.artist?.artistName || item.title || "Untitled release";
+  const title = media?.title || item.artist?.artistName || item.book?.title || item.author?.authorName || item.title || "Untitled release";
   const episode = item.episodeNumber || item.absoluteEpisodeNumber;
   const season = item.seasonNumber;
   const episodeTitle = !isMovie && season && episode ? item.title || item.episode?.title || "" : "";
@@ -102,8 +106,8 @@ async function fetchArrCalendar(app) {
     return [];
   }
 
-  const isLidarr = String(app.name).toLowerCase() === "lidarr";
-  const apiPath = isLidarr ? "/api/v1/calendar" : "/api/v3/calendar";
+  const isV1Calendar = ["lidarr", "readarr"].includes(String(app.name).toLowerCase());
+  const apiPath = isV1Calendar ? "/api/v1/calendar" : "/api/v3/calendar";
   const start = new Date();
   const end = addDays(start, 90);
   const response = await axios.get(`${url}${apiPath}`, {
@@ -124,7 +128,10 @@ async function fetchArrCalendar(app) {
 async function runArrCalendarSyncTask() {
   try {
     const integrations = await getIntegrations();
-    const sources = (integrations.arrApps || []).filter((app) => app.connected);
+    const sources = (integrations.arrApps || []).filter((app) => {
+      const name = String(app.name || app.slug || "").toLowerCase();
+      return app.connected && (name.includes("sonarr") || name.includes("radarr") || name.includes("lidarr") || name.includes("readarr"));
+    });
     const results = await Promise.allSettled(sources.map((app) => fetchArrCalendar(app)));
     const releases = results
       .flatMap((result) => (result.status === "fulfilled" ? result.value : []))

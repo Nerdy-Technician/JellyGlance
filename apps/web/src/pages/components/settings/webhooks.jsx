@@ -17,7 +17,7 @@ import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
 import Edit2LineIcon from "remixicon-react/Edit2LineIcon";
 import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
 import { Tooltip } from "@mui/material";
-import { Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import Loading from "../general/loading";
 import ErrorBoundary from "../general/ErrorBoundary";
 import { taskList } from "../../../lib/tasklist.jsx";
@@ -33,6 +33,18 @@ const webhookTypeMeta = {
   gotify: {
     label: "Gotify",
     placeholder: "https://gotify.example.com/message?token=APP_TOKEN",
+  },
+  ntfy: {
+    label: "ntfy",
+    placeholder: "https://ntfy.sh/your-topic",
+  },
+  telegram: {
+    label: "Telegram",
+    placeholder: "https://api.telegram.org/bot<token>/sendMessage?chat_id=<chat-id>",
+  },
+  pushover: {
+    label: "Pushover",
+    placeholder: "https://api.pushover.net/1/messages.json?token=APP_TOKEN&user=USER_KEY",
   },
   generic: {
     label: "Generic",
@@ -130,6 +142,24 @@ const eventCards = [
     title: "Integration health warning",
     text: "When a connected client test fails.",
     Icon: HeartPulseLineIcon,
+  },
+  {
+    id: "device_authorized",
+    title: "New Jellyfin client",
+    text: "When a device appears on Jellyfin that Glance has not seen before.",
+    Icon: UserAddLineIcon,
+  },
+    {
+    id: "ops_digest",
+    title: "Ops digest",
+    text: "When failed jobs, stuck downloads, or webhook failures pile up.",
+    Icon: ErrorWarningLineIcon,
+  },
+  {
+    id: "playback_digest",
+    title: "Overnight playback digest",
+    text: "One summary after quiet hours instead of overnight start/stop pings.",
+    Icon: PlayCircleLineIcon,
   },
 ];
 
@@ -256,6 +286,7 @@ function groupWebhookRows(rows) {
 }
 
 export default function WebhooksSettings() {
+  const { t } = useTranslation();
   const [webhooks, setWebhooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -263,6 +294,8 @@ export default function WebhooksSettings() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [currentWebhook, setCurrentWebhook] = useState(defaultWebhook);
+  const [quietHours, setQuietHours] = useState({ enabled: false, start: "22:00", end: "08:00", digest: true });
+  const [quietSaving, setQuietSaving] = useState(false);
 
   const groupedWebhooks = useMemo(() => groupWebhookRows(webhooks), [webhooks]);
   const activeEventCount = groupedWebhooks.reduce(
@@ -280,6 +313,15 @@ export default function WebhooksSettings() {
       setError(null);
       const response = await axios.get("/webhooks", { headers });
       setWebhooks(response.data);
+      const quietResponse = await axios.get("/webhooks/quiet-hours", { headers }).catch(() => null);
+      if (quietResponse?.data) {
+        setQuietHours({
+          enabled: Boolean(quietResponse.data.enabled),
+          start: quietResponse.data.start || "22:00",
+          end: quietResponse.data.end || "08:00",
+          digest: quietResponse.data.digest !== false,
+        });
+      }
     } catch (err) {
       console.error("Error loading webhooks:", err);
       setError("Unable to load webhooks: " + (err.response?.data?.error || err.message));
@@ -293,6 +335,24 @@ export default function WebhooksSettings() {
     const intervalId = setInterval(loadWebhooks, 1000 * 10);
     return () => clearInterval(intervalId);
   }, []);
+
+  async function saveQuietHours(nextQuiet) {
+    try {
+      setQuietSaving(true);
+      setError(null);
+      const response = await axios.post("/webhooks/quiet-hours", nextQuiet, { headers });
+      setQuietHours({
+        enabled: Boolean(response.data.enabled),
+        start: response.data.start || "22:00",
+        end: response.data.end || "08:00",
+      });
+      setSuccess(t("FEATURES.OPS.QUIET_SAVED"));
+    } catch (err) {
+      setError(err.response?.data?.error || t("FEATURES.OPS.QUIET_SAVE_FAIL"));
+    } finally {
+      setQuietSaving(false);
+    }
+  }
 
   function resetForm() {
     setCurrentWebhook(defaultWebhook);
@@ -501,6 +561,51 @@ export default function WebhooksSettings() {
         </div>
       </div>
 
+      <section className="webhook-quiet-hours">
+        <div>
+          <h2>{t("FEATURES.OPS.QUIET_HOURS")}</h2>
+          <p>{t("FEATURES.OPS.QUIET_HOURS_INTRO")}</p>
+        </div>
+        <label className="webhook-quiet-toggle">
+          <input
+            type="checkbox"
+            checked={Boolean(quietHours.enabled)}
+            disabled={quietSaving}
+            onChange={(event) => saveQuietHours({ ...quietHours, enabled: event.target.checked })}
+          />
+          {t("FEATURES.OPS.QUIET_ENABLED")}
+        </label>
+        <label className="webhook-quiet-toggle">
+          <input
+            type="checkbox"
+            checked={quietHours.digest !== false}
+            disabled={quietSaving}
+            onChange={(event) => saveQuietHours({ ...quietHours, digest: event.target.checked })}
+          />
+          {t("FEATURES.OPS.QUIET_DIGEST")}
+        </label>
+        <label>
+          {t("FEATURES.OPS.QUIET_START")}
+          <input
+            type="time"
+            value={quietHours.start}
+            disabled={quietSaving}
+            onChange={(event) => setQuietHours((current) => ({ ...current, start: event.target.value }))}
+            onBlur={(event) => saveQuietHours({ ...quietHours, start: event.target.value })}
+          />
+        </label>
+        <label>
+          {t("FEATURES.OPS.QUIET_END")}
+          <input
+            type="time"
+            value={quietHours.end}
+            disabled={quietSaving}
+            onChange={(event) => setQuietHours((current) => ({ ...current, end: event.target.value }))}
+            onBlur={(event) => saveQuietHours({ ...quietHours, end: event.target.value })}
+          />
+        </label>
+      </section>
+
       <ErrorBoundary>
         {error && (
           <Alert variant="danger" onClose={() => setError(null)} dismissible>
@@ -564,6 +669,12 @@ export default function WebhooksSettings() {
             />
             {currentWebhook.webhook_type === "gotify" ? (
               <small className="text-secondary d-block mt-2">Use the Gotify message endpoint with an app token.</small>
+            ) : currentWebhook.webhook_type === "ntfy" ? (
+              <small className="text-secondary d-block mt-2">Use a topic URL. For private servers, put the access token in Headers as Authorization Bearer.</small>
+            ) : currentWebhook.webhook_type === "telegram" ? (
+              <small className="text-secondary d-block mt-2">Use the Bot API sendMessage URL and include chat_id as a query parameter.</small>
+            ) : currentWebhook.webhook_type === "pushover" ? (
+              <small className="text-secondary d-block mt-2">Use the Pushover messages endpoint with token and user query parameters.</small>
             ) : null}
           </Form.Group>
 

@@ -343,7 +343,7 @@
 
 .integrations-page.is-embedded .integration-grid {
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .integrations-page.is-first-run.is-embedded .integration-grid {
@@ -810,8 +810,9 @@
 .integration-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: 14px;
+  max-width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   align-items: stretch;
 }
 
@@ -1000,6 +1001,7 @@
   border-radius: 8px;
   background: #0b101a;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 12px;
   font-weight: 850;
 }
@@ -1325,6 +1327,11 @@
   .wizarr-invite-meta {
     justify-items: start;
   }
+
+  .integration-grid,
+  .integrations-page.is-embedded .integration-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1338,7 +1345,9 @@
   }
 
   .wizarr-dashboard,
-  .wizarr-form-grid {
+  .wizarr-form-grid,
+  .integration-grid,
+  .integrations-page.is-embedded .integration-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1359,7 +1368,7 @@
 }
 
 .integrations-page.is-embedded .integration-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (max-width: 1180px) {
@@ -1523,6 +1532,7 @@
   border-radius: 10px;
   background: #070a10;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 12px;
 }
 
@@ -2237,6 +2247,7 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 12px;
   font-weight: 850;
 }
@@ -4933,6 +4944,7 @@
   border-radius: 8px;
   background: #111827;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 14px;
   font-weight: 800;
 }
@@ -5173,6 +5185,18 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.download-stalled {
+  color: #ffb4b4 !important;
+  font-weight: 800;
+}
+
+.download-request-chip {
+  color: #d8e7ff;
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .download-client-row {

@@ -4,6 +4,7 @@ import { Modal } from "react-bootstrap";
 import axios from "../lib/axios_instance";
 import { cachedGet } from "../lib/api-cache";
 import Config from "../lib/config";
+import { useTranslation } from "react-i18next";
 
 import ArrowDownSLineIcon from "remixicon-react/ArrowDownSLineIcon";
 import ArrowUpSLineIcon from "remixicon-react/ArrowUpSLineIcon";
@@ -25,6 +26,7 @@ import Music2LineIcon from "remixicon-react/Music2LineIcon";
 import PlayCircleLineIcon from "remixicon-react/PlayCircleLineIcon";
 import RestartLineIcon from "remixicon-react/RestartLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
+import ServerFillIcon from "remixicon-react/ServerFillIcon";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
 import StarSmileLineIcon from "remixicon-react/StarSmileLineIcon";
 import TimeLineIcon from "remixicon-react/TimeLineIcon";
@@ -34,7 +36,7 @@ import User3LineIcon from "remixicon-react/User3LineIcon";
 import MenuLineIcon from "remixicon-react/MenuLineIcon";
 
 import Sessions from "./components/sessions/sessions";
-import { fetchActiveSessions } from "../lib/session-cache";
+import { fetchActiveSessions, getCachedActiveSessions, subscribeActiveSessions } from "../lib/session-cache";
 import "./css/home.css";
 import {
   DEFAULT_HOME_ORDER,
@@ -302,7 +304,9 @@ function getTdarrWidget(bundle) {
 
   return {
     status: active > 0 ? `${formatNumber(active)} active` : queued > 0 ? `${formatNumber(queued)} queued` : "Idle",
-    detail: firstJob?.title || firstJob?.name || firstJob?.file || "No active workers right now",
+    detail: firstJob
+      ? [firstJob.nodeName, firstJob.hardware === "gpu" ? "GPU" : firstJob.hardware === "cpu" ? "CPU" : "", firstJob.workKind === "healthcheck" ? "Health check" : firstJob.workKind === "transcode" ? "Transcode" : firstJob.title].filter(Boolean).join(" · ")
+      : "No active workers right now",
     metrics: [
       { label: "Active", value: formatNumber(active) },
       { label: "Queue", value: formatNumber(queued) },
@@ -416,6 +420,7 @@ function HomeIntegrationWidget({ icon: Icon, title, eyebrow, widget, error, to }
 }
 
 export default function Home({ kioskMode = false }) {
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState(() => loadHomeCache(HOME_DASHBOARD_CACHE_KEY));
   const [operations, setOperations] = useState(() => loadHomeCache(HOME_OPERATIONS_CACHE_KEY) || { requests: null, health: null });
   const [integrationWidgets, setIntegrationWidgets] = useState({ tdarr: null, wizarr: null, maintainerr: null, automation: null });
@@ -427,6 +432,7 @@ export default function Home({ kioskMode = false }) {
   const [actionMessage, setActionMessage] = useState("");
   const [busyAction, setBusyAction] = useState("");
   const [draggedSection, setDraggedSection] = useState("");
+  const [liveSessions, setLiveSessions] = useState(() => getCachedActiveSessions() || []);
   const [detailModal, setDetailModal] = useState(null);
   const [, setError] = useState("");
 
@@ -501,6 +507,12 @@ export default function Home({ kioskMode = false }) {
     };
   }, [kioskMode]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeActiveSessions((sessions) => setLiveSessions(Array.isArray(sessions) ? sessions : []));
+    fetchActiveSessions().catch(() => {});
+    return unsubscribe;
+  }, []);
+
   const peakHours = dashboard?.peakHours || [];
   const maxPeak = useMemo(() => Math.max(...peakHours.map((hour) => Number(hour.count || 0)), 1), [peakHours]);
   const hallOfFame = dashboard?.hallOfFame || [];
@@ -521,6 +533,7 @@ export default function Home({ kioskMode = false }) {
   const requestStats = operations.requests?.stats || {};
   const recentRequests = (operations.requests?.requests || []).slice(0, 4);
   const healthChecks = operations.health?.checks || [];
+  const jellyfinCheck = healthChecks.find((check) => check.key === "jellyfin");
   const failingChecks = healthChecks.filter((check) => !check.ok);
   const healthLabel = operations.health ? (operations.health.ok ? "Healthy" : `${failingChecks.length} issue${failingChecks.length === 1 ? "" : "s"}`) : "Loading";
   const backupDate = operations.health?.backup?.latestBackup?.datecreated;
@@ -534,12 +547,22 @@ export default function Home({ kioskMode = false }) {
   const watchParty = dashboard?.watchParty || [];
   const requestUrgency = Number(requestStats.pending || 0) + Number(requestStats.failed || 0);
   const maintainerrData = operations.maintainerr || null;
+  const digestItems = operations.digest?.items || [];
+  const storage = operations.storage || null;
+  const runningJobs = operations.jobs?.running || [];
   const maintainerrScheduled = Number(maintainerrData?.stats?.scheduledItems || 0);
   const maintainerrUpcoming = Number(maintainerrData?.stats?.upcomingWeek || 0);
   const maintainerrFailures = Number(maintainerrData?.stats?.collectionFailures || 0);
   const maintainerrReclaimableBytes = Number(maintainerrData?.storage?.reclaimableBytes || 0);
   const backupAgeMs = backupDate ? Date.now() - new Date(backupDate).getTime() : Infinity;
   const backupAgeDays = Number.isFinite(backupAgeMs) ? Math.floor(backupAgeMs / (24 * 60 * 60 * 1000)) : Infinity;
+  const activeSessionCount = Array.isArray(liveSessions) ? liveSessions.length : 0;
+  const transcodingSessionCount = Array.isArray(liveSessions)
+    ? liveSessions.filter((session) => session.TranscodingInfo || String(session.PlayState?.PlayMethod || "").toLowerCase() === "transcode").length
+    : 0;
+  const directPlayCount = Math.max(0, activeSessionCount - transcodingSessionCount);
+  const streamCap = Number(homeSettings.alertRules.streamCap || 0);
+  const transcodeCap = Number(homeSettings.alertRules.transcodeCap || 0);
   const attentionItems = [
     requestUrgency >= Number(homeSettings.alertRules.requestThreshold || 1)
       ? { key: `requests:${requestUrgency}`, label: `${formatNumber(requestUrgency)} request${requestUrgency === 1 ? "" : "s"} need attention`, type: "requests" }
@@ -548,6 +571,12 @@ export default function Home({ kioskMode = false }) {
     backupAgeDays >= Number(homeSettings.alertRules.backupDays || 7) ? { key: `backup:${backupDate || "missing"}`, label: "Backup is stale or missing", type: "backup" } : null,
     Number(libraryIssues.missingPosters || 0) >= Number(homeSettings.alertRules.missingPosterThreshold || 1)
       ? { key: `posters:${libraryIssues.missingPosters}`, label: `${formatNumber(libraryIssues.missingPosters)} missing posters`, type: "posters" }
+      : null,
+    streamCap > 0 && activeSessionCount > streamCap
+      ? { key: `streams:${activeSessionCount}:${streamCap}`, label: `${formatNumber(activeSessionCount)} streams over the cap of ${formatNumber(streamCap)}`, type: "streams" }
+      : null,
+    transcodeCap > 0 && transcodingSessionCount > transcodeCap
+      ? { key: `transcodes:${transcodingSessionCount}:${transcodeCap}`, label: `${formatNumber(transcodingSessionCount)} transcodes over the cap of ${formatNumber(transcodeCap)}`, type: "transcodes" }
       : null,
     maintainerrData && maintainerrData.health && maintainerrData.health.ok === false
       ? {
@@ -584,6 +613,11 @@ export default function Home({ kioskMode = false }) {
           type: "maintainerr",
         }
       : null,
+    ...digestItems.map((item) => ({
+      key: `digest:${item.type}:${item.label}`,
+      label: item.label,
+      type: item.type || "digest",
+    })),
   ].filter((item) => item && !homeSettings.dismissedAlerts?.[item.key]);
   const seasonGaps = dashboard?.seasonGaps || [];
   const automationFeed = dashboard?.automationFeed || [];
@@ -697,7 +731,7 @@ export default function Home({ kioskMode = false }) {
     }
   }
 
-  const sectionLabels = HOME_SECTION_DEFINITIONS.reduce((labels, section) => ({ ...labels, [section.id]: section.label }), {});
+  const sectionLabels = HOME_SECTION_DEFINITIONS.reduce((labels, section) => ({ ...labels, [section.id]: t(`HOME_PAGE.SECTIONS.${section.id}`, { defaultValue: section.label }) }), {});
   const orderedSectionIds = useMemo(() => {
     const hidden = new Set(homeSettings.hidden);
     let ordered = normalizeHomeOrder(homeSettings.order).filter((sectionId) => !hidden.has(sectionId));
@@ -893,6 +927,17 @@ export default function Home({ kioskMode = false }) {
         </div>
       </div>
 
+      {jellyfinCheck && jellyfinCheck.ok === false ? (
+        <div className="home-jellyfin-down" role="status">
+          <ErrorWarningLineIcon size={18} />
+          <div>
+            <strong>{t("FEATURES.OPS.JELLYFIN_DOWN")}</strong>
+            <span>{jellyfinCheck.message}</span>
+          </div>
+          {kioskMode ? null : <Link to="/settings/health">{t("FEATURES.OPS.OPEN_HEALTH")}</Link>}
+        </div>
+      ) : null}
+
       {isOrderingHome ? (
         <div className="home-order-panel home-glass-card">
           <div className="home-order-panel-heading">
@@ -968,6 +1013,14 @@ export default function Home({ kioskMode = false }) {
               <span>Missing posters</span>
               <input type="number" min="1" value={homeSettings.alertRules.missingPosterThreshold} onChange={(event) => updateHomeSettings((current) => ({ ...current, alertRules: { ...current.alertRules, missingPosterThreshold: Number(event.target.value) || 1 }, preset: "custom" }))} />
             </label>
+            <label>
+              <span>Stream cap</span>
+              <input type="number" min="0" value={homeSettings.alertRules.streamCap ?? 0} onChange={(event) => updateHomeSettings((current) => ({ ...current, alertRules: { ...current.alertRules, streamCap: Number(event.target.value) || 0 }, preset: "custom" }))} />
+            </label>
+            <label>
+              <span>Transcode cap</span>
+              <input type="number" min="0" value={homeSettings.alertRules.transcodeCap ?? 0} onChange={(event) => updateHomeSettings((current) => ({ ...current, alertRules: { ...current.alertRules, transcodeCap: Number(event.target.value) || 0 }, preset: "custom" }))} />
+            </label>
             <button type="button" onClick={() => updateHomeSettings((current) => ({ ...current, dismissedAlerts: {}, preset: "custom" }))}>Restore alerts</button>
           </div>
           {requestUrgency > 0 ? <p className="home-order-note">{formatNumber(requestUrgency)} request issue{requestUrgency === 1 ? "" : "s"} detected, so Operations is bubbling up.</p> : null}
@@ -990,21 +1043,21 @@ export default function Home({ kioskMode = false }) {
                 <span>{index + 1}</span>
                 <strong className={isHidden ? "is-hidden-section" : ""}>
                   {sectionLabels[sectionId]}
-                  <small>{isHidden ? "Hidden" : HOME_WIDGET_SIZE_LABELS[homeSettings.sizes?.[sectionId] || "medium"]}</small>
+                  <small>{isHidden ? t("HOME_PAGE.HIDDEN") : t(`HOME_PAGE.SIZE_${String(homeSettings.sizes?.[sectionId] || "medium").toUpperCase()}`, { defaultValue: HOME_WIDGET_SIZE_LABELS[homeSettings.sizes?.[sectionId] || "medium"] })}</small>
                 </strong>
                 <div>
-                  <select title="Widget size" value={homeSettings.sizes?.[sectionId] || "medium"} onChange={(event) => updateWidgetSize(sectionId, event.target.value)}>
-                    <option value="small">Compact</option>
-                    <option value="medium">Half</option>
-                    <option value="large">Full</option>
+                  <select title={t("HOME_PAGE.WIDGET_SIZE")} value={homeSettings.sizes?.[sectionId] || "medium"} onChange={(event) => updateWidgetSize(sectionId, event.target.value)}>
+                    <option value="small">{t("HOME_PAGE.SIZE_SMALL")}</option>
+                    <option value="medium">{t("HOME_PAGE.SIZE_MEDIUM")}</option>
+                    <option value="large">{t("HOME_PAGE.SIZE_LARGE")}</option>
                   </select>
-                  <button type="button" title={isHidden ? "Show section" : "Hide section"} onClick={() => toggleHomeSection(sectionId)}>
+                  <button type="button" title={isHidden ? t("HOME_PAGE.SHOW_SECTION") : t("HOME_PAGE.HIDE_SECTION")} onClick={() => toggleHomeSection(sectionId)}>
                     {isHidden ? <EyeOffLineIcon size={17} /> : <EyeLineIcon size={17} />}
                   </button>
-                  <button type="button" title="Move up" disabled={index === 0} onClick={() => moveHomeSection(sectionId, -1)}>
+                  <button type="button" title={t("HOME_PAGE.MOVE_UP")} disabled={index === 0} onClick={() => moveHomeSection(sectionId, -1)}>
                     <ArrowUpSLineIcon size={18} />
                   </button>
-                  <button type="button" title="Move down" disabled={index === homeSettings.order.length - 1} onClick={() => moveHomeSection(sectionId, 1)}>
+                  <button type="button" title={t("HOME_PAGE.MOVE_DOWN")} disabled={index === homeSettings.order.length - 1} onClick={() => moveHomeSection(sectionId, 1)}>
                     <ArrowDownSLineIcon size={18} />
                   </button>
                 </div>
@@ -1019,6 +1072,30 @@ export default function Home({ kioskMode = false }) {
       {shouldRenderSection("sessions") ? <section className={getHomeSectionClass("sessions", "home-active-sessions home-glass-card")} style={getHomeSectionStyle("sessions")}>
         <Sessions surface={kioskMode ? "kiosk" : "home"} />
       </section> : null}
+
+      {shouldRenderSection("streamCapacity") ? (
+        <section className={getHomeSectionClass("streamCapacity", "home-stream-capacity home-glass-card")} aria-label="Stream capacity" style={getHomeSectionStyle("streamCapacity")}>
+          <div className="home-section-title">
+            <PlayCircleLineIcon size={20} />
+            <h2>Stream capacity</h2>
+          </div>
+          <div className="home-stream-capacity-grid">
+            <div>
+              <span>Active</span>
+              <strong>{formatNumber(activeSessionCount)}{streamCap > 0 ? ` / ${formatNumber(streamCap)}` : ""}</strong>
+            </div>
+            <div>
+              <span>Transcoding</span>
+              <strong>{formatNumber(transcodingSessionCount)}{transcodeCap > 0 ? ` / ${formatNumber(transcodeCap)}` : ""}</strong>
+            </div>
+            <div>
+              <span>Direct play</span>
+              <strong>{formatNumber(directPlayCount)}</strong>
+            </div>
+          </div>
+          <small>Set stream and transcode caps in Home layout. 0 means no alert.</small>
+        </section>
+      ) : null}
 
       {shouldRenderSection("overview") ? <section className={getHomeSectionClass("overview", "home-hero-grid")} aria-label="JellyGlance overview" style={getHomeSectionStyle("overview")}>
         <MetricCard
@@ -1125,6 +1202,17 @@ export default function Home({ kioskMode = false }) {
           value={dashboard ? formatNumber(dashboard?.catalog?.movies + dashboard?.catalog?.shows) : undefined}
           detail={dashboard ? formatBytes(dashboard?.catalog?.size) : ""}
         />
+        <article className="home-glass-card home-balance-card">
+          <p>On-disk libraries</p>
+          <strong className={!storage ? "home-value-skeleton" : ""}>{storage?.totalLabel || ""}</strong>
+          {storage ? (
+            <small>
+              Next {storage.upcomingCount} Arr releases ≈ {storage.upcomingEstimate}
+            </small>
+          ) : (
+            <small className="home-detail-skeleton" />
+          )}
+        </article>
         <article className="home-glass-card home-balance-card">
           <p>Usage concentration</p>
           <strong className={!dashboard ? "home-value-skeleton" : ""}>{dashboard ? `${concentration.toFixed(1)}%` : ""}</strong>
@@ -1416,6 +1504,13 @@ export default function Home({ kioskMode = false }) {
             detail={backupDate ? `Latest ${formatDate(backupDate)}` : "No backup found"}
             to="/settings"
             accent="purple"
+          />
+          <HomeOpsCard
+            icon={ServerFillIcon}
+            label="Jellyfin jobs"
+            value={runningJobs.length ? `${runningJobs.length} running` : "Idle"}
+            detail={runningJobs[0]?.name || "No library scans in progress"}
+            to="/server-management"
           />
         </div>
 

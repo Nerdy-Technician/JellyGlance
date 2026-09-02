@@ -22,9 +22,10 @@ import ItemActivity from "./item-info/item-activity";
 import ItemNotFound from "./item-info/item-not-found";
 
 import Config from "../../lib/config";
+import { fetchActiveSessions, getCachedActiveSessions, subscribeActiveSessions } from "../../lib/session-cache";
 import Loading from "./general/loading";
 import ItemOptions from "./item-info/item-options";
-import { Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import baseUrl from "../../lib/baseurl";
 import GlobalStats from "./general/globalStats";
 import ErrorBoundary from "./general/ErrorBoundary.jsx";
@@ -65,10 +66,16 @@ function getIndexLabel(data) {
 const brandIconUrl = (slug, color) => `https://cdn.simpleicons.org/${slug}/${color}`;
 
 function ItemInfo() {
+  const { t } = useTranslation();
   const { Id } = useParams();
   const [data, setData] = useState();
   const [config, setConfig] = useState();
   const [refresh, setRefresh] = useState(true);
+  const [glance, setGlance] = useState(null);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryMessage, setRetryMessage] = useState("");
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const [liveSessions, setLiveSessions] = useState(() => getCachedActiveSessions() || []);
   const [activeTab, setActiveTab] = useState("tabOverview");
 
   const [loaded, setLoaded] = useState(false);
@@ -120,6 +127,12 @@ function ItemInfo() {
         );
 
         setData(itemData.data[0]);
+        axios
+          .get(`/api/item-glance/${encodeURIComponent(Id)}`, {
+            headers: { Authorization: `Bearer ${config.token}` },
+          })
+          .then((response) => setGlance(response.data))
+          .catch(() => setGlance(null));
       } catch (error) {
         setData({ notfound: true, message: error.response?.data });
         console.log(error);
@@ -149,6 +162,12 @@ function ItemInfo() {
     // eslint-disable-next-line
   }, [config, Id]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeActiveSessions((sessions) => setLiveSessions(Array.isArray(sessions) ? sessions : []));
+    fetchActiveSessions().catch(() => {});
+    return unsubscribe;
+  }, []);
+
   if (!data || refresh) {
     return <Loading />;
   }
@@ -156,6 +175,18 @@ function ItemInfo() {
   if (data && data.notfound) {
     return <ItemNotFound message="Item not found" itemId={Id} fetchdataMethod={fetchData} />;
   }
+
+  const canOps = ["Owner", "Admin"].includes(config?.settings?.auth?.role);
+  const jellyfinWeb = String(config?.hostUrl || "").replace(/\/+$/, "");
+  const jellyfinOpenUrl = jellyfinWeb ? `${jellyfinWeb}/web/#/details?id=${encodeURIComponent(Id)}` : "";
+  const watchingNow = (Array.isArray(liveSessions) ? liveSessions : [])
+    .filter((session) => {
+      const item = session?.NowPlayingItem;
+      if (!item) return false;
+      return [item.Id, item.SeriesId, item.SeasonId].map(String).includes(String(Id));
+    })
+    .map((session) => session.UserName || session.DeviceName)
+    .filter(Boolean);
 
   const itemId = data.EpisodeId || data.Id;
   const heroImageId = ["Episode", "Season"].includes(data.Type) ? data.SeriesId : data.Id;
@@ -276,6 +307,99 @@ function ItemInfo() {
                 </a>
               ) : null}
             </div>
+
+            {glance ? (
+              <div className="item-glance-strip">
+                <span className={glance.jellyfin ? "is-on" : ""}>
+                  {glance.jellyfin ? t("FEATURES.GLANCE.JELLYFIN_IN") : t("FEATURES.GLANCE.JELLYFIN_MISSING")}
+                </span>
+                <span className={glance.request ? "is-on" : ""}>
+                  {glance.request ? t("FEATURES.GLANCE.SEERR", { status: glance.request.status }) : t("FEATURES.GLANCE.NO_REQUEST")}
+                </span>
+                <span className={glance.arr ? "is-on" : ""}>
+                  {glance.arr
+                    ? t(glance.arr.hasFile ? "FEATURES.GLANCE.ARR_HAS_FILE" : "FEATURES.GLANCE.ARR_WAITING", { service: glance.arr.service })
+                    : t("FEATURES.GLANCE.NO_ARR")}
+                </span>
+                <span className={glance.download ? "is-on" : ""}>
+                  {glance.download
+                    ? t("FEATURES.GLANCE.DOWNLOAD", { client: glance.download.client, state: glance.download.state })
+                    : t("FEATURES.GLANCE.NO_DOWNLOAD")}
+                </span>
+                {glance.tdarr ? <span className={glance.tdarr.connected ? "is-on" : ""}>Tdarr</span> : null}
+                {glance.maintainerr ? <span className={glance.maintainerr.connected ? "is-on" : ""}>Maintainerr</span> : null}
+                {glance.kometa ? <span className={glance.kometa.connected ? "is-on" : ""}>Kometa</span> : null}
+                <button
+                  type="button"
+                  className="item-glance-retry"
+                  disabled={retryBusy}
+                  onClick={async () => {
+                    setRetryBusy(true);
+                    setRetryMessage("");
+                    try {
+                      const response = await axios.post(
+                        "/api/retry-grab",
+                        {
+                          itemId: Id,
+                          title: data.Name || data.SeriesName,
+                          mediaType: data.Type,
+                          requestId: glance.request?.id,
+                          tmdb: glance.request?.tmdb || glance.arr?.tmdb,
+                          tvdb: glance.request?.tvdb || glance.arr?.tvdb,
+                        },
+                        { headers: { Authorization: `Bearer ${config.token}` } }
+                      );
+                      setRetryMessage(response.data?.ok ? t("FEATURES.GLANCE.RETRY_OK") : t("FEATURES.GLANCE.RETRY_FAIL"));
+                    } catch (error) {
+                      setRetryMessage(error.response?.data?.error || t("FEATURES.GLANCE.RETRY_FAIL"));
+                    } finally {
+                      setRetryBusy(false);
+                    }
+                  }}
+                >
+                  {retryBusy ? t("FEATURES.GLANCE.RETRYING") : t("FEATURES.GLANCE.RETRY_GRAB")}
+                </button>
+                {retryMessage ? <span className="is-on">{retryMessage}</span> : null}
+                {watchingNow.length ? (
+                  <span className="is-on">{t("FEATURES.OPS.WATCHING_NOW", { names: watchingNow.join(", ") })}</span>
+                ) : null}
+                {canOps ? (
+                  <button
+                    type="button"
+                    className="item-glance-retry"
+                    disabled={refreshBusy}
+                    onClick={async () => {
+                      setRefreshBusy(true);
+                      setRetryMessage("");
+                      try {
+                        await axios.post(
+                          "/api/jellyfin/refresh-item",
+                          { itemId: Id, recursive: true },
+                          { headers: { Authorization: `Bearer ${config.token}` } }
+                        );
+                        setRetryMessage(t("FEATURES.OPS.REFRESH_OK"));
+                      } catch (error) {
+                        setRetryMessage(error.response?.data?.error || t("FEATURES.OPS.REFRESH_FAIL"));
+                      } finally {
+                        setRefreshBusy(false);
+                      }
+                    }}
+                  >
+                    {refreshBusy ? t("FEATURES.OPS.REFRESHING") : t("FEATURES.OPS.REFRESH_ITEM")}
+                  </button>
+                ) : null}
+                {jellyfinOpenUrl ? (
+                  <a href={jellyfinOpenUrl} target="_blank" rel="noreferrer">
+                    {t("FEATURES.OPS.OPEN_JELLYFIN")}
+                  </a>
+                ) : null}
+                {glance.request?.openUrl ? (
+                  <a href={glance.request.openUrl} target="_blank" rel="noreferrer">
+                    {t("FEATURES.GLANCE.OPEN_SEERR")}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="item-snapshot-row">
               <div className="item-snapshot-cell is-wide">

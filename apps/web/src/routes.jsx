@@ -5,6 +5,7 @@ const Home = lazy(() => import("./pages/home"));
 const Settings = lazy(() => import("./pages/settings"));
 const Users = lazy(() => import("./pages/users"));
 const UserProfilePage = lazy(() => import("./pages/user-profile"));
+const MyGlance = lazy(() => import("./pages/my-glance"));
 const Libraries = lazy(() => import("./pages/libraries"));
 const LibraryInfo = lazy(() => import("./pages/components/library-info"));
 const ItemInfo = lazy(() => import("./pages/components/item-info"));
@@ -26,6 +27,7 @@ const Maintainerr = lazy(() => import("./pages/maintainerr"));
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
+  { path: "/me", element: <MyGlance />, exact: true },
   { path: "/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/home/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/settings/*", element: <Settings />, exact: true },

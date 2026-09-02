@@ -1,8 +1,31 @@
 const axios = require('axios');
 const dbInstance = require('../db');
 const EventEmitter = require('events');
-const { addWebhookDelivery } = require('./admin-history');
+const configClass = require('./config');
+const { addWebhookDelivery, getSettings, mergeSettings } = require('./admin-history');
 const { enrichDiscordPayload, enrichGotifyPayload, postDiscordWebhook } = require('./discord-webhook-media');
+
+function parseClockMinutes(value, fallback) {
+    const match = String(value || fallback).match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return parseClockMinutes(fallback, '22:00');
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function isWebhookQuietHours(settings, eventType) {
+    const quiet = settings?.WebhookQuietHours;
+    if (!quiet?.enabled) return false;
+    const events = Array.isArray(quiet.events) && quiet.events.length
+        ? quiet.events
+        : ['playback_started', 'playback_ended'];
+    if (!events.includes(eventType)) return false;
+    const start = parseClockMinutes(quiet.start, '22:00');
+    const end = parseClockMinutes(quiet.end, '08:00');
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    if (start === end) return true;
+    if (start < end) return minutes >= start && minutes < end;
+    return minutes >= start || minutes < end;
+}
 
 class WebhookManager {
     constructor() {
@@ -12,6 +35,7 @@ class WebhookManager {
 
         this.eventEmitter = new EventEmitter();
         this.coalescedWebhooks = new Map();
+        this._flushingDigest = false;
         this.setupEventListeners();
         WebhookManager.instance = this;
     }
@@ -52,7 +76,10 @@ class WebhookManager {
             'invite_created',
             'invite_deleted',
             'invite_links_refreshed',
-            'integration_health_warning'
+            'integration_health_warning',
+            'device_authorized',
+            'ops_digest',
+            'playback_digest'
         ].forEach((eventType) => {
             this.eventEmitter.on(eventType, async (data) => {
                 await this.triggerEventWebhooks(eventType, data);
@@ -81,8 +108,84 @@ class WebhookManager {
         ).then(res => res.rows);
     }
 
+    summarizePlaybackEvent(eventType, data = {}) {
+        return {
+            event: eventType,
+            user: data.UserName || data.userData?.username || 'Someone',
+            title: data.ItemName || data.mediaInfo?.mediaName || 'media',
+            series: data.SeriesName || data.mediaInfo?.seriesName || '',
+            at: new Date().toISOString(),
+        };
+    }
+
+    async queueQuietPlayback(eventType, data = {}) {
+        try {
+            const settings = await getSettings();
+            const quiet = settings.WebhookQuietHours || {};
+            if (quiet.digest === false) return;
+            const next = [...(Array.isArray(settings.WebhookQuietBuffer) ? settings.WebhookQuietBuffer : []), this.summarizePlaybackEvent(eventType, data)].slice(-80);
+            await mergeSettings({ WebhookQuietBuffer: next });
+        } catch (error) {
+            console.error('[WEBHOOK] Unable to queue quiet-hours playback:', error.message);
+        }
+    }
+
+    async flushQuietHoursDigest() {
+        if (this._flushingDigest) return true;
+        this._flushingDigest = true;
+        try {
+            const settings = await getSettings();
+            const quiet = settings.WebhookQuietHours || {};
+            const buffer = Array.isArray(settings.WebhookQuietBuffer) ? settings.WebhookQuietBuffer : [];
+            if (!buffer.length || quiet.digest === false) return true;
+            if (quiet.enabled && isWebhookQuietHours(settings, 'playback_started')) return true;
+
+            await mergeSettings({ WebhookQuietBuffer: [], WebhookQuietFlushedAt: new Date().toISOString() });
+
+            const started = buffer.filter((row) => row.event === 'playback_started').length;
+            const ended = buffer.filter((row) => row.event === 'playback_ended').length;
+            const titles = [...new Set(buffer.map((row) => [row.user, row.series || row.title].filter(Boolean).join(' · ')))].slice(0, 12);
+            const payload = {
+                integrationEvent: 'Overnight playback digest',
+                source: 'Webhooks',
+                count: buffer.length,
+                started,
+                ended,
+                titles,
+                items: buffer,
+                message: `${buffer.length} playback event${buffer.length === 1 ? '' : 's'} during quiet hours (${started} started, ${ended} stopped). ${titles.slice(0, 4).join('; ')}`,
+            };
+
+            const digestHooks = await this.getWebhooksByEventType('playback_digest');
+            const fallbackHooks = digestHooks.length ? [] : await this.getWebhooksByEventType('playback_started');
+            const targets = [...digestHooks, ...fallbackHooks].filter((webhook, index, rows) => rows.findIndex((row) => row.id === webhook.id) === index);
+            if (!targets.length) return true;
+            const enriched = { ...payload, event: 'playback_digest', triggeredAt: new Date().toISOString() };
+            const results = await Promise.all(targets.map((webhook) => this.executeWebhook(webhook, enriched)));
+            return results.every(Boolean);
+        } catch (error) {
+            console.error('[WEBHOOK] Quiet-hours digest failed:', error.message);
+            return false;
+        } finally {
+            this._flushingDigest = false;
+        }
+    }
+
     async triggerEventWebhooks(eventType, data = {}, webhookIds = null) {
         try {
+            if (!webhookIds && eventType !== 'playback_digest') {
+                await this.flushQuietHoursDigest();
+            }
+            if (!webhookIds) {
+                const config = await new configClass().getConfig().catch(() => ({}));
+                if (isWebhookQuietHours(config.settings, eventType)) {
+                    console.log(`[WEBHOOK] Quiet hours skip ${eventType}`);
+                    if (eventType === 'playback_started' || eventType === 'playback_ended') {
+                        await this.queueQuietPlayback(eventType, data);
+                    }
+                    return true;
+                }
+            }
             const webhooks = (await this.getWebhooksByEventType(eventType, webhookIds)).filter((webhook) => {
                 if (!String(eventType).startsWith('task_')) {
                     return true;
@@ -175,6 +278,9 @@ class WebhookManager {
 
             const isDiscordWebhook = webhook.url.includes('discord.com/api/webhooks') || webhook.webhook_type === 'discord';
             const isGotifyWebhook = webhook.webhook_type === 'gotify';
+            const isNtfyWebhook = webhook.webhook_type === 'ntfy' || /ntfy/i.test(String(webhook.url || ""));
+            const isTelegramWebhook = webhook.webhook_type === 'telegram' || String(webhook.url || "").includes('api.telegram.org');
+            const isPushoverWebhook = webhook.webhook_type === 'pushover' || String(webhook.url || "").includes('api.pushover.net');
 
             try {
                 headers = typeof webhook.headers === 'string'
@@ -239,6 +345,56 @@ class WebhookManager {
                 });
 
                 console.log(`[WEBHOOK] Gotify webhook ${webhook.name} send successfully`);
+            } else if (isNtfyWebhook) {
+                const ntfyHeaders = {
+                    Title: title.slice(0, 120),
+                    Priority: String(data.priority || (String(data.event || "").includes("fail") ? 5 : 3)),
+                    Tags: "jellyfin,jellyglance",
+                    ...headers,
+                };
+                response = await axios.post(webhook.url, message, {
+                    headers: ntfyHeaders,
+                    timeout: 15000,
+                    maxBodyLength: Infinity,
+                    maxContentLength: Infinity,
+                });
+                console.log(`[WEBHOOK] ntfy webhook ${webhook.name} send successfully`);
+            } else if (isTelegramWebhook) {
+                const parsed = new URL(webhook.url);
+                const chatId = parsed.searchParams.get("chat_id") || payload.chat_id || headers.chat_id;
+                const telegramBody = {
+                    chat_id: chatId,
+                    text: `*${title}*\n${message}`,
+                    parse_mode: "Markdown",
+                    disable_web_page_preview: true,
+                };
+                if (!telegramBody.chat_id) {
+                    throw new Error("Telegram webhooks need chat_id in the URL query or payload");
+                }
+                response = await axios.post(parsed.origin + parsed.pathname, telegramBody, {
+                    headers: { "Content-Type": "application/json", ...headers },
+                    timeout: 15000,
+                });
+                console.log(`[WEBHOOK] Telegram webhook ${webhook.name} send successfully`);
+            } else if (isPushoverWebhook) {
+                const parsed = new URL(webhook.url);
+                const token = parsed.searchParams.get("token") || payload.token || headers.token;
+                const user = parsed.searchParams.get("user") || payload.user || headers.user;
+                if (!token || !user) {
+                    throw new Error("Pushover webhooks need token and user in the URL query");
+                }
+                const body = new URLSearchParams({
+                    token,
+                    user,
+                    title: title.slice(0, 250),
+                    message: message.slice(0, 1024) || "JellyGlance notification",
+                    priority: String(data.priority || (String(data.event || "").includes("fail") ? 1 : 0)),
+                });
+                response = await axios.post("https://api.pushover.net/1/messages.json", body.toString(), {
+                    headers: { "Content-Type": "application/x-www-form-urlencoded", ...headers },
+                    timeout: 15000,
+                });
+                console.log(`[WEBHOOK] Pushover webhook ${webhook.name} send successfully`);
             } else {
                 const templatePayload = payloadIsEmpty
                     ? {
@@ -348,6 +504,9 @@ class WebhookManager {
         if (!coalesced.has(eventType)) return false;
         return webhook.webhook_type === "discord"
             || webhook.webhook_type === "gotify"
+            || webhook.webhook_type === "ntfy"
+            || webhook.webhook_type === "telegram"
+            || webhook.webhook_type === "pushover"
             || String(webhook.url || "").includes("discord.com/api/webhooks");
     }
 
@@ -426,6 +585,10 @@ class WebhookManager {
     }
 
     getDefaultTitle(data = {}) {
+        if (data.event === 'playback_digest') {
+            return data.integrationEvent || 'Overnight playback digest';
+        }
+
         if (data.event === 'playback_started') {
             return `${data.UserName || data.userData?.username || 'A user'} started playback`;
         }
@@ -466,6 +629,10 @@ class WebhookManager {
     }
 
     getDefaultMessage(data = {}) {
+        if (data.event === 'playback_digest') {
+            return data.message || `${data.count || 0} playback events during quiet hours.`;
+        }
+
         if (data.event === 'playback_started' || data.event === 'playback_ended') {
             const action = data.event === 'playback_started' ? 'started' : 'stopped';
             const itemName = data.ItemName || data.mediaInfo?.mediaName || 'media';

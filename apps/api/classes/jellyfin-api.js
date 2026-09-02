@@ -519,6 +519,86 @@ class JellyfinAPI {
     }
   }
 
+  async stopSession(sessionId) {
+    if (!this.configReady || !sessionId) {
+      throw Object.assign(new Error("Jellyfin is not ready"), { statusCode: 503 });
+    }
+    await axios.post(
+      `${this.config.JF_HOST}/Sessions/${encodeURIComponent(sessionId)}/Playing/Stop`,
+      {},
+      {
+        headers: {
+          Authorization: 'MediaBrowser Token="' + this.config.JF_API_KEY + '"',
+          "User-Agent": this.userAgent,
+        },
+        timeout: 15000,
+      }
+    );
+    return { ok: true };
+  }
+
+  async sendSessionMessage(sessionId, { header = "JellyGlance", text = "", timeoutMs = 8000 } = {}) {
+    if (!this.configReady || !sessionId) {
+      throw Object.assign(new Error("Jellyfin is not ready"), { statusCode: 503 });
+    }
+    await axios.post(
+      `${this.config.JF_HOST}/Sessions/${encodeURIComponent(sessionId)}/Message`,
+      { Header: header, Text: text, TimeoutMs: Number(timeoutMs) || 8000 },
+      {
+        headers: {
+          Authorization: 'MediaBrowser Token="' + this.config.JF_API_KEY + '"',
+          "User-Agent": this.userAgent,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      }
+    );
+    return { ok: true };
+  }
+
+  async refreshItem(itemId, { recursive = true } = {}) {
+    if (!this.configReady || !itemId) {
+      throw Object.assign(new Error("Jellyfin is not ready"), { statusCode: 503 });
+    }
+    const params = new URLSearchParams({
+      Recursive: String(Boolean(recursive)),
+      ImageRefreshMode: "Default",
+      MetadataRefreshMode: "Default",
+      ReplaceAllImages: "false",
+      ReplaceAllMetadata: "false",
+    });
+    await axios.post(
+      `${this.config.JF_HOST}/Items/${encodeURIComponent(itemId)}/Refresh?${params.toString()}`,
+      {},
+      {
+        headers: {
+          Authorization: 'MediaBrowser Token="' + this.config.JF_API_KEY + '"',
+          "User-Agent": this.userAgent,
+        },
+        timeout: 20000,
+      }
+    );
+    return { ok: true };
+  }
+
+  async refreshLibrary() {
+    if (!this.configReady) {
+      throw Object.assign(new Error("Jellyfin is not ready"), { statusCode: 503 });
+    }
+    await axios.post(
+      `${this.config.JF_HOST}/Library/Refresh`,
+      {},
+      {
+        headers: {
+          Authorization: 'MediaBrowser Token="' + this.config.JF_API_KEY + '"',
+          "User-Agent": this.userAgent,
+        },
+        timeout: 20000,
+      }
+    );
+    return { ok: true };
+  }
+
   async getInstalledPlugins() {
     if (!this.configReady) {
       const success = await this.#fetchConfig();

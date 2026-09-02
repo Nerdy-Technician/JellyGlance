@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import AddLineIcon from "remixicon-react/AddLineIcon";
 import CloseLineIcon from "remixicon-react/CloseLineIcon";
 import DownloadCloud2FillIcon from "remixicon-react/DownloadCloud2FillIcon";
@@ -8,6 +9,7 @@ import PlayLineIcon from "remixicon-react/PlayLineIcon";
 import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
 import axios from "../lib/axios_instance";
 import { loadSavedIntegrations } from "../lib/integrations-storage";
+import { useTranslation } from "react-i18next";
 import "./css/integrations.css";
 
 const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
@@ -38,6 +40,7 @@ function isDownloadPaused(download) {
 }
 
 export default function Downloads() {
+  const { t } = useTranslation();
   const fileInputRef = useRef(null);
   const [integrations, setIntegrations] = useState(loadSavedIntegrations({ clients: [] }));
   const savedClients = integrations.clients || [];
@@ -46,6 +49,7 @@ export default function Downloads() {
   const [torrentValue, setTorrentValue] = useState("");
   const [torrentFile, setTorrentFile] = useState(null);
   const [downloads, setDownloads] = useState([]);
+  const [autobrrHits, setAutobrrHits] = useState([]);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [busyDownloadId, setBusyDownloadId] = useState("");
@@ -61,18 +65,24 @@ export default function Downloads() {
 
   async function loadDownloadData() {
     try {
-      const [integrationResponse, downloadResponse] = await Promise.all([
+      const [integrationResponse, downloadResponse, autobrrResponse] = await Promise.all([
         axios.get("/api/integrations", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),
-        axios.get("/api/integrations/downloads", {
+        axios.get("/api/downloads/stitched", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
+        }).catch(() => axios.get("/api/integrations/downloads", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        })),
+        axios.get("/api/autobrr/hits", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }).catch(() => ({ data: { items: [] } })),
       ]);
       setIntegrations(integrationResponse.data || { clients: [] });
       if (Array.isArray(downloadResponse.data?.items)) {
         setDownloads(downloadResponse.data.items);
       }
+      setAutobrrHits(Array.isArray(autobrrResponse.data?.items) ? autobrrResponse.data.items : []);
     } catch (error) {
       console.log("Unable to load download sync data", error);
     }
@@ -106,12 +116,12 @@ export default function Downloads() {
 
   async function addTorrent() {
     if (!selectedClient) {
-      setMessage("Add a download client in Settings > Integrations first.");
+      setMessage(t("FEATURES.DOWNLOADS.ADD_CLIENT_FIRST"));
       return;
     }
 
     if (!torrentValue.trim()) {
-      setMessage("Use a magnet link or a .torrent URL. File upload is not sent to the client yet.");
+      setMessage(t("FEATURES.DOWNLOADS.NEED_MAGNET"));
       return;
     }
 
@@ -136,7 +146,7 @@ export default function Downloads() {
         value: torrentValue,
         fileName: torrentFile?.name,
       });
-      setMessage(`${nextDownload.name} sent to ${selectedClient.name}`);
+      setMessage(t("FEATURES.DOWNLOADS.SENT_TO", { name: nextDownload.name, client: selectedClient.name }));
       setTorrentValue("");
       setTorrentFile(null);
       if (fileInputRef.current) {
@@ -144,14 +154,14 @@ export default function Downloads() {
       }
       await runDownloadSync();
     } catch (error) {
-      setMessage(error?.response?.data?.error || "Unable to queue download");
+      setMessage(error?.response?.data?.error || t("FEATURES.DOWNLOADS.QUEUE_FAIL"));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function removeDownload(id) {
-    if (!window.confirm("Remove this torrent from the client? Downloaded files will be kept.")) return;
+    if (!window.confirm(t("FEATURES.DOWNLOADS.REMOVE_CONFIRM"))) return;
     setBusyDownloadId(id);
     setMessage("");
     try {
@@ -159,7 +169,27 @@ export default function Downloads() {
       setDownloads((current) => current.filter((download) => download.id !== id));
       window.setTimeout(loadDownloadData, 1500);
     } catch (error) {
-      setMessage(error?.response?.data?.error || "Unable to remove download");
+      setMessage(error?.response?.data?.error || t("FEATURES.DOWNLOADS.REMOVE_FAIL"));
+    } finally {
+      setBusyDownloadId("");
+    }
+  }
+
+  async function retryGrab(download) {
+    setBusyDownloadId(download.id);
+    setMessage("");
+    try {
+      const response = await axios.post("/api/retry-grab", {
+        title: download.name,
+        name: download.name,
+        requestId: download.request?.id,
+        mediaType: download.request?.mediaType,
+        tmdb: download.request?.tmdb,
+        tvdb: download.request?.tvdb,
+      });
+      setMessage(response.data?.ok ? t("FEATURES.DOWNLOADS.RETRY_OK") : t("FEATURES.DOWNLOADS.RETRY_FAIL"));
+    } catch (error) {
+      setMessage(error?.response?.data?.error || t("FEATURES.DOWNLOADS.RETRY_FAIL"));
     } finally {
       setBusyDownloadId("");
     }
@@ -176,7 +206,7 @@ export default function Downloads() {
       );
       window.setTimeout(loadDownloadData, 1500);
     } catch (error) {
-      setMessage(error?.response?.data?.error || "Unable to update download");
+      setMessage(error?.response?.data?.error || t("FEATURES.DOWNLOADS.UPDATE_FAIL"));
     } finally {
       setBusyDownloadId("");
     }
@@ -186,15 +216,15 @@ export default function Downloads() {
     <div className="downloads-page">
       <header className="download-page-header">
         <div>
-          <p>Queue monitor</p>
-          <h1>Downloads</h1>
-          <span>Send magnet links or torrent files to connected clients and track active queue state.</span>
+          <p>{t("FEATURES.DOWNLOADS.KICKER")}</p>
+          <h1>{t("FEATURES.DOWNLOADS.TITLE")}</h1>
+          <span>{t("FEATURES.DOWNLOADS.INTRO")}</span>
         </div>
       </header>
 
       <section className="download-add-bar">
         <label>
-          <span>Client</span>
+          <span>{t("FEATURES.DOWNLOADS.CLIENT")}</span>
           <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)} disabled={!usableClients.length}>
             {usableClients.length ? (
               usableClients.map((client) => (
@@ -203,33 +233,33 @@ export default function Downloads() {
                 </option>
               ))
             ) : (
-              <option>No clients added</option>
+              <option>{t("FEATURES.DOWNLOADS.NO_CLIENTS")}</option>
             )}
           </select>
         </label>
         <label className="download-magnet-field">
-          <span>Torrent URL or Magnet</span>
+          <span>{t("FEATURES.DOWNLOADS.TORRENT_OR_MAGNET")}</span>
           <input value={torrentValue} onChange={(event) => setTorrentValue(event.target.value)} placeholder="magnet:?xt=... or https://example/torrent.torrent" />
         </label>
         <label className="download-file-button">
           <FileUploadLineIcon size={16} />
-          <span>{torrentFile ? torrentFile.name : "Torrent File"}</span>
+          <span>{torrentFile ? torrentFile.name : t("FEATURES.DOWNLOADS.TORRENT_FILE")}</span>
           <input ref={fileInputRef} type="file" accept=".torrent,application/x-bittorrent" onChange={(event) => setTorrentFile(event.target.files?.[0] || null)} />
         </label>
         <button type="button" className="download-add-button" onClick={addTorrent} disabled={isSubmitting || !usableClients.length}>
           <AddLineIcon size={18} />
-          {isSubmitting ? "Adding..." : "Add Torrent"}
+          {isSubmitting ? t("FEATURES.DOWNLOADS.ADDING") : t("FEATURES.DOWNLOADS.ADD_TORRENT")}
         </button>
         <button type="button" className="download-add-button" onClick={runDownloadSync}>
           <TimerFlashLineIcon size={18} />
-          Sync Now
+          {t("FEATURES.DOWNLOADS.SYNC_NOW")}
         </button>
       </section>
       {message ? <p className="download-inline-message">{message}</p> : null}
 
       <section className="download-console-grid">
         <article className="download-panel active-downloads-panel">
-          <h2>Active Downloads</h2>
+          <h2>{t("FEATURES.DOWNLOADS.ACTIVE")}</h2>
           <div className="download-list">
             {downloads.length ? downloads.map((download) => (
               <div className="download-row" key={download.id}>
@@ -242,6 +272,7 @@ export default function Downloads() {
                       <strong>{download.name}</strong>
                       <span>
                         {download.client} · {download.source} · {download.state}
+                        {download.request ? ` · Request ${download.request.status}` : ""}
                       </span>
                     </div>
                   </div>
@@ -249,7 +280,7 @@ export default function Downloads() {
                     <small>{download.progress}%</small>
                     <button
                       type="button"
-                      aria-label={isDownloadPaused(download) ? "Resume download" : "Pause download"}
+                      aria-label={isDownloadPaused(download) ? t("FEATURES.DOWNLOADS.RESUME") : t("FEATURES.DOWNLOADS.PAUSE")}
                       disabled={Boolean(busyDownloadId)}
                       onClick={() => toggleDownloadPaused(download)}
                     >
@@ -258,7 +289,7 @@ export default function Downloads() {
                     <button
                       type="button"
                       className="is-danger"
-                      aria-label="Remove download"
+                      aria-label={t("FEATURES.DOWNLOADS.REMOVE")}
                       disabled={Boolean(busyDownloadId)}
                       onClick={() => removeDownload(download.id)}
                     >
@@ -271,22 +302,36 @@ export default function Downloads() {
                 </div>
                 <div className="download-row-meta">
                   <span>{download.size}</span>
-                  <span>Down {download.down}</span>
-                  <span>Up {download.up}</span>
+                  <span>{t("FEATURES.DOWNLOADS.DOWN", { rate: download.down })}</span>
+                  <span>{t("FEATURES.DOWNLOADS.UP", { rate: download.up })}</span>
                   <span>
                     <TimerFlashLineIcon size={13} />
-                    {download.progress >= 100 ? "Complete" : "Active"}
+                    {download.progress >= 100 ? t("FEATURES.DOWNLOADS.COMPLETE") : t("FEATURES.DOWNLOADS.ACTIVE_STATE")}
                   </span>
+                  {download.stalledReason ? <span className="download-stalled">{download.stalledReason}</span> : null}
+                  {download.peers != null || download.seeds != null ? (
+                    <span>{t("FEATURES.DOWNLOADS.PEERS", { seeds: download.seeds || 0, peers: download.peers || 0 })}</span>
+                  ) : null}
+                  {download.request ? (
+                    <Link to="/requests" className="download-request-chip">
+                      {download.request.source}: {download.request.title}
+                    </Link>
+                  ) : null}
+                  {String(download.state || "").toLowerCase().match(/fail|error|stall/) || download.request ? (
+                    <button type="button" disabled={Boolean(busyDownloadId)} onClick={() => retryGrab(download)}>
+                      {t("FEATURES.DOWNLOADS.RETRY_GRAB")}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )) : (
-              <div className="integration-empty-state">No active downloads. Add a client in Settings &gt; Integrations, then sync the queue.</div>
+              <div className="integration-empty-state">{t("FEATURES.DOWNLOADS.EMPTY")}</div>
             )}
           </div>
         </article>
 
         <article className="download-panel download-clients-panel">
-          <h2>Clients</h2>
+          <h2>{t("FEATURES.DOWNLOADS.CLIENTS")}</h2>
           <div className="download-client-list">
             {usableClients.length ? usableClients.map((client) => {
               const count = downloads.filter((download) => download.client === client.name).length;
@@ -296,7 +341,7 @@ export default function Downloads() {
                   <div>
                     <strong>{client.name}</strong>
                     <span>
-                      {client.name} · {count} download{count === 1 ? "" : "s"}
+                      {client.name} · {t("FEATURES.DOWNLOADS.DOWNLOAD_COUNT", { count })}
                     </span>
                     {client.message ? <small>{client.message}</small> : null}
                   </div>
@@ -304,11 +349,33 @@ export default function Downloads() {
                 </div>
               );
             }) : (
-              <div className="integration-empty-state">No download clients added yet.</div>
+              <div className="integration-empty-state">{t("FEATURES.DOWNLOADS.NO_CLIENTS_YET")}</div>
             )}
           </div>
         </article>
       </section>
+
+      {autobrrHits.length ? (
+        <section className="download-panel autobrr-hits-panel">
+          <h2>{t("FEATURES.DOWNLOADS.AUTOBRR")}</h2>
+          <div className="download-list">
+            {autobrrHits.map((hit) => (
+              <div className="download-row" key={hit.id}>
+                <div className="download-row-main">
+                  <div className="download-title-group">
+                    <div>
+                      <strong>{hit.name}</strong>
+                      <span>
+                        {[hit.filter, hit.indexer, hit.action, hit.source].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

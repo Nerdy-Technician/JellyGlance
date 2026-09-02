@@ -7,7 +7,7 @@ import HistoryLineIcon from "remixicon-react/HistoryLineIcon";
 import Notification3LineIcon from "remixicon-react/Notification3LineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import { Button, Spinner } from "react-bootstrap";
-import "../../css/settings/settings.css";
+import { useTranslation } from "react-i18next";
 
 function headers() {
   return {
@@ -33,24 +33,29 @@ function detailText(details = {}) {
 }
 
 export default function HealthSettings() {
+  const { t } = useTranslation();
   const [health, setHealth] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
   const [audit, setAudit] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [retention, setRetention] = useState(100);
+  const [retryingId, setRetryingId] = useState("");
 
   const recentFailures = useMemo(() => deliveries.filter((delivery) => !delivery.ok).slice(0, 5), [deliveries]);
 
   async function loadHealth() {
     try {
       setLoading(true);
-      const [healthResponse, deliveryResponse, auditResponse] = await Promise.all([
+      const [healthResponse, deliveryResponse, auditResponse, configResponse] = await Promise.all([
         axios.get("/api/health", { headers: headers() }),
         axios.get("/webhooks/delivery-history", { headers: headers() }),
         axios.get("/api/admin-audit", { headers: headers() }),
+        axios.get("/api/getconfig", { headers: headers() }).catch(() => ({ data: {} })),
       ]);
       setHealth(healthResponse.data);
       setDeliveries(deliveryResponse.data || []);
       setAudit(auditResponse.data || []);
+      setRetention(Number(configResponse.data?.settings?.AdminAuditRetention || 100));
     } finally {
       setLoading(false);
     }
@@ -61,6 +66,17 @@ export default function HealthSettings() {
     const intervalId = setInterval(loadHealth, 60000);
     return () => clearInterval(intervalId);
   }, []);
+
+  async function retryDelivery(delivery) {
+    if (!delivery?.webhookId) return;
+    setRetryingId(String(delivery.webhookId));
+    try {
+      await axios.post(`/webhooks/retry/${encodeURIComponent(delivery.webhookId)}`, {}, { headers: headers() });
+      await loadHealth();
+    } finally {
+      setRetryingId("");
+    }
+  }
 
   return (
     <div className="health-settings">
@@ -129,6 +145,13 @@ export default function HealthSettings() {
               <span>{delivery.retryOnFailure ? `Retries ${delivery.maxRetries}` : "No retry"}</span>
               <small>{delivery.error || delivery.destination}</small>
               <time>{formatDate(delivery.timestamp)}</time>
+              {!delivery.ok && delivery.webhookId ? (
+                <button type="button" disabled={Boolean(retryingId)} onClick={() => retryDelivery(delivery)}>
+                  {retryingId === String(delivery.webhookId) ? t("FEATURES.OPS.RETRYING") : t("FEATURES.OPS.RETRY")}
+                </button>
+              ) : (
+                <span />
+              )}
             </article>
           ))}
           {!deliveries.length ? <div className="health-empty">No webhook deliveries recorded yet.</div> : null}
@@ -140,6 +163,44 @@ export default function HealthSettings() {
         <div className="health-panel-title">
           <HistoryLineIcon size={20} />
           <h2>Admin Audit Log</h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline-light"
+            onClick={async () => {
+              const response = await axios.get("/api/admin-audit/export", { headers: headers(), responseType: "blob" });
+              const url = URL.createObjectURL(response.data);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "jellyglance-audit.json";
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export JSON
+          </Button>
+        </div>
+        <div className="health-retention-row">
+          <label>
+            Keep
+            <input
+              type="number"
+              min="20"
+              max="2000"
+              value={retention}
+              onChange={(event) => setRetention(Number(event.target.value))}
+            />
+            events
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            onClick={async () => {
+              await axios.post("/api/admin-audit/retention", { retention }, { headers: headers() });
+            }}
+          >
+            Save retention
+          </Button>
         </div>
         <div className="health-table audit-table">
           {audit.slice(0, 40).map((entry) => (
