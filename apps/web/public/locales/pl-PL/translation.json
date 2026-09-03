@@ -302,6 +302,7 @@
     "REPAIR": "Naprawa",
     "AUTHORISED_DEVICES": "Autoryzowane urządzenia",
     "PLUGINS": "Wtyczki",
+    "JELLYFIN_JOBS": "Zadania Jellyfin",
     "GROUP_CORE": "Rdzeń",
     "GROUP_MEDIA": "Media",
     "GROUP_CONNECTIONS": "Połączenia",

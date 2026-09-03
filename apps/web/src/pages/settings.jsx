@@ -22,6 +22,7 @@ import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
 import ToolsLineIcon from "remixicon-react/ToolsLineIcon";
 import DeviceLineIcon from "remixicon-react/DeviceLineIcon";
 import AppsLineIcon from "remixicon-react/AppsLineIcon";
+import CalendarLineIcon from "remixicon-react/CalendarLineIcon";
 import Tv2LineIcon from "remixicon-react/Tv2LineIcon";
 
 const SettingsConfig = lazy(() => import("./components/settings/settingsConfig"));
@@ -39,6 +40,7 @@ const TautulliImport = lazy(() => import("./components/settings/TautulliImport")
 const NewsletterSettings = lazy(() => import("./components/settings/NewsletterSettings"));
 const NotificationSettings = lazy(() => import("./components/settings/NotificationSettings"));
 const JellyfinAdminSettings = lazy(() => import("./components/settings/JellyfinAdminSettings"));
+const JellyfinJobSchedules = lazy(() => import("./components/settings/JellyfinJobSchedules"));
 const BackupPage = lazy(() => import("./components/settings/backup_page"));
 const Logs = lazy(() => import("./components/settings/logs"));
 const KioskSettings = lazy(() => import("./components/settings/KioskSettings"));
@@ -68,6 +70,7 @@ const settingsTabItems = [
   { key: "tabActivityMonitor", Icon: PulseLineIcon, labelKey: "SETTINGS_PAGE.ACTIVITY_MONITOR", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
   { key: "tabJellyfinDevices", Icon: DeviceLineIcon, labelKey: "SETTINGS_PAGE.AUTHORISED_DEVICES", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
   { key: "tabJellyfinPlugins", Icon: AppsLineIcon, labelKey: "SETTINGS_PAGE.PLUGINS", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
+  { key: "tabJellyfinJobs", Icon: CalendarLineIcon, labelKey: "SETTINGS_PAGE.JELLYFIN_JOBS", groupKey: "SETTINGS_PAGE.GROUP_MEDIA" },
   { key: "tabIntegrations", Icon: Plug2LineIcon, labelKey: "SETTINGS_PAGE.INTEGRATIONS", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
   { key: "tabKeys", Icon: Key2LineIcon, labelKey: "SETTINGS_PAGE.API_KEY", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
   { key: "tabWebhooks", Icon: Notification3LineIcon, labelKey: "SETTINGS_PAGE.WEBHOOKS", groupKey: "SETTINGS_PAGE.GROUP_CONNECTIONS" },
@@ -103,6 +106,7 @@ const settingsTabHashes = {
   tabActivityMonitor: "activity-monitor",
   tabJellyfinDevices: "devices",
   tabJellyfinPlugins: "plugins",
+  tabJellyfinJobs: "jellyfin-jobs",
   tabTasks: "tasks",
   tabKiosk: "kiosk",
   tabLibraries: "libraries",
@@ -123,6 +127,7 @@ const settingsTabPaths = {
   tabActivityMonitor: "activity-monitor",
   tabJellyfinDevices: "devices",
   tabJellyfinPlugins: "plugins",
+  tabJellyfinJobs: "jellyfin-jobs",
   tabTasks: "tasks",
   tabKiosk: "kiosk",
   tabLibraries: "libraries",
@@ -155,6 +160,11 @@ const settingsHashAliases = {
   "jellyfin-devices": "tabJellyfinDevices",
   jellyfinplugins: "tabJellyfinPlugins",
   "jellyfin-plugins": "tabJellyfinPlugins",
+  jellyfinjobs: "tabJellyfinJobs",
+  "jellyfin-jobs": "tabJellyfinJobs",
+  jobs: "tabJellyfinJobs",
+  "scheduled-jobs": "tabJellyfinJobs",
+  schedules: "tabJellyfinJobs",
 };
 const settingsHashToTab = {
   ...Object.fromEntries(Object.entries(settingsTabHashes).map(([key, hash]) => [hash, key])),
@@ -234,6 +244,10 @@ function getSettingsPath(tabName, integrationTab = "") {
   return integrationSlug ? `/settings/${tabSlug}/${integrationSlug}` : `/settings/${tabSlug}`;
 }
 
+function isSettingsHubPath(pathname = "") {
+  return String(pathname).replace(/\/+$/, "") === "/settings";
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -264,7 +278,7 @@ export default function Settings() {
       return;
     }
 
-    if (location.pathname === "/settings") {
+    if (isSettingsHubPath(location.pathname)) {
       const requestedTab = new URLSearchParams(location.search).get("tab");
       if (settingsTabs.includes(requestedTab)) {
         navigate(getSettingsPath(requestedTab), { replace: true });
@@ -327,6 +341,12 @@ export default function Settings() {
         return (
           <SettingsPane>
             <JellyfinAdminSettings view="plugins" />
+          </SettingsPane>
+        );
+      case "tabJellyfinJobs":
+        return (
+          <SettingsPane>
+            <JellyfinJobSchedules />
           </SettingsPane>
         );
       case "tabIntegrations":

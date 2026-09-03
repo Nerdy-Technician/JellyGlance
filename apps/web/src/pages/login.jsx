@@ -13,9 +13,6 @@ import EyeOffFillIcon from "remixicon-react/EyeOffFillIcon";
 import logo_dark from "./images/icon-b-512.png";
 import projectText from "./images/project-text.png";
 import AuthArtworkBackground from "./components/AuthArtworkBackground";
-
-// import LibrarySync from "./components/settings/librarySync";
-
 import Loading from "./components/general/loading";
 import { Trans } from "react-i18next";
 import i18next from "i18next";
@@ -221,6 +218,7 @@ function Login() {
         setConfig({});
       } catch (error) {
         console.log(error);
+        setSetupInfo({ state: 2 });
         setConfig({});
       }
     };
@@ -232,6 +230,21 @@ function Login() {
       }
     }
   }, [config]);
+
+  useEffect(() => {
+    if (!canQuickConnect || quickConnect || processing || !setupInfo) {
+      return undefined;
+    }
+    if (localStorage.getItem("token")) {
+      return undefined;
+    }
+    if (sessionStorage.getItem("jg_qc_autostarted")) {
+      return undefined;
+    }
+    sessionStorage.setItem("jg_qc_autostarted", "1");
+    startQuickConnect(false);
+    return undefined;
+  }, [canQuickConnect, setupInfo]);
 
   useEffect(() => {
     if (!quickConnect?.secret || processing) {
@@ -348,7 +361,7 @@ function Login() {
               {processing
                 ? `${i18next.t("VALIDATING")}...`
                 : canQuickConnect
-                  ? "Jellyfin Login"
+                  ? "Continue with Quick Connect"
                   : canOidc
                     ? `Continue with ${setupInfo?.auth?.label || "OIDC"}`
                   : submitButtonText}

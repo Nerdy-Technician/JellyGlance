@@ -182,6 +182,31 @@ function truncate(value, max) {
   return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function wrapLines(value, maxChars, maxLines = 2) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+      if (lines.length === maxLines - 1) {
+        const rest = [word, ...words.slice(words.indexOf(word) + 1)].join(" ");
+        lines.push(truncate(rest, maxChars));
+        return lines;
+      }
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+const CARD_FONT = "DejaVu Sans, Arial, Helvetica, sans-serif";
+
 function colorToRgb(color) {
   const hex = Number(color || 3447003)
     .toString(16)
@@ -205,11 +230,32 @@ async function roundedImage(buffer, size) {
 }
 
 async function composeLandscapeCard({ poster, avatar, accent, kicker, username, title, subtitle, details }) {
-  const width = 920;
-  const height = 340;
-  const posterWidth = 226;
-  const textLeft = posterWidth + 36;
+  const height = 252;
+  const posterWidth = 168;
+  const panelWidth = 392;
+  const width = posterWidth + panelWidth;
+  const textLeft = posterWidth + 22;
   const accentRgb = colorToRgb(accent);
+  const titleLines = wrapLines(title, 28, 2);
+  const subtitleLines = wrapLines(subtitle, 36, 2);
+  const hasAvatar = Boolean(avatar?.buffer);
+  const avatarSize = 36;
+  const nameLeft = hasAvatar ? textLeft + avatarSize + 10 : textLeft;
+  let cursor = hasAvatar ? 86 : 78;
+  const titleSvg = titleLines
+    .map((line, index) => {
+      const y = cursor + index * 28;
+      return `<text x="${textLeft}" y="${y}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="800">${escapeXml(line)}</text>`;
+    })
+    .join("");
+  cursor += titleLines.length * 28 + 6;
+  const subtitleSvg = subtitleLines
+    .map((line, index) => {
+      const y = cursor + index * 20;
+      return `<text x="${textLeft}" y="${y}" fill="#cbd5e1" font-size="15" font-family="${CARD_FONT}">${escapeXml(line)}</text>`;
+    })
+    .join("");
+  const detailY = height - 22;
 
   const layers = [];
   if (poster?.buffer) {
@@ -220,18 +266,14 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
     });
   }
 
-  const hasAvatar = Boolean(avatar?.buffer);
-  const avatarSize = 58;
-  const nameLeft = hasAvatar ? textLeft + avatarSize + 14 : textLeft;
-
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-    <rect x="${posterWidth}" y="0" width="${width - posterWidth}" height="${height}" fill="#111827"/>
-    <rect x="${posterWidth}" y="0" width="6" height="${height}" fill="rgb(${accentRgb.r},${accentRgb.g},${accentRgb.b})"/>
-    <text x="${nameLeft}" y="48" fill="#94a3b8" font-size="16" font-family="Arial, Helvetica, sans-serif" font-weight="700">${escapeXml(truncate(kicker, 42))}</text>
-    <text x="${nameLeft}" y="74" fill="#f8fafc" font-size="22" font-family="Arial, Helvetica, sans-serif" font-weight="800">${escapeXml(truncate(username, 28))}</text>
-    <text x="${textLeft}" y="150" fill="#ffffff" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="800">${escapeXml(truncate(title, 34))}</text>
-    <text x="${textLeft}" y="190" fill="#cbd5e1" font-size="18" font-family="Arial, Helvetica, sans-serif">${escapeXml(truncate(subtitle, 48))}</text>
-    <text x="${textLeft}" y="300" fill="#94a3b8" font-size="16" font-family="Arial, Helvetica, sans-serif">${escapeXml(truncate(details, 56))}</text>
+    <rect x="${posterWidth}" y="0" width="${panelWidth}" height="${height}" fill="#111827"/>
+    <rect x="${posterWidth}" y="0" width="5" height="${height}" fill="rgb(${accentRgb.r},${accentRgb.g},${accentRgb.b})"/>
+    <text x="${nameLeft}" y="32" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
+    <text x="${nameLeft}" y="54" fill="#f8fafc" font-size="16" font-family="${CARD_FONT}" font-weight="800">${escapeXml(truncate(username, 22))}</text>
+    ${titleSvg}
+    ${subtitleSvg}
+    <text x="${textLeft}" y="${detailY}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}">${escapeXml(truncate(details, 42))}</text>
   </svg>`);
 
   layers.push({ input: svg, left: 0, top: 0 });
@@ -240,7 +282,7 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
     layers.push({
       input: await roundedImage(avatar.buffer, avatarSize),
       left: textLeft,
-      top: 24,
+      top: 18,
     });
   }
 
@@ -377,18 +419,23 @@ function operationalCopy(data) {
 }
 
 async function composeStatusCard({ color, kicker, title, subtitle, details, railLabel }) {
-  const width = 920;
-  const height = 300;
-  const rail = 168;
+  const width = 560;
+  const height = 168;
+  const rail = 92;
   const accent = colorToRgb(color);
+  const titleLines = wrapLines(title, 26, 2);
+  const titleSvg = titleLines
+    .map((line, index) => `<text x="${rail + 22}" y="${68 + index * 28}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="800">${escapeXml(line)}</text>`)
+    .join("");
+  const subtitleY = 68 + titleLines.length * 28 + 4;
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <rect width="${width}" height="${height}" fill="#12161c"/>
     <rect width="${rail}" height="${height}" fill="rgb(${accent.r},${accent.g},${accent.b})"/>
-    <text x="${rail / 2}" y="162" text-anchor="middle" fill="#ffffff" font-size="26" font-family="Arial, Helvetica, sans-serif" font-weight="800">${escapeXml(truncate(railLabel, 8))}</text>
-    <text x="${rail + 36}" y="70" fill="#94a3b8" font-size="15" font-family="Arial, Helvetica, sans-serif" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
-    <text x="${rail + 36}" y="126" fill="#ffffff" font-size="32" font-family="Arial, Helvetica, sans-serif" font-weight="800">${escapeXml(truncate(title, 32))}</text>
-    <text x="${rail + 36}" y="170" fill="#e2e8f0" font-size="20" font-family="Arial, Helvetica, sans-serif">${escapeXml(truncate(subtitle, 48))}</text>
-    <text x="${rail + 36}" y="248" fill="#94a3b8" font-size="16" font-family="Arial, Helvetica, sans-serif">${escapeXml(truncate(details, 58))}</text>
+    <text x="${rail / 2}" y="94" text-anchor="middle" fill="#ffffff" font-size="16" font-family="${CARD_FONT}" font-weight="800">${escapeXml(truncate(railLabel, 8))}</text>
+    <text x="${rail + 22}" y="36" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 22).toUpperCase())}</text>
+    ${titleSvg}
+    <text x="${rail + 22}" y="${subtitleY}" fill="#e2e8f0" font-size="14" font-family="${CARD_FONT}">${escapeXml(truncate(subtitle, 40))}</text>
+    <text x="${rail + 22}" y="${height - 18}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}">${escapeXml(truncate(details, 44))}</text>
   </svg>`);
 
   const buffer = await sharp(svg).jpeg({ quality: 90 }).toBuffer();

@@ -2,17 +2,17 @@
 
 .about-page {
   display: grid;
-  gap: 22px;
-  max-width: 1120px;
+  gap: 0.85rem;
+  max-width: 70rem;
   min-height: 0;
-  padding: 28px clamp(18px, 2vw, 34px) 42px;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
   color: #f8fafc;
 }
 
 .about-header {
   display: grid;
-  gap: 8px;
-  padding-bottom: 18px;
+  gap: 0.3rem;
+  padding-bottom: 0.7rem;
   border-bottom: 1px solid var(--surface-border-color);
 }
 
@@ -28,7 +28,7 @@
 .about-header h1 {
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(34px, 4vw, 52px);
+  font-size: var(--jg-type-display);
   font-weight: 720 !important;
   line-height: 1.05;
 }
@@ -36,15 +36,15 @@
 .about-header span {
   max-width: 760px;
   color: #b3bfce;
-  font-size: 15px;
+  font-size: 0.85rem;
   font-weight: 520;
   line-height: 1.6;
 }
 
 .about-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) 16.5rem;
+  gap: 1rem;
   align-items: start;
 }
 
@@ -77,7 +77,7 @@
 .about-links h2 {
   margin: 0 !important;
   color: #f4f7fb;
-  font-size: 18px;
+  font-size: var(--jg-type-title);
   font-weight: 700 !important;
   line-height: 1.2;
 }

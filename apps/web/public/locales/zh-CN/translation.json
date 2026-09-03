@@ -302,6 +302,7 @@
     "REPAIR": "修复",
     "AUTHORISED_DEVICES": "已授权设备",
     "PLUGINS": "插件",
+    "JELLYFIN_JOBS": "Jellyfin 任务",
     "GROUP_CORE": "核心",
     "GROUP_MEDIA": "媒体",
     "GROUP_CONNECTIONS": "连接",

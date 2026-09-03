@@ -115,7 +115,7 @@ function Sessions({ surface = "home" }) {
   if ((!data && config) || data.length === 0) {
     return (
       <div className="sessions-widget sessions-widget-empty">
-        <h1 className="my-3">
+        <h1>
           Active Sessions
         </h1>
         <div className="sessions-empty-state">

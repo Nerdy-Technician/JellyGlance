@@ -5,8 +5,8 @@
 ### v1.2.9
 
 ![Version](https://img.shields.io/badge/version-1.2.9-6366f1?style=flat-square)
-![Fixes](https://img.shields.io/badge/fixes-4-22c55e?style=flat-square)
-![New](https://img.shields.io/badge/new%20features-19-f59e0b?style=flat-square)
+![Fixes](https://img.shields.io/badge/fixes-6-22c55e?style=flat-square)
+![New](https://img.shields.io/badge/new%20features-22-f59e0b?style=flat-square)
 
 **Finishing the stack you already show — queues, sessions, glance, ops, and themes.**
 
@@ -54,6 +54,14 @@
 
 - **ntfy, Telegram, Pushover** join Discord and Gotify as webhook targets
 - **Quiet hours** for webhooks, with an optional morning playback digest
+- **Discord cards** wrap long titles on a tighter canvas instead of clipping
+
+## ⚙️ Settings
+
+| | |
+|---|---|
+| **Jellyfin job schedules** | Set daily, weekly, interval, or startup times for Jellyfin library scans, metadata, and other scheduled jobs. The Jellyfin Jobs page shows those times and still lets you run a job now |
+| **Quick Connect** | Login starts the Jellyfin approval flow as soon as the page is ready |
 
 ## 🎨 Themes & App
 
@@ -67,22 +75,26 @@
 <br>
 
 <details>
-<summary><b>🐛 Fixed</b> (4)</summary>
+<summary><b>🐛 Fixed</b> (6)</summary>
 <br>
 
 - Changing language no longer posts External URL and fails with *"Error Updating Configuration: undefined"*
 - Requests status filters no longer break the Vite build
 - Downloads no longer black-screens from a missing integrations import
 - Settings and navbar no longer crash on missing remixicon imports after the theme picker work
+- Users no longer drops Jellyfin server administrators from the activity list
+- Tdarr Active Transcodes no longer shows `[object Object]` for format, status, or reason
 
 </details>
 
 <details>
-<summary><b>🔧 Changed</b> (2)</summary>
+<summary><b>🔧 Changed</b> (4)</summary>
 <br>
 
 - Theme choice is preview-only in Settings and the account menu until Apply; Apply writes locally and syncs to the signed-in user
 - i18n catch-up for Requests, Repair Hub, My Glance, Command Center, newsletter, and newer ops copy
+- Discord playback and status images use a smaller wrapped card
+- Desktop pages no longer look zoomed or soft; type, spacing, and the sidebar stay sharp and a bit denser
 
 </details>
 

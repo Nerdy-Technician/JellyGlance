@@ -739,7 +739,13 @@ router.get("/getAllUserActivity", async (req, res) => {
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
     res.set("Surrogate-Control", "no-store");
-    const { rows } = await db.query("SELECT * FROM jf_all_user_activity");
+    const { rows } = await db.query(`
+      SELECT
+        a.*,
+        COALESCE(u."IsAdministrator", false) AS "IsAdministrator"
+      FROM jf_all_user_activity a
+      LEFT JOIN jf_users u ON u."Id" = a."UserId"
+    `);
     res.send(rows);
   } catch (error) {
     res.send([]);

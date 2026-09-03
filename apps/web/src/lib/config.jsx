@@ -1,25 +1,40 @@
 import axios from "../lib/axios_instance";
 
+function asConfigPayload(data) {
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  if (!data || typeof data !== "object" || data.response) return null;
+  if (data.settings || data.hostUrl || data.JF_HOST) {
+    return {
+      hostUrl: data.hostUrl || data.JF_HOST,
+      username: data.username || data.APP_USER,
+      token: data.token || localStorage.getItem("token"),
+      requireLogin: data.requireLogin ?? data.REQUIRE_LOGIN,
+      settings: data.settings,
+      IS_JELLYFIN: data.IS_JELLYFIN,
+    };
+  }
+  return null;
+}
+
 class Config {
   async fetchConfig() {
     const token = localStorage.getItem("token");
     try {
       const response = await axios.get("/api/getconfig", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const { JF_HOST, APP_USER, REQUIRE_LOGIN, settings, IS_JELLYFIN } = response.data;
-      return {
-        hostUrl: JF_HOST,
-        username: APP_USER,
-        token: token,
-        requireLogin: REQUIRE_LOGIN,
-        settings: settings,
-        IS_JELLYFIN: IS_JELLYFIN,
-      };
+      const payload = asConfigPayload(response.data);
+      if (!payload) {
+        throw new Error("Invalid configuration payload");
+      }
+      return payload;
     } catch (error) {
-      // console.log(error);
       return error;
     }
   }
@@ -29,7 +44,11 @@ class Config {
       config = await this.fetchConfig();
     }
 
-    localStorage.setItem("config", JSON.stringify(config));
+    const payload = asConfigPayload(config);
+    if (payload) {
+      localStorage.setItem("config", JSON.stringify(payload));
+      return payload;
+    }
     return config;
   }
 
@@ -37,9 +56,8 @@ class Config {
     let config = localStorage.getItem("config");
     if (config != undefined && !refreshConfig) {
       return JSON.parse(config);
-    } else {
-      return await this.setConfig();
     }
+    return await this.setConfig();
   }
 }
 

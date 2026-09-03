@@ -3,13 +3,13 @@
   display: grid;
   gap: 14px;
   min-width: 0;
-  padding: 18px clamp(14px, 1.6vw, 24px) 32px;
+  padding: var(--jg-page-pad) clamp(0.6rem, 1.2vw, 1rem) 1.4rem;
   color: #f8fafc;
 }
 
 .activity-sessions-panel {
-  margin-bottom: 26px;
-  padding: 24px;
+  margin-bottom: 1.1rem;
+  padding: 1rem;
   border: 1px solid var(--surface-border-color);
   border-radius: 8px;
   background: rgba(17, 22, 30, 0.82);
@@ -41,7 +41,7 @@
 .activity-page-header h1 {
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(32px, 3.2vw, 46px);
+  font-size: var(--jg-type-display);
   font-weight: 760;
   line-height: 1.05;
 }

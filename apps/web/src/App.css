@@ -1,20 +1,31 @@
 @import "pages/css/variables.css";
-:root {
-  --jg-sidebar-width: 250px;
-}
 
 .app-shell-main {
   flex: 1 1 auto;
   width: auto !important;
   min-width: 0;
   max-width: 100%;
-  min-height: 125vh;
+  min-height: 100dvh;
   margin-inline: 0;
-  padding: 16px;
+  padding: var(--jg-page-pad, 8px);
   overflow: auto;
+  overflow-x: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 180px),
     var(--background-color);
+}
+
+@media (min-width: 901px) and (hover: hover) {
+  .app-shell-main > *:not(.libraries):not(.calendar-dashboard):not(.downloads-page):not(.transcodes-page):not(.watch-stats):not(.my-glance-page):not(.about-page):not(.users-page):not(.Home) {
+    transform: scale(var(--jg-content-scale, 0.82));
+    transform-origin: top left;
+    width: calc(100% / var(--jg-content-scale, 0.82)) !important;
+  }
+
+  .app-shell-main > :is(.libraries, .calendar-dashboard, .downloads-page, .transcodes-page, .watch-stats, .my-glance-page, .about-page, .users-page, .Home) {
+    transform: none;
+    width: 100% !important;
+  }
 }
 
 .App > .d-flex {
@@ -36,21 +47,13 @@
   align-self: start;
 }
 
-@media (min-width: 901px) and (hover: hover) {
-  .app-shell-main {
-    width: calc(125vw - var(--jg-sidebar-width, 250px)) !important;
-    max-width: calc(125vw - var(--jg-sidebar-width, 250px));
-    overflow-x: hidden;
-  }
-}
-
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
   .App > .d-flex {
     flex-direction: column !important;
   }
 
   .app-shell-main {
-    min-height: 125vh;
+    min-height: 100dvh;
     padding: 10px 10px calc(88px + env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;
   }
@@ -69,6 +72,7 @@
 
 html {
   color-scheme: dark;
+  font-size: var(--jg-font-size, 13px);
 }
 
 html body {

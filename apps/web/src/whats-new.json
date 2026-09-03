@@ -64,6 +64,36 @@
       "icon": "palette",
       "title": "Themes That Follow You",
       "body": "Search and preview palettes in Settings or the account menu. Apply when you are ready. The chosen theme is stored on your account so it comes back on another device."
+    },
+    {
+      "icon": "speed",
+      "title": "Jellyfin Job Schedules",
+      "body": "Set daily, weekly, interval, or startup times for Jellyfin library scans, metadata, and other scheduled jobs from Settings. The Jellyfin Jobs page shows those times and still lets you run a job now."
+    },
+    {
+      "icon": "users",
+      "title": "Jellyfin Admins On Users",
+      "body": "Server administrators show up on Users again, with a Jellyfin admin badge when their Glance role is not Admin."
+    },
+    {
+      "icon": "upload",
+      "title": "Tighter Discord Cards",
+      "body": "Playback and status webhook images wrap long titles instead of clipping, on a smaller card that fits Discord better."
+    },
+    {
+      "icon": "movie",
+      "title": "Cleaner Tdarr Labels",
+      "body": "Active Transcodes no longer prints [object Object] for format, status, or reason — those fields resolve to readable text."
+    },
+    {
+      "icon": "palette",
+      "title": "Desktop Layout Without Zoom",
+      "body": "Desktop pages no longer look zoomed or soft. Type, spacing, and the sidebar stay sharp and a bit denser."
+    },
+    {
+      "icon": "magic",
+      "title": "Quick Connect Starts Itself",
+      "body": "Login with Jellyfin Quick Connect now begins the approval flow as soon as the page is ready."
     }
   ],
   "1.2.8": [

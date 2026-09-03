@@ -4,7 +4,7 @@
   display: grid;
   gap: 18px;
   width: 100%;
-  padding: 28px clamp(18px, 3vw, 42px) 48px;
+  padding: var(--jg-page-pad) clamp(0.7rem, 2vw, 1.4rem) 1.6rem;
   color: #f8fafc;
 }
 
@@ -32,7 +32,7 @@
 
 .automation-health-header h1 {
   margin: 0;
-  font-size: clamp(34px, 4vw, 54px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
 }

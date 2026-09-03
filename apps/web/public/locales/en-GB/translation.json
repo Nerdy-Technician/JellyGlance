@@ -302,6 +302,7 @@
     "REPAIR": "Repair",
     "AUTHORISED_DEVICES": "Authorised Devices",
     "PLUGINS": "Plugins",
+    "JELLYFIN_JOBS": "Jellyfin Jobs",
     "GROUP_CORE": "Core",
     "GROUP_MEDIA": "Media",
     "GROUP_CONNECTIONS": "Connections",

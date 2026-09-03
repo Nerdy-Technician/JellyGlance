@@ -1,8 +1,8 @@
 @import './variables.css';
 
 .watch-stats {
-  min-height: 100vh;
-  padding: 24px clamp(18px, 3vw, 42px) 48px;
+  min-height: 0;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
   background:
     radial-gradient(circle at 12% 0%, rgba(var(--primary-light-rgb), 0.18), transparent 34%),
     radial-gradient(circle at 86% 10%, rgba(var(--primary-rgb), 0.13), transparent 30%),
@@ -13,11 +13,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 14px;
-  padding: 18px;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+  padding: 0.7rem 0.85rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.16);
-  border-radius: 18px;
+  border-radius: 0.75rem;
   background:
     linear-gradient(135deg, rgba(var(--primary-light-rgb), 0.1), rgba(11, 14, 22, 0.88) 46%),
     rgba(10, 13, 20, 0.82);
@@ -33,9 +33,9 @@
 
 .stats-title-icon {
   display: grid;
-  flex: 0 0 58px;
-  width: 58px;
-  height: 58px;
+  flex: 0 0 2.4rem;
+  width: 2.4rem;
+  height: 2.4rem;
   place-items: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.42);
   border-radius: 16px;
@@ -61,7 +61,7 @@
 .stats-page-header h1 {
   margin: 0;
   color: #f8fafc;
-  font-size: clamp(32px, 4vw, 50px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 0.95;
@@ -285,7 +285,7 @@
   min-width: 0;
   overflow: hidden;
   color: #f8fafc;
-  font-size: clamp(22px, 2.4vw, 32px);
+  font-size: var(--jg-type-stat);
   font-weight: 780;
   line-height: 1;
   text-overflow: ellipsis;
@@ -427,7 +427,7 @@
 .stats-section-heading h2 {
   margin: 0;
   color: #f8fafc;
-  font-size: clamp(24px, 2.4vw, 34px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 1;
@@ -640,7 +640,7 @@
 }
 
 .stats-page-header h1 {
-  font-size: clamp(30px, 3.2vw, 42px);
+  font-size: var(--jg-type-display);
   font-weight: 760;
   line-height: 1.05;
 }
@@ -887,7 +887,7 @@ a.stats-rank-row:hover {
 .stats-chart-intro h2 {
   margin: 0;
   color: #f8fafc;
-  font-size: clamp(26px, 2.6vw, 38px);
+  font-size: var(--jg-type-title);
   font-weight: 760;
   letter-spacing: 0;
   line-height: 1;

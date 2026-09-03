@@ -1,9 +1,10 @@
 .my-glance-page {
   display: grid;
-  gap: 18px;
+  gap: 0.75rem;
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
   color: #f8fafc;
 }
 
@@ -11,10 +12,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 22px 24px;
+  gap: 0.85rem;
+  padding: 0.75rem 0.9rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.2);
-  border-radius: 18px;
+  border-radius: 0.85rem;
   background:
     linear-gradient(135deg, rgba(var(--primary-rgb), 0.2), rgba(var(--secondary-rgb), 0.08)),
     rgba(9, 12, 19, 0.94);
@@ -25,14 +26,14 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 18px;
+  gap: 0.75rem;
 }
 
 .my-glance-avatar {
   position: relative;
   display: grid;
-  width: 84px;
-  height: 84px;
+  width: 3.25rem;
+  height: 3.25rem;
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
@@ -66,7 +67,7 @@
 .my-glance-hero h1 {
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(28px, 3vw, 44px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   line-height: 0.95;
 }
@@ -87,7 +88,7 @@
 
 .my-glance-hero-actions a {
   display: inline-flex;
-  min-height: 42px;
+  min-height: 2.05rem;
   align-items: center;
   padding: 0 16px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.34);
@@ -112,14 +113,14 @@
 .my-glance-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 0.55rem;
 }
 
 .my-glance-stats div {
   display: grid;
-  gap: 4px;
+  gap: 0.2rem;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 0.6rem 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   background: rgba(8, 11, 17, 0.88);
@@ -127,7 +128,7 @@
 
 .my-glance-stats strong {
   color: #fff;
-  font-size: 28px;
+  font-size: var(--jg-type-stat);
   font-weight: 950;
   line-height: 1;
 }
@@ -146,7 +147,7 @@
 }
 
 .my-glance-toolbar input {
-  height: 42px;
+  height: 2.05rem;
   min-width: 0;
   padding: 0 14px;
   border: 1px solid rgba(var(--primary-light-rgb), 0.28);

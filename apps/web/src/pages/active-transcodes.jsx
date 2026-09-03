@@ -64,6 +64,15 @@ function formatSaved(job) {
   return job.savedPercent ? `${saved} saved (${job.savedPercent}%)` : `${saved} saved`;
 }
 
+function displayText(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "object") {
+    return displayText(value.Name || value.name || value.message || value.reason || value.text || "");
+  }
+  const text = String(value).trim();
+  return !text || text === "[object Object]" ? "" : text;
+}
+
 function workKindLabel(job) {
   if (job.workKind === "healthcheck") return "Health check";
   if (job.workKind === "transcode") return "Transcode";
@@ -105,11 +114,11 @@ function JobCard({ job, kind }) {
         <span className="transcode-job-kicker">{kicker}</span>
         <h2>{job.title}</h2>
         <div className="transcode-route">
-          <strong>{job.from || "Source"}</strong>
-          {job.to ? (
+          <strong>{displayText(job.from) || "Source"}</strong>
+          {displayText(job.to) ? (
             <>
               <ArrowRightLineIcon size={18} />
-              <strong>{job.to}</strong>
+              <strong>{displayText(job.to)}</strong>
             </>
           ) : null}
         </div>
@@ -119,7 +128,7 @@ function JobCard({ job, kind }) {
         {hwLabel ? <span className={`is-${job.hardware}`}>{hwLabel}</span> : null}
         {kindLabel ? <span className={`is-${job.workKind}`}>{kindLabel}</span> : null}
         {!job.nodeName && job.worker ? <span>{job.worker}</span> : null}
-        <span>{job.status || kind}</span>
+        <span>{displayText(job.status) || kind}</span>
         {kind !== "history" && (job.sizeBefore || job.sizeAfter) ? <span>{[formatBytes(job.sizeBefore), formatBytes(job.sizeAfter)].filter(Boolean).join(" -> ")}</span> : null}
         {kind !== "active" ? <span>{formatDate(job.updatedAt)}</span> : null}
       </div>
@@ -145,7 +154,7 @@ function JobCard({ job, kind }) {
           <em>{progressLabel}</em>
         </div>
       ) : null}
-      {job.reason ? <p className="transcode-reason">{job.reason}</p> : null}
+      {displayText(job.reason) ? <p className="transcode-reason">{displayText(job.reason)}</p> : null}
     </article>
   );
 }

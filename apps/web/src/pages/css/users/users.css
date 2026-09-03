@@ -1,7 +1,7 @@
 .Users.users-page {
   min-height: auto;
   margin: 0;
-  padding: 10px clamp(12px, 2vw, 24px) 28px;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
   background:
     radial-gradient(circle at 14% 0%, rgba(var(--primary-rgb), 0.18), transparent 30%),
     radial-gradient(circle at 88% 8%, rgba(var(--primary-light-rgb), 0.1), transparent 30%),
@@ -40,9 +40,9 @@
 
 .users-title-icon {
   display: inline-flex;
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex: 0 0 2.15rem;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.38);
@@ -58,7 +58,6 @@
   justify-content: flex-end;
   gap: 10px;
   margin-left: auto;
-  margin-right: clamp(18px, 4vw, 72px);
 }
 
 .users-header-actions .users-primary-action {
@@ -81,7 +80,7 @@
 
 .users-hero h1 {
   margin: 0;
-  font-size: clamp(28px, 3vw, 42px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   line-height: 1;
 }
@@ -112,9 +111,9 @@
 
 .users-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
 }
 
 .users-stat-card,
@@ -134,9 +133,10 @@
   grid-template-columns: auto 1fr;
   gap: 8px 12px;
   align-items: center;
-  min-height: 68px;
-  padding: 10px 12px;
-  border-radius: 13px;
+  min-height: 3.4rem;
+  height: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.7rem;
 }
 
 .users-stat-card svg {
@@ -153,7 +153,7 @@
 }
 
 .users-stat-card strong {
-  font-size: 22px;
+  font-size: var(--jg-type-stat);
   font-weight: 950;
 }
 
@@ -190,7 +190,7 @@
 .users-panel-header h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(20px, 2vw, 30px);
+  font-size: var(--jg-type-title);
   font-weight: 950;
 }
 
@@ -278,15 +278,19 @@
 
 .users-profile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(15.25rem, 15.25rem));
+  grid-auto-rows: 1fr;
+  justify-content: start;
+  gap: 0.6rem;
 }
 
 .users-profile-card {
   display: grid;
-  gap: 14px;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 0.45rem;
+  height: 100%;
   min-width: 0;
-  padding: 16px;
+  padding: 0.6rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background:
@@ -330,7 +334,7 @@
   display: block;
   overflow: hidden;
   color: #fff;
-  font-size: 22px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
   line-height: 1.16;
   text-decoration: none;
@@ -340,9 +344,9 @@
 
 .users-profile-name span {
   display: block;
-  margin-top: 7px;
+  margin-top: 0.2rem;
   color: #9aa7bb;
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -360,15 +364,21 @@
 
 .users-profile-metrics {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 3.15rem;
+  align-content: start;
+  gap: 0.35rem;
 }
 
 .users-profile-metrics span {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
-  padding: 10px 12px;
+  min-height: 3.15rem;
+  padding: 0.35rem 0.45rem;
   border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 12px;
+  border-radius: 0.55rem;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -389,12 +399,14 @@
 }
 
 .users-profile-metrics strong {
-  margin-top: 6px;
+  margin-top: 0.15rem;
+  overflow: hidden;
   color: #f8fafc;
-  font-size: 14px;
+  font-size: 0.75rem;
   font-weight: 850;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .users-profile-role {
@@ -552,6 +564,10 @@
 
 .source-oidc {
   background: rgba(34, 197, 94, 0.2) !important;
+}
+
+.source-admin {
+  background: rgba(var(--primary-light-rgb), 0.28) !important;
 }
 
 .role-chip[class*="role-"] {
@@ -893,7 +909,7 @@
 .users-modal-topline strong {
   display: block;
   color: #fff;
-  font-size: 17px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
 }
 

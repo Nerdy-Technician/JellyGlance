@@ -566,8 +566,17 @@ function extractTdarrTitle(record = {}) {
 }
 
 function normalizeTdarrDisplayStatus(value) {
-  const text = String(value || "").trim();
-  if (!text || text.toLowerCase() === "none") return "";
+  if (value == null || value === "") return "";
+  if (typeof value === "object") {
+    if (Array.isArray(value)) {
+      return value.map(normalizeTdarrDisplayStatus).filter(Boolean).join(" · ");
+    }
+    return normalizeTdarrDisplayStatus(
+      value.Name || value.name || value.pluginName || value.message || value.reason || value.text || value.Number || value.number
+    );
+  }
+  const text = String(value).trim();
+  if (!text || text.toLowerCase() === "none" || text === "[object Object]") return "";
   return text;
 }
 
@@ -3658,7 +3667,77 @@ async function jellyfinRequest(path, options = {}) {
   });
 }
 
+const JELLYFIN_TRIGGER_TYPES = new Set(["DailyTrigger", "WeeklyTrigger", "IntervalTrigger", "StartupTrigger"]);
+const JELLYFIN_WEEKDAYS = new Set(["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
+const JELLYFIN_TICKS_PER_SECOND = 10000000;
+const JELLYFIN_TICKS_PER_MINUTE = JELLYFIN_TICKS_PER_SECOND * 60;
+const JELLYFIN_TICKS_PER_DAY = JELLYFIN_TICKS_PER_MINUTE * 60 * 24;
+
+function jellyfinTriggerKind(type) {
+  const value = String(type || "").split(".").pop();
+  if (/WeeklyTrigger/i.test(value)) return "WeeklyTrigger";
+  if (/IntervalTrigger/i.test(value)) return "IntervalTrigger";
+  if (/StartupTrigger/i.test(value)) return "StartupTrigger";
+  if (/DailyTrigger/i.test(value)) return "DailyTrigger";
+  return "";
+}
+
+function jellyfinWeekday(value) {
+  const asString = String(value ?? "");
+  if (JELLYFIN_WEEKDAYS.has(asString)) return asString;
+  const index = Number(value);
+  if (Number.isInteger(index) && index >= 0 && index <= 6) {
+    return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index];
+  }
+  return "";
+}
+
+function normalizeJellyfinTrigger(trigger = {}) {
+  return {
+    Type: trigger.Type || trigger.type || "",
+    TimeOfDayTicks: trigger.TimeOfDayTicks ?? trigger.timeOfDayTicks ?? null,
+    DayOfWeek: jellyfinWeekday(trigger.DayOfWeek ?? trigger.dayOfWeek) || null,
+    IntervalTicks: trigger.IntervalTicks ?? trigger.intervalTicks ?? null,
+    MaxRuntimeTicks: trigger.MaxRuntimeTicks ?? trigger.maxRuntimeTicks ?? null,
+  };
+}
+
+function normalizeTriggerForJellyfin(trigger = {}) {
+  const type = jellyfinTriggerKind(trigger.Type || trigger.type);
+  if (!JELLYFIN_TRIGGER_TYPES.has(type)) return null;
+
+  const payload = { Type: type };
+  const maxRuntime = Number(trigger.MaxRuntimeTicks ?? trigger.maxRuntimeTicks);
+  if (Number.isFinite(maxRuntime) && maxRuntime > 0) {
+    payload.MaxRuntimeTicks = Math.round(maxRuntime);
+  }
+
+  if (type === "StartupTrigger") {
+    return payload;
+  }
+
+  if (type === "IntervalTrigger") {
+    const interval = Number(trigger.IntervalTicks ?? trigger.intervalTicks);
+    if (!Number.isFinite(interval) || interval < JELLYFIN_TICKS_PER_MINUTE) return null;
+    payload.IntervalTicks = Math.round(interval);
+    return payload;
+  }
+
+  const timeOfDay = Number(trigger.TimeOfDayTicks ?? trigger.timeOfDayTicks ?? 0);
+  if (!Number.isFinite(timeOfDay) || timeOfDay < 0 || timeOfDay >= JELLYFIN_TICKS_PER_DAY) return null;
+  payload.TimeOfDayTicks = Math.round(timeOfDay);
+
+  if (type === "WeeklyTrigger") {
+    const day = jellyfinWeekday(trigger.DayOfWeek ?? trigger.dayOfWeek);
+    if (!day) return null;
+    payload.DayOfWeek = day;
+  }
+
+  return payload;
+}
+
 function normalizeJellyfinTask(task = {}) {
+  const triggers = task.Triggers || task.triggers || [];
   return {
     id: task.Id || task.Key || task.Name,
     key: task.Key || task.Id || task.Name,
@@ -3667,7 +3746,7 @@ function normalizeJellyfinTask(task = {}) {
     category: task.Category || "Jellyfin",
     state: task.State || "Idle",
     lastExecutionResult: task.LastExecutionResult || null,
-    triggers: task.Triggers || [],
+    triggers: Array.isArray(triggers) ? triggers.map(normalizeJellyfinTrigger) : [],
   };
 }
 
@@ -7536,7 +7615,7 @@ router.post("/server-management/action", async (req, res) => {
     return;
   }
 
-  if (action !== "runJellyfinTask") {
+  if (action !== "runJellyfinTask" && action !== "updateJellyfinTaskTriggers") {
     res.status(400).send({ error: "Unsupported Jellyfin job action" });
     return;
   }
@@ -7544,6 +7623,32 @@ router.post("/server-management/action", async (req, res) => {
   try {
     if (!taskId) {
       res.status(400).send({ error: "No Jellyfin task id provided" });
+      return;
+    }
+
+    if (action === "updateJellyfinTaskTriggers") {
+      if (!Array.isArray(req.body.triggers)) {
+        res.status(400).send({ error: "No schedule list provided" });
+        return;
+      }
+
+      const triggers = req.body.triggers.map((trigger) => normalizeTriggerForJellyfin(trigger));
+      if (triggers.some((trigger) => !trigger)) {
+        res.status(400).send({ error: "One or more schedules are invalid" });
+        return;
+      }
+
+      await jellyfinRequest(`/ScheduledTasks/${encodeURIComponent(taskId)}/Triggers`, {
+        method: "post",
+        data: triggers,
+      });
+      await addAuditEntry(req, "server-management.action", {
+        action,
+        taskId,
+        triggerCount: triggers.length,
+      });
+      sendUpdate("GeneralAlert", { type: "Success", message: "Jellyfin job schedule saved" });
+      res.send({ ok: true, action, taskId, triggers });
       return;
     }
 
@@ -7557,8 +7662,9 @@ router.post("/server-management/action", async (req, res) => {
   } catch (error) {
     const statusCode = error.statusCode || error.response?.status || 503;
     const message = getAxiosErrorMessage(error);
+    const failMessage = action === "updateJellyfinTaskTriggers" ? "Jellyfin job schedule failed to save" : "Jellyfin job failed to start";
     console.error("Jellyfin job action failed:", message);
-    sendUpdate("TaskError", { type: "Error", message: "Jellyfin job failed to start" });
+    sendUpdate("TaskError", { type: "Error", message: failMessage });
     res.status(statusCode).send({ error: message });
   }
 });

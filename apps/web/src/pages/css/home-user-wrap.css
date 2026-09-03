@@ -25,7 +25,7 @@
 .account-dashboard h2 {
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(28px, 3vw, 42px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 1;
@@ -130,7 +130,7 @@
 .user-wrap-hero h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(34px, 4vw, 56px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 0.95;

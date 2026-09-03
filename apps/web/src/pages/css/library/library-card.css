@@ -3,12 +3,12 @@
 .lib-card {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-radius: 16px !important;
+  border-radius: 0.85rem !important;
   background:
     linear-gradient(145deg, rgba(var(--primary-rgb), 0.12), rgba(255, 255, 255, 0.035)),
     rgba(9, 12, 18, 0.92) !important;
   color: white;
-  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0.8rem 1.8rem rgba(0, 0, 0, 0.3);
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -26,7 +26,7 @@
 
 .library-card-image {
   position: relative;
-  height: 210px;
+  height: 9.5rem;
   overflow: hidden;
   background: #05070b;
 }
@@ -34,7 +34,7 @@
 .library-card-banner,
 .default_library_image {
   width: 100%;
-  height: 210px;
+  height: 9.5rem;
   object-fit: cover;
   background-color: #05070b;
   transition: transform 220ms ease, opacity 220ms ease;
@@ -55,32 +55,32 @@
 
 .library-card-hero-copy {
   position: absolute;
-  right: 18px;
-  bottom: 16px;
-  left: 18px;
+  right: 0.7rem;
+  bottom: 0.6rem;
+  left: 0.7rem;
   display: flex;
   align-items: end;
-  gap: 12px;
+  gap: 0.55rem;
 }
 
 .library-type-icon {
   display: inline-flex;
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 1.85rem;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.34);
-  border-radius: 14px;
+  border-radius: 0.6rem;
   background: rgba(7, 10, 15, 0.72);
-  box-shadow: 0 14px 36px rgba(var(--primary-rgb), 0.18);
+  box-shadow: 0 0.5rem 1rem rgba(var(--primary-rgb), 0.18);
 }
 
 .library-type-label {
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 0.1rem;
   color: var(--primary-light-color);
-  font-size: 11px;
+  font-size: 0.65rem;
   font-weight: 950;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -91,7 +91,7 @@
   margin: 0;
   overflow: hidden;
   color: #f8fafc;
-  font-size: 24px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 1.08;
@@ -103,7 +103,7 @@
 .lib-card.is-library-name-hidden .library-card-image,
 .lib-card.is-library-name-hidden .library-card-banner,
 .lib-card.is-library-name-hidden .default_library_image {
-  height: 168px;
+  height: 6.5rem;
 }
 
 .lib-card.is-library-name-hidden .library-card-image-overlay {
@@ -114,27 +114,27 @@
 
 .lib-card.is-library-name-hidden .library-card-hero-copy {
   top: auto;
-  right: 20px;
-  bottom: 6px;
-  left: 20px;
+  right: 0.7rem;
+  bottom: 0.35rem;
+  left: 0.7rem;
   align-items: center;
-  gap: 14px;
+  gap: 0.55rem;
 }
 
 .lib-card.is-library-name-hidden .library-type-icon {
-  width: 54px;
-  height: 54px;
-  flex-basis: 54px;
+  width: 2rem;
+  height: 2rem;
+  flex-basis: 2rem;
 }
 
 .lib-card.is-library-name-hidden .library-type-label {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.7rem;
   letter-spacing: 0.18em;
 }
 
 .library-card-details {
-  padding: 16px !important;
+  padding: 0.65rem !important;
   background:
     linear-gradient(180deg, rgba(9, 12, 18, 0.72), rgba(7, 9, 13, 0.96)),
     rgba(7, 9, 13, 0.9) !important;
@@ -143,21 +143,21 @@
 .library-card-actions {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  margin-bottom: 0.5rem;
 }
 
 .library-scan-button {
   display: inline-flex;
-  gap: 8px;
+  gap: 0.35rem;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 1.7rem;
+  padding: 0 0.6rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.38);
-  border-radius: 11px;
+  border-radius: 0.55rem;
   background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.92), rgba(var(--primary-light-rgb), 0.7));
   color: #080b10;
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 950;
   transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
 }
@@ -175,19 +175,19 @@
 .library-card-stat-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0.4rem;
 }
 
 .library-card-stat-grid > div,
 .library-card-readout > div {
   min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 0.55rem;
   background: rgba(255, 255, 255, 0.045);
 }
 
 .library-card-stat-grid > div {
-  padding: 11px 10px;
+  padding: 0.4rem 0.4rem;
 }
 
 .library-card-stat-grid span,
@@ -196,7 +196,7 @@
   display: block;
   overflow: hidden;
   color: #9aa7bb;
-  font-size: 10px;
+  font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
@@ -209,7 +209,7 @@
   overflow: hidden;
   margin-top: 4px;
   color: #f8fafc;
-  font-size: clamp(13px, 0.9vw, 16px);
+  font-size: 0.92rem;
   font-weight: 950;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -219,16 +219,16 @@
 .library-card-readout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
 }
 
 .library-card-readout > div {
   display: grid;
-  grid-template-columns: minmax(82px, max-content) minmax(0, 1fr);
+  grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
 }
 
 .library-card-readout span {
@@ -238,7 +238,7 @@
 .library-card-readout strong {
   overflow: hidden;
   color: #e5edf8;
-  font-size: 12px;
+  font-size: 0.8rem;
   font-weight: 850;
   text-align: right;
   text-overflow: ellipsis;
@@ -246,8 +246,8 @@
 }
 
 .library-card-footer {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -256,7 +256,7 @@
   overflow: hidden;
   margin-top: 4px;
   color: #f8fafc;
-  font-size: 14px;
+  font-size: 0.88rem;
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -264,9 +264,9 @@
 
 .library-card-footer small {
   display: block;
-  margin-top: 2px;
+  margin-top: 0.1rem;
   color: #c7a4df;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 750;
 }
 
@@ -295,13 +295,13 @@
 
 .library-list-row {
   display: grid;
-  grid-template-columns: minmax(250px, 1.25fr) minmax(420px, 2fr) minmax(190px, 0.8fr) auto;
+  grid-template-columns: minmax(12rem, 1.25fr) minmax(16rem, 2fr) minmax(9rem, 0.8fr) auto;
   align-items: center;
-  gap: 14px;
-  min-height: 86px;
-  padding: 10px 14px 10px 10px;
+  gap: 0.6rem;
+  min-height: 3.75rem;
+  padding: 0.4rem 0.6rem 0.4rem 0.4rem;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
+  border-radius: 0.7rem;
   background:
     linear-gradient(145deg, rgba(var(--primary-rgb), 0.09), rgba(255, 255, 255, 0.028)),
     rgba(9, 12, 18, 0.92);
@@ -311,19 +311,19 @@
 
 .library-list-main {
   display: grid;
-  grid-template-columns: 86px 42px minmax(0, 1fr);
+  grid-template-columns: 4.25rem 1.7rem minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 0.5rem;
   min-width: 0;
   color: inherit;
   text-decoration: none;
 }
 
 .library-list-thumb {
-  width: 86px;
-  height: 58px;
+  width: 4.25rem;
+  height: 2.75rem;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 0.5rem;
   background: #05070b;
 }
 
@@ -336,12 +336,12 @@
 
 .library-list-icon {
   display: inline-flex;
-  width: 42px;
-  height: 42px;
+  width: 1.7rem;
+  height: 1.7rem;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.3);
-  border-radius: 12px;
+  border-radius: 0.55rem;
   background: rgba(7, 10, 15, 0.72);
 }
 
@@ -354,7 +354,7 @@
   display: block;
   overflow: hidden;
   color: #f8fafc;
-  font-size: 15px;
+  font-size: 0.85rem;
   font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -366,7 +366,7 @@
   display: block;
   overflow: hidden;
   color: #9aa7bb;
-  font-size: 10px;
+  font-size: 0.6rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
@@ -383,15 +383,15 @@
 .library-list-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0.35rem;
   min-width: 0;
 }
 
 .library-list-stats > div {
   min-width: 0;
-  padding: 9px 10px;
+  padding: 0.35rem 0.4rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 0.5rem;
   background: rgba(255, 255, 255, 0.04);
 }
 
@@ -421,7 +421,7 @@
 
 @media (max-width: 1180px) {
   .library-list-row {
-    grid-template-columns: minmax(230px, 1fr) minmax(320px, 1.4fr) auto;
+    grid-template-columns: minmax(11rem, 1fr) minmax(13rem, 1.4fr) auto;
   }
 
   .library-list-last-played {
@@ -439,12 +439,12 @@
   }
 
   .library-list-main {
-    grid-template-columns: 76px 40px minmax(0, 1fr);
+    grid-template-columns: 3.75rem 1.6rem minmax(0, 1fr);
   }
 
   .library-list-thumb {
-    width: 76px;
-    height: 52px;
+    width: 3.75rem;
+    height: 2.5rem;
   }
 
   .library-list-last-played {

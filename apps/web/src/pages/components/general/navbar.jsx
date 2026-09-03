@@ -397,7 +397,8 @@ export default function Navbar() {
 
   useEffect(() => {
     localStorage.setItem(NAV_COLLAPSED_KEY, String(isNavCollapsed));
-    document.documentElement.style.setProperty("--jg-sidebar-width", isNavCollapsed ? "78px" : "250px");
+    document.documentElement.classList.toggle("jg-nav-collapsed", isNavCollapsed);
+    document.documentElement.style.removeProperty("--jg-sidebar-width");
   }, [isNavCollapsed]);
 
   useEffect(() => {
@@ -1191,9 +1192,6 @@ export default function Navbar() {
             </p>
           ) : null}
           <div className="profile-quick-links">
-            <Link to="/me" onClick={() => setShowAccount(false)}>
-              {t("MENU_TABS.MY_GLANCE")}
-            </Link>
             <Link to={profilePath} onClick={() => setShowAccount(false)}>
               View profile
             </Link>
@@ -1357,6 +1355,7 @@ export default function Navbar() {
           </Button>
         </Modal.Footer>
       </Modal>
+
     </>
   );
 }
