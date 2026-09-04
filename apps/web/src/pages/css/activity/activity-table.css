@@ -367,6 +367,7 @@ select option {
   border-radius: 8px;
   background-color: rgb(255, 255, 255, 0.1);
   color: white;
+  color-scheme: dark;
   font-size: 1em;
 }
 

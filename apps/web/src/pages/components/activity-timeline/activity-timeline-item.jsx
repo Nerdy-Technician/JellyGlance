@@ -12,7 +12,6 @@ import baseUrl from "../../../lib/baseurl";
 
 import "../../css/timeline/activity-timeline.css";
 
-import { useMediaQuery, useTheme } from "@mui/material";
 import dayjs from "dayjs";
 import TvLineIcon from "remixicon-react/TvLineIcon.js";
 import FilmLineIcon from "remixicon-react/FilmLineIcon.js";
@@ -85,10 +84,8 @@ const TimeLineTextContent = (props) => {
 };
 
 export default function ActivityTimelineItem(props) {
-  const { NowPlayingItemId } = props;
+  const { NowPlayingItemId, shouldRenderVertically, eager } = props;
   const [useDefaultImage, setUseDefaultImage] = useState(false);
-  const theme = useTheme();
-  const shouldRenderVertically = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
     <TimelineItem>
@@ -104,8 +101,10 @@ export default function ActivityTimelineItem(props) {
                   baseUrl +
                   "/proxy/Items/Images/Primary?id=" +
                   NowPlayingItemId +
-                  "&fillWidth=800&quality=50"
+                  "&fillWidth=240&quality=55"
                 }
+                loading={eager ? "eager" : "lazy"}
+                decoding="async"
                 onError={() => setUseDefaultImage(true)}
               />
             ) : (

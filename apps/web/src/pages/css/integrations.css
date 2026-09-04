@@ -343,7 +343,7 @@
 
 .integrations-page.is-embedded .integration-grid {
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .integrations-page.is-first-run.is-embedded .integration-grid {
@@ -551,7 +551,7 @@
 .integration-page-header h1 {
   margin: 4px 0 6px !important;
   color: #fff;
-  font-size: clamp(28px, 2.6vw, 42px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   line-height: 0.95;
 }
@@ -810,8 +810,9 @@
 .integration-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: 14px;
+  max-width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   align-items: stretch;
 }
 
@@ -1000,6 +1001,7 @@
   border-radius: 8px;
   background: #0b101a;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 12px;
   font-weight: 850;
 }
@@ -1325,6 +1327,11 @@
   .wizarr-invite-meta {
     justify-items: start;
   }
+
+  .integration-grid,
+  .integrations-page.is-embedded .integration-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1338,7 +1345,9 @@
   }
 
   .wizarr-dashboard,
-  .wizarr-form-grid {
+  .wizarr-form-grid,
+  .integration-grid,
+  .integrations-page.is-embedded .integration-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1359,7 +1368,7 @@
 }
 
 .integrations-page.is-embedded .integration-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (max-width: 1180px) {
@@ -1523,6 +1532,7 @@
   border-radius: 10px;
   background: #070a10;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 12px;
 }
 
@@ -2237,6 +2247,7 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: #f8fafc;
+  color-scheme: dark;
   font-size: 12px;
   font-weight: 850;
 }
@@ -3928,8 +3939,27 @@
   justify-content: flex-start;
 }
 
-.calendar-toolbar {
-  padding: 10px;
+.calendar-dashboard {
+  gap: 0.7rem;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
+}
+
+.calendar-dashboard .integration-page-header {
+  gap: 0.7rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+}
+
+.calendar-dashboard .calendar-toolbar {
+  padding: 0;
+  gap: 0.45rem;
+}
+
+.calendar-dashboard .calendar-toolbar button,
+.calendar-dashboard .calendar-toolbar a {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
 }
 
 .calendar-toolbar a,
@@ -3950,8 +3980,8 @@
 
 .calendar-source-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
   min-width: 0;
 }
 
@@ -3962,7 +3992,7 @@
   align-items: center;
   gap: 2px 8px;
   min-width: 0;
-  padding: 12px;
+  padding: 0.55rem 0.7rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 14px;
   background: rgba(9, 12, 19, 0.76);
@@ -3997,8 +4027,8 @@
 .calendar-source-icon {
   display: grid;
   grid-row: span 2;
-  width: 36px;
-  height: 36px;
+  width: 1.85rem;
+  height: 1.85rem;
   place-items: center;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
   border-radius: 10px;
@@ -4006,15 +4036,15 @@
 }
 
 .calendar-source-icon img {
-  width: 25px;
-  height: 25px;
+  width: 1.15rem;
+  height: 1.15rem;
   object-fit: contain;
 }
 
 .calendar-source-strip small {
   grid-column: 2;
   color: #9aa7bb;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 850;
 }
 
@@ -4052,9 +4082,9 @@
 .calendar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: 0.7rem;
   min-width: 0;
-  padding: 16px;
+  padding: 0.7rem;
 }
 
 .calendar-feature-card {
@@ -4140,7 +4170,7 @@
   gap: 8px;
   margin: 0 !important;
   color: #fff;
-  font-size: 20px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
 }
 
@@ -4180,12 +4210,12 @@
 .calendar-month-cell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 7px;
+  gap: 0.35rem;
   min-width: 0;
   max-width: 100%;
-  height: 186px;
+  height: 11.5rem;
   overflow: hidden;
-  padding: 8px;
+  padding: 0.4rem;
   background:
     radial-gradient(circle at 50% 0%, rgba(var(--primary-rgb), 0.07), transparent 40%),
     rgba(6, 9, 14, 0.96);
@@ -4226,21 +4256,21 @@
 
 .calendar-cell-events {
   display: grid;
-  grid-auto-rows: 27px;
+  grid-auto-rows: 1.7rem;
   min-width: 0;
   max-width: 100%;
   overflow: visible;
-  gap: 5px;
+  gap: 0.25rem;
 }
 
 .calendar-event-pill {
   display: grid;
-  grid-template-columns: 20px 31px minmax(0, 1fr);
+  grid-template-columns: 1.15rem 2.1rem minmax(0, 1fr);
   align-items: center;
-  gap: 5px;
+  gap: 0.3rem;
   width: 100%;
   max-width: 100%;
-  height: 27px;
+  height: 1.7rem;
   min-width: 0;
   overflow: hidden;
   padding: 3px 6px;
@@ -4296,7 +4326,7 @@
 .calendar-event-pill span {
   min-width: 0;
   color: var(--primary-light-color);
-  font-size: 9px;
+  font-size: 0.68rem;
   font-weight: 950;
   white-space: nowrap;
 }
@@ -4315,19 +4345,19 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 0.78rem;
   font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .calendar-day-more-button {
-  height: 27px;
+  height: 1.7rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.24);
   border-radius: 8px;
   background: rgba(var(--primary-light-rgb), 0.12);
   color: #f0c6ff;
-  font-size: 11px;
+  font-size: 0.72rem;
   font-weight: 950;
   text-align: center;
 }
@@ -4796,8 +4826,8 @@
   min-height: 0;
   align-content: start;
   align-items: start;
-  gap: 16px;
-  padding: 14px;
+  gap: 0.7rem;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
   color: #f8fafc;
   background:
     radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.13), transparent 28%),
@@ -4809,10 +4839,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 18px;
-  padding: 16px 18px;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
-  border-radius: 16px;
+  border-radius: 0.75rem;
   background:
     linear-gradient(135deg, rgba(var(--primary-rgb), 0.14), rgba(var(--secondary-rgb), 0.05)),
     rgba(8, 11, 17, 0.82);
@@ -4831,16 +4861,16 @@
 .download-page-header h1 {
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(32px, 3.6vw, 52px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
-  line-height: 0.95;
+  line-height: 1.05;
 }
 
 .download-page-header span {
   display: block;
-  margin-top: 8px;
+  margin-top: 0.3rem;
   color: #aebbd0;
-  font-size: 14px;
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
@@ -4887,10 +4917,10 @@
 .download-add-bar {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(130px, 160px) minmax(170px, 220px) minmax(360px, 1fr) minmax(150px, auto) minmax(150px, auto);
+  grid-template-columns: minmax(6.5rem, 8.5rem) minmax(9rem, 12rem) minmax(14rem, 1fr) minmax(8rem, auto) minmax(8rem, auto);
   align-items: end;
-  gap: 12px;
-  padding: 14px;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
 }
 
 .download-add-bar::before {
@@ -4928,11 +4958,12 @@
 .download-add-bar input {
   width: 100%;
   min-width: 0;
-  min-height: 42px;
+  min-height: 2.05rem;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 8px;
   background: #111827;
   color: #f8fafc;
+  color-scheme: dark;
   padding: 0 14px;
   font-weight: 800;
 }
@@ -4940,7 +4971,7 @@
 .download-file-button,
 .download-add-button {
   display: inline-flex !important;
-  min-height: 42px;
+  min-height: 2.05rem;
   align-items: center;
   justify-content: center;
   gap: 8px !important;
@@ -5020,8 +5051,8 @@
 .download-console-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.82fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 0.82fr);
+  gap: 0.7rem;
   align-items: start;
   justify-content: stretch;
 }
@@ -5029,13 +5060,13 @@
 .download-panel {
   width: 100%;
   min-width: 0;
-  padding: 16px;
+  padding: 0.7rem 0.8rem;
 }
 
 .download-panel h2 {
-  margin: 0 0 16px !important;
+  margin: 0 0 0.65rem !important;
   color: #f8fafc;
-  font-size: 20px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
 }
 
@@ -5175,9 +5206,21 @@
   gap: 5px;
 }
 
+.download-stalled {
+  color: #ffb4b4 !important;
+  font-weight: 800;
+}
+
+.download-request-chip {
+  color: #d8e7ff;
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .download-client-row {
-  gap: 12px;
-  padding: 14px;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
   border-radius: 11px;
   background: rgba(15, 25, 39, 0.78);
 }
@@ -5189,9 +5232,9 @@
 
 .download-client-icon {
   display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 1.85rem;
   place-items: center;
   border: 0;
   border-radius: 0;
@@ -5563,7 +5606,7 @@
 
 .requests-page .requests-hero h1 {
   margin: 5px 0 8px !important;
-  font-size: clamp(34px, 4vw, 58px);
+  font-size: var(--jg-type-display);
   letter-spacing: 0;
 }
 

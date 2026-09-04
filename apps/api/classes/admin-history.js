@@ -1,6 +1,6 @@
 const db = require("../db");
 
-const maxAuditEntries = 100;
+const defaultAuditEntries = 100;
 const maxWebhookDeliveryEntries = 100;
 
 function getActor(req) {
@@ -40,7 +40,8 @@ async function addAuditEntry(req, action, details = {}) {
       details,
       timestamp: new Date().toISOString(),
     };
-    await mergeSettings({ AdminAuditLog: [entry, ...current].slice(0, maxAuditEntries) });
+    const retention = Math.min(2000, Math.max(20, Number(settings.AdminAuditRetention || defaultAuditEntries)));
+    await mergeSettings({ AdminAuditLog: [entry, ...current].slice(0, retention) });
     return entry;
   } catch (error) {
     console.error("Unable to write admin audit log:", error.message);
@@ -102,5 +103,7 @@ module.exports = {
   addAuditEntry,
   addWebhookDelivery,
   getAuditLog,
+  getSettings,
   getWebhookDeliveryHistory,
+  mergeSettings,
 };

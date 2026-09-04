@@ -61,7 +61,7 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
   </a>
   <a href="#arr-apps">
     <strong>Arr Apps</strong>
-    <span>Sonarr, Radarr, Lidarr, Bazarr, and Prowlarr.</span>
+    <span>Sonarr, Radarr, Lidarr, Readarr, Bazarr, and Prowlarr.</span>
   </a>
   <a href="#download-clients">
     <strong>Download Clients</strong>
@@ -69,7 +69,7 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
   </a>
   <a href="#notifications">
     <strong>Notifications</strong>
-    <span>Discord and Gotify-style alert delivery.</span>
+    <span>Discord, Gotify, ntfy, Telegram, and Pushover alert delivery.</span>
   </a>
   <a href="#imports-and-digest">
     <strong>Imports And Digest</strong>
@@ -92,7 +92,7 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
   <article>
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/wizarr.png" alt="">
     <strong>3rd Party Apps</strong>
-    <span>Wizarr invites, Tdarr transcodes, Maintainerr cleanup, and SickChill as a Sonarr alternative inside one clearer integrations area.</span>
+    <span>Wizarr invites, Tdarr transcodes, Maintainerr cleanup, and SickChill connection/health.</span>
   </article>
   <article>
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png" alt="">
@@ -102,12 +102,12 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
   <article>
     <img src="/icons/selfhst/sonarr.svg" alt="">
     <strong>Arr Apps</strong>
-    <span>Sonarr, Radarr, Lidarr, Bazarr, and Prowlarr status, health checks, calendar entries, and event context.</span>
+    <span>Sonarr, Radarr, Lidarr, and Readarr calendars plus Bazarr/Prowlarr health. SickChill is connect/health only.</span>
   </article>
   <article>
     <img src="/icons/selfhst/qbittorrent.svg" alt="">
     <strong>Download Clients</strong>
-    <span>qBittorrent, Transmission, Deluge, SABnzbd, and NZBGet queues, submissions, and health.</span>
+    <span>qBittorrent, Transmission, Deluge, rTorrent, SABnzbd, and NZBGet queues, submissions, and health.</span>
   </article>
   <article>
     <img src="/icons/selfhst/discord.svg" alt="">
@@ -164,9 +164,34 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
     <p>Monitor cleanup collections, scheduled actions, recent activity, storage state, health, and reclaimable space.</p>
   </article>
   <article>
+    <span class="integration-text-icon" aria-hidden="true">Un</span>
+    <h3>Unpackerr</h3>
+    <p>Connect the Unpackerr URL so Glance can health-check extract status next to the download queue. There is no second Unpackerr console.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Km</span>
+    <h3>Kometa</h3>
+    <p>Ping Kometa as a connected overlay/collection service. Status appears on item glance when the URL answers.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Nf</span>
+    <h3>Notifiarr</h3>
+    <p>Health-only. Connect the Notifiarr API so Glance can confirm the client is reachable. It does not replace Notifiarr's Discord tools.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Rc</span>
+    <h3>Recyclarr</h3>
+    <p>Health-only ping for a Recyclarr URL. Glance does not edit quality profiles.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Ab</span>
+    <h3>autobrr</h3>
+    <p>Filter hits appear on Downloads next to the client queue. Glance does not configure autobrr filters.</p>
+  </article>
+  <article>
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sickchill.png" alt="">
     <h3>SickChill</h3>
-    <p>Use SickChill as a Sonarr alternative for series automation and TV release workflows.</p>
+    <p>Connect and health-check SickChill as optional TV automation. It does not sync the JellyGlance release calendar (use Sonarr for that).</p>
   </article>
 </div>
 
@@ -218,6 +243,11 @@ Arr apps live under <strong>Settings &gt; Integrations &gt; Arr Apps</strong>. E
     <p>Music automation for release status, monitored artists and albums, calendar context, and health checks.</p>
   </article>
   <article>
+    <img src="/icons/selfhst/readarr.svg" alt="">
+    <h3>Readarr</h3>
+    <p>Book automation on the same Arr calendar as Lidarr. Connect the URL and API key; Glance does not become a second Readarr editor.</p>
+  </article>
+  <article>
     <img src="/icons/selfhst/bazarr.svg" alt="">
     <h3>Bazarr</h3>
     <p>Subtitle automation status and health checks alongside the rest of the media stack.</p>
@@ -229,7 +259,7 @@ Arr apps live under <strong>Settings &gt; Integrations &gt; Arr Apps</strong>. E
   </article>
 </div>
 
-Run <strong>Arr Calendar Sync</strong> from <strong>Settings &gt; Tasks</strong> when you want to force a fresh pull from Sonarr, Radarr, or Lidarr.
+Run <strong>Arr Calendar Sync</strong> from <strong>Settings &gt; Tasks</strong> when you want to force a fresh pull from Sonarr, Radarr, Lidarr, or Readarr.
 
 ## Download Clients {#download-clients}
 
@@ -244,26 +274,26 @@ Download clients live under <strong>Settings &gt; Integrations &gt; Download Cli
   <article>
     <img src="/icons/selfhst/transmission.svg" alt="">
     <h3>Transmission</h3>
-    <p>Torrent queue monitoring with URL, username, and password credentials.</p>
+    <p>Torrent queue monitoring with URL, username, and password. Supports add, pause, and remove.</p>
   </article>
   <article>
     <img src="/icons/selfhst/deluge.svg" alt="">
     <h3>Deluge</h3>
-    <p>Torrent queue monitoring with URL and password credentials.</p>
+    <p>Torrent queue monitoring with URL and password. Supports add, pause, and remove.</p>
   </article>
   <article>
     <img src="/icons/selfhst/sabnzbd.svg" alt="">
     <h3>SABnzbd</h3>
-    <p>Usenet queue monitoring with URL and API key credentials.</p>
+    <p>Usenet queue monitoring with URL and API key credentials, including pause and remove.</p>
   </article>
   <article>
     <img src="/icons/selfhst/nzbget.svg" alt="">
     <h3>NZBGet</h3>
-    <p>Usenet queue monitoring with URL and API key credentials.</p>
+    <p>Usenet queue monitoring with URL and API key. Supports add, pause, and remove.</p>
   </article>
 </div>
 
-The Downloads page supports magnet links, torrent URLs, and torrent file uploads. The queue sync task refreshes active, queued, completed, and failed download state.
+The Downloads page supports magnet links, torrent URLs, and torrent file uploads. Queue sync refreshes active, queued, completed, and failed state for qBittorrent, Transmission, Deluge, rTorrent, SABnzbd, and NZBGet.
 
 ## Notifications {#notifications}
 
@@ -277,6 +307,21 @@ The Downloads page supports magnet links, torrent URLs, and torrent file uploads
     <img src="/icons/selfhst/gotify.svg" alt="">
     <h3>Gotify-Style</h3>
     <p>Send operational alerts to Gotify-style webhook targets for self-hosted notification flows.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Nt</span>
+    <h3>ntfy</h3>
+    <p>Send operational alerts to ntfy topic URLs such as <code>https://ntfy.sh/your-topic</code>.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Tg</span>
+    <h3>Telegram</h3>
+    <p>Send the same event set to a Telegram bot using the Bot API sendMessage URL with <code>chat_id</code>.</p>
+  </article>
+  <article>
+    <span class="integration-text-icon" aria-hidden="true">Po</span>
+    <h3>Pushover</h3>
+    <p>Send the same event set to Pushover using <code>https://api.pushover.net/1/messages.json?token=APP_TOKEN&amp;user=USER_KEY</code>.</p>
   </article>
 </div>
 
@@ -334,7 +379,7 @@ Newsletter content includes recently added media, weekly watch stats, active vie
 | Complete Jellyfin Sync | Syncs users, libraries, items, seasons, episodes, and metadata |
 | Playback Reporting Import | Imports Jellyfin Playback Reporting Plugin rows |
 | Integration Sync | Refreshes connected integration status |
-| Arr Calendar Sync | Pulls release calendar data from Arr apps |
+| Arr Calendar Sync | Pulls release calendar data from Sonarr, Radarr, Lidarr, and Readarr |
 | Download Queue Sync | Pulls active download queues from connected clients |
 | Integration Health Check | Tests connected integration health and updates health history |
 | Webhook Health Check | Sends a test event through enabled task webhooks and records delivery status |

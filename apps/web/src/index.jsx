@@ -40,8 +40,8 @@ i18n
       loadPath: `${baseUrl}/locales/{{lng}}/{{ns}}.json`,
     },
     detection: {
-      order: ["cookie", "localStorage", "sessionStorage", "navigator", "htmlTag", "querystring", "path", "subdomain"],
-      cache: ["cookie"],
+      order: ["localStorage", "cookie", "sessionStorage", "navigator", "htmlTag", "querystring", "path", "subdomain"],
+      caches: ["localStorage", "cookie"],
     },
     interpolation: {
       escapeValue: false,

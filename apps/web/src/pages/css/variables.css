@@ -1,4 +1,12 @@
 :root {
+    --jg-font-size: clamp(12.5px, 0.1vw + 12.1px, 13px);
+    --bs-root-font-size: var(--jg-font-size);
+    --jg-content-scale: 0.82;
+    --jg-sidebar-width: clamp(12.75rem, 14vw, 13.75rem);
+    --jg-page-pad: clamp(0.55rem, 0.7vw, 0.8rem);
+    --jg-type-display: clamp(1.55rem, 2vw, 2rem);
+    --jg-type-title: clamp(1.1rem, 1.2vw, 1.3rem);
+    --jg-type-stat: clamp(1.25rem, 1.45vw, 1.55rem);
     --primary-color: #9b6ac8;
     --primary-rgb: 155, 106, 200;
     --primary-light-color: #c9a7e6;
@@ -15,3 +23,7 @@
     --muted-text-color: #b3bfce;
     --subtle-text-color: #94a3b8;
   }
+
+html.jg-nav-collapsed {
+  --jg-sidebar-width: 4.875rem;
+}

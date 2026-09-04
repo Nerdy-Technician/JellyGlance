@@ -1,27 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Modal, Nav, Navbar as BootstrapNavbar } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "../../../lib/axios_instance";
 import { navData } from "../../../lib/navdata";
 import LogoutBoxLineIcon from "remixicon-react/LogoutBoxLineIcon";
 import AccountCircleLineIcon from "remixicon-react/AccountCircleLineIcon";
 import ArrowLeftSLineIcon from "remixicon-react/ArrowLeftSLineIcon";
 import ArrowRightSLineIcon from "remixicon-react/ArrowRightSLineIcon";
+import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
+import SearchLineIcon from "remixicon-react/SearchLineIcon";
 import MagicLineIcon from "remixicon-react/MagicLineIcon";
 import MenuLineIcon from "remixicon-react/MenuLineIcon";
+import ShieldUserFillIcon from "remixicon-react/ShieldUserFillIcon";
+import UserStarFillIcon from "remixicon-react/UserStarFillIcon";
 import logo_dark from "../../images/icon-b-512.png";
 import projectText from "../../images/project-text.png";
 import "../../css/navbar.css";
 import VersionCard from "./version-card";
 import { OPEN_WHATS_NEW_EVENT } from "../../../lib/events";
-import { Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import baseUrl from "../../../lib/baseurl";
 import socket from "../../../socket";
 import { slugifyUserName } from "../../../lib/userProfile";
 import Config from "../../../lib/config";
 import { FONT_WEIGHT_OPTIONS, getStoredFontWeight, saveFontWeightPreference } from "../../../lib/appearance";
-import { DEFAULT_THEME, THEME_PRESETS, getStoredTheme, resetTheme, saveTheme } from "../../../lib/theme";
+import { DEFAULT_THEME, THEME_GROUPS, filterThemePresets, findMatchingThemePreset, getStoredTheme, resetTheme, saveTheme, themeColorFields } from "../../../lib/theme";
 import { applyNavOrder, getStoredHiddenNavLinks, getStoredNavOrder, LOCKED_NAV_LINKS } from "../../../lib/nav-order";
+import { applyPwaStartUrl, pwaStartPath } from "../../../lib/pwa-manifest";
+import {
+  getStoredWorkspaceMode,
+  saveWorkspaceMode,
+  USER_WORKSPACE_NAV_LINKS,
+  WORKSPACE_MODE_UPDATED_EVENT,
+  workspaceHomePath,
+} from "../../../lib/workspace-mode";
 
 function getTokenPayload() {
   const token = localStorage.getItem("token");
@@ -55,6 +67,7 @@ const WIZARR_NAV_AVAILABLE_KEY = "jellyglance_wizarr_nav_available";
 const TDARR_NAV_AVAILABLE_KEY = "jellyglance_tdarr_nav_available";
 const MAINTAINERR_NAV_AVAILABLE_KEY = "jellyglance_maintainerr_nav_available";
 const AUTOMATION_HEALTH_NAV_AVAILABLE_KEY = "jellyglance_automation_health_nav_available";
+const CALENDAR_NAV_AVAILABLE_KEY = "jellyglance_calendar_nav_available";
 const NAV_COLLAPSED_KEY = "jellyglance_nav_collapsed";
 const INTEGRATIONS_CACHE_TTL_MS = 10000;
 
@@ -117,6 +130,25 @@ function getCachedAutomationHealthNavAvailable() {
 
 function getCachedNavCollapsed() {
   return localStorage.getItem(NAV_COLLAPSED_KEY) === "true";
+}
+
+function getCachedCalendarNavAvailable() {
+  return localStorage.getItem(CALENDAR_NAV_AVAILABLE_KEY) === "true";
+}
+
+function isConfiguredCalendarApp(app) {
+  const name = String(app?.name || app?.slug || "").toLowerCase();
+  const values = app?.values || {};
+  return (
+    (name.includes("sonarr") || name.includes("radarr") || name.includes("lidarr") || name.includes("readarr")) &&
+    Boolean(app?.connected) &&
+    Boolean(String(values.url || "").trim()) &&
+    Boolean(String(values.secret || "").trim())
+  );
+}
+
+function getCalendarAvailabilityFromIntegrations(integrations) {
+  return Array.isArray(integrations?.arrApps) && integrations.arrApps.some(isConfiguredCalendarApp);
 }
 
 function isConfiguredSeerrApp(app) {
@@ -188,6 +220,34 @@ function getAutomationHealthAvailabilityFromIntegrations(integrations) {
   return Array.isArray(integrations?.arrApps) && integrations.arrApps.some(isConfiguredAutomationHealthApp);
 }
 
+function applyNavbarIntegrations(integrations, setters) {
+  const calendar = getCalendarAvailabilityFromIntegrations(integrations);
+  const downloads = getDownloadAvailabilityFromIntegrations(integrations);
+  const requests = getRequestAvailabilityFromIntegrations(integrations);
+  const wizarr = getWizarrAvailabilityFromIntegrations(integrations);
+  const tdarr = getTdarrAvailabilityFromIntegrations(integrations);
+  const maintainerr = getMaintainerrAvailabilityFromIntegrations(integrations);
+  const automation = getAutomationHealthAvailabilityFromIntegrations(integrations);
+  localStorage.setItem(CALENDAR_NAV_AVAILABLE_KEY, String(calendar));
+  localStorage.setItem(DOWNLOAD_NAV_AVAILABLE_KEY, String(downloads));
+  localStorage.setItem(REQUEST_NAV_AVAILABLE_KEY, String(requests));
+  localStorage.setItem(WIZARR_NAV_AVAILABLE_KEY, String(wizarr));
+  localStorage.setItem(TDARR_NAV_AVAILABLE_KEY, String(tdarr));
+  localStorage.setItem(MAINTAINERR_NAV_AVAILABLE_KEY, String(maintainerr));
+  localStorage.setItem(AUTOMATION_HEALTH_NAV_AVAILABLE_KEY, String(automation));
+  setters.setShowCalendarNav(calendar);
+  setters.setShowDownloadsNav(downloads);
+  setters.setShowRequestsNav(requests);
+  setters.setShowWizarrNav(wizarr);
+  setters.setShowTdarrNav(tdarr);
+  setters.setShowMaintainerrNav(maintainerr);
+  setters.setShowAutomationHealthNav(automation);
+  if (!downloads) setters.setActiveDownloadCount(0);
+  if (!tdarr) setters.setActiveTranscodeCount(0);
+  if (!requests) setters.setRequestBadgeCount(0);
+  return { tdarr, requests };
+}
+
 function isNavItemActive(item, location) {
   const pathname = location.pathname.toLocaleLowerCase();
   const navPath = String(item.link || "").split("?")[0].toLocaleLowerCase();
@@ -203,10 +263,12 @@ function isNavItemActive(item, location) {
 }
 
 export default function Navbar() {
+  const { t } = useTranslation();
   const [showAccount, setShowAccount] = useState(false);
   const [config, setConfig] = useState(() => getCachedConfig());
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem("jellyglance_account_avatar") || "");
   const [customTheme, setCustomTheme] = useState(() => getStoredTheme());
+  const [themeDraft, setThemeDraft] = useState(() => getStoredTheme());
   const [fontWeightPreference, setFontWeightPreference] = useState(() => getStoredFontWeight());
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const [activeDownloadCount, setActiveDownloadCount] = useState(() => Number(localStorage.getItem("jellyglance_active_download_count") || 0));
@@ -214,6 +276,7 @@ export default function Navbar() {
   const [requestBadgeCount, setRequestBadgeCount] = useState(() => Number(localStorage.getItem("jellyglance_request_badge_count") || 0));
   const [showRequestsNav, setShowRequestsNav] = useState(() => getCachedRequestNavAvailable());
   const [showDownloadsNav, setShowDownloadsNav] = useState(() => getCachedDownloadNavAvailable());
+  const [showCalendarNav, setShowCalendarNav] = useState(() => getCachedCalendarNavAvailable());
   const [showWizarrNav, setShowWizarrNav] = useState(() => getCachedWizarrNavAvailable());
   const [showTdarrNav, setShowTdarrNav] = useState(() => getCachedTdarrNavAvailable());
   const [showMaintainerrNav, setShowMaintainerrNav] = useState(() => getCachedMaintainerrNavAvailable());
@@ -222,7 +285,11 @@ export default function Navbar() {
   const [hiddenNavLinks, setHiddenNavLinks] = useState(() => getStoredHiddenNavLinks(navData));
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const [themeQuery, setThemeQuery] = useState("");
+  const [themeGroup, setThemeGroup] = useState("all");
   const [isNavCollapsed, setIsNavCollapsed] = useState(() => getCachedNavCollapsed());
+  const [workspaceMode, setWorkspaceMode] = useState(() => getStoredWorkspaceMode(true));
+  const [jellyfinStatus, setJellyfinStatus] = useState(null);
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
@@ -234,26 +301,26 @@ export default function Navbar() {
   const isJellyfinAdmin = currentRole === "Owner" || currentRole === "Admin";
   const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? "Jellyfin Admin" : "Jellyfin User") : authMode === "oidc" ? "OIDC User" : "Local User";
   const showServerManagementNav = isJellyfinAdmin;
+  const effectiveWorkspaceMode = isJellyfinAdmin ? workspaceMode : "user";
+  const homePath = workspaceHomePath(isJellyfinAdmin, effectiveWorkspaceMode);
   const jellyfinUserId = jellyfinUser?.id || jellyfinUser?.Id || jellyfinUser?.userId || jellyfinUser?.UserId;
   const jellyfinImageTag = jellyfinUser?.primaryImageTag || jellyfinUser?.PrimaryImageTag || jellyfinUser?.imageTags?.Primary || jellyfinUser?.ImageTags?.Primary;
   const jellyfinAvatar = jellyfinUserId
     ? `${baseUrl}/proxy/Users/Images/Primary/?id=${encodeURIComponent(jellyfinUserId)}${jellyfinImageTag ? `&tag=${encodeURIComponent(jellyfinImageTag)}` : ""}&fillWidth=160&quality=80`
     : "";
   const avatarSrc = jellyfinAvatar || (canUploadAvatar ? customAvatar : "");
-  const activeThemePreset = THEME_PRESETS.find(
-    (preset) =>
-      customTheme.primary === preset.primary &&
-      customTheme.secondary === preset.secondary &&
-      customTheme.background === preset.background &&
-      customTheme.surface === preset.surface
-  );
+  const activeThemePreset = findMatchingThemePreset(themeDraft);
+  const hasThemeDraftChanges = JSON.stringify(themeColorFields(themeDraft)) !== JSON.stringify(themeColorFields(customTheme));
+  const visibleThemePresets = useMemo(() => filterThemePresets(themeQuery, themeGroup), [themeQuery, themeGroup]);
   const visibleNavData = useMemo(
     () =>
       applyNavOrder(
         navData.filter((item) => {
           if (!LOCKED_NAV_LINKS.has(item.link) && hiddenNavLinks.includes(item.link)) return false;
+          if (isJellyfinAdmin && workspaceMode === "user" && !USER_WORKSPACE_NAV_LINKS.has(item.link)) return false;
           if (item.link === "requests") return showRequestsNav;
           if (item.link === "downloads") return showDownloadsNav;
+          if (item.link === "calendar") return showCalendarNav;
           if (item.link === "active-transcodes") return showTdarrNav;
           if (item.link === "maintainerr") return showMaintainerrNav;
           if (item.link === "automation-health") return showAutomationHealthNav;
@@ -261,9 +328,10 @@ export default function Navbar() {
           if (item.link === "server-management") return showServerManagementNav;
           return true;
         }),
-        navOrder
+        navOrder,
+        { myGlanceFirst: isJellyfinAdmin && workspaceMode === "user" }
       ),
-    [hiddenNavLinks, navOrder, showAutomationHealthNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav]
+    [hiddenNavLinks, isJellyfinAdmin, navOrder, showAutomationHealthNav, showCalendarNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav, workspaceMode]
   );
 
   const handleLogout = () => {
@@ -281,10 +349,56 @@ export default function Navbar() {
   };
 
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    function handleWorkspaceModeUpdated(event) {
+      const next = event.detail === "user" ? "user" : "admin";
+      setWorkspaceMode(next);
+    }
+    window.addEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceModeUpdated);
+    return () => window.removeEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceModeUpdated);
+  }, []);
+
+  useEffect(() => {
+    function handleThemeUpdated(event) {
+      if (!event.detail) return;
+      setCustomTheme(event.detail);
+    }
+    window.addEventListener("jellyglance-theme-updated", handleThemeUpdated);
+    return () => window.removeEventListener("jellyglance-theme-updated", handleThemeUpdated);
+  }, []);
+
+  useEffect(() => {
+    if (showAccount) setThemeDraft(themeColorFields(customTheme));
+  }, [showAccount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadJellyfinStatus() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const response = await axios.get("/api/jellyfin/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) setJellyfinStatus(response.data || null);
+      } catch {
+        if (!cancelled) setJellyfinStatus({ ok: false, error: "Jellyfin unreachable" });
+      }
+    }
+    loadJellyfinStatus();
+    const interval = setInterval(loadJellyfinStatus, 45000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(NAV_COLLAPSED_KEY, String(isNavCollapsed));
-    document.documentElement.style.setProperty("--jg-sidebar-width", isNavCollapsed ? "78px" : "250px");
+    document.documentElement.classList.toggle("jg-nav-collapsed", isNavCollapsed);
+    document.documentElement.style.removeProperty("--jg-sidebar-width");
   }, [isNavCollapsed]);
 
   useEffect(() => {
@@ -294,6 +408,47 @@ export default function Navbar() {
 
     window.addEventListener("jellyglance-nav-collapsed-updated", handleNavCollapsedUpdate);
     return () => window.removeEventListener("jellyglance-nav-collapsed-updated", handleNavCollapsedUpdate);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const setters = {
+      setShowCalendarNav,
+      setShowDownloadsNav,
+      setShowRequestsNav,
+      setShowWizarrNav,
+      setShowTdarrNav,
+      setShowMaintainerrNav,
+      setShowAutomationHealthNav,
+      setActiveDownloadCount,
+      setActiveTranscodeCount,
+      setRequestBadgeCount,
+    };
+
+    async function refresh() {
+      if (!localStorage.getItem("token")) return;
+      try {
+        const integrations = await loadNavbarIntegrations();
+        if (mounted) applyNavbarIntegrations(integrations, setters);
+      } catch {
+        /* cached flags already seed the nav */
+      }
+    }
+
+    refresh();
+    function onUpdated(event) {
+      if (event.detail) {
+        if (mounted) applyNavbarIntegrations(event.detail, setters);
+        return;
+      }
+      clearNavbarIntegrationsCache();
+      refresh();
+    }
+    window.addEventListener("jellyglance-integrations-updated", onUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener("jellyglance-integrations-updated", onUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -331,12 +486,10 @@ export default function Navbar() {
       refreshAutomationHealthAvailability();
     };
 
-    const startupTimer = window.setTimeout(refreshAutomationHealthAvailability, 500);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     return () => {
       isMounted = false;
       window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
-      window.clearTimeout(startupTimer);
     };
   }, []);
 
@@ -394,6 +547,40 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    const setCalendarAvailability = (integrations) => {
+      const nextAvailable = getCalendarAvailabilityFromIntegrations(integrations);
+      localStorage.setItem(CALENDAR_NAV_AVAILABLE_KEY, String(nextAvailable));
+      setShowCalendarNav(nextAvailable);
+    };
+
+    const refreshCalendarAvailability = async () => {
+      if (!localStorage.getItem("token")) {
+        setCalendarAvailability({ arrApps: [] });
+        return;
+      }
+      try {
+        setCalendarAvailability(await loadNavbarIntegrations());
+      } catch {
+        setShowCalendarNav(getCachedCalendarNavAvailable());
+      }
+    };
+
+    const handleIntegrationsUpdated = (event) => {
+      if (event.detail) {
+        setCalendarAvailability(event.detail);
+        return;
+      }
+      clearNavbarIntegrationsCache();
+      refreshCalendarAvailability();
+    };
+
+    window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+    return () => {
+      window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleDownloadCount = (event) => {
       const nextCount = Number(event.detail ?? localStorage.getItem("jellyglance_active_download_count") ?? 0);
       setActiveDownloadCount(Number.isFinite(nextCount) ? nextCount : 0);
@@ -430,7 +617,6 @@ export default function Navbar() {
       refreshDownloadAvailability();
     };
 
-    const startupTimer = window.setTimeout(refreshDownloadAvailability, 500);
     window.addEventListener("jellyglance-download-count", handleDownloadCount);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     window.addEventListener("storage", handleDownloadCount);
@@ -438,7 +624,6 @@ export default function Navbar() {
       window.removeEventListener("jellyglance-download-count", handleDownloadCount);
       window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
       window.removeEventListener("storage", handleDownloadCount);
-      window.clearTimeout(startupTimer);
     };
   }, []);
 
@@ -477,12 +662,10 @@ export default function Navbar() {
       refreshWizarrAvailability();
     };
 
-    const startupTimer = window.setTimeout(refreshWizarrAvailability, 500);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     return () => {
       isMounted = false;
       window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
-      window.clearTimeout(startupTimer);
     };
   }, []);
 
@@ -521,12 +704,10 @@ export default function Navbar() {
       refreshMaintainerrAvailability();
     };
 
-    const startupTimer = window.setTimeout(refreshMaintainerrAvailability, 500);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
     return () => {
       isMounted = false;
       window.removeEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
-      window.clearTimeout(startupTimer);
     };
   }, []);
 
@@ -575,6 +756,7 @@ export default function Navbar() {
       }
       try {
         const response = await axios.get("/api/tdarr/transcodes", {
+          params: { activeOnly: "true" },
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const nextCount = Number(response.data?.stats?.active || response.data?.active?.length || 0);
@@ -601,7 +783,7 @@ export default function Navbar() {
       refreshTranscodeAvailability().then((hasTdarr) => {
         if (hasTdarr) refreshTranscodeCount();
       });
-    }, 650);
+    }, 4000);
     const intervalId = setInterval(refreshTranscodeCount, 60000);
     window.addEventListener("jellyglance-transcode-count", handleTranscodeCount);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
@@ -699,9 +881,8 @@ export default function Navbar() {
     };
 
     const startupTimer = window.setTimeout(() => {
-      refreshRequestAvailability();
       refreshRequestCount();
-    }, 650);
+    }, 4000);
     const intervalId = setInterval(refreshRequestCount, 60000);
     window.addEventListener("jellyglance-request-count", handleRequestCount);
     window.addEventListener("jellyglance-integrations-updated", handleIntegrationsUpdated);
@@ -720,16 +901,28 @@ export default function Navbar() {
   const profilePath = `/users/${slugifyUserName(accountName) || "account"}`;
 
   const handleThemeChange = (key, value) => {
-    setCustomTheme((currentTheme) => saveTheme({ ...currentTheme, [key]: value }));
+    setThemeDraft((currentTheme) => ({ ...currentTheme, [key]: value }));
   };
 
   const handleThemePreset = (preset) => {
-    setCustomTheme(saveTheme(preset));
+    setThemeDraft(themeColorFields(preset));
     setIsThemeMenuOpen(false);
   };
 
+  const handleThemeApply = () => {
+    const nextTheme = saveTheme(themeColorFields(themeDraft));
+    setCustomTheme(nextTheme);
+    setThemeDraft(nextTheme);
+  };
+
+  const handleThemeDiscard = () => {
+    setThemeDraft(themeColorFields(customTheme));
+  };
+
   const handleThemeReset = () => {
-    setCustomTheme(resetTheme());
+    const restored = resetTheme();
+    setCustomTheme(restored);
+    setThemeDraft(restored);
     setIsThemeMenuOpen(false);
   };
 
@@ -757,6 +950,15 @@ export default function Navbar() {
     setShowAccount(false);
   };
 
+  const handleWorkspaceMode = (nextMode) => {
+    const next = saveWorkspaceMode(nextMode);
+    setWorkspaceMode(next);
+    applyPwaStartUrl(pwaStartPath(currentRole, next));
+    setShowAccount(false);
+    setIsMobileNavOpen(false);
+    navigate(workspaceHomePath(true, next));
+  };
+
   const getNavBadgeCount = (link) => {
     if (link === "") return activeStreamCount;
     if (link === "downloads") return activeDownloadCount;
@@ -778,7 +980,7 @@ export default function Navbar() {
         >
           <MenuLineIcon size={24} />
         </button>
-        <Link className="mobile-app-brand" to="/">
+        <Link className="mobile-app-brand" to={homePath}>
           <img src={logo_dark} alt="" />
           <img src={projectText} alt="JellyGlance" />
         </Link>
@@ -846,7 +1048,7 @@ export default function Navbar() {
       <BootstrapNavbar variant="dark" className={`desktop-navigation d-flex flex-column py-0 text-center sticky-top ${isNavCollapsed ? "is-collapsed" : ""}`} id="primary-navigation">
       <div className="sticky-top py-md-3">
         <div className="navbar-brand-row">
-          <BootstrapNavbar.Brand as={Link} to={"/"} className="d-none d-md-inline">
+          <BootstrapNavbar.Brand as={Link} to={homePath} className="d-none d-md-inline">
           <img src={logo_dark} className="navbar-brand-icon px-2" alt="" />
           <img src={projectText} className="navbar-wordmark" alt="JellyGlance" />
         </BootstrapNavbar.Brand>
@@ -930,6 +1132,12 @@ export default function Navbar() {
               </button>
             </div>
             <div className="navbar-version-row">
+              {jellyfinStatus && jellyfinStatus.ok === false ? (
+                <Link to="/settings/health" className="navbar-jellyfin-down" title={jellyfinStatus.error || t("FEATURES.OPS.JELLYFIN_DOWN")}>
+                  <ErrorWarningLineIcon size={16} />
+                  <span>{t("FEATURES.OPS.JELLYFIN_DOWN")}</span>
+                </Link>
+              ) : null}
               <VersionCard />
             </div>
           </div>
@@ -947,10 +1155,46 @@ export default function Navbar() {
             <div className="profile-modal-avatar">
               {avatarSrc ? <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} /> : <AccountCircleLineIcon />}
             </div>
-            <div>
+            <div className="profile-modal-copy">
               <strong>{accountName}</strong>
-              <span>{accountRole}</span>
+              <span className="profile-modal-role">{accountRole}</span>
+              {isJellyfinAdmin ? (
+                <div className="profile-mode-toggle" role="tablist" aria-label={t("FEATURES.WORKSPACE.MODE")}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={effectiveWorkspaceMode === "admin"}
+                    className={effectiveWorkspaceMode === "admin" ? "is-active" : ""}
+                    onClick={() => handleWorkspaceMode("admin")}
+                  >
+                    <ShieldUserFillIcon size={16} />
+                    {t("FEATURES.WORKSPACE.ADMIN")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={effectiveWorkspaceMode === "user"}
+                    className={effectiveWorkspaceMode === "user" ? "is-active" : ""}
+                    onClick={() => handleWorkspaceMode("user")}
+                  >
+                    <UserStarFillIcon size={16} />
+                    {t("FEATURES.WORKSPACE.USER")}
+                  </button>
+                </div>
+              ) : null}
             </div>
+          </div>
+          {isJellyfinAdmin ? (
+            <p className="profile-mode-hint">
+              {effectiveWorkspaceMode === "user"
+                ? t("FEATURES.WORKSPACE.USER_HINT")
+                : t("FEATURES.WORKSPACE.ADMIN_HINT")}
+            </p>
+          ) : null}
+          <div className="profile-quick-links">
+            <Link to={profilePath} onClick={() => setShowAccount(false)}>
+              View profile
+            </Link>
           </div>
 
           {canUploadAvatar ? (
@@ -964,13 +1208,13 @@ export default function Navbar() {
             <MagicLineIcon size={18} />
             <span>
               <strong>What&apos;s new</strong>
-              <small>Open the latest JellyGlance update notes.</small>
+              <small>{t("FEATURES.WORKSPACE.WHAT_NEW")}</small>
             </span>
           </button>
 
           <section className="profile-font-panel" aria-labelledby="profile-font-heading">
             <div className="profile-font-header">
-              <h3 id="profile-font-heading">Font weight</h3>
+              <h3 id="profile-font-heading"><Trans i18nKey="SETTINGS_PAGE.FONT_WEIGHT" /></h3>
               <span>Choose how bold the interface feels for this browser.</span>
             </div>
 
@@ -994,10 +1238,10 @@ export default function Navbar() {
             <div className="profile-theme-header">
               <div>
                 <h3 id="profile-theme-heading">Custom colours</h3>
-                <span>Theme JellyGlance from this account.</span>
+                <span>{t("FEATURES.WORKSPACE.THEME_HINT")}</span>
               </div>
               <button className="profile-theme-reset" type="button" onClick={handleThemeReset}>
-                Reset
+                <Trans i18nKey="SETTINGS_PAGE.RESET" />
               </button>
             </div>
 
@@ -1010,18 +1254,39 @@ export default function Navbar() {
                 aria-expanded={isThemeMenuOpen}
               >
                 <span className="profile-theme-preset-swatches" aria-hidden="true">
-                  <i style={{ backgroundColor: activeThemePreset?.primary || customTheme.primary }} />
-                  <i style={{ backgroundColor: activeThemePreset?.secondary || customTheme.secondary }} />
-                  <i style={{ backgroundColor: activeThemePreset?.background || customTheme.background }} />
+                  <i style={{ backgroundColor: themeDraft.primary }} />
+                  <i style={{ backgroundColor: themeDraft.secondary }} />
+                  <i style={{ backgroundColor: themeDraft.background }} />
                 </span>
-                <strong>{activeThemePreset?.name || "Custom"}</strong>
+                <strong>{activeThemePreset?.name || t("SETTINGS_PAGE.CUSTOM")}</strong>
                 <span className="profile-theme-select-arrow" aria-hidden="true">
                   ▾
                 </span>
               </button>
               {isThemeMenuOpen ? (
                 <div className="profile-theme-select-menu" role="listbox">
-                  {THEME_PRESETS.map((preset) => (
+                  <label className="profile-theme-search">
+                    <SearchLineIcon size={14} />
+                    <input
+                      type="search"
+                      value={themeQuery}
+                      onChange={(event) => setThemeQuery(event.target.value)}
+                      placeholder={t("SETTINGS_PAGE.THEME_SEARCH")}
+                    />
+                  </label>
+                  <div className="profile-theme-groups">
+                    {THEME_GROUPS.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={themeGroup === item.id ? "is-active" : ""}
+                        onClick={() => setThemeGroup(item.id)}
+                      >
+                        {t(`SETTINGS_PAGE.THEME_GROUP_${item.id.toUpperCase()}`)}
+                      </button>
+                    ))}
+                  </div>
+                  {visibleThemePresets.map((preset) => (
                     <button
                       key={preset.name}
                       type="button"
@@ -1054,13 +1319,13 @@ export default function Navbar() {
                   <div className="profile-theme-input">
                     <input
                       type="color"
-                      value={customTheme[key] || DEFAULT_THEME[key]}
+                      value={themeDraft[key] || DEFAULT_THEME[key]}
                       onChange={(event) => handleThemeChange(key, event.target.value)}
                       aria-label={`${label} colour`}
                     />
                     <input
                       type="text"
-                      value={customTheme[key] || DEFAULT_THEME[key]}
+                      value={themeDraft[key] || DEFAULT_THEME[key]}
                       aria-label={`${label} hex colour`}
                       maxLength={7}
                       readOnly
@@ -1070,22 +1335,27 @@ export default function Navbar() {
                 </label>
               ))}
             </div>
+            <div className="profile-theme-actions">
+              <button type="button" className="profile-theme-apply" disabled={!hasThemeDraftChanges} onClick={handleThemeApply}>
+                {t("SETTINGS_PAGE.APPLY_THEME")}
+              </button>
+              <button type="button" className="profile-theme-reset" disabled={!hasThemeDraftChanges} onClick={handleThemeDiscard}>
+                {t("SETTINGS_PAGE.DISCARD_THEME")}
+              </button>
+              {hasThemeDraftChanges ? <span>{t("SETTINGS_PAGE.THEME_PREVIEW_PENDING")}</span> : null}
+            </div>
           </section>
         </Modal.Body>
         <Modal.Footer>
-          <div className="profile-modal-secondary-actions">
-            <Button as={Link} to={profilePath} variant="outline-secondary" onClick={() => setShowAccount(false)}>
-              View profile
-            </Button>
-            <Button variant="outline-secondary" onClick={() => setShowAccount(false)}>
-              Close
-            </Button>
-          </div>
+          <button type="button" className="profile-modal-action is-ghost" onClick={() => setShowAccount(false)}>
+            Close
+          </button>
           <Button className="profile-logout-button" onClick={handleLogout}>
             Log out
           </Button>
         </Modal.Footer>
       </Modal>
+
     </>
   );
 }

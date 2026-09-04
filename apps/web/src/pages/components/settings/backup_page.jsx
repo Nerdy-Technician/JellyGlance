@@ -48,6 +48,7 @@ function BackupPage() {
   const [message, setMessage] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [destination, setDestination] = useState({ kind: "local", url: "", username: "", secret: "", bucket: "", region: "us-east-1", prefix: "" });
 
   const sortedFiles = useMemo(() => [...files].sort((a, b) => new Date(b.datecreated) - new Date(a.datecreated)), [files]);
   const includedTables = tables.filter((table) => !table.Excluded);
@@ -57,12 +58,15 @@ function BackupPage() {
 
   async function fetchData() {
     try {
-      const [tableResponse, fileResponse] = await Promise.all([
+      const [tableResponse, fileResponse, configResponse] = await Promise.all([
         axios.get("/api/getBackupTables", { headers: getHeaders() }),
         axios.get("/backup/files", { headers: getHeaders() }),
+        axios.get("/api/getconfig", { headers: getHeaders() }).catch(() => ({ data: {} })),
       ]);
       setTables(tableResponse.data || []);
       setFiles(fileResponse.data || []);
+      const dest = configResponse.data?.settings?.BackupDestination;
+      if (dest) setDestination({ kind: dest.kind || "local", url: dest.url || "", username: dest.username || "", secret: dest.secret || "", bucket: dest.bucket || "", region: dest.region || "us-east-1", prefix: dest.prefix || "" });
     } catch (error) {
       setMessage({ type: "danger", text: error.response?.data || "Unable to load backup data" });
     }
@@ -207,6 +211,60 @@ function BackupPage() {
           {message.text}
         </Alert>
       ) : null}
+
+      <section className="backup-panel">
+        <div className="backup-panel-heading">
+          <h2>Off-box copy</h2>
+        </div>
+        <p>After a local JSON backup finishes, Glance can copy it to WebDAV or an S3-compatible bucket (MinIO, Wasabi, AWS, Cloudflare R2) using SigV4.</p>
+        <div className="backup-destination-grid">
+          <label>
+            Destination
+            <select value={destination.kind} onChange={(event) => setDestination((current) => ({ ...current, kind: event.target.value }))}>
+              <option value="local">Local only</option>
+              <option value="webdav">WebDAV</option>
+              <option value="s3">S3-compatible</option>
+            </select>
+          </label>
+          <label>
+            {destination.kind === "s3" ? "Endpoint" : "URL"}
+            <input value={destination.url} onChange={(event) => setDestination((current) => ({ ...current, url: event.target.value }))} placeholder={destination.kind === "s3" ? "https://s3.amazonaws.com or https://minio.example" : "https://files.example/backups"} />
+          </label>
+          {destination.kind === "s3" ? (
+            <>
+              <label>
+                Bucket
+                <input value={destination.bucket} onChange={(event) => setDestination((current) => ({ ...current, bucket: event.target.value }))} placeholder="jellyglance-backups" />
+              </label>
+              <label>
+                Region
+                <input value={destination.region} onChange={(event) => setDestination((current) => ({ ...current, region: event.target.value }))} placeholder="us-east-1" />
+              </label>
+              <label>
+                Prefix
+                <input value={destination.prefix} onChange={(event) => setDestination((current) => ({ ...current, prefix: event.target.value }))} placeholder="optional/folder" />
+              </label>
+            </>
+          ) : null}
+          <label>
+            {destination.kind === "s3" ? "Access key" : "Username"}
+            <input value={destination.username} onChange={(event) => setDestination((current) => ({ ...current, username: event.target.value }))} />
+          </label>
+          <label>
+            {destination.kind === "s3" ? "Secret key" : "Password or token"}
+            <input type="password" value={destination.secret} onChange={(event) => setDestination((current) => ({ ...current, secret: event.target.value }))} />
+          </label>
+          <Button
+            type="button"
+            onClick={async () => {
+              await axios.post("/api/setBackupDestination", destination, { headers: getHeaders() });
+              setMessage({ type: "success", text: "Backup destination saved." });
+            }}
+          >
+            Save destination
+          </Button>
+        </div>
+      </section>
 
       <section className="backup-summary-grid">
         <article>

@@ -1,8 +1,16 @@
 const db = require("../db");
 
+let cachedConfig = null;
+let cachedConfigAt = 0;
+const CONFIG_CACHE_MS = 8000;
+
 class Config {
   async getConfig() {
     try {
+      if (cachedConfig && Date.now() - cachedConfigAt < CONFIG_CACHE_MS) {
+        return cachedConfig;
+      }
+
       //Manual overrides
       process.env.POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres";
 
@@ -17,7 +25,7 @@ class Config {
 
       const _config = config[0];
 
-      return {
+      const result = {
         JF_HOST: process.env.JF_HOST ?? _config.JF_HOST,
         JF_EXTERNAL_HOST: _config.settings?.EXTERNAL_URL,
         JF_API_KEY: process.env.JF_API_KEY ?? _config.JF_API_KEY,
@@ -29,10 +37,18 @@ class Config {
         state: state,
         IS_JELLYFIN: (process.env.IS_EMBY_API || "false").toLowerCase() === "false",
       };
+      cachedConfig = result;
+      cachedConfigAt = Date.now();
+      return result;
     } catch (error) {
       console.log("Error fetching config:", error);
       return { error: "Config Details Not Found" };
     }
+  }
+
+  clearCache() {
+    cachedConfig = null;
+    cachedConfigAt = 0;
   }
 
   async getPreferedAdmin() {

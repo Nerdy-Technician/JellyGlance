@@ -1,5 +1,7 @@
+import i18n from "i18next";
+
 export function formatDate(value) {
-  if (!value) return "Unknown";
+  if (!value) return i18n.t("FEATURES.REQUESTS.UNKNOWN");
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "2-digit",
@@ -10,13 +12,13 @@ export function formatDate(value) {
 
 export function getRequestAge(value) {
   const createdAt = value ? new Date(value).getTime() : 0;
-  if (!createdAt) return { label: "Unknown age", level: "unknown", hours: 0 };
+  if (!createdAt) return { label: i18n.t("FEATURES.REQUESTS.UNKNOWN_AGE"), level: "unknown", hours: 0 };
 
   const hours = Math.max(0, Math.floor((Date.now() - createdAt) / 3600000));
-  if (hours >= 168) return { label: `${Math.floor(hours / 24)}d old`, level: "week", hours };
-  if (hours >= 24) return { label: `${Math.floor(hours / 24)}d old`, level: "day", hours };
-  if (hours >= 1) return { label: `${hours}h old`, level: "fresh", hours };
-  return { label: "New", level: "fresh", hours };
+  if (hours >= 168) return { label: i18n.t("FEATURES.REQUESTS.AGE_DAYS", { count: Math.floor(hours / 24) }), level: "week", hours };
+  if (hours >= 24) return { label: i18n.t("FEATURES.REQUESTS.AGE_DAYS", { count: Math.floor(hours / 24) }), level: "day", hours };
+  if (hours >= 1) return { label: i18n.t("FEATURES.REQUESTS.AGE_HOURS", { count: hours }), level: "fresh", hours };
+  return { label: i18n.t("FEATURES.REQUESTS.NEW"), level: "fresh", hours };
 }
 
 export function formatPercentScore(value) {
@@ -37,7 +39,7 @@ export function hasRatingValue(value) {
 }
 
 export function getRequesterName(request) {
-  return request?.requester?.name || request?.requestedBy || "Unknown user";
+  return request?.requester?.name || request?.requestedBy || i18n.t("FEATURES.REQUESTS.UNKNOWN_USER");
 }
 
 export function normalizeOwnerValue(value) {

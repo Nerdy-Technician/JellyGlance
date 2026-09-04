@@ -351,6 +351,7 @@ async function ActivityMonitor(defaultInterval) {
           playbackEnded.map((session) => webhookManager.triggerEventWebhooks("playback_ended", playbackWebhookData(session, true))),
         );
       }
+      await webhookManager.flushQuietHoursDigest();
 
       const WatchdogData = await db.query("SELECT * FROM jf_activity_watchdog").then((res) => res.rows);
 

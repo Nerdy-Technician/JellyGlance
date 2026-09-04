@@ -12,6 +12,8 @@ import ImageLineIcon from "remixicon-react/ImageLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import TimeLineIcon from "remixicon-react/TimeLineIcon";
 import Tv2LineIcon from "remixicon-react/Tv2LineIcon";
+import ComputerLineIcon from "remixicon-react/ComputerLineIcon";
+import { useTranslation } from "react-i18next";
 import axios from "../lib/axios_instance";
 import "./css/repair-hub.css";
 
@@ -28,8 +30,8 @@ function formatNumber(value) {
   return numberFormat.format(Number(value || 0));
 }
 
-function formatDate(value) {
-  if (!value) return "No recent activity";
+function formatDate(value, emptyLabel) {
+  if (!value) return emptyLabel || "";
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "2-digit",
@@ -39,8 +41,8 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function itemMeta(item) {
-  return [item.Type, item.ProductionYear].filter(Boolean).join(" · ") || "Library item";
+function itemMeta(item, fallback) {
+  return [item.Type, item.ProductionYear].filter(Boolean).join(" · ") || fallback;
 }
 
 function RepairMetric({ icon: Icon, label, value, detail, tone = "neutral" }) {
@@ -56,34 +58,49 @@ function RepairMetric({ icon: Icon, label, value, detail, tone = "neutral" }) {
   );
 }
 
-function SampleList({ title, items, emptyText }) {
+function SampleList({ title, items, emptyText, samplesLabel, itemFallback }) {
   return (
     <section className="repair-panel">
       <div className="repair-panel-title">
         <h2>{title}</h2>
-        <span>{formatNumber(items.length)} samples</span>
+        <span>{samplesLabel}</span>
       </div>
       <div className="repair-sample-list">
-        {items.map((item) => (
-          <Link to={`/libraries/item/${item.Id}`} key={`${title}-${item.Id}`} className="repair-sample-row">
-            <div>
-              <strong>{item.Name}</strong>
-              <span>{itemMeta(item)}</span>
+        {items.map((item) => {
+          const content = (
+            <>
+              <div>
+                <strong>{item.Name}</strong>
+                <span>{itemMeta(item, itemFallback)}</span>
+              </div>
+              <ArrowRightLineIcon size={17} />
+            </>
+          );
+          const isItem = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(item.Id || ""));
+          return isItem ? (
+            <Link to={`/libraries/item/${item.Id}`} key={`${title}-${item.Id}`} className="repair-sample-row">
+              {content}
+            </Link>
+          ) : (
+            <div key={`${title}-${item.Id}-${item.Name}`} className="repair-sample-row">
+              {content}
             </div>
-            <ArrowRightLineIcon size={17} />
-          </Link>
-        ))}
+          );
+        })}
         {!items.length ? <div className="repair-empty">{emptyText}</div> : null}
       </div>
     </section>
   );
 }
 
-export default function RepairHub() {
+function RepairHub() {
+  const { t } = useTranslation();
   const [summary, setSummary] = useState(null);
   const [unmatched, setUnmatched] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanMessage, setScanMessage] = useState("");
 
   async function loadRepairHub() {
     try {
@@ -96,7 +113,7 @@ export default function RepairHub() {
       setSummary(summaryResponse.data && typeof summaryResponse.data === "object" ? summaryResponse.data : {});
       setUnmatched(Array.isArray(unmatchedResponse.data) ? unmatchedResponse.data : []);
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "Unable to load the repair hub.");
+      setError(requestError.response?.data?.error || t("FEATURES.REPAIR.LOAD_ERROR"));
     } finally {
       setLoading(false);
     }
@@ -115,7 +132,9 @@ export default function RepairHub() {
       Number(counts.missingRuntime || 0) +
       Number(counts.emptySeries || 0) +
       Number(counts.orphanedActivity || 0) +
-      Number(counts.unmatchedImports || 0),
+      Number(counts.unmatchedImports || 0) +
+      Number(counts.transcodeClients || 0) +
+      Number(counts.failedStarts || 0),
     [counts]
   );
 
@@ -123,42 +142,62 @@ export default function RepairHub() {
     {
       key: "unmatched",
       icon: Database2LineIcon,
-      title: "Unmatched imported history",
+      title: t("FEATURES.REPAIR.UNMATCHED_HISTORY"),
       count: counts.unmatchedImports,
-      detail: `Last seen ${formatDate(summary?.activityLinks?.unmatchedLastSeen)}`,
+      detail: t("FEATURES.REPAIR.LAST_SEEN", { date: formatDate(summary?.activityLinks?.unmatchedLastSeen, t("FEATURES.REPAIR.NO_RECENT")) }),
       action: "/settings?tab=tabImports",
-      actionLabel: "Open imports",
+      actionLabel: t("FEATURES.REPAIR.OPEN_IMPORTS"),
       tone: "danger",
     },
     {
       key: "posters",
       icon: ImageLineIcon,
-      title: "Missing posters",
+      title: t("FEATURES.REPAIR.MISSING_POSTERS"),
       count: counts.missingPosters,
-      detail: "Items without primary artwork",
+      detail: t("FEATURES.REPAIR.MISSING_POSTERS_DETAIL"),
       action: "/settings?tab=tabLibraries",
-      actionLabel: "Library settings",
+      actionLabel: t("FEATURES.REPAIR.LIBRARY_SETTINGS"),
       tone: "warning",
     },
     {
       key: "series",
       icon: Tv2LineIcon,
-      title: "Empty series",
+      title: t("FEATURES.REPAIR.EMPTY_SERIES"),
       count: counts.emptySeries,
-      detail: "Shows with no active episodes",
+      detail: t("FEATURES.REPAIR.EMPTY_SERIES_DETAIL"),
       action: "/settings?tab=tabLibraries",
-      actionLabel: "Check sync",
+      actionLabel: t("FEATURES.REPAIR.CHECK_SYNC"),
       tone: "warning",
     },
     {
       key: "activity",
       icon: FileSearchLineIcon,
-      title: "Orphaned activity",
+      title: t("FEATURES.REPAIR.ORPHANED_ACTIVITY"),
       count: counts.orphanedActivity,
-      detail: `Last seen ${formatDate(summary?.activityLinks?.orphanedLastSeen)}`,
+      detail: t("FEATURES.REPAIR.LAST_SEEN", { date: formatDate(summary?.activityLinks?.orphanedLastSeen, t("FEATURES.REPAIR.NO_RECENT")) }),
       action: "/activity",
-      actionLabel: "Open activity",
+      actionLabel: t("FEATURES.REPAIR.OPEN_ACTIVITY"),
       tone: "neutral",
+    },
+    {
+      key: "transcodes",
+      icon: ComputerLineIcon,
+      title: t("FEATURES.REPAIR.TRANSCODE_CLIENTS"),
+      count: counts.transcodeClients,
+      detail: t("FEATURES.REPAIR.TRANSCODE_CLIENTS_DETAIL"),
+      action: "/activity",
+      actionLabel: t("FEATURES.REPAIR.OPEN_ACTIVITY"),
+      tone: counts.transcodeClients ? "warning" : "neutral",
+    },
+    {
+      key: "failed-starts",
+      icon: AlertLineIcon,
+      title: t("FEATURES.REPAIR.FAILED_STARTS"),
+      count: counts.failedStarts,
+      detail: t("FEATURES.REPAIR.FAILED_STARTS_DETAIL"),
+      action: "/activity",
+      actionLabel: t("FEATURES.REPAIR.OPEN_ACTIVITY"),
+      tone: counts.failedStarts ? "danger" : "neutral",
     },
   ];
 
@@ -166,29 +205,50 @@ export default function RepairHub() {
     <div className="repair-hub">
       <header className="repair-hero">
         <div>
-          <span>Maintenance</span>
-          <h1>Repair Hub</h1>
-          <p>Artwork gaps, imported-history fixes, empty shows, orphaned activity, and recent task failures in one place.</p>
+          <span>{t("FEATURES.REPAIR.KICKER")}</span>
+          <h1>{t("FEATURES.REPAIR.TITLE")}</h1>
+          <p>{t("FEATURES.REPAIR.INTRO")}</p>
         </div>
         <Button type="button" onClick={loadRepairHub} disabled={loading}>
           {loading ? <Spinner size="sm" animation="border" /> : <RefreshLineIcon size={17} />}
-          Refresh
+          {t("FEATURES.REPAIR.REFRESH")}
+        </Button>
+        <Button
+          type="button"
+          variant="outline-light"
+          disabled={scanBusy}
+          onClick={async () => {
+            setScanBusy(true);
+            setScanMessage("");
+            try {
+              await axios.post("/api/jellyfin/refresh-library", {}, { headers: authHeaders() });
+              setScanMessage(t("FEATURES.OPS.SCAN_OK"));
+            } catch (requestError) {
+              setScanMessage(requestError.response?.data?.error || t("FEATURES.OPS.SCAN_FAIL"));
+            } finally {
+              setScanBusy(false);
+            }
+          }}
+        >
+          {scanBusy ? <Spinner size="sm" animation="border" /> : <Database2LineIcon size={17} />}
+          {scanBusy ? t("FEATURES.OPS.SCANNING") : t("FEATURES.OPS.SCAN_LIBRARIES")}
         </Button>
       </header>
 
       {error ? <Alert variant="danger">{error}</Alert> : null}
+      {scanMessage ? <Alert variant="info">{scanMessage}</Alert> : null}
 
       <section className="repair-overview">
         <RepairMetric
           icon={totalIssues ? ErrorWarningLineIcon : CheckboxCircleLineIcon}
-          label="Repair queue"
+          label={t("FEATURES.REPAIR.QUEUE")}
           value={totalIssues}
-          detail={totalIssues ? "Items need attention" : "Nothing obvious to repair"}
+          detail={totalIssues ? t("FEATURES.REPAIR.NEEDS_ATTENTION") : t("FEATURES.REPAIR.NOTHING_TO_REPAIR")}
           tone={totalIssues ? "danger" : "ok"}
         />
-        <RepairMetric icon={ImageLineIcon} label="Artwork issues" value={Number(counts.missingPosters || 0) + Number(counts.missingLogos || 0)} detail="Posters and logos" tone="warning" />
-        <RepairMetric icon={TimeLineIcon} label="Runtime gaps" value={counts.missingRuntime} detail="Items with no runtime" tone="neutral" />
-        <RepairMetric icon={AlertLineIcon} label="Task failures" value={counts.taskFailures} detail="Recent failed logs" tone={counts.taskFailures ? "danger" : "ok"} />
+        <RepairMetric icon={ImageLineIcon} label={t("FEATURES.REPAIR.ARTWORK")} value={Number(counts.missingPosters || 0) + Number(counts.missingLogos || 0)} detail={t("FEATURES.REPAIR.POSTERS_AND_LOGOS")} tone="warning" />
+        <RepairMetric icon={ComputerLineIcon} label={t("FEATURES.REPAIR.PLAYBACK_QUALITY")} value={Number(counts.transcodeClients || 0) + Number(counts.failedStarts || 0)} detail={t("FEATURES.REPAIR.PLAYBACK_QUALITY_DETAIL")} tone={counts.failedStarts ? "danger" : "neutral"} />
+        <RepairMetric icon={AlertLineIcon} label={t("FEATURES.REPAIR.TASK_FAILURES")} value={counts.taskFailures} detail={t("FEATURES.REPAIR.RECENT_FAILED_LOGS")} tone={counts.taskFailures ? "danger" : "ok"} />
       </section>
 
       <section className="repair-queue">
@@ -211,8 +271,8 @@ export default function RepairHub() {
       {unmatched.length ? (
         <section className="repair-panel">
           <div className="repair-panel-title">
-            <h2>Tautulli Links To Review</h2>
-            <Link to="/settings?tab=tabImports">Open linker</Link>
+            <h2>{t("FEATURES.REPAIR.TAUTULLI_LINKS")}</h2>
+            <Link to="/settings?tab=tabImports">{t("FEATURES.REPAIR.OPEN_LINKER")}</Link>
           </div>
           <div className="repair-unmatched-grid">
             {unmatched.map((item) => (
@@ -220,8 +280,8 @@ export default function RepairHub() {
                 <Database2LineIcon size={18} />
                 <div>
                   <strong>{item.SeriesName ? `${item.SeriesName} - ${item.NowPlayingItemName}` : item.NowPlayingItemName}</strong>
-                  <span>{item.MediaType} · {formatNumber(item.PlayCount)} plays</span>
-                  <small>Last watched {formatDate(item.LastActivityDate)}</small>
+                  <span>{item.MediaType} · {formatNumber(item.PlayCount)} {t("UNITS.PLAYS")}</span>
+                  <small>{t("FEATURES.REPAIR.LAST_WATCHED", { date: formatDate(item.LastActivityDate, t("FEATURES.REPAIR.NO_RECENT")) })}</small>
                 </div>
               </article>
             ))}
@@ -230,16 +290,16 @@ export default function RepairHub() {
       ) : null}
 
       <div className="repair-sample-grid">
-        <SampleList title="Missing Posters" items={samples.missingPosters || []} emptyText="No missing poster samples found." />
-        <SampleList title="Missing Logos" items={samples.missingLogos || []} emptyText="No missing logo samples found." />
-        <SampleList title="Missing Runtime" items={samples.missingRuntime || []} emptyText="No missing runtime samples found." />
-        <SampleList title="Empty Series" items={samples.emptySeries || []} emptyText="No empty series samples found." />
+        <SampleList title={t("FEATURES.REPAIR.MISSING_POSTERS")} items={samples.missingPosters || []} emptyText={t("FEATURES.REPAIR.NO_POSTER_SAMPLES")} samplesLabel={t("FEATURES.REPAIR.SAMPLES", { count: (samples.missingPosters || []).length })} itemFallback={t("FEATURES.REPAIR.LIBRARY_ITEM")} />
+        <SampleList title={t("FEATURES.REPAIR.MISSING_LOGOS")} items={samples.missingLogos || []} emptyText={t("FEATURES.REPAIR.NO_LOGO_SAMPLES")} samplesLabel={t("FEATURES.REPAIR.SAMPLES", { count: (samples.missingLogos || []).length })} itemFallback={t("FEATURES.REPAIR.LIBRARY_ITEM")} />
+        <SampleList title={t("FEATURES.REPAIR.TRANSCODE_CLIENTS")} items={(samples.transcodeClients || []).map((row) => ({ Id: row.Client, Name: `${row.Client} · ${row.DeviceName}`, Type: t("FEATURES.REPAIR.TRANSCODES_OF_PLAYS", { transcodes: row.Transcodes, plays: row.Plays }) }))} emptyText={t("FEATURES.REPAIR.NO_TRANSCODE_CLIENTS")} samplesLabel={t("FEATURES.REPAIR.SAMPLES", { count: (samples.transcodeClients || []).length })} itemFallback={t("FEATURES.REPAIR.LIBRARY_ITEM")} />
+        <SampleList title={t("FEATURES.REPAIR.FAILED_STARTS")} items={(samples.failedStarts || []).map((row) => ({ Id: row.Id, Name: row.Name, Type: t("FEATURES.REPAIR.FAILED_START_META", { count: row.Fails }) }))} emptyText={t("FEATURES.REPAIR.NO_FAILED_STARTS")} samplesLabel={t("FEATURES.REPAIR.SAMPLES", { count: (samples.failedStarts || []).length })} itemFallback={t("FEATURES.REPAIR.LIBRARY_ITEM")} />
       </div>
 
       <section className="repair-panel">
         <div className="repair-panel-title">
-          <h2>Recent Task Failures</h2>
-          <Link to="/settings?tab=tabLogs">Open logs</Link>
+          <h2>{t("FEATURES.REPAIR.TASK_FAILURES")}</h2>
+          <Link to="/settings?tab=tabLogs">{t("FEATURES.REPAIR.OPEN_LOGS")}</Link>
         </div>
         <div className="repair-task-list">
           {(samples.taskFailures || []).map((task) => (
@@ -247,14 +307,16 @@ export default function RepairHub() {
               <HammerLineIcon size={18} />
               <div>
                 <strong>{task.Name || task.Id}</strong>
-                <span>{task.Result || "Failed"}</span>
+                <span>{task.Result || t("FEATURES.REPAIR.FAILED")}</span>
               </div>
-              <time>{formatDate(task.TimeRun)}</time>
+              <time>{formatDate(task.TimeRun, t("FEATURES.REPAIR.NO_RECENT"))}</time>
             </article>
           ))}
-          {!(samples.taskFailures || []).length ? <div className="repair-empty">No recent task failures found.</div> : null}
+          {!(samples.taskFailures || []).length ? <div className="repair-empty">{t("FEATURES.REPAIR.NO_TASK_FAILURES")}</div> : null}
         </div>
       </section>
     </div>
   );
 }
+
+export default RepairHub;

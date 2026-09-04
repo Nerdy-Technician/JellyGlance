@@ -63,7 +63,8 @@
   border: 0;
   outline: 0;
   color: #eef4ff;
-  background: transparent;
+  background-color: transparent;
+  background-image: none;
   font-size: 13px;
   font-weight: 760;
 }
@@ -119,11 +120,12 @@
   padding: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color-scheme: dark;
 }
 
 .recently-added-control select option {
-  color: #eef4ff;
-  background-color: #111722;
+  color: #eef4ff !important;
+  background-color: #111722 !important;
   font-weight: 760;
 }
 

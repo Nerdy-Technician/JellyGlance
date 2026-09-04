@@ -16,6 +16,7 @@ import { cachedGet, clearApiCache } from "../lib/api-cache";
 import "./css/integrations.css";
 import RequestTimeline from "./requests/RequestTimeline";
 import RequestSkeleton from "./requests/RequestSkeleton";
+import { useTranslation } from "react-i18next";
 import {
   formatDate,
   formatPercentScore,
@@ -49,6 +50,7 @@ function RequestFilterOptionAvatar({ option }) {
 }
 
 function RequestFilterDropdown({ label, value, options, onChange }) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
@@ -64,7 +66,7 @@ function RequestFilterDropdown({ label, value, options, onChange }) {
       <span>{label}</span>
       <button type="button" aria-haspopup="listbox" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
         <RequestFilterOptionAvatar option={selectedOption} />
-        <strong>{selectedOption?.label || "Select"}</strong>
+        <strong>{selectedOption?.label || t("FEATURES.REQUESTS.SELECT")}</strong>
       </button>
       {isOpen ? (
         <div className="requests-filter-dropdown-menu" role="listbox" tabIndex={-1}>
@@ -91,6 +93,7 @@ function RequestFilterDropdown({ label, value, options, onChange }) {
 }
 
 function RequesterIdentity({ request, compact = false }) {
+  const { t } = useTranslation();
   const name = getRequesterName(request);
   const avatarUrl = getRequesterAvatarUrl(request);
   const initials = name
@@ -111,7 +114,7 @@ function RequesterIdentity({ request, compact = false }) {
         <AccountCircleFillIcon />
       </span>
       <span>
-        <small>{compact ? "Requested by" : "Requester"}</small>
+        <small>{compact ? t("FEATURES.REQUESTS.REQUESTED_BY") : t("FEATURES.REQUESTS.REQUESTER")}</small>
         <strong>{name}</strong>
       </span>
     </span>
@@ -119,6 +122,7 @@ function RequesterIdentity({ request, compact = false }) {
 }
 
 function RequesterByline({ request }) {
+  const { t } = useTranslation();
   const name = getRequesterName(request);
   const avatarUrl = getRequesterAvatarUrl(request);
   const initials = name
@@ -137,7 +141,7 @@ function RequesterByline({ request }) {
           <span>{initials}</span>
         )}
       </span>
-      <span>Requested by <strong>{name}</strong></span>
+      <span>{t("FEATURES.REQUESTS.REQUESTED_BY")} <strong>{name}</strong></span>
     </span>
   );
 }
@@ -167,6 +171,7 @@ function RequestPoster({ request, large = false }) {
 }
 
 export default function Requests() {
+  const { t } = useTranslation();
   const [data, setData] = useState({ sources: [], requests: [], syncedAt: null });
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
@@ -241,14 +246,14 @@ export default function Requests() {
   const statuses = useMemo(() => ["All", ...new Set((data.requests || []).map((request) => request.status).filter(Boolean))], [data.requests]);
   const sortOptions = useMemo(
     () => [
-      { value: "newest", label: "Newest first" },
-      { value: "oldest", label: "Oldest first" },
-      { value: "requester", label: "Requester" },
-      { value: "status", label: "Status" },
-      { value: "pipeline", label: "Pipeline stage" },
-      { value: "availability", label: "Availability" },
+      { value: "newest", label: t("FEATURES.REQUESTS.SORT_NEWEST") },
+      { value: "oldest", label: t("FEATURES.REQUESTS.SORT_OLDEST") },
+      { value: "requester", label: t("FEATURES.REQUESTS.SORT_REQUESTER") },
+      { value: "status", label: t("FEATURES.REQUESTS.SORT_STATUS") },
+      { value: "pipeline", label: t("FEATURES.REQUESTS.SORT_PIPELINE") },
+      { value: "availability", label: t("FEATURES.REQUESTS.SORT_AVAILABILITY") },
     ],
-    []
+    [t]
   );
   const pipelineCounts = useMemo(() => {
     const counts = Object.fromEntries(PIPELINE_FILTERS.map((filter) => [filter.id, 0]));
@@ -274,11 +279,11 @@ export default function Requests() {
       });
 
       return [
-        { value: "all", label: "All users" },
+        { value: "all", label: t("FEATURES.REQUESTS.ALL_USERS") },
         ...[...requesters.values()].sort((a, b) => a.label.localeCompare(b.label)),
       ];
     },
-    [data.requests]
+    [data.requests, t]
   );
   const seerrSources = data.sources || [];
   const visibleIssues = useMemo(() => {
@@ -541,7 +546,7 @@ export default function Requests() {
   async function runIssueAction(issue, action, event) {
     event?.stopPropagation();
     if (!issue?.id || !issue?.sourceId) return;
-    if (action === "delete" && !window.confirm("Delete this Seerr issue?")) return;
+    if (action === "delete" && !window.confirm(t("FEATURES.REQUESTS.DELETE_ISSUE"))) return;
 
     try {
       setBusyAction(`${issueKey(issue)}-${action}`);
@@ -573,6 +578,22 @@ export default function Requests() {
     try {
       setBusyAction(`${request.id}-${action}`);
       setActionMessage("");
+      if (action === "retry") {
+        axios
+          .post(
+            "/api/retry-grab",
+            {
+              title: request.title,
+              requestId: request.requestId,
+              sourceId: request.sourceId,
+              mediaType: request.mediaType,
+              tmdb: request.tmdbId || request.tmdb,
+              tvdb: request.tvdbId || request.tvdb,
+            },
+            { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+          )
+          .catch(() => {});
+      }
       await axios.post(
         `/api/requests/${encodeURIComponent(request.requestId)}/actions`,
         { sourceId: request.sourceId, action },
@@ -810,31 +831,29 @@ export default function Requests() {
       <section className="requests-discovery">
         <div className="requests-discovery-head">
           <div>
-            <h2>{pageSection === "issues" ? "Seerr issues" : "Find or request media"}</h2>
+            <h2>{pageSection === "issues" ? t("FEATURES.REQUESTS.ISSUES_TITLE") : t("FEATURES.REQUESTS.TITLE")}</h2>
             <span>
-              {pageSection === "issues"
-                ? "Review, comment, resolve, or delete issue reports from Jellyseerr and Overseerr."
-                : "Search once to filter existing requests and request new media from Seerr results."}
+              {pageSection === "issues" ? t("FEATURES.REQUESTS.ISSUES_INTRO") : t("FEATURES.REQUESTS.INTRO")}
             </span>
           </div>
           <div className="requests-discovery-tools">
             {canManageRequests ? (
-              <div className="requests-section-tabs" role="tablist" aria-label="Requests sections">
+              <div className="requests-section-tabs" role="tablist" aria-label={t("FEATURES.REQUESTS.SECTIONS")}>
                 <button type="button" role="tab" aria-selected={pageSection === "queue"} className={pageSection === "queue" ? "is-active" : ""} onClick={() => setPageSection("queue")}>
-                  Queue
+                  {t("FEATURES.REQUESTS.QUEUE")}
                 </button>
                 <button type="button" role="tab" aria-selected={pageSection === "issues"} className={pageSection === "issues" ? "is-active" : ""} onClick={() => setPageSection("issues")}>
-                  Issues
+                  {t("FEATURES.REQUESTS.ISSUES")}
                   {issues.filter((issue) => issue.status === "Open").length ? <em>{issues.filter((issue) => issue.status === "Open").length}</em> : null}
                 </button>
               </div>
             ) : null}
             {pageSection === "queue" ? (
-              <div className="requests-view-toggle" role="group" aria-label="Request queue view">
-                <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title="Card view" aria-label="Card view">
+              <div className="requests-view-toggle" role="group" aria-label={t("FEATURES.REQUESTS.QUEUE_VIEW")}>
+                <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title={t("FEATURES.REQUESTS.CARD_VIEW")} aria-label={t("FEATURES.REQUESTS.CARD_VIEW")}>
                   <GridLineIcon size={18} />
                 </button>
-                <button type="button" className={queueView === "list" ? "is-active" : ""} aria-pressed={queueView === "list"} onClick={() => setQueueView("list")} title="List view" aria-label="List view">
+                <button type="button" className={queueView === "list" ? "is-active" : ""} aria-pressed={queueView === "list"} onClick={() => setQueueView("list")} title={t("FEATURES.REQUESTS.LIST_VIEW")} aria-label={t("FEATURES.REQUESTS.LIST_VIEW")}>
                   <FileList3LineIcon size={18} />
                 </button>
               </div>
@@ -849,27 +868,27 @@ export default function Requests() {
             type="search"
             value={mediaSearch}
             onChange={(event) => setMediaSearch(event.target.value)}
-            placeholder="Search movies or TV shows..."
+            placeholder={t("FEATURES.REQUESTS.SEARCH_PLACEHOLDER")}
           />
           <button type="button" onClick={() => runMediaSearch(true)} disabled={mediaSearchLoading || mediaSearch.trim().length < 2}>
-            {mediaSearchLoading ? "Searching" : "Search"}
+            {mediaSearchLoading ? t("FEATURES.REQUESTS.SEARCHING") : t("FEATURES.REQUESTS.SEARCH")}
           </button>
         </label>
         <section className={`requests-control-bar${canManageRequests ? " has-user-filter" : ""}`}>
-          <RequestFilterDropdown label="Sort queue" value={sortMode} options={sortOptions} onChange={setSortMode} />
+          <RequestFilterDropdown label={t("FEATURES.REQUESTS.SORT_QUEUE")} value={sortMode} options={sortOptions} onChange={setSortMode} />
           {canManageRequests ? (
-            <RequestFilterDropdown label="User" value={requesterFilter} options={requesterOptions} onChange={setRequesterFilter} />
+            <RequestFilterDropdown label={t("USER")} value={requesterFilter} options={requesterOptions} onChange={setRequesterFilter} />
           ) : null}
-          <strong>{visibleRequests.length} shown from {data.requests?.length || 0}</strong>
+          <strong>{t("FEATURES.REQUESTS.SHOWN", { shown: visibleRequests.length, total: data.requests?.length || 0 })}</strong>
         </section>
-        <nav className="requests-filter-strip" aria-label="Request status filters">
+        <nav className="requests-filter-strip" aria-label={t("FEATURES.REQUESTS.STATUS_FILTERS")}>
           {statuses.map((status) => (
             <button type="button" key={status} className={statusFilter === status ? "is-active" : ""} onClick={() => setStatusFilter(status)}>
-              {status}
+              {status === "All" ? t("FEATURES.REQUESTS.ALL") : status}
             </button>
           ))}
         </nav>
-        <nav className="requests-pipeline-strip" aria-label="Request pipeline filters">
+        <nav className="requests-pipeline-strip" aria-label={t("FEATURES.REQUESTS.PIPELINE_FILTERS")}>
           {PIPELINE_FILTERS.map((filter) => (
             <button
               type="button"
@@ -877,7 +896,7 @@ export default function Requests() {
               className={pipelineFilter === filter.id ? "is-active" : ""}
               onClick={() => setPipelineFilter(filter.id)}
             >
-              {filter.label}
+              {t(`FEATURES.REQUESTS.PIPELINE_${filter.id}`)}
               <em>{pipelineCounts[filter.id] || 0}</em>
             </button>
           ))}
@@ -891,7 +910,7 @@ export default function Requests() {
                 persistRequestPreferences({ is4k });
               }}
             />
-            Prefer 4K by default
+            {t("FEATURES.REQUESTS.PREFER_4K")}
           </label>
         </nav>
         {mediaSearchMessage ? <div className="requests-discovery-message">{mediaSearchMessage}</div> : null}
@@ -902,10 +921,10 @@ export default function Requests() {
               const isAlreadyRequested = result.requested && !isAlreadyAvailable;
               const requestDisabled = Boolean(busyAction) || isAlreadyAvailable || isAlreadyRequested;
               const requestLabel = isAlreadyAvailable
-                ? "Available"
+                ? t("FEATURES.REQUESTS.AVAILABLE")
                 : isAlreadyRequested
-                  ? "Already requested"
-                  : "Request this";
+                  ? t("FEATURES.REQUESTS.ALREADY_REQUESTED")
+                  : t("FEATURES.REQUESTS.REQUEST_THIS");
               return (
                 <article
                   key={result.id}
@@ -923,8 +942,8 @@ export default function Requests() {
                   </div>
                   <div className="requests-discovery-copy">
                     <strong>{result.title}{result.year ? ` (${result.year})` : ""}</strong>
-                    <span>{result.mediaType === "tv" ? "TV" : "Movie"} · {result.source}</span>
-                    <small>{result.availability || "Unknown"}</small>
+                    <span>{result.mediaType === "tv" ? t("FEATURES.REQUESTS.TV") : t("FEATURES.REQUESTS.MOVIE")} · {result.source}</span>
+                    <small>{result.availability || t("FEATURES.REQUESTS.UNKNOWN")}</small>
                     {result.overview ? <p>{result.overview}</p> : null}
                   </div>
                   <div className="requests-discovery-actions">
@@ -961,10 +980,10 @@ export default function Requests() {
                 type="search"
                 value={issueSearch}
                 onChange={(event) => setIssueSearch(event.target.value)}
-                placeholder="Search issues..."
+                placeholder={t("FEATURES.REQUESTS.SEARCH_ISSUES")}
               />
             </label>
-            <nav className="requests-filter-strip" aria-label="Issue status filters">
+            <nav className="requests-filter-strip" aria-label={t("FEATURES.REQUESTS.ISSUE_FILTERS")}>
               {["Open", "Resolved", "All"].map((status) => (
                 <button type="button" key={status} className={issueFilter === status ? "is-active" : ""} onClick={() => setIssueFilter(status)}>
                   {status}
@@ -1010,7 +1029,7 @@ export default function Requests() {
                   <b>{request.pipelineLabel || request.status}</b>
                 </div>
                 <div className={`requests-availability is-${String(request.availability?.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
-                  <b>{request.availability?.status || "Unknown"}</b>
+                  <b>{request.availability?.status || t("FEATURES.REQUESTS.UNKNOWN")}</b>
                 </div>
                 <span className={`requests-age-badge is-${age.level}`}>{age.label}</span>
                 {request.rootFolder ? <span className="requests-root-folder" title="Root folder">{request.rootFolder}</span> : null}
@@ -1030,24 +1049,24 @@ export default function Requests() {
               <div className="requests-card-actions">
                 {canManageRequests && request.status === "Pending" ? (
                   <>
-                    <button type="button" title="Approve" disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "approve", event)}>
+                    <button type="button" title={t("FEATURES.REQUESTS.APPROVE")} disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "approve", event)}>
                       <CheckboxCircleLineIcon size={16} />
-                      <span>Approve</span>
+                      <span>{t("FEATURES.REQUESTS.APPROVE")}</span>
                     </button>
-                    <button type="button" title="Decline" disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "decline", event)}>
+                    <button type="button" title={t("FEATURES.REQUESTS.DECLINE")} disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "decline", event)}>
                       <CloseCircleLineIcon size={16} />
-                      <span>Decline</span>
+                      <span>{t("FEATURES.REQUESTS.DECLINE")}</span>
                     </button>
                   </>
                 ) : null}
                 {canManageRequests && request.requestId && request.status === "Failed" ? (
-                  <button type="button" title="Retry" disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "retry", event)}>
+                  <button type="button" title={t("FEATURES.REQUESTS.RETRY")} disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(request, "retry", event)}>
                     <RefreshLineIcon size={16} />
-                    <span>Retry</span>
+                    <span>{t("FEATURES.REQUESTS.RETRY")}</span>
                   </button>
                 ) : null}
                 {canManageRequests && request.requestId ? (
-                  <button type="button" title="Edit routing" disabled={Boolean(busyAction)} onClick={(event) => openRequestEditor(request, event)}>
+                  <button type="button" title={t("FEATURES.REQUESTS.EDIT_ROUTING")} disabled={Boolean(busyAction)} onClick={(event) => openRequestEditor(request, event)}>
                     <Edit2LineIcon size={16} />
                     <span>Edit</span>
                   </button>
@@ -1067,7 +1086,7 @@ export default function Requests() {
           <div className="requests-empty-state">
             <ChatCheckFillIcon size={30} />
             <strong>No requests found</strong>
-            <span>{data.requests?.length ? "Try a different search, sort, or status filter." : "Enable and test Jellyseerr or Overseerr in Settings > Integrations > Seerr Apps."}</span>
+            <span>{data.requests?.length ? t("FEATURES.REQUESTS.EMPTY_FILTER") : t("FEATURES.REQUESTS.EMPTY_SETUP")}</span>
           </div>
         ) : null}
       </section>
@@ -1094,7 +1113,7 @@ export default function Requests() {
             <div className="requests-card-title">
               <div>
                 <strong>{issue.title}</strong>
-                <span>{issue.mediaType || "Media"}{issueEpisodeLabel(issue) ? ` · ${issueEpisodeLabel(issue)}` : ""}</span>
+                <span>{issue.mediaType || t("FEATURES.REQUESTS.MEDIA")}{issueEpisodeLabel(issue) ? ` · ${issueEpisodeLabel(issue)}` : ""}</span>
               </div>
             </div>
             <div className="requests-card-meta">
@@ -1112,17 +1131,17 @@ export default function Requests() {
             </div>
             <div className="requests-card-actions">
               {issue.status === "Open" ? (
-                <button type="button" title="Resolve" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "resolve", event)}>
+                <button type="button" title={t("FEATURES.REQUESTS.RESOLVE")} disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "resolve", event)}>
                   <CheckboxCircleLineIcon size={16} />
                   <span>Resolve</span>
                 </button>
               ) : (
-                <button type="button" title="Reopen" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "reopen", event)}>
+                <button type="button" title={t("FEATURES.REQUESTS.REOPEN")} disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "reopen", event)}>
                   <RefreshLineIcon size={16} />
                   <span>Reopen</span>
                 </button>
               )}
-              <button type="button" title="Delete" disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "delete", event)}>
+              <button type="button" title={t("FEATURES.REQUESTS.DELETE")} disabled={Boolean(busyAction)} onClick={(event) => runIssueAction(issue, "delete", event)}>
                 <CloseCircleLineIcon size={16} />
                 <span>Delete</span>
               </button>
@@ -1133,7 +1152,7 @@ export default function Requests() {
           <div className="requests-empty-state">
             <ErrorWarningLineIcon size={30} />
             <strong>No issues found</strong>
-            <span>{issues.length ? "Try a different status filter." : "No Seerr issue reports yet."}</span>
+            <span>{issues.length ? t("FEATURES.REQUESTS.EMPTY_ISSUE_FILTER") : t("FEATURES.REQUESTS.EMPTY_ISSUES")}</span>
           </div>
         ) : null}
       </section>
@@ -1143,7 +1162,7 @@ export default function Requests() {
         {selectedRequest ? (
           <>
             <Modal.Body>
-              <button type="button" className="requests-modal-close" aria-label="Close" onClick={() => { setSelectedRequest(null); setEditingRequestId(""); }}>
+              <button type="button" className="requests-modal-close" aria-label={t("CLOSE")} onClick={() => { setSelectedRequest(null); setEditingRequestId(""); }}>
                 <CloseCircleLineIcon size={22} />
               </button>
               <div className="requests-detail">
@@ -1152,7 +1171,7 @@ export default function Requests() {
                 </div>
                   <div className="requests-detail-copy">
                     <div className="requests-detail-heading">
-                    <span>{selectedRequest.isSearchResult ? "New request" : `${selectedRequest.mediaType} request`}</span>
+                    <span>{selectedRequest.isSearchResult ? t("FEATURES.REQUESTS.NEW_REQUEST") : t("FEATURES.REQUESTS.TYPE_REQUEST", { type: selectedRequest.mediaType })}</span>
                     <div className="requests-detail-title-row">
                       <h3>{selectedRequest.title}{selectedRequest.year ? ` (${selectedRequest.year})` : ""}</h3>
                       {hasRatingValue(selectedRequest.ratings?.imdb) ||
@@ -1191,7 +1210,7 @@ export default function Requests() {
                         </div>
                       ) : null}
                     </div>
-                    <p>{selectedRequest.overview || "No overview available from Seerr."}</p>
+                    <p>{selectedRequest.overview || t("FEATURES.REQUESTS.NO_OVERVIEW")}</p>
                   </div>
 
                   <div className="requests-detail-meta">
@@ -1199,7 +1218,7 @@ export default function Requests() {
                     {selectedRequest.year ? <span className="is-fact">{selectedRequest.year}</span> : null}
                     {selectedRequest.runtime ? <span className="is-fact">{selectedRequest.runtime} min</span> : null}
                     <span className={`is-status is-${String(selectedRequest.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{selectedRequest.status}</span>
-                    <span className={`is-availability is-${String(selectedRequest.availability?.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{selectedRequest.availability?.status || "Unknown"} in Jellyfin</span>
+                    <span className={`is-availability is-${String(selectedRequest.availability?.status || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{t("FEATURES.REQUESTS.IN_JELLYFIN", { status: selectedRequest.availability?.status || t("FEATURES.REQUESTS.UNKNOWN") })}</span>
                     {selectedRequest.userInterest?.watchlistedBy?.length ? <span className="is-interest">Watchlisted by {selectedRequest.userInterest.watchlistedBy.join(", ")}</span> : null}
                     {selectedRequest.userInterest?.favouritedBy?.length ? <span className="is-interest">Favourited by {selectedRequest.userInterest.favouritedBy.join(", ")}</span> : null}
                   </div>
@@ -1211,18 +1230,18 @@ export default function Requests() {
                       <>
                         <button type="button" disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(selectedRequest, "approve", event)}>
                           <CheckboxCircleLineIcon size={17} />
-                          Approve
+                          {t("FEATURES.REQUESTS.APPROVE")}
                         </button>
                         <button type="button" disabled={Boolean(busyAction)} onClick={(event) => runRequestAction(selectedRequest, "decline", event)}>
                           <CloseCircleLineIcon size={17} />
-                          Decline
+                          {t("FEATURES.REQUESTS.DECLINE")}
                         </button>
                       </>
                     ) : null}
                     {!selectedRequest.isSearchResult && canManageRequests && selectedRequest.requestId ? (
                       <button type="button" disabled={Boolean(busyAction)} onClick={(event) => openRequestEditor(selectedRequest, event)}>
                         <Edit2LineIcon size={17} />
-                        {editingRequestId === selectedRequest.id ? "Hide edit" : "Edit request"}
+                        {editingRequestId === selectedRequest.id ? t("FEATURES.REQUESTS.HIDE_EDIT") : t("FEATURES.REQUESTS.EDIT_REQUEST")}
                       </button>
                     ) : null}
                   </div>
@@ -1265,7 +1284,7 @@ export default function Requests() {
                       {selectedRequestOptions?.servers?.length ? (
                         <>
                           <label>
-                            <span>{selectedRequest.mediaType === "tv" ? "Sonarr server" : "Radarr server"}</span>
+                            <span>{selectedRequest.mediaType === "tv" ? t("FEATURES.REQUESTS.SONARR_SERVER") : t("FEATURES.REQUESTS.RADARR_SERVER")}</span>
                             <select value={selectedRequestForm.serverId ?? ""} onChange={(event) => handleServerChange(selectedRequest, event.target.value)}>
                               {selectedRequestOptions.servers.map((entry) => (
                                 <option key={entry.server.id} value={entry.server.id}>
@@ -1346,7 +1365,7 @@ export default function Requests() {
                           return (
                             <button type="button" disabled={requestDisabled} onClick={() => requestMedia(selectedRequest)}>
                               <ChatCheckFillIcon size={17} />
-                              {isAlreadyAvailable ? "Available" : isAlreadyRequested ? "Already requested" : "Request this"}
+                              {isAlreadyAvailable ? t("FEATURES.REQUESTS.AVAILABLE") : isAlreadyRequested ? t("FEATURES.REQUESTS.ALREADY_REQUESTED") : t("FEATURES.REQUESTS.REQUEST_THIS")}
                             </button>
                           );
                         })()}
@@ -1368,7 +1387,7 @@ export default function Requests() {
                       {selectedRequestOptions?.servers?.length ? (
                         <>
                           <label>
-                            <span>{selectedRequest.mediaType === "tv" ? "Sonarr server" : "Radarr server"}</span>
+                            <span>{selectedRequest.mediaType === "tv" ? t("FEATURES.REQUESTS.SONARR_SERVER") : t("FEATURES.REQUESTS.RADARR_SERVER")}</span>
                             <select value={selectedRequestForm.serverId ?? ""} onChange={(event) => handleServerChange(selectedRequest, event.target.value)}>
                               {selectedRequestOptions.servers.map((entry) => (
                                 <option key={entry.server.id} value={entry.server.id}>
@@ -1522,7 +1541,7 @@ export default function Requests() {
         {selectedIssue ? (
           <>
             <Modal.Body>
-              <button type="button" className="requests-modal-close" aria-label="Close" onClick={() => setSelectedIssue(null)}>
+              <button type="button" className="requests-modal-close" aria-label={t("CLOSE")} onClick={() => setSelectedIssue(null)}>
                 <CloseCircleLineIcon size={22} />
               </button>
               <div className="requests-detail">
@@ -1580,7 +1599,7 @@ export default function Requests() {
                     )}
                     <label>
                       <span>Add a comment</span>
-                      <textarea value={issueComment} onChange={(event) => setIssueComment(event.target.value)} rows={3} placeholder="Reply in Seerr..." />
+                      <textarea value={issueComment} onChange={(event) => setIssueComment(event.target.value)} rows={3} placeholder={t("FEATURES.REQUESTS.REPLY_PLACEHOLDER")} />
                     </label>
                     <button type="button" disabled={Boolean(busyAction) || !issueComment.trim()} onClick={(event) => runIssueAction(selectedIssue, "comment", event)}>
                       Send comment

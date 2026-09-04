@@ -2,9 +2,9 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 100vh;
+  min-height: 0;
   overflow-x: hidden;
-  padding: 28px clamp(18px, 3vw, 42px) 48px;
+  padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.2rem;
   background:
     radial-gradient(circle at 18% 0%, rgba(var(--primary-rgb), 0.18), transparent 32%),
     radial-gradient(circle at 82% 14%, rgba(var(--secondary-rgb), 0.1), transparent 28%);
@@ -13,19 +13,19 @@
 .libraries > h1 {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 22px !important;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem !important;
   padding: 0 !important;
   color: #f8fafc;
-  font-size: 38px;
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
   line-height: 1.08;
 }
 
 .libraries > h1 svg {
-  width: 20px;
-  height: 20px;
+  width: 1.05rem;
+  height: 1.05rem;
   color: #dce6f4;
 }
 
@@ -33,14 +33,14 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 24px;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
 }
 
 .libraries-eyebrow {
-  margin: 0 0 4px;
+  margin: 0 0 0.2rem;
   color: var(--primary-light-color);
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -49,7 +49,7 @@
 .libraries-header h1 {
   margin: 0;
   color: #f8fafc;
-  font-size: clamp(34px, 4vw, 56px);
+  font-size: var(--jg-type-display);
   font-weight: 950;
   letter-spacing: 0;
 }
@@ -57,8 +57,8 @@
 .libraries-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
 }
 
 .libraries-summary span,
@@ -67,19 +67,19 @@
   border-radius: 999px;
   background: rgba(12, 15, 22, 0.72);
   color: #d8e0ec;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
 .libraries-summary span {
-  padding: 7px 11px;
+  padding: 0.3rem 0.6rem;
 }
 
 .libraries-archive-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
@@ -90,8 +90,8 @@
 }
 
 .libraries-archive-button svg {
-  width: 19px;
-  height: 19px;
+  width: 0.95rem;
+  height: 0.95rem;
 }
 
 .libraries-container {
@@ -99,8 +99,8 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 28rem), 1fr));
+  gap: 0.85rem;
   color: white;
 }
 
@@ -109,13 +109,13 @@
 }
 
 .libraries-scan-message {
-  margin: -8px 0 18px;
-  padding: 11px 14px;
+  margin: -0.25rem 0 0.7rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.22);
-  border-radius: 13px;
+  border-radius: 0.7rem;
   background: rgba(12, 15, 22, 0.82);
   color: #f8fafc;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 850;
 }
 
@@ -131,21 +131,21 @@
 
 .libraries-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 420px) auto;
+  grid-template-columns: minmax(12rem, 20rem) auto;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin: 0 0 18px;
+  gap: 0.6rem;
+  margin: 0 0 0.7rem;
 }
 
 .libraries-search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0 13px;
+  gap: 0.45rem;
+  min-height: 2.15rem;
+  padding: 0 0.65rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.2);
-  border-radius: 13px;
+  border-radius: 0.7rem;
   background: rgba(12, 15, 22, 0.78);
   color: #d8e0ec;
 }
@@ -162,7 +162,7 @@
   outline: 0;
   background: transparent;
   color: #f8fafc;
-  font-size: 14px;
+  font-size: 0.8rem;
   font-weight: 750;
 }
 
@@ -172,24 +172,24 @@
 
 .libraries-view-toggle {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
+  gap: 0.2rem;
+  padding: 0.2rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
-  border-radius: 14px;
+  border-radius: 0.75rem;
   background: rgba(12, 15, 22, 0.78);
 }
 
 .libraries-view-toggle button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 12px;
+  gap: 0.35rem;
+  min-height: 1.85rem;
+  padding: 0 0.6rem;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0.5rem;
   background: transparent;
   color: #aeb9ca;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 900;
 }
 
@@ -199,13 +199,13 @@
 }
 
 .libraries-empty {
-  margin-bottom: 18px;
-  padding: 18px;
+  margin-bottom: 0.7rem;
+  padding: 0.75rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
-  border-radius: 14px;
+  border-radius: 0.75rem;
   background: rgba(12, 15, 22, 0.78);
   color: #d8e0ec;
-  font-size: 14px;
+  font-size: 0.8rem;
   font-weight: 850;
 }
 
@@ -213,11 +213,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding: 16px;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.18);
-  border-radius: 14px;
+  border-radius: 0.75rem;
   background: rgba(12, 15, 22, 0.76);
 }
 
@@ -225,7 +225,7 @@
 .library-display-settings small {
   display: block;
   color: #9aa7bb;
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 800;
 }
 
@@ -241,7 +241,7 @@
   display: block;
   margin-top: 3px;
   color: #f8fafc;
-  font-size: 18px;
+  font-size: var(--jg-type-title);
   font-weight: 950;
 }
 
@@ -251,18 +251,18 @@
 
 .library-display-settings .form-check-label {
   color: #e5edf8;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 850;
 }
 
 .library-display-settings button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.4rem;
   border: 1px solid rgba(var(--primary-light-rgb), 0.38);
   background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.92), rgba(var(--primary-light-rgb), 0.7));
   color: #080b10;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 950;
 }
 
@@ -280,11 +280,11 @@
 
 @media (max-width: 720px) {
   .libraries {
-    padding: 22px 14px 36px;
+    padding: 0.75rem 0.55rem 1.1rem;
   }
 
   .libraries > h1 {
-    font-size: 30px;
+    font-size: var(--jg-type-display);
   }
 
   .libraries-header {
@@ -312,13 +312,13 @@
 
 @media (max-width: 1280px) {
   .libraries-container {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
   }
 }
 
 @media (max-width: 980px) {
   .libraries-container {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
   }
 }
 

@@ -1,4 +1,101 @@
 {
+  "1.2.9": [
+    {
+      "icon": "download",
+      "title": "Full Download Client Queues",
+      "body": "Transmission, Deluge, NZBGet, and rTorrent now poll, add, pause, and remove like qBittorrent and SABnzbd."
+    },
+    {
+      "icon": "movie",
+      "title": "Session Command",
+      "body": "Owners and admins can stop a live stream or send an on-screen Jellyfin message. Cards explain why a session is transcoding."
+    },
+    {
+      "icon": "speed",
+      "title": "Stream Capacity on Home",
+      "body": "Watch concurrent streams versus a configured cap, split transcode vs direct play, and alert when you go over."
+    },
+    {
+      "icon": "magic",
+      "title": "Honest Navigation",
+      "body": "Timeline sits in the main menu. Calendar stays hidden until Sonarr, Radarr, or Lidarr is connected. SickChill is health-only."
+    },
+    {
+      "icon": "upload",
+      "title": "ntfy and Telegram Alerts",
+      "body": "Webhooks can deliver the same events to ntfy topics and Telegram bots alongside Discord and Gotify."
+    },
+    {
+      "icon": "rocket",
+      "title": "Installable Dashboard",
+      "body": "JellyGlance can be installed as a standalone PWA for phone or kiosk home screens."
+    },
+    {
+      "icon": "movie",
+      "title": "Item Glance And My Glance",
+      "body": "Item pages stitch Jellyfin, Seerr, Arr, downloads, Tdarr, and Maintainerr. Viewers get a My Glance page for continue watching, watchlist, and their requests."
+    },
+    {
+      "icon": "speed",
+      "title": "Ops Digest And Storage",
+      "body": "Home surfaces stuck downloads, webhook failures, live Jellyfin jobs, and on-disk library size with an Arr upcoming-size estimate."
+    },
+    {
+      "icon": "upload",
+      "title": "Pushover, Readarr, And Widgets",
+      "body": "Webhooks can target Pushover. Readarr joins the Arr calendar. Homepage can poll /api/widgets/homepage with an API key. Unpackerr and Kometa connect as health pings."
+    },
+    {
+      "icon": "hammer",
+      "title": "Playback Quality Repair",
+      "body": "Repair Hub lists clients that keep transcoding and titles that fail to start, with jumps into Activity."
+    },
+    {
+      "icon": "download",
+      "title": "Retry Grab And S3 Backups",
+      "body": "Retry a failed Arr/Seerr grab from item glance or Downloads. Backups can copy to S3-compatible storage. autobrr, Notifiarr, and Recyclarr connect as status integrations."
+    },
+    {
+      "icon": "upload",
+      "title": "Quiet Hours And Ops Shortcuts",
+      "body": "Mute overnight playback webhooks, send a morning digest of what you missed, retry a failed delivery from Health, refresh or scan in Jellyfin, and see who is watching now. Downloads show why a torrent stalled. Nav and Home warn when Jellyfin is down."
+    },
+    {
+      "icon": "palette",
+      "title": "Themes That Follow You",
+      "body": "Search and preview palettes in Settings or the account menu. Apply when you are ready. The chosen theme is stored on your account so it comes back on another device."
+    },
+    {
+      "icon": "speed",
+      "title": "Jellyfin Job Schedules",
+      "body": "Set daily, weekly, interval, or startup times for Jellyfin library scans, metadata, and other scheduled jobs from Settings. The Jellyfin Jobs page shows those times and still lets you run a job now."
+    },
+    {
+      "icon": "users",
+      "title": "Jellyfin Admins On Users",
+      "body": "Server administrators show up on Users again, with a Jellyfin admin badge when their Glance role is not Admin."
+    },
+    {
+      "icon": "upload",
+      "title": "Tighter Discord Cards",
+      "body": "Playback and status webhook images wrap long titles instead of clipping, on a smaller card that fits Discord better."
+    },
+    {
+      "icon": "movie",
+      "title": "Cleaner Tdarr Labels",
+      "body": "Active Transcodes no longer prints [object Object] for format, status, or reason — those fields resolve to readable text."
+    },
+    {
+      "icon": "palette",
+      "title": "Desktop Layout Without Zoom",
+      "body": "Desktop pages no longer look zoomed or soft. Type, spacing, and the sidebar stay sharp and a bit denser."
+    },
+    {
+      "icon": "magic",
+      "title": "Quick Connect Starts Itself",
+      "body": "Login with Jellyfin Quick Connect now begins the approval flow as soon as the page is ready."
+    }
+  ],
   "1.2.8": [
     {
       "icon": "shield",

@@ -12,7 +12,7 @@ const tabs = [
   { key: "queued", label: "Queued", Icon: ListCheck2Icon },
   { key: "history", label: "History", Icon: HistoryLineIcon },
 ];
-const TRANSCODES_CACHE_KEY = "jellyglance_tdarr_transcodes_cache_v2";
+const TRANSCODES_CACHE_KEY = "jellyglance_tdarr_transcodes_cache_v5";
 const TRANSCODES_CACHE_MAX_AGE_MS = 2 * 60 * 1000;
 const emptyBundle = { active: [], queued: [], history: [], stats: {} };
 
@@ -64,6 +64,27 @@ function formatSaved(job) {
   return job.savedPercent ? `${saved} saved (${job.savedPercent}%)` : `${saved} saved`;
 }
 
+function displayText(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "object") {
+    return displayText(value.Name || value.name || value.message || value.reason || value.text || "");
+  }
+  const text = String(value).trim();
+  return !text || text === "[object Object]" ? "" : text;
+}
+
+function workKindLabel(job) {
+  if (job.workKind === "healthcheck") return "Health check";
+  if (job.workKind === "transcode") return "Transcode";
+  return "";
+}
+
+function hardwareLabel(job) {
+  if (job.hardware === "gpu") return "GPU";
+  if (job.hardware === "cpu") return "CPU";
+  return "";
+}
+
 function JobCard({ job, kind }) {
   const artUrl = job.bannerUrl || job.thumbnailUrl;
   const bannerStyle = artUrl
@@ -73,31 +94,41 @@ function JobCard({ job, kind }) {
     : {};
   const progress = Number(job.progress || 0);
   const showProgress = kind === "active";
-  const progressLabel = progress > 0 ? `${Math.round(progress)}% complete` : "Transcoding...";
+  const kindLabel = workKindLabel(job);
+  const hwLabel = hardwareLabel(job);
+  const progressLabel = progress > 0
+    ? `${Math.round(progress)}% ${job.workKind === "healthcheck" ? "checked" : "complete"}`
+    : job.workKind === "healthcheck"
+      ? "Health checking..."
+      : "Transcoding...";
   const historySizes = [formatBytes(job.sizeBefore), formatBytes(job.sizeAfter)].filter(Boolean);
   const savedLabel = formatSaved(job);
+  const kicker = job.nodeName ? `Node · ${job.nodeName}` : job.library || job.worker || "Tdarr";
 
   return (
-    <article className={`transcode-job-card is-${kind}`} style={bannerStyle}>
+    <article className={`transcode-job-card is-${kind}${job.workKind ? ` is-${job.workKind}` : ""}`} style={bannerStyle}>
       <div className="transcode-job-thumbnail">
         {job.thumbnailUrl ? <img src={job.thumbnailUrl} alt="" loading="lazy" decoding="async" /> : <span>{job.title.slice(0, 2)}</span>}
       </div>
       <div className="transcode-job-main">
-        <span className="transcode-job-kicker">{job.library || job.worker || "Tdarr"}</span>
+        <span className="transcode-job-kicker">{kicker}</span>
         <h2>{job.title}</h2>
         <div className="transcode-route">
-          <strong>{job.from || "Source"}</strong>
-          {job.to ? (
+          <strong>{displayText(job.from) || "Source"}</strong>
+          {displayText(job.to) ? (
             <>
               <ArrowRightLineIcon size={18} />
-              <strong>{job.to}</strong>
+              <strong>{displayText(job.to)}</strong>
             </>
           ) : null}
         </div>
       </div>
       <div className="transcode-job-meta">
-        <span>{job.worker || "Worker pending"}</span>
-        <span>{job.status || kind}</span>
+        {job.nodeName ? <span className="is-node">{job.nodeName}</span> : null}
+        {hwLabel ? <span className={`is-${job.hardware}`}>{hwLabel}</span> : null}
+        {kindLabel ? <span className={`is-${job.workKind}`}>{kindLabel}</span> : null}
+        {!job.nodeName && job.worker ? <span>{job.worker}</span> : null}
+        <span>{displayText(job.status) || kind}</span>
         {kind !== "history" && (job.sizeBefore || job.sizeAfter) ? <span>{[formatBytes(job.sizeBefore), formatBytes(job.sizeAfter)].filter(Boolean).join(" -> ")}</span> : null}
         {kind !== "active" ? <span>{formatDate(job.updatedAt)}</span> : null}
       </div>
@@ -123,7 +154,7 @@ function JobCard({ job, kind }) {
           <em>{progressLabel}</em>
         </div>
       ) : null}
-      {job.reason ? <p className="transcode-reason">{job.reason}</p> : null}
+      {displayText(job.reason) ? <p className="transcode-reason">{displayText(job.reason)}</p> : null}
     </article>
   );
 }
@@ -134,7 +165,6 @@ export default function ActiveTranscodes() {
   const [bundle, setBundle] = useState(() => cachedTranscodes?.data || emptyBundle);
   const [loading, setLoading] = useState(() => !cachedTranscodes);
   const [error, setError] = useState("");
-  const [hasEverLoaded, setHasEverLoaded] = useState(Boolean(cachedTranscodes));
   const [lastUpdated, setLastUpdated] = useState(() => cachedTranscodes?.cachedAt || null);
 
   const jobs = useMemo(() => bundle[activeTab] || [], [activeTab, bundle]);
@@ -149,37 +179,46 @@ export default function ActiveTranscodes() {
       if (!silent) setLoading(true);
       if (!silent) setError("");
       const response = await axios.get("/api/tdarr/transcodes", {
-        timeout: 8000,
+        timeout: 20000,
         params: { ...(force ? { force: "true" } : {}), ...(activeOnly ? { activeOnly: "true" } : {}) },
       });
       const nextBundle = response.data || emptyBundle;
-      setBundle(nextBundle);
-      setHasEverLoaded(true);
+      setBundle((current) => {
+        if (activeOnly) {
+          return {
+            ...current,
+            ...nextBundle,
+            queued: current.queued?.length && !nextBundle.queued?.length ? current.queued : nextBundle.queued,
+            history: current.history?.length && !nextBundle.history?.length ? current.history : nextBundle.history,
+            stats: { ...current.stats, ...nextBundle.stats },
+          };
+        }
+        return nextBundle;
+      });
       saveTranscodesCache(nextBundle);
       setLastUpdated(Date.now());
-      if (error) setError("");
+      setError("");
       const nextActiveCount = Number(nextBundle.stats?.active || nextBundle.active?.length || 0);
       const nextQueueCount = Number(nextBundle.stats?.queue ?? nextBundle.stats?.queued ?? nextBundle.queued?.length ?? 0);
       localStorage.setItem("jellyglance_active_transcode_count", String(nextActiveCount));
       window.dispatchEvent(new CustomEvent("jellyglance-transcode-count", { detail: nextActiveCount }));
       return { active: nextActiveCount, queued: nextQueueCount };
     } catch (requestError) {
-      const hasVisibleRows = Boolean((bundle.active || []).length || (bundle.queued || []).length || (bundle.history || []).length);
-      if (!hasEverLoaded || !hasVisibleRows) {
+      if (!silent) {
         setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
       }
       return { active: 0, queued: 0 };
     } finally {
       setLoading(false);
     }
-  }, [bundle.active, bundle.history, bundle.queued, error, hasEverLoaded]);
+  }, []);
 
   useEffect(() => {
     let stopped = false;
-    loadTranscodes({ silent: Boolean(cachedTranscodes), force: true, activeOnly: activeTab === "active" });
+    loadTranscodes({ silent: Boolean(cachedTranscodes), force: false, activeOnly: activeTab === "active" });
     const intervalId = window.setInterval(() => {
-      if (!stopped) loadTranscodes({ silent: true, force: true, activeOnly: activeTab === "active" });
-    }, 5000);
+      if (!stopped) loadTranscodes({ silent: true, force: false, activeOnly: activeTab === "active" });
+    }, 20000);
 
     return () => {
       stopped = true;

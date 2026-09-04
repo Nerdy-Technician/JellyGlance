@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "../../../lib/axios_instance";
 import Button from "react-bootstrap/Button";
 import Alert from "react-bootstrap/Alert";
@@ -6,6 +7,7 @@ import ServerLineIcon from "remixicon-react/ServerLineIcon";
 import PlayCircleLineIcon from "remixicon-react/PlayCircleLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import TimeLineIcon from "remixicon-react/TimeLineIcon";
+import { formatJellyfinSchedule } from "../../../lib/jellyfin-job-triggers";
 
 import "../../css/settings/settings.css";
 
@@ -134,7 +136,10 @@ export default function ServerManagement() {
       <section className="server-management-section">
         <div className="server-management-section-heading">
           <h2>Scheduled Jobs</h2>
-          <p>These are Jellyfin jobs returned by the Jellyfin scheduled task API.</p>
+          <p>
+            These are Jellyfin jobs returned by the Jellyfin scheduled task API.{" "}
+            <Link to="/settings/jellyfin-jobs">Set run times in Settings</Link>.
+          </p>
         </div>
         {categories.length > 2 ? (
           <div className="server-job-filters" aria-label="Filter Jellyfin jobs">
@@ -160,7 +165,7 @@ export default function ServerManagement() {
                 <p>{task.description || formatTaskState(task)}</p>
                 <small>
                   <TimeLineIcon size={15} />
-                  {formatLastRun(task)}
+                  {formatLastRun(task)} · {formatJellyfinSchedule(task.triggers)}
                 </small>
               </div>
               <div className="server-task-actions">

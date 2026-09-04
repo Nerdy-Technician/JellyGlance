@@ -23,6 +23,10 @@ const defaultData = {
     items: [],
     syncedAt: null,
   },
+  autobrr: {
+    hits: [],
+    syncedAt: null,
+  },
 };
 
 const maxHealthHistoryEntries = 50;
@@ -187,6 +191,11 @@ async function getIntegrationData() {
     invites: {
       ...defaultData.invites,
       ...(settings.IntegrationData?.invites || {}),
+    },
+    autobrr: {
+      hits: [],
+      syncedAt: null,
+      ...(settings.IntegrationData?.autobrr || {}),
     },
   };
 }

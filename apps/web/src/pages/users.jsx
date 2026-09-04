@@ -75,6 +75,11 @@ function roleClass(role) {
   return `role-${role?.toLowerCase?.().replace(/[^a-z0-9]+/g, "-") || "viewer"}`;
 }
 
+function isJellyfinAdministrator(user) {
+  const value = user?.IsAdministrator;
+  return value === true || value === 1 || value === "1" || value === "t" || value === "true";
+}
+
 function sourceClass(source) {
   return `source-${source?.toLowerCase?.().replace(/[^a-z0-9]+/g, "-") || "jellyfin"}`;
 }
@@ -171,13 +176,15 @@ export default function Users() {
     }
 
     const jellyfinRows = data.map((user) => {
-      const role = access.jellyfinRoles?.[user.UserId] || (user.IsAdministrator ? "Admin" : "Viewer");
+      const serverAdmin = isJellyfinAdministrator(user);
+      const role = access.jellyfinRoles?.[user.UserId] || (serverAdmin ? "Admin" : "Viewer");
       return {
         ...user,
+        IsAdministrator: serverAdmin,
         AccountId: user.UserId,
         Role: role,
         Source: "Jellyfin",
-        SourceLabel: user.IsAdministrator ? "Jellyfin admin" : "Jellyfin user",
+        SourceLabel: serverAdmin ? "Jellyfin admin" : "Jellyfin user",
         IsRunning: activeUserIds.has(user.UserId),
         SortWatchTime: Number(user.TotalWatchTime || 0),
       };
@@ -819,7 +826,7 @@ export default function Users() {
               {visibleRows.map((user) => (
                 <article className={`users-profile-card ${user.Source !== "Jellyfin" ? "is-account-card" : ""} ${!user.Tracked && user.Source === "Jellyfin" ? "is-hidden-user" : ""}`} key={user.AccountId}>
                   <div className="users-profile-top">
-                    {userImage(user, 72)}
+                    {userImage(user, 48)}
                     <div className="users-profile-actions">
                       {renderUserActions(user)}
                     </div>
@@ -831,6 +838,7 @@ export default function Users() {
                   <div className="users-profile-badges">
                     <Badge className={`users-role-badge ${roleClass(user.Role)}`}>{user.Role}</Badge>
                     <Badge className={`users-source-badge ${sourceClass(user.Source)}`}>{user.Source}</Badge>
+                    {user.IsAdministrator && user.Role !== "Admin" ? <Badge className="users-source-badge source-admin">Jellyfin admin</Badge> : null}
                     {user.Source === "Jellyfin" && !user.Tracked ? <Badge className="users-source-badge source-hidden">Hidden</Badge> : null}
                   </div>
                   <div className="users-profile-metrics">
@@ -891,6 +899,7 @@ export default function Users() {
                   <div className="users-row-badges">
                     <Badge className={`users-role-badge ${roleClass(user.Role)}`}>{user.Role}</Badge>
                     <Badge className={`users-source-badge ${sourceClass(user.Source)}`}>{user.Source}</Badge>
+                    {user.IsAdministrator && user.Role !== "Admin" ? <Badge className="users-source-badge source-admin">Jellyfin admin</Badge> : null}
                     {user.Source === "Jellyfin" && !user.Tracked ? <Badge className="users-source-badge source-hidden">Hidden</Badge> : null}
                   </div>
 

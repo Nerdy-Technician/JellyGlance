@@ -102,7 +102,7 @@ export default function SetupShell({ step, eyebrow, title, description, children
             <div>
               <p className="setup-brand-kicker">Initial Setup</p>
               <img className="setup-brand-wordmark" src={projectText} alt="JellyGlance" />
-              <p className="setup-brand-author">by Nerdy-Technician</p>
+              <p className="setup-brand-author">by Nerdy Technician</p>
             </div>
           </div>
 

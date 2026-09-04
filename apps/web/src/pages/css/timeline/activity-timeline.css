@@ -54,3 +54,12 @@
 .MuiTimelineContent-root {
   align-self: center;
 }
+
+.activity-timeline-more,
+.activity-timeline-empty {
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px 32px;
+  color: rgba(245, 234, 254, 0.72);
+  font-size: 14px;
+}

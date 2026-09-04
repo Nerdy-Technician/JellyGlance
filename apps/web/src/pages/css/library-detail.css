@@ -1,6 +1,6 @@
 .library-detail-page {
   min-height: 100vh;
-  padding: 28px clamp(18px, 2.4vw, 38px) 56px;
+  padding: var(--jg-page-pad) clamp(0.7rem, 1.7vw, 1.3rem) 1.8rem;
   color: #f8fafc;
   background:
     radial-gradient(circle at 12% 0%, rgba(var(--secondary-rgb), 0.12), transparent 28%),
