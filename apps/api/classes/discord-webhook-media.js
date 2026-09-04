@@ -1,6 +1,93 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const { randomUUID } = require("crypto");
+
+const CARD_FONT = "JellyGlanceCard";
+const BUNDLED_FONT_DIR = path.join(__dirname, "..", "assets", "fonts");
+const SYSTEM_FONT_DIRS = [
+  "/usr/share/fonts/truetype/dejavu",
+  "/usr/share/fonts/TTF",
+  "/usr/local/share/fonts",
+];
+
+function firstExistingFile(candidates) {
+  for (const candidate of candidates) {
+    if (candidate && fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function resolveCardFonts() {
+  const regular = firstExistingFile([
+    path.join(BUNDLED_FONT_DIR, "DejaVuSans.ttf"),
+    ...SYSTEM_FONT_DIRS.map((dir) => path.join(dir, "DejaVuSans.ttf")),
+  ]);
+  const bold = firstExistingFile([
+    path.join(BUNDLED_FONT_DIR, "DejaVuSans-Bold.ttf"),
+    ...SYSTEM_FONT_DIRS.map((dir) => path.join(dir, "DejaVuSans-Bold.ttf")),
+    regular,
+  ]);
+  return { regular, bold };
+}
+
+function escapeFontconfigXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function ensureCardFontconfig({ regular, bold }) {
+  const fontDirs = new Set();
+  for (const file of [regular, bold]) {
+    if (file) fontDirs.add(path.dirname(file));
+  }
+  if (!fontDirs.size) return;
+
+  const confDir = path.join(os.tmpdir(), "jellyglance-fontconfig");
+  fs.mkdirSync(confDir, { recursive: true });
+  const confPath = path.join(confDir, "fonts.conf");
+  const dirXml = [...fontDirs].map((dir) => `  <dir>${escapeFontconfigXml(dir)}</dir>`).join("\n");
+  fs.writeFileSync(
+    confPath,
+    `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+${dirXml}
+  <alias>
+    <family>${CARD_FONT}</family>
+    <prefer><family>DejaVu Sans</family></prefer>
+  </alias>
+</fontconfig>
+`
+  );
+  process.env.FONTCONFIG_FILE = confPath;
+}
+
+function cardFontFaceCss() {
+  const fonts = resolveCardFonts();
+  ensureCardFontconfig(fonts);
+  const faces = [];
+  if (fonts.regular) {
+    faces.push(
+      `@font-face{font-family:'${CARD_FONT}';font-weight:400;font-style:normal;src:url('${pathToFileURL(fonts.regular).href}') format('truetype');}`
+    );
+  }
+  if (fonts.bold) {
+    faces.push(
+      `@font-face{font-family:'${CARD_FONT}';font-weight:700;font-style:normal;src:url('${pathToFileURL(fonts.bold).href}') format('truetype');}`
+    );
+  }
+  if (!faces.length) return "";
+  return `<defs><style type="text/css">${faces.join("")}</style></defs>`;
+}
+
+const CARD_FONT_FACE = cardFontFaceCss();
+
 const FormData = require("form-data");
 const sharp = require("sharp");
 const { axios } = require("./axios");
@@ -205,8 +292,6 @@ function wrapLines(value, maxChars, maxLines = 2) {
   return lines;
 }
 
-const CARD_FONT = "DejaVu Sans, Arial, Helvetica, sans-serif";
-
 function colorToRgb(color) {
   const hex = Number(color || 3447003)
     .toString(16)
@@ -245,14 +330,14 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
   const titleSvg = titleLines
     .map((line, index) => {
       const y = cursor + index * 28;
-      return `<text x="${textLeft}" y="${y}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="800">${escapeXml(line)}</text>`;
+      return `<text x="${textLeft}" y="${y}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`;
     })
     .join("");
   cursor += titleLines.length * 28 + 6;
   const subtitleSvg = subtitleLines
     .map((line, index) => {
       const y = cursor + index * 20;
-      return `<text x="${textLeft}" y="${y}" fill="#cbd5e1" font-size="15" font-family="${CARD_FONT}">${escapeXml(line)}</text>`;
+      return `<text x="${textLeft}" y="${y}" fill="#cbd5e1" font-size="15" font-family="${CARD_FONT}" font-weight="400">${escapeXml(line)}</text>`;
     })
     .join("");
   const detailY = height - 22;
@@ -267,13 +352,14 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
   }
 
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    ${CARD_FONT_FACE}
     <rect x="${posterWidth}" y="0" width="${panelWidth}" height="${height}" fill="#111827"/>
     <rect x="${posterWidth}" y="0" width="5" height="${height}" fill="rgb(${accentRgb.r},${accentRgb.g},${accentRgb.b})"/>
     <text x="${nameLeft}" y="32" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
-    <text x="${nameLeft}" y="54" fill="#f8fafc" font-size="16" font-family="${CARD_FONT}" font-weight="800">${escapeXml(truncate(username, 22))}</text>
+    <text x="${nameLeft}" y="54" fill="#f8fafc" font-size="16" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(username, 22))}</text>
     ${titleSvg}
     ${subtitleSvg}
-    <text x="${textLeft}" y="${detailY}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}">${escapeXml(truncate(details, 42))}</text>
+    <text x="${textLeft}" y="${detailY}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, 42))}</text>
   </svg>`);
 
   layers.push({ input: svg, left: 0, top: 0 });
@@ -425,17 +511,18 @@ async function composeStatusCard({ color, kicker, title, subtitle, details, rail
   const accent = colorToRgb(color);
   const titleLines = wrapLines(title, 26, 2);
   const titleSvg = titleLines
-    .map((line, index) => `<text x="${rail + 22}" y="${68 + index * 28}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="800">${escapeXml(line)}</text>`)
+    .map((line, index) => `<text x="${rail + 22}" y="${68 + index * 28}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`)
     .join("");
   const subtitleY = 68 + titleLines.length * 28 + 4;
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    ${CARD_FONT_FACE}
     <rect width="${width}" height="${height}" fill="#12161c"/>
     <rect width="${rail}" height="${height}" fill="rgb(${accent.r},${accent.g},${accent.b})"/>
-    <text x="${rail / 2}" y="94" text-anchor="middle" fill="#ffffff" font-size="16" font-family="${CARD_FONT}" font-weight="800">${escapeXml(truncate(railLabel, 8))}</text>
+    <text x="${rail / 2}" y="94" text-anchor="middle" fill="#ffffff" font-size="16" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(railLabel, 8))}</text>
     <text x="${rail + 22}" y="36" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 22).toUpperCase())}</text>
     ${titleSvg}
-    <text x="${rail + 22}" y="${subtitleY}" fill="#e2e8f0" font-size="14" font-family="${CARD_FONT}">${escapeXml(truncate(subtitle, 40))}</text>
-    <text x="${rail + 22}" y="${height - 18}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}">${escapeXml(truncate(details, 44))}</text>
+    <text x="${rail + 22}" y="${subtitleY}" fill="#e2e8f0" font-size="14" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(subtitle, 40))}</text>
+    <text x="${rail + 22}" y="${height - 18}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, 44))}</text>
   </svg>`);
 
   const buffer = await sharp(svg).jpeg({ quality: 90 }).toBuffer();
