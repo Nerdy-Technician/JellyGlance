@@ -75,9 +75,14 @@ jobs:
           }
 
           const raw = fs.readFileSync(releaseFile, "utf8").replace(/\r\n/g, "\n");
+          const semver = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
           const parts = raw.split(/^---\s*$/m);
-          const header = parts.shift() || "";
-          const notes = parts.join("---").trim();
+          const maybeHeader = parts[0] || "";
+          const hasFrontmatter =
+            parts.length > 1 &&
+            maybeHeader.split("\n").some((line) => /^(version|title)\s*:/i.test(line));
+          const header = hasFrontmatter ? maybeHeader : "";
+          const notes = (hasFrontmatter ? parts.slice(1).join("---") : raw).trim();
           const meta = {};
 
           for (const line of header.split("\n")) {
@@ -87,9 +92,11 @@ jobs:
             }
           }
 
-          const version = (meta.version || "").replace(/^v/i, "");
-          if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
-            throw new Error(`${releaseFile} needs a valid semver version, for example: version: 0.1.1`);
+          const heading = raw.match(/^#{1,6}\s*v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\s*$/m);
+          const badge = raw.match(/badge\/version-(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/i);
+          const version = (meta.version || heading?.[1] || badge?.[1] || "").replace(/^v/i, "");
+          if (!semver.test(version)) {
+            throw new Error(`${releaseFile} needs a valid semver version, for example: version: 0.1.1 or ### v0.1.1`);
           }
 
           const tag = `v${version}`;

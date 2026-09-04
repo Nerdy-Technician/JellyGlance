@@ -1,3 +1,6 @@
+version: 1.2.9
+title: JellyGlance v1.2.9
+---
 <div align="center">
 
 # JellyGlance
