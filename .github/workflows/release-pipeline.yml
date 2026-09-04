@@ -113,12 +113,17 @@ jobs:
           output.write("notes_file=RELEASE_NOTES.md\n");
           NODE
 
-      - name: Stop if tag already exists
+      - name: Resolve git tag
+        id: tag
         run: |
           git fetch --tags --force
-          if git rev-parse "${{ steps.release.outputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.release.outputs.tag }} already exists. Update the release file to a new version."
-            exit 1
+          TAG="${{ steps.release.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; reusing it."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $TAG does not exist yet."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup Node
@@ -232,30 +237,42 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Configure git identity for release tag
+        if: steps.tag.outputs.exists != 'true'
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
       - name: Create and push git tag
+        if: steps.tag.outputs.exists != 'true'
         run: |
           git tag -a "${{ steps.release.outputs.tag }}" -m "${{ steps.release.outputs.title }}"
           git push origin "${{ steps.release.outputs.tag }}"
 
       - name: Create GitHub release
+        id: github_release
         env:
           GH_TOKEN: ${{ steps.bot.outputs.token }}
         run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub release $TAG already exists; leaving it in place."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           prerelease_flag=""
           if [ "${{ steps.release.outputs.is_beta }}" = "true" ]; then
             prerelease_flag="--prerelease"
           fi
 
-          gh release create "${{ steps.release.outputs.tag }}" \
+          gh release create "$TAG" \
             --title "${{ steps.release.outputs.title }}" \
             --notes-file "${{ steps.release.outputs.notes_file }}" \
             ${prerelease_flag}
+          echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Post Discord release update
+        if: steps.github_release.outputs.created == 'true'
         env:
           DISCORD_EVENT_TYPE: release
           DISCORD_BETA_WEBHOOK_URL: ${{ secrets.DISCORD_BETA_RELEASES_WEBHOOK }}
