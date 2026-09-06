@@ -2,6 +2,8 @@ name: JellyGlance Docs Bot
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
   push:
     branches:
       - main
@@ -51,6 +53,8 @@ jobs:
         run: npm ci
 
       - name: Build docs
+        env:
+          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
         run: npm run build:docs
 
       - name: Upload Pages artifact

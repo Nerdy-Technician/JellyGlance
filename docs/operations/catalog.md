@@ -1,11 +1,13 @@
 ---
-title: Unraid and TrueNAS catalog notes
-description: How to list JellyGlance in Unraid Community Apps or TrueNAS without changing the product.
+title: Unraid and TrueNAS
+description: Run JellyGlance on Unraid or TrueNAS using the same Docker Compose stack.
 ---
 
-# Unraid and TrueNAS catalog notes
+# Unraid and TrueNAS
 
-JellyGlance is a Docker Compose app with PostgreSQL. Catalog listings should wrap that, not invent a second install path.
+JellyGlance is a Docker Compose app with PostgreSQL. On Unraid or TrueNAS, wrap that stack — do not invent a second install path.
+
+See [Docker](/operations/docker) for the compose file and the [FAQ](/guide/faq) for first-run, API keys, and proxy questions.
 
 This page is documentation only. It does not submit the app to Unraid Community Apps or TrueNAS.
 

@@ -1,6 +1,6 @@
 # Screenshots
 
-These screenshots show the current JellyGlance 1.2.3 interface: first-run setup, the daily dashboard, media activity, requests, downloads, transcodes, invites, users, statistics, Jellyfin jobs, and the redesigned Settings areas.
+First-run setup, the daily dashboard, media activity, requests, downloads, transcodes, invites, users, statistics, Jellyfin jobs, and Settings.
 
 ## First Run
 
@@ -143,4 +143,4 @@ Settings is organized into category-based sections with a collapsible sidebar. T
 
 ## Operations Notes
 
-JellyGlance is designed to keep routine checks close together: active sessions, playback history, library changes, requests, downloads, transcodes, invites, cleanup signals, scheduled jobs, imports, webhooks, newsletters, backups, and health checks. The newer 1.2.3 surfaces focus on reducing empty navigation, improving first-run setup, and making integrations visible only when they are useful.
+JellyGlance is designed to keep routine checks close together: active sessions, playback history, library changes, requests, downloads, transcodes, invites, cleanup signals, scheduled jobs, imports, webhooks, newsletters, backups, and health checks. Empty navigation stays hidden until an integration is useful.

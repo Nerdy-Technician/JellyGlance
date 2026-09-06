@@ -61,15 +61,19 @@ docker buildx build \
 
 ## Resetting Setup Data
 
-For a fresh first-run setup, stop the stack and remove the PostgreSQL volume:
+For a fresh first-run setup, stop the stack and remove the PostgreSQL data directory used by the repo compose file:
 
 ```sh
 docker compose down
-docker volume rm jellyglance_postgres-data
+rm -rf ./postgres-data
 docker compose up -d
 ```
 
+If you started from the README named volume instead, remove `jellyglance_postgres-data` (or whatever compose named it).
+
 This deletes JellyGlance database state. Keep backups before doing this on a real deployment.
+
+Stuck after first-run or a proxy hop? See the [FAQ](/guide/faq).
 
 ## Published Images
 

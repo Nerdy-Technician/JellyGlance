@@ -1,6 +1,6 @@
 # Releases
 
-Product direction for upcoming versions is on the [Roadmap](/roadmap). The next slice is documented in [v1.2.9 implementation](/operations/v1.2.9).
+Product direction for upcoming versions is on the [Roadmap](/roadmap).
 
 JellyGlance releases are driven by a version file on `main` or `BETA`. The Release Bot pipeline bumps package versions, builds the app, publishes the Docker image to GHCR, creates the git tag, and opens the GitHub release.
 
@@ -13,8 +13,8 @@ JellyGlance releases are driven by a version file on `main` or `BETA`. The Relea
 1. Update `.github/release.md` (stable) or `.github/release-beta.md` (beta):
 
 ```md
-version: v1.2.8
-title: JellyGlance v1.2.8
+version: v1.2.9
+title: JellyGlance v1.2.9
 ---
 feat: short summary for the release
 

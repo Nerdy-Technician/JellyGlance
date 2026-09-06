@@ -119,8 +119,10 @@ npm run docs:dev
 
 ## Next Steps
 
+- Review the [FAQ](./faq.md) if first-run, sync, or a missing page is stuck.
 - Review [Architecture](./architecture.md) to understand the workspace.
 - Review [Integrations](/integrations) to map your media stack.
-- Review the [Roadmap](/roadmap) and [v1.2.9 implementation](../operations/v1.2.9.md) for what is next.
+- Review the [Roadmap](/roadmap) for what is next.
 - Review [Docker](../operations/docker.md) before deploying.
+- Review [Unraid and TrueNAS](../operations/catalog.md) if you are wrapping the compose stack.
 - Review [Releases](../operations/releases.md) before tagging changes.

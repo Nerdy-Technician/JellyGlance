@@ -13,13 +13,8 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: Latest Release
-      link: https://github.com/Nerdy-Technician/JellyGlance/releases/latest
-      release: stable
-    - theme: alt
-      text: Latest Beta
-      link: https://github.com/Nerdy-Technician/JellyGlance/releases
-      release: beta
+      text: Features
+      link: /features
 
 features:
   - title: Live Playback

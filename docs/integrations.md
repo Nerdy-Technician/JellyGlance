@@ -1,6 +1,12 @@
+---
+pageClass: integrations-page
+---
+
 # Integrations
 
 JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sessions, favourites, watchlists, and watch history. Integrations extend that core into requests, downloads, transcodes, cleanup, imports, notifications, release planning, and admin workflows.
+
+<IntegrationFilter />
 
 <div class="integration-hero">
   <div>
@@ -47,35 +53,35 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
 ## Jump To
 
 <div class="integration-jump-grid">
-  <a href="#media-server">
+  <a href="#media-server" data-lane="media">
     <strong>Media Server</strong>
     <span>Jellyfin setup, sync, and artwork.</span>
   </a>
-  <a href="#3rd-party-apps">
+  <a href="#3rd-party-apps" data-lane="media">
     <strong>3rd Party Apps</strong>
     <span>Wizarr, Tdarr, Maintainerr, and SickChill.</span>
   </a>
-  <a href="#seerr-apps">
+  <a href="#seerr-apps" data-lane="seerr">
     <strong>Seerr Apps</strong>
     <span>Jellyseerr and Overseerr request flows.</span>
   </a>
-  <a href="#arr-apps">
+  <a href="#arr-apps" data-lane="arr">
     <strong>Arr Apps</strong>
     <span>Sonarr, Radarr, Lidarr, Readarr, Bazarr, and Prowlarr.</span>
   </a>
-  <a href="#download-clients">
+  <a href="#download-clients" data-lane="downloads">
     <strong>Download Clients</strong>
     <span>Torrents, Usenet, and queue syncing.</span>
   </a>
-  <a href="#notifications">
+  <a href="#notifications" data-lane="alerts">
     <strong>Notifications</strong>
     <span>Discord, Gotify, ntfy, Telegram, and Pushover alert delivery.</span>
   </a>
-  <a href="#imports-and-digest">
+  <a href="#imports-and-digest" data-lane="alerts">
     <strong>Imports And Digest</strong>
     <span>Tautulli history imports and newsletters.</span>
   </a>
-  <a href="#access-and-jobs">
+  <a href="#access-and-jobs" data-lane="media">
     <strong>Access And Jobs</strong>
     <span>Auth surfaces, jobs, and setup order.</span>
   </a>
@@ -84,47 +90,49 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
 ## Integration Areas
 
 <div class="integration-area-grid">
-  <article>
+  <article data-lane="media">
     <img src="/icons/selfhst/jellyfin.svg" alt="">
     <strong>Media Server</strong>
     <span>Jellyfin libraries, users, sessions, activity, artwork, Quick Connect, and first setup.</span>
   </article>
-  <article>
+  <article data-lane="media">
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/wizarr.png" alt="">
     <strong>3rd Party Apps</strong>
     <span>Wizarr invites, Tdarr transcodes, Maintainerr cleanup, and SickChill connection/health.</span>
   </article>
-  <article>
+  <article data-lane="seerr">
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png" alt="">
     <strong>Seerr Apps</strong>
     <span>Jellyseerr and Overseerr requests, poster metadata, requester context, availability checks, actions, and request badges.</span>
   </article>
-  <article>
+  <article data-lane="arr">
     <img src="/icons/selfhst/sonarr.svg" alt="">
     <strong>Arr Apps</strong>
     <span>Sonarr, Radarr, Lidarr, and Readarr calendars plus Bazarr/Prowlarr health. SickChill is connect/health only.</span>
   </article>
-  <article>
+  <article data-lane="downloads">
     <img src="/icons/selfhst/qbittorrent.svg" alt="">
     <strong>Download Clients</strong>
     <span>qBittorrent, Transmission, Deluge, rTorrent, SABnzbd, and NZBGet queues, submissions, and health.</span>
   </article>
-  <article>
+  <article data-lane="alerts">
     <img src="/icons/selfhst/discord.svg" alt="">
     <strong>Notifications</strong>
     <span>Discord-compatible and Gotify-style webhooks for task, sync, import, health, and download events.</span>
   </article>
-  <article>
+  <article data-lane="alerts">
     <span class="integration-text-icon" aria-hidden="true">Db</span>
     <strong>Legacy Imports</strong>
     <span>Tautulli backup upload, preview, safe append, duplicate skipping, and manual matching to Jellyfin media.</span>
   </article>
-  <article>
+  <article data-lane="alerts">
     <span class="integration-text-icon" aria-hidden="true">Em</span>
     <strong>Email Digest</strong>
     <span>SMTP-backed newsletters with previews, test sends, send history, and recent media/watch-stat summaries.</span>
   </article>
 </div>
+
+<div data-lane="media">
 
 ## Media Server {#media-server}
 
@@ -195,6 +203,10 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
   </article>
 </div>
 
+</div>
+
+<div data-lane="seerr">
+
 ## Seerr Apps {#seerr-apps}
 
 Seerr apps live under <strong>Settings &gt; Integrations &gt; Seerr Apps</strong>. Enable Jellyseerr, Overseerr, or both, then add the base URL and API key for each service.
@@ -221,6 +233,10 @@ Connected Seerr apps power the dedicated <strong>Requests</strong> page:
 - availability checks against Jellyfin so requests can show Available, Missing, or Partially available
 - approve, decline, retry, mark available, and open-in-Seerr actions where the source supports them
 - sidebar badge counts for request items that need attention
+
+</div>
+
+<div data-lane="arr">
 
 ## Arr Apps {#arr-apps}
 
@@ -261,6 +277,10 @@ Arr apps live under <strong>Settings &gt; Integrations &gt; Arr Apps</strong>. E
 
 Run <strong>Arr Calendar Sync</strong> from <strong>Settings &gt; Tasks</strong> when you want to force a fresh pull from Sonarr, Radarr, Lidarr, or Readarr.
 
+</div>
+
+<div data-lane="downloads">
+
 ## Download Clients {#download-clients}
 
 Download clients live under <strong>Settings &gt; Integrations &gt; Download Clients</strong> and feed the dedicated <strong>Downloads</strong> page.
@@ -294,6 +314,10 @@ Download clients live under <strong>Settings &gt; Integrations &gt; Download Cli
 </div>
 
 The Downloads page supports magnet links, torrent URLs, and torrent file uploads. Queue sync refreshes active, queued, completed, and failed state for qBittorrent, Transmission, Deluge, rTorrent, SABnzbd, and NZBGet.
+
+</div>
+
+<div data-lane="alerts">
 
 ## Notifications {#notifications}
 
@@ -354,6 +378,10 @@ Imported rows that cannot be matched automatically are surfaced in both <strong>
 
 Newsletter content includes recently added media, weekly watch stats, active viewers, and repair status.
 
+</div>
+
+<div data-lane="media">
+
 ## Access And Jobs {#access-and-jobs}
 
 <div class="integration-access-grid">
@@ -386,3 +414,5 @@ Newsletter content includes recently added media, weekly watch stats, active vie
 | Backup JellyGlance | Creates a JellyGlance backup |
 | Refresh Dashboard Stats | Refreshes cached dashboard and statistics views |
 | Clear Stale Task Logs | Marks interrupted task logs as stale |
+
+</div>

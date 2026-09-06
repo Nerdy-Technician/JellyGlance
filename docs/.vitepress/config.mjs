@@ -1,177 +1,14 @@
 import { defineConfig } from "vitepress";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { getRoadmapProject } from "./roadmap.mjs";
+import { getDocsReleases } from "./releases.mjs";
+import { getRepoStats } from "./stats.mjs";
 
 const siteBase = "/";
 const withBase = (path) => `${siteBase}${path.replace(/^\//, "")}`;
-const configDir = dirname(fileURLToPath(import.meta.url));
-const rootPackage = JSON.parse(readFileSync(resolve(configDir, "../../package.json"), "utf8"));
-const packageVersion = rootPackage.version;
-const stableReleaseFile = resolve(configDir, "../../.github/RELEASE");
-const betaReleaseFile = resolve(configDir, "../../.github/release-beta.md");
 
-function readReleaseMeta(filePath, fallbackVersion, fallbackUrl, fallbackBody) {
-  if (!existsSync(filePath)) {
-    return {
-      version: `v${fallbackVersion}`,
-      name: `JellyGlance v${fallbackVersion}`,
-      url: fallbackUrl,
-      publishedAt: null,
-      body: fallbackBody
-    };
-  }
-
-  const raw = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
-  const parts = raw.split(/^---\s*$/m);
-  const header = parts.shift() || "";
-  const body = parts.join("---").trim() || fallbackBody;
-  const meta = {};
-
-  for (const line of header.split("\n")) {
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.+)$/);
-    if (match) {
-      meta[match[1].toLowerCase()] = match[2].trim();
-    }
-  }
-
-  const version = String(meta.version || `v${fallbackVersion}`).replace(/^v/i, "");
-  return {
-    version: `v${version}`,
-    name: meta.title || `JellyGlance v${version}`,
-    url: fallbackUrl,
-    publishedAt: null,
-    body
-  };
-}
-
-const stableReleaseMeta = readReleaseMeta(
-  stableReleaseFile,
-  packageVersion.replace(/-.+$/, ""),
-  "https://github.com/Nerdy-Technician/JellyGlance/releases/latest",
-  "Release notes are loaded from the latest GitHub release when the documentation site is built."
-);
-
-const betaReleaseMeta = readReleaseMeta(
-  betaReleaseFile,
-  packageVersion,
-  "https://github.com/Nerdy-Technician/JellyGlance/releases",
-  "Beta release notes are loaded from GitHub prereleases when the documentation site is built."
-);
-
-const fallbackRelease = {
-  ...stableReleaseMeta
-};
-
-const fallbackBetaRelease = {
-  ...betaReleaseMeta
-};
-
-function parseReleaseNotes(body = "") {
-  const sections = [];
-  let current = { title: "Notes", items: [] };
-
-  body
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .forEach((line) => {
-      const heading = line.match(/^#{1,4}\s+(.+)/);
-      if (heading) {
-        if (current.items.length) sections.push(current);
-        current = { title: heading[1].replace(/[*_`]/g, ""), items: [] };
-        return;
-      }
-
-      const item = line.replace(/^[-*]\s+/, "").replace(/^`([^`]+)`$/, "$1");
-      current.items.push(item);
-    });
-
-  if (current.items.length) sections.push(current);
-  return sections.slice(0, 8).map((section) => ({
-    title: section.title,
-    items: section.items.slice(0, 12)
-  }));
-}
-
-async function getCurrentRelease() {
-  try {
-    const response = await fetch("https://api.github.com/repos/Nerdy-Technician/JellyGlance/releases", {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "JellyGlance-docs"
-      },
-      signal: AbortSignal.timeout(4000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub releases request failed: ${response.status}`);
-    }
-
-    const releases = await response.json();
-    const release = releases.find((entry) => !entry.prerelease) || releases[0];
-
-    if (!release) {
-      throw new Error("No stable release found");
-    }
-
-    return {
-      version: release.tag_name || fallbackRelease.version,
-      name: release.name || release.tag_name || fallbackRelease.name,
-      url: release.html_url || fallbackRelease.url,
-      publishedAt: release.published_at || release.created_at || null,
-      body: release.body || fallbackRelease.body,
-      sections: parseReleaseNotes(release.body || fallbackRelease.body)
-    };
-  } catch (error) {
-    console.warn(`[docs] Using package.json release fallback: ${error.message}`);
-    return {
-      ...fallbackRelease,
-      sections: parseReleaseNotes(fallbackRelease.body)
-    };
-  }
-}
-
-async function getLatestBetaRelease() {
-  try {
-    const response = await fetch("https://api.github.com/repos/Nerdy-Technician/JellyGlance/releases", {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "JellyGlance-docs"
-      },
-      signal: AbortSignal.timeout(4000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub beta releases request failed: ${response.status}`);
-    }
-
-    const releases = await response.json();
-    const release = releases.find((entry) => entry.prerelease);
-
-    if (!release) {
-      throw new Error("No beta release found");
-    }
-
-    return {
-      version: release.tag_name || fallbackBetaRelease.version,
-      name: release.name || release.tag_name || fallbackBetaRelease.name,
-      url: release.html_url || fallbackBetaRelease.url,
-      publishedAt: release.published_at || release.created_at || null,
-      body: release.body || fallbackBetaRelease.body,
-      sections: parseReleaseNotes(release.body || fallbackBetaRelease.body)
-    };
-  } catch (error) {
-    console.warn(`[docs] Using package.json beta fallback: ${error.message}`);
-    return {
-      ...fallbackBetaRelease,
-      sections: parseReleaseNotes(fallbackBetaRelease.body)
-    };
-  }
-}
-
-const currentRelease = await getCurrentRelease();
-const latestBetaRelease = await getLatestBetaRelease();
+const { latestRelease: currentRelease, latestBetaRelease } = await getDocsReleases();
+const repoStats = await getRepoStats();
+const roadmap = await getRoadmapProject();
 
 export default defineConfig({
   title: "JellyGlance",
@@ -180,24 +17,7 @@ export default defineConfig({
   sitemap: {
     hostname: "https://jellyglance.com"
   },
-  transformPageData(pageData) {
-    if (pageData.relativePath !== "index.md") return;
-
-    const actions = pageData.frontmatter?.hero?.actions;
-    if (!Array.isArray(actions)) return;
-
-    const stableReleaseAction = actions.find((action) => action.release === "stable");
-    if (stableReleaseAction) {
-      stableReleaseAction.text = `Latest Release ${currentRelease.version}`;
-      stableReleaseAction.link = currentRelease.url;
-    }
-
-    const betaReleaseAction = actions.find((action) => action.release === "beta");
-    if (betaReleaseAction) {
-      betaReleaseAction.text = `Latest Beta ${latestBetaRelease.version}`;
-      betaReleaseAction.link = latestBetaRelease.url;
-    }
-  },
+  
   cleanUrls: true,
   head: [
     ["link", { rel: "icon", href: withBase("/favicon.ico") }],
@@ -219,14 +39,33 @@ export default defineConfig({
     logo: withBase("/project-logo.png"),
     siteTitle: "JellyGlance",
     nav: [
-      { text: "Guide", link: "/guide/getting-started" },
-      { text: "Integrations", link: "/integrations" },
+      {
+        text: "Guide",
+        items: [
+          {
+            text: "Start",
+            items: [
+              { text: "Getting Started", link: "/guide/getting-started" },
+              { text: "FAQ", link: "/guide/faq" },
+              { text: "Integrations", link: "/integrations" },
+              { text: "Screenshots", link: "/guide/screenshots" }
+            ]
+          },
+          {
+            text: "Run",
+            items: [
+              { text: "Docker", link: "/operations/docker" },
+              { text: "Unraid / TrueNAS", link: "/operations/catalog" },
+              { text: "Widgets", link: "/operations/widgets" },
+              { text: "Architecture", link: "/guide/architecture" }
+            ]
+          }
+        ]
+      },
+      { text: "Features", link: "/features" },
       { text: "Roadmap", link: "/roadmap" },
-      { text: "Screenshots", link: "/guide/screenshots" },
-      { text: "Press", link: "/press" },
-      { text: "Operations", link: "/operations/docker" },
-      { text: "Widgets", link: "/operations/widgets" },
-      { text: "Releases", link: "/operations/releases" }
+      { text: "Releases", link: "/operations/releases" },
+      { text: "Press", link: "/press" }
     ],
     sidebar: false,
     socialLinks: [
@@ -234,10 +73,43 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/Nerdy-Technician/JellyGlance" }
     ],
     search: {
-      provider: "local"
+      provider: "local",
+      options: {
+        miniSearch: {
+          searchOptions: {
+            boost: { title: 6, text: 2, titles: 4 },
+            boostDocument(documentId) {
+              const [path = "", hash = ""] = documentId.split("#");
+              const slug = path.split("/").filter(Boolean).pop();
+              const page = !hash || hash === slug ? 2.5 : 1;
+              if (path.includes("guide/getting-started")) return 4 * page;
+              if (path.includes("guide/faq")) return 4 * page;
+              if (path.endsWith("/features")) return 3 * page;
+              if (path.includes("operations/docker")) return 3 * page;
+              return 1;
+            }
+          }
+        },
+        async _render(src, env, md) {
+          const html = md.render(src, env);
+          if (env.frontmatter?.search === false) return "";
+
+          const aliases = {
+            "guide/getting-started.md": "install setup compose first-run wizard local development docker start",
+            "guide/faq.md": "faq help troubleshooting first sync stuck api key jwt reverse proxy unraid truenas 403 hidden pages requests downloads",
+            "features.md": "compare comparison jellystat jellydash vs alternative features table",
+            "operations/docker.md": "install docker compose container self-host deploy postgres",
+            "operations/catalog.md": "unraid truenas scale community apps helm kubernetes catalog"
+          };
+
+          const extra = aliases[env.relativePath];
+          if (!extra) return html;
+          return html.replace(/(<h1\b[^>]*>[\s\S]*?<\/h1>)/i, `$1<p>${extra}</p>`);
+        }
+      }
     },
     footer: {
-      message: 'Built for Jellyfin homeservers.<br><a href="https://buymeacoffee.com/nerdytechnician" target="_blank" rel="noreferrer">Buy me a coffee</a>',
+      message: 'Built for Jellyfin homeservers.<nav class="site-footer-links"><a href="/guide/getting-started">Guide</a><a href="/guide/faq">FAQ</a><a href="/operations/releases">Releases</a><a href="https://discord.gg/dMGhv8j2kx" target="_blank" rel="noreferrer">Discord</a></nav><a href="https://buymeacoffee.com/nerdytechnician" target="_blank" rel="noreferrer">Buy me a coffee</a>',
       copyright: "Released under GPL-3.0."
     },
     outline: {
@@ -247,6 +119,27 @@ export default defineConfig({
     latestReleaseUrl: currentRelease.url,
     latestRelease: currentRelease,
     latestBetaReleaseUrl: latestBetaRelease.url,
-    latestBetaRelease
+    latestBetaRelease,
+    repoStats,
+    roadmap
+  },
+  transformPageData(pageData) {
+    if (pageData.relativePath !== "index.md") return;
+    const actions = pageData.frontmatter?.hero?.actions;
+    if (!Array.isArray(actions)) return;
+
+    const pushAlt = (text, link) => {
+      if (!text || !link || actions.some((action) => action.text === text || action.link === link)) return;
+      actions.push({ theme: "alt", text, link });
+    };
+
+    if (currentRelease.version) {
+      pushAlt(currentRelease.version, currentRelease.url || "https://github.com/Nerdy-Technician/JellyGlance/releases/latest");
+    }
+    if (latestBetaRelease.version && latestBetaRelease.version !== currentRelease.version) {
+      pushAlt(`Beta ${latestBetaRelease.version}`, latestBetaRelease.url);
+    }
+    pushAlt(repoStats.downloadsLabel, repoStats.downloadsUrl);
+    pushAlt(repoStats.starsLabel, repoStats.starsUrl);
   }
 });
