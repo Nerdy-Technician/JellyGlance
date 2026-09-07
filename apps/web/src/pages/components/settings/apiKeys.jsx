@@ -7,6 +7,7 @@ import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
 import Key2LineIcon from "remixicon-react/Key2LineIcon";
 
 import "../../css/settings/apiKeys.css";
+import ApiKeyWidgets from "./apiKeyWidgets";
 
 const token = localStorage.getItem("token");
 
@@ -115,7 +116,7 @@ export default function ApiKeys() {
         <div>
           <p className="api-keys-eyebrow">Access tokens</p>
           <h1>API Keys</h1>
-          <p>Create scoped JellyGlance tokens for automation, dashboards, and integrations.</p>
+          <p>Create tokens, then download Homarr JSON or Homepage YAML for dashboards.</p>
         </div>
         <div className="api-keys-count">
           <Key2LineIcon size={22} />
@@ -169,6 +170,8 @@ export default function ApiKeys() {
           <p>Create a key when another tool needs to call JellyGlance.</p>
         </div>
       )}
+
+      <ApiKeyWidgets keys={sortedKeys} onMessage={setMessage} />
     </div>
   );
 }

@@ -248,6 +248,7 @@ docker compose up -d</code></pre>
 
             <template v-else-if="item.id === 'widgets'">
               <p>That token is a <strong>JellyGlance</strong> API key from <strong>Settings → API Key</strong>, sent as <code>x-api-token</code>. It is not the Jellyfin API key from first-run.</p>
+              <p>Download any of the thirty Homarr JSON widgets or the Homepage YAML pack from that Settings page, or from <a href="/operations/widgets">Homepage widgets</a>. After a Homarr import, paste the Glance key — it is not stored in the JSON. Try the same routes in the app at <strong>Settings → API Key</strong>.</p>
             </template>
 
             <template v-else-if="item.id === 'update'">

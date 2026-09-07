@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance libraries",
+  "description": "Per-library sizes from JellyGlance.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/libraries",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Libraries</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.totalLabel}</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color=\"violet\">{data.totalLabel}</Badge>\n  </Group>\n  <Table striped>\n    <Table.Thead>\n      <Table.Tr>\n        <Table.Th>Library</Table.Th>\n        <Table.Th>Size</Table.Th>\n        <Table.Th>Items</Table.Th>\n      </Table.Tr>\n    </Table.Thead>\n    <Table.Tbody>\n      {data.libraries.map((row) =>\n        <Table.Tr>\n          <Table.Td>{row.name}</Table.Td>\n          <Table.Td>{row.size}</Table.Td>\n          <Table.Td>{row.items}</Table.Td>\n        </Table.Tr>\n      )}\n    </Table.Tbody>\n  </Table>\n</Stack>"
+  }
+}

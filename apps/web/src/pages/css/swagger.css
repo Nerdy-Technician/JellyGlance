@@ -1,0 +1,225 @@
+.swagger-settings-tab .swagger-page,
+.swagger-page {
+  display: grid;
+  gap: 14px;
+  min-height: calc(100dvh - 24px);
+  padding: 2px 2px 12px;
+  color: #f8fafc;
+}
+
+.swagger-settings-tab .swagger-page {
+  min-height: calc(100dvh - 96px);
+  padding: 0 0 12px;
+}
+
+.swagger-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.swagger-header p {
+  margin: 0 0 3px;
+  color: var(--primary-light-color);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.swagger-header h1 {
+  margin: 0 !important;
+  color: #fff;
+  font-size: clamp(24px, 2.4vw, 38px);
+  font-weight: 950 !important;
+}
+
+.swagger-header span {
+  display: block;
+  max-width: 720px;
+  margin-top: 6px;
+  color: #9aa7bb;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.swagger-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swagger-header-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d7e0ee;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.swagger-header-link:hover {
+  color: #fff;
+  border-color: rgba(var(--primary-light-rgb), 0.45);
+}
+
+.swagger-page .api-explorer,
+.api-key-widgets .api-explorer {
+  display: grid;
+  gap: 12px;
+}
+
+.api-explorer-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.4fr);
+  gap: 12px;
+  min-height: 280px;
+}
+
+.api-explorer-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow: auto;
+  list-style: none;
+}
+
+.api-explorer-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+}
+
+.api-explorer-list button.is-active {
+  border-color: rgba(var(--primary-light-rgb), 0.45);
+  background: rgba(var(--primary-rgb), 0.14);
+}
+
+.api-explorer-list strong {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.api-explorer-list em {
+  font-style: normal;
+  color: var(--primary-light-color);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.api-explorer-list span {
+  color: #9aa7bb;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.api-explorer-result,
+.swagger-frame {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(5, 8, 13, 0.72);
+}
+
+.api-explorer-result {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.api-explorer-id label {
+  margin-bottom: 6px;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.api-explorer-id .form-control {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  border-radius: 11px !important;
+  background: rgba(5, 8, 13, 0.72) !important;
+  color: white !important;
+}
+
+.api-explorer-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  color: #9aa7bb;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.api-explorer-meta .btn,
+.swagger-page .api-key-widgets-header .btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 11px !important;
+  font-weight: 850 !important;
+}
+
+.api-explorer-result pre {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  color: #d7e0ee;
+  font-size: 12px;
+}
+
+.swagger-frame {
+  min-height: min(78vh, 920px);
+  overflow: hidden;
+}
+
+.swagger-frame iframe {
+  display: block;
+  width: 100%;
+  height: min(78vh, 920px);
+  border: 0;
+  background: #0b1118;
+}
+
+@media (max-width: 900px) {
+  .swagger-header,
+  .api-explorer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .swagger-header {
+    display: grid;
+  }
+
+  .swagger-frame,
+  .swagger-frame iframe {
+    min-height: 70vh;
+    height: 70vh;
+  }
+}

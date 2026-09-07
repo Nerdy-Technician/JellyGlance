@@ -8,7 +8,34 @@ const {
   stitchDownloads,
   buildLibraryStorage,
   buildOpsDigest,
+  listWidgetCatalog,
   buildHomepageWidgets,
+  buildSessionWidgets,
+  buildDownloadWidgets,
+  buildCalendarWidgets,
+  buildLibraryWidgets,
+  buildHealthWidgets,
+  buildRequestWidgets,
+  buildCatalogWidgets,
+  buildStorageWidgets,
+  buildViewerWidgets,
+  buildUserWidgets,
+  buildActivityWidgets,
+  buildWatchWidgets,
+  buildRecentWidgets,
+  buildStalledWidgets,
+  buildStitchedWidgets,
+  buildTodayWidgets,
+  buildInviteWidgets,
+  buildAutobrrWidgets,
+  buildTranscodeWidgets,
+  buildMaintainerrWidgets,
+  buildAutomationWidgets,
+  buildDeviceWidgets,
+  buildDigestWidgets,
+  buildBackupWidgets,
+  buildWebhookWidgets,
+  buildJobWidgets,
   fetchAutobrrHits,
   retryFailedGrab,
   getJellyfinStatus,
@@ -18,6 +45,7 @@ const router = express.Router();
 const API = new JellyfinAPI();
 
 router.get("/item-glance/:id", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Item glance' */
   try {
     const glance = await buildItemGlance(req.params.id);
     if (!glance) return res.status(404).send({ error: "Item not found" });
@@ -29,6 +57,7 @@ router.get("/item-glance/:id", async (req, res) => {
 });
 
 router.get("/downloads/stitched", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Downloads with matching requests' */
   try {
     res.send({ items: await stitchDownloads() });
   } catch (error) {
@@ -38,6 +67,7 @@ router.get("/downloads/stitched", async (req, res) => {
 });
 
 router.get("/ops-digest", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Ops digest' */
   try {
     res.send(await buildOpsDigest());
   } catch (error) {
@@ -47,6 +77,7 @@ router.get("/ops-digest", async (req, res) => {
 });
 
 router.get("/library-storage", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Library storage' */
   try {
     res.send(await buildLibraryStorage());
   } catch (error) {
@@ -55,7 +86,13 @@ router.get("/library-storage", async (req, res) => {
   }
 });
 
+router.get("/widgets", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'List widget endpoints' */
+  res.send(listWidgetCatalog());
+});
+
 router.get("/widgets/homepage", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Dashboard snapshot' */
   try {
     res.send(await buildHomepageWidgets());
   } catch (error) {
@@ -63,6 +100,101 @@ router.get("/widgets/homepage", async (req, res) => {
     res.status(503).send({ error: "Unable to load widget" });
   }
 });
+
+router.get("/widgets/sessions", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Playback counts' */
+  try {
+    res.send(await buildSessionWidgets());
+  } catch (error) {
+    console.error("Session widget failed:", error);
+    res.status(503).send({ error: "Unable to load session widget" });
+  }
+});
+
+router.get("/widgets/downloads", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Download queue snapshot' */
+  try {
+    res.send(await buildDownloadWidgets());
+  } catch (error) {
+    console.error("Download widget failed:", error);
+    res.status(503).send({ error: "Unable to load download widget" });
+  }
+});
+
+router.get("/widgets/calendar", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Arr calendar snapshot' */
+  try {
+    res.send(await buildCalendarWidgets());
+  } catch (error) {
+    console.error("Calendar widget failed:", error);
+    res.status(503).send({ error: "Unable to load calendar widget" });
+  }
+});
+
+router.get("/widgets/libraries", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Library sizes' */
+  try {
+    res.send(await buildLibraryWidgets());
+  } catch (error) {
+    console.error("Library widget failed:", error);
+    res.status(503).send({ error: "Unable to load library widget" });
+  }
+});
+
+router.get("/widgets/health", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Ops and Jellyfin health' */
+  try {
+    res.send(await buildHealthWidgets());
+  } catch (error) {
+    console.error("Health widget failed:", error);
+    res.status(503).send({ error: "Unable to load health widget" });
+  }
+});
+
+router.get("/widgets/requests", async (_req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Seerr request counts' */
+  try {
+    res.send(await buildRequestWidgets());
+  } catch (error) {
+    console.error("Request widget failed:", error);
+    res.status(503).send({ error: "Unable to load request widget" });
+  }
+});
+
+const extraWidgetRoutes = [
+  ["catalog", buildCatalogWidgets, "Catalog totals"],
+  ["storage", buildStorageWidgets, "Library storage"],
+  ["viewers", buildViewerWidgets, "Viewers today"],
+  ["users", buildUserWidgets, "User roster"],
+  ["activity", buildActivityWidgets, "Recent playback"],
+  ["watch", buildWatchWidgets, "Watch time"],
+  ["recent", buildRecentWidgets, "Recently added"],
+  ["stalled", buildStalledWidgets, "Stalled downloads"],
+  ["stitched", buildStitchedWidgets, "Cached download queue"],
+  ["today", buildTodayWidgets, "Releases today"],
+  ["invites", buildInviteWidgets, "Wizarr invites"],
+  ["autobrr", buildAutobrrWidgets, "autobrr hits"],
+  ["transcodes", buildTranscodeWidgets, "Tdarr health"],
+  ["maintainerr", buildMaintainerrWidgets, "Maintainerr health"],
+  ["automation", buildAutomationWidgets, "Integration health"],
+  ["devices", buildDeviceWidgets, "Known devices"],
+  ["digest", buildDigestWidgets, "Ops digest"],
+  ["backup", buildBackupWidgets, "Backup hint"],
+  ["webhooks", buildWebhookWidgets, "Webhook deliveries"],
+  ["jobs", buildJobWidgets, "Task history"],
+];
+
+for (const [slug, builder, summary] of extraWidgetRoutes) {
+  router.get(`/widgets/${slug}`, async (_req, res) => {
+    /* #swagger.tags = ['Widgets'] */
+    try {
+      res.send(await builder());
+    } catch (error) {
+      console.error(`${summary} widget failed:`, error);
+      res.status(503).send({ error: `Unable to load ${slug} widget` });
+    }
+  });
+}
 
 router.get("/admin-audit/export", async (req, res) => {
   try {
@@ -154,6 +286,7 @@ router.put("/preferences", async (req, res) => {
 });
 
 router.get("/jellyfin/status", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Jellyfin status' */
   try {
     res.send(await getJellyfinStatus());
   } catch (error) {

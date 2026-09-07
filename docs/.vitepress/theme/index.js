@@ -6,6 +6,7 @@ import FeaturesCompare from "./FeaturesCompare.vue";
 import FeaturesShots from "./FeaturesShots.vue";
 import FaqCards from "./FaqCards.vue";
 import IntegrationFilter from "./IntegrationFilter.vue";
+import WidgetSnippets from "./WidgetSnippets.vue";
 import "./custom.css";
 
 export default {
@@ -18,5 +19,6 @@ export default {
     app.component("FeaturesShots", FeaturesShots);
     app.component("FaqCards", FaqCards);
     app.component("IntegrationFilter", IntegrationFilter);
+    app.component("WidgetSnippets", WidgetSnippets);
   }
 };

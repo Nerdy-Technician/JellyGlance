@@ -149,6 +149,11 @@ const settingsHashAliases = {
   apikeys: "tabKeys",
   apiKeys: "tabKeys",
   keys: "tabKeys",
+  swagger: "tabKeys",
+  swaggerui: "tabKeys",
+  "swagger-ui": "tabKeys",
+  apidocs: "tabKeys",
+  "api-docs": "tabKeys",
   activity: "tabActivityMonitor",
   activitymonitor: "tabActivityMonitor",
   "activity-monitor": "tabActivityMonitor",
@@ -474,7 +479,7 @@ export default function Settings() {
       </nav>
 
       <div className="tab-content">
-        <div className={`settings-tab-pane bg-transparent tab-pane active show ${activeTab === "tabIntegrations" ? "integrations-settings-tab" : ""}`.trim()}>
+        <div className={`settings-tab-pane bg-transparent tab-pane active show${activeTab === "tabIntegrations" ? " integrations-settings-tab" : ""}`.trim()}>
           {renderActiveSettingsPane()}
         </div>
       </div>

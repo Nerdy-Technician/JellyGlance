@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "../lib/axios_instance";
 
 import "./css/about.css";
@@ -16,6 +17,7 @@ import PulseLineIcon from "remixicon-react/PulseLineIcon";
 import PriceTag3LineIcon from "remixicon-react/PriceTag3LineIcon";
 import RadarLineIcon from "remixicon-react/RadarLineIcon";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
+import CodeSSlashLineIcon from "remixicon-react/CodeSSlashLineIcon";
 import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
 import TaskLineIcon from "remixicon-react/TaskLineIcon";
 import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
@@ -427,6 +429,10 @@ export default function SettingsAbout() {
               <PulseLineIcon />
               Join Discord
             </a>
+            <Link to="/settings/api-key">
+              <CodeSSlashLineIcon />
+              API / Swagger
+            </Link>
             <a href="https://jellyglance.com/" target="_blank" rel="noreferrer">
               <RadarLineIcon />
               Website
