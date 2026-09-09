@@ -22,6 +22,7 @@ const rows = [
   { name: "Backups and restore", why: "Snapshot Glance data and bring it back after a rebuild.", values: { jellyglance: true, jellystat: true, jellydash: false } },
   { name: "Import Jellystat / Tautulli history", why: "Keep old watch stats when you switch dashboards.", values: { jellyglance: true, jellystat: false, jellydash: false } },
   { name: "Custom home / kiosk layout", why: "Family TV or admin desk, same app, different widgets.", values: { jellyglance: true, jellystat: false, jellydash: false } },
+  { name: "Homepage / Homarr API widgets", why: "Thirty token-auth widgets, Homarr JSON, Homepage YAML, and Settings → API Key explorer.", values: { jellyglance: true, jellystat: false, jellydash: false } },
   { name: "Installable PWA", why: "Home-screen app instead of another browser tab.", values: { jellyglance: true, jellystat: false, jellydash: true } },
   { name: "Jellyfin jobs and tasks", why: "Library scans and scheduled work from Glance.", values: { jellyglance: true, jellystat: false, jellydash: false } },
   { name: "Integration health checks", why: "Know which Arr or download client is down.", values: { jellyglance: true, jellystat: false, jellydash: false } },

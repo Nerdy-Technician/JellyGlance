@@ -248,6 +248,12 @@ function applyNavbarIntegrations(integrations, setters) {
   return { tdarr, requests };
 }
 
+function navItemTo(item) {
+  const link = String(item?.link || "");
+  if (!link) return "/";
+  return link.startsWith("/") ? link : `/${link}`;
+}
+
 function isNavItemActive(item, location) {
   const pathname = location.pathname.toLocaleLowerCase();
   const navPath = String(item.link || "").split("?")[0].toLocaleLowerCase();
@@ -1000,7 +1006,7 @@ export default function Navbar() {
                 <Link
                   key={item.id}
                   className={`mobile-app-menu-tile${isActive ? " active" : ""}`}
-                  to={item.link}
+                  to={navItemTo(item)}
                   onClick={() => setIsMobileNavOpen(false)}
                 >
                   <span className="mobile-app-menu-icon">{item.icon}</span>
@@ -1073,7 +1079,7 @@ export default function Navbar() {
                 as={Link}
                 key={item.id}
                 className={`navitem${isActive ? " active" : ""} p-2`} // add the "active" class if the link is active
-                to={item.link}
+                to={navItemTo(item)}
                 onClick={() => setIsMobileNavOpen(false)}
                 title={navLabel}
                 aria-label={navLabel}

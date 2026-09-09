@@ -2,16 +2,20 @@ const swaggerAutogen = require("swagger-autogen")();
 const fs = require("fs");
 
 const outputFile = "./swagger.json";
-const endpointsFiles = ["./server.js"];
+const endpointsFiles = ["./server.js", "./routes/command-center.js"];
 const config = {
   info: {
     title: "JellyGlance API Documentation",
-    description: "",
+    description: "JellyGlance REST API. Widget and most /api routes accept a Glance API key as x-api-token, or a session Bearer token.",
   },
   tags: [
     {
       name: "API",
       description: "JellyGlance API Endpoints",
+    },
+    {
+      name: "Widgets",
+      description: "Token-auth snapshots for Homepage, Homarr, and automation",
     },
     {
       name: "Auth",
@@ -88,6 +92,29 @@ const modifySwaggerFile = (filePath) => {
       });
     }
   });
+
+  const extra = JSON.parse(fs.readFileSync("./swagger-widgets-paths.json", "utf8"));
+  Object.assign(swaggerData.paths, extra);
+  if (!swaggerData.tags.some((tag) => tag.name === "Widgets")) {
+    swaggerData.tags.splice(1, 0, {
+      name: "Widgets",
+      description: "Token-auth snapshots for Homepage, Homarr, and automation",
+    });
+  }
+  swaggerData.definitions = swaggerData.definitions || {};
+  swaggerData.definitions.WidgetSnapshot = swaggerData.definitions.WidgetSnapshot || {
+    type: "object",
+    properties: {
+      jellyglance: { type: "boolean", example: true },
+      sessionsRecent: { type: "integer" },
+      sessionsToday: { type: "integer" },
+      downloads: { type: "integer" },
+      digest: { type: "integer" },
+      digestOk: { type: "boolean" },
+      storage: { type: "string" },
+      updatedAt: { type: "string" },
+    },
+  };
 
   fs.writeFileSync(filePath, JSON.stringify(swaggerData, null, 2));
 };

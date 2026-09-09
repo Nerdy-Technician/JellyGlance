@@ -315,12 +315,17 @@ app.use((req, res, next) => {
   if (BASE_NAME && BASE_NAME != "" && (req.url == "/" || req.url == "")) {
     return res.redirect(BASE_NAME);
   }
-  // Ignore requests containing 'socket.io'
-  if (req.url.includes("socket.io") || req.url.includes("swagger") || req.url.startsWith("/backup") || req.url.includes("webhook-cards")) {
+  const pathname = getRequestPathname(req);
+  const isSwaggerAsset = pathname === "/swagger.json" || pathname === "/swagger-ui" || pathname.startsWith("/swagger-ui/");
+
+  // Keep socket, backup, webhook cards, and swagger-ui assets off the SPA static rewrite.
+  // /swagger is the SPA route that redirects to Settings → Swagger.
+  if (req.url.includes("socket.io") || req.url.startsWith("/backup") || req.url.includes("webhook-cards") || isSwaggerAsset) {
+    if (isSwaggerAsset && BASE_NAME && req.url.startsWith(BASE_NAME) && req.url !== BASE_NAME) {
+      req.url = req.url.slice(BASE_NAME.length);
+    }
     return next();
   }
-
-  const pathname = getRequestPathname(req);
   if (pathname === "/env.js" || (BASE_NAME && pathname === `${BASE_NAME}/env.js`)) {
     res.set("Cache-Control", "no-store");
     return res.type("application/javascript").send(buildEnvContent());
@@ -438,8 +443,32 @@ app.get("/backup-download/:filename", (req, res) => {
   }
 });
 
-// Swagger
-app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Swagger spec + standalone UI. The Glance app owns GET /swagger.
+app.get("/swagger.json", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(swaggerDocument);
+});
+app.use(
+  "/swagger-ui",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    customSiteTitle: "JellyGlance API",
+    customCss: `
+      .swagger-ui .topbar { display: none; }
+      body { margin: 0; background: #0b1118; }
+      .swagger-ui { background: transparent; }
+      .swagger-ui .info .title { color: #f8fafc; }
+      .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #9aa7bb; }
+      .swagger-ui .scheme-container { background: #121821; box-shadow: none; }
+      .swagger-ui .opblock-tag { color: #f8fafc; border-color: rgba(255,255,255,0.08); }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: "alpha",
+      operationsSorter: "alpha",
+    },
+  })
+);
 
 // for deployment of static page
 writeEnvVariables().then(() => {

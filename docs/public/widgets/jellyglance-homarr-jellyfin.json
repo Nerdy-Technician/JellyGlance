@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance Jellyfin",
+  "description": "Live Jellyfin ping from Glance.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/jellyfin/status",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Jellyfin</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.version}</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color={data.ok ? \"teal\" : \"red\"}>{data.ok ? \"Online\" : \"Down\"}</Badge>\n  </Group>\n  <Card withBorder radius=\"md\" p=\"sm\">\n    <Text fw={800}>{data.name}</Text>\n    <Text size=\"xs\" c=\"dimmed\">{data.checkedAt}</Text>\n  </Card>\n</Stack>"
+  }
+}

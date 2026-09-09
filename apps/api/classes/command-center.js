@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const db = require("../db");
 const { axios } = require("./axios");
-const { getIntegrations, getIntegrationData } = require("./integration-store");
+const { getIntegrations, getIntegrationData, getIntegrationHealthHistory } = require("./integration-store");
 const configClass = require("./config");
 const JellyfinAPI = require("./jellyfin-api");
 const WebhookManager = require("./webhook-manager");
@@ -259,21 +259,599 @@ async function buildOpsDigest() {
   };
 }
 
+function listWidgetCatalog() {
+  return {
+    jellyglance: true,
+    auth: {
+      header: "x-api-token",
+      settings: "Settings → API Key",
+    },
+    snapshot: "/api/widgets/homepage",
+    endpoints: [
+      { path: "/api/widgets", method: "GET", summary: "Catalog of token-auth widget endpoints" },
+      { path: "/api/widgets/homepage", method: "GET", summary: "Dashboard snapshot: sessions, catalog, downloads, digest, storage, invites, calendar" },
+      { path: "/api/widgets/catalog", method: "GET", summary: "Movies, shows, episodes, and items added this week" },
+      { path: "/api/widgets/storage", method: "GET", summary: "Library storage total and upcoming Arr estimate" },
+      { path: "/api/widgets/sessions", method: "GET", summary: "Recent, today, and 24h playback counts" },
+      { path: "/api/widgets/viewers", method: "GET", summary: "Distinct viewers today and synced user count" },
+      { path: "/api/widgets/users", method: "GET", summary: "User roster with last activity" },
+      { path: "/api/widgets/activity", method: "GET", summary: "Latest playback rows" },
+      { path: "/api/widgets/watch", method: "GET", summary: "Watch-time totals for today, week, and all time" },
+      { path: "/api/widgets/recent", method: "GET", summary: "Recently added library titles" },
+      { path: "/api/widgets/libraries", method: "GET", summary: "Per-library sizes and catalog totals" },
+      { path: "/api/widgets/downloads", method: "GET", summary: "Queue counts plus a compact item list" },
+      { path: "/api/widgets/stalled", method: "GET", summary: "Stalled or failed download items" },
+      { path: "/api/widgets/stitched", method: "GET", summary: "Cached download queue without a live Seerr call" },
+      { path: "/api/widgets/calendar", method: "GET", summary: "Arr releases today and upcoming" },
+      { path: "/api/widgets/today", method: "GET", summary: "Arr releases due today" },
+      { path: "/api/widgets/requests", method: "GET", summary: "Seerr request counts by status" },
+      { path: "/api/widgets/invites", method: "GET", summary: "Cached Wizarr invite links" },
+      { path: "/api/widgets/autobrr", method: "GET", summary: "Cached autobrr release hits" },
+      { path: "/api/widgets/transcodes", method: "GET", summary: "Tdarr connection and last health check" },
+      { path: "/api/widgets/maintainerr", method: "GET", summary: "Maintainerr connection and last health check" },
+      { path: "/api/widgets/automation", method: "GET", summary: "Latest integration health results" },
+      { path: "/api/widgets/devices", method: "GET", summary: "Known Jellyfin client devices" },
+      { path: "/api/widgets/health", method: "GET", summary: "Digest, live Jellyfin ping, and backup hint" },
+      { path: "/api/widgets/digest", method: "GET", summary: "Ops digest items that need attention" },
+      { path: "/api/widgets/backup", method: "GET", summary: "Last backup hint and destination kind" },
+      { path: "/api/widgets/webhooks", method: "GET", summary: "Recent webhook deliveries" },
+      { path: "/api/widgets/jobs", method: "GET", summary: "Latest Glance task runs" },
+      { path: "/api/ops-digest", method: "GET", summary: "Ops items that need attention" },
+      { path: "/api/library-storage", method: "GET", summary: "Per-library sizes and upcoming estimate" },
+      { path: "/api/downloads/stitched", method: "GET", summary: "Download queue matched to Seerr requests" },
+      { path: "/api/jellyfin/status", method: "GET", summary: "Live Jellyfin reachability and version" },
+      { path: "/api/item-glance/:id", method: "GET", summary: "One title across Jellyfin, Seerr, Arr, and downloads" },
+    ],
+  };
+}
+
+function queryCount(sql) {
+  return db
+    .query(sql)
+    .then((result) => Number(result.rows[0]?.count || 0))
+    .catch(() => 0);
+}
+
+function isStalledDownload(item) {
+  const state = String(item.state || "").toLowerCase();
+  return Boolean(item.stalled || state.includes("fail") || state.includes("error") || state.includes("stall"));
+}
+
+function sameCalendarDay(value, now = new Date()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
+function compactDownload(item) {
+  return {
+    name: item.name || item.title || "Download",
+    state: item.state || "",
+    progress: Number(item.progress || 0),
+    stalled: isStalledDownload(item),
+  };
+}
+
+function compactRelease(row) {
+  return {
+    title: row.title || "Release",
+    service: row.service || "",
+    date: row.date || null,
+    hasFile: Boolean(row.hasFile),
+  };
+}
+
+async function loadPlaybackCounts() {
+  const [sessionsRecent, sessionsToday, sessionsDay, viewersToday, users] = await Promise.all([
+    queryCount(`SELECT count(*)::int AS count FROM jf_playback_activity WHERE "ActivityDateInserted" > NOW() - INTERVAL '15 minutes'`),
+    queryCount(`SELECT count(*)::int AS count FROM jf_playback_activity WHERE "ActivityDateInserted" >= CURRENT_DATE`),
+    queryCount(`SELECT count(*)::int AS count FROM jf_playback_activity WHERE "ActivityDateInserted" > NOW() - INTERVAL '24 hours'`),
+    queryCount(`SELECT count(DISTINCT "UserId")::int AS count FROM jf_playback_activity WHERE "ActivityDateInserted" >= CURRENT_DATE`),
+    queryCount(`SELECT count(*)::int AS count FROM jf_users`),
+  ]);
+  return { sessionsRecent, sessionsToday, sessionsDay, viewersToday, users };
+}
+
 async function buildHomepageWidgets() {
-  const [sessionsResult, digest, storage, integrationData] = await Promise.all([
-    db.query(`SELECT count(*)::int AS count FROM jf_playback_activity WHERE "ActivityDateInserted" > NOW() - INTERVAL '15 minutes'`).catch(() => ({ rows: [{ count: 0 }] })),
+  const [playback, addedWeek, catalog, digest, storage, integrationData, settings] = await Promise.all([
+    loadPlaybackCounts(),
+    queryCount(`SELECT count(*)::int AS count FROM jf_library_items WHERE archived = false AND "DateCreated" > NOW() - INTERVAL '7 days'`),
+    db
+      .query(
+        `SELECT
+            COALESCE(sum(CASE WHEN "CollectionType" = 'movies' THEN "Library_Count" ELSE 0 END), 0)::int AS movies,
+            COALESCE(sum(CASE WHEN "CollectionType" = 'tvshows' THEN "Library_Count" ELSE 0 END), 0)::int AS shows,
+            COALESCE(sum(CASE WHEN "CollectionType" = 'tvshows' THEN "Episode_Count" ELSE 0 END), 0)::int AS episodes,
+            COALESCE(count(*) FILTER (WHERE archived = false), 0)::int AS libraries
+         FROM js_library_stats_overview`
+      )
+      .then((result) => result.rows[0] || {})
+      .catch(() => ({})),
     buildOpsDigest(),
     buildLibraryStorage(),
     getIntegrationData(),
+    getSettings().catch(() => ({})),
   ]);
+  const downloads = integrationData.downloads?.items || [];
+  const upcoming = (integrationData.calendar?.releases || []).filter((row) => !row.hasFile);
+  const lastSeen = settings.JellyfinLastSeen || {};
+  const seenAt = lastSeen.at ? new Date(lastSeen.at).getTime() : 0;
+  const jellyfinOk = Boolean(lastSeen.version) && (Date.now() - seenAt < 36 * 60 * 60 * 1000 || !seenAt);
   return {
     jellyglance: true,
-    sessionsRecent: sessionsResult.rows[0]?.count || 0,
-    downloads: (integrationData.downloads?.items || []).filter((item) => Number(item.progress || 0) < 100).length,
+    sessionsRecent: playback.sessionsRecent,
+    sessionsToday: playback.sessionsToday,
+    sessionsDay: playback.sessionsDay,
+    viewersToday: playback.viewersToday,
+    users: playback.users,
+    libraries: Number(catalog.libraries || storage.libraries?.length || 0),
+    movies: Number(catalog.movies || 0),
+    shows: Number(catalog.shows || 0),
+    episodes: Number(catalog.episodes || 0),
+    addedWeek,
+    downloads: downloads.filter((item) => Number(item.progress || 0) < 100).length,
+    downloadTotal: downloads.length,
+    stalled: downloads.filter(isStalledDownload).length,
     digest: digest.count,
+    digestOk: Boolean(digest.ok),
     storage: storage.totalLabel,
+    storageBytes: Number(storage.totalBytes || 0),
+    invites: (integrationData.invites?.items || []).length,
+    calendarUpcoming: upcoming.length,
+    calendarToday: upcoming.filter((row) => sameCalendarDay(row.date)).length,
+    autobrr: (integrationData.autobrr?.hits || []).length,
+    jellyfinOk,
+    jellyfinName: lastSeen.name || "",
+    jellyfinVersion: lastSeen.version || "",
+    backupAt: digest.backupAgeHint || null,
     updatedAt: new Date().toISOString(),
   };
+}
+
+async function buildSessionWidgets() {
+  const playback = await loadPlaybackCounts();
+  return {
+    jellyglance: true,
+    recent: playback.sessionsRecent,
+    today: playback.sessionsToday,
+    last24h: playback.sessionsDay,
+    viewersToday: playback.viewersToday,
+    users: playback.users,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function buildDownloadWidgets() {
+  const downloads = (await getIntegrationData()).downloads?.items || [];
+  const active = downloads.filter((item) => Number(item.progress || 0) < 100);
+  return {
+    jellyglance: true,
+    active: active.length,
+    stalled: downloads.filter(isStalledDownload).length,
+    total: downloads.length,
+    items: active.slice(0, 8).map(compactDownload),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function buildCalendarWidgets() {
+  const [integrationData, storage] = await Promise.all([getIntegrationData(), buildLibraryStorage()]);
+  const upcoming = (integrationData.calendar?.releases || [])
+    .filter((row) => !row.hasFile)
+    .slice()
+    .sort((left, right) => new Date(left.date || 0) - new Date(right.date || 0));
+  return {
+    jellyglance: true,
+    upcoming: upcoming.length,
+    today: upcoming.filter((row) => sameCalendarDay(row.date)).length,
+    estimate: storage.upcomingEstimate || "",
+    items: upcoming.slice(0, 8).map(compactRelease),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function buildLibraryWidgets() {
+  const storage = await buildLibraryStorage();
+  return {
+    jellyglance: true,
+    totalLabel: storage.totalLabel,
+    totalBytes: Number(storage.totalBytes || 0),
+    upcomingCount: Number(storage.upcomingCount || 0),
+    upcomingEstimate: storage.upcomingEstimate || "",
+    libraries: storage.libraries || [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function buildHealthWidgets() {
+  const [digest, status] = await Promise.all([buildOpsDigest(), getJellyfinStatus().catch(() => ({ ok: false }))]);
+  return {
+    jellyglance: true,
+    digestOk: Boolean(digest.ok),
+    digest: digest.count,
+    items: (digest.items || []).slice(0, 8),
+    jellyfinOk: Boolean(status.ok),
+    jellyfinName: status.name || "",
+    jellyfinVersion: status.version || "",
+    backupAt: digest.backupAgeHint || null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function buildRequestWidgets() {
+  const rows = await fetchSeerrSnapshot().catch(() => []);
+  const counts = { total: rows.length, pending: 0, approved: 0, available: 0, other: 0 };
+  for (const row of rows) {
+    const status = String(row.status ?? "").toLowerCase();
+    if (status === "1" || status.includes("pend")) counts.pending += 1;
+    else if (status === "3" || status.includes("avail") || status.includes("complete")) counts.available += 1;
+    else if (status === "2" || status.includes("approv")) counts.approved += 1;
+    else counts.other += 1;
+  }
+  return {
+    jellyglance: true,
+    ...counts,
+    items: rows.slice(0, 8).map((row) => ({
+      title: row.title,
+      status: row.status,
+      source: row.source || "",
+      requestedBy: row.requestedBy || "",
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function widgetPayload(extra) {
+  return { jellyglance: true, ...extra, updatedAt: new Date().toISOString() };
+}
+
+function hoursFromSeconds(seconds) {
+  return Number((Number(seconds || 0) / 3600).toFixed(1));
+}
+
+function latestHealthById(history = []) {
+  const latest = [];
+  const seen = new Set();
+  for (const row of history) {
+    const id = row.instanceId || row.name;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    latest.push(row);
+  }
+  return latest;
+}
+
+function findThirdParty(integrations, needle) {
+  return (integrations.thirdParty || []).find((app) => String(app.name || app.slug || "").toLowerCase().includes(needle));
+}
+
+function compactHealth(app, history) {
+  const latest = history.find((row) => row.instanceId && row.instanceId === app?.instanceId) || history.find((row) => row.name && app?.name && row.name === app.name);
+  return {
+    connected: Boolean(app?.connected),
+    name: app?.name || "",
+    ok: latest ? Boolean(latest.ok) : Boolean(app?.connected),
+    message: latest?.message || (app?.connected ? "Connected" : "Not connected"),
+    checkedAt: latest?.checkedAt || null,
+  };
+}
+
+async function loadCatalogCounts() {
+  const [addedWeek, catalog] = await Promise.all([
+    queryCount(`SELECT count(*)::int AS count FROM jf_library_items WHERE archived = false AND "DateCreated" > NOW() - INTERVAL '7 days'`),
+    db
+      .query(
+        `SELECT
+            COALESCE(sum(CASE WHEN "CollectionType" = 'movies' THEN "Library_Count" ELSE 0 END), 0)::int AS movies,
+            COALESCE(sum(CASE WHEN "CollectionType" = 'tvshows' THEN "Library_Count" ELSE 0 END), 0)::int AS shows,
+            COALESCE(sum(CASE WHEN "CollectionType" = 'tvshows' THEN "Episode_Count" ELSE 0 END), 0)::int AS episodes,
+            COALESCE(count(*) FILTER (WHERE archived = false), 0)::int AS libraries
+         FROM js_library_stats_overview`
+      )
+      .then((result) => result.rows[0] || {})
+      .catch(() => ({})),
+  ]);
+  return {
+    movies: Number(catalog.movies || 0),
+    shows: Number(catalog.shows || 0),
+    episodes: Number(catalog.episodes || 0),
+    libraries: Number(catalog.libraries || 0),
+    addedWeek,
+  };
+}
+
+async function buildCatalogWidgets() {
+  return widgetPayload(await loadCatalogCounts());
+}
+
+async function buildStorageWidgets() {
+  const storage = await buildLibraryStorage();
+  return widgetPayload({
+    totalLabel: storage.totalLabel,
+    totalBytes: Number(storage.totalBytes || 0),
+    upcomingCount: Number(storage.upcomingCount || 0),
+    upcomingEstimate: storage.upcomingEstimate || "",
+  });
+}
+
+async function buildViewerWidgets() {
+  const playback = await loadPlaybackCounts();
+  return widgetPayload({
+    viewersToday: playback.viewersToday,
+    users: playback.users,
+    today: playback.sessionsToday,
+  });
+}
+
+async function buildUserWidgets() {
+  const [total, admins, activeToday, items] = await Promise.all([
+    queryCount(`SELECT count(*)::int AS count FROM jf_users`),
+    queryCount(`SELECT count(*)::int AS count FROM jf_users WHERE "IsAdministrator" = true`),
+    queryCount(`SELECT count(*)::int AS count FROM jf_users WHERE "LastActivityDate" >= CURRENT_DATE`),
+    db
+      .query(
+        `SELECT "Name" AS name, "LastActivityDate" AS "lastAt", "IsAdministrator" AS admin
+         FROM jf_users
+         ORDER BY "LastActivityDate" DESC NULLS LAST
+         LIMIT 8`
+      )
+      .then((result) => result.rows)
+      .catch(() => []),
+  ]);
+  return widgetPayload({
+    users: total,
+    admins,
+    activeToday,
+    items: items.map((row) => ({
+      name: row.name || "User",
+      lastAt: row.lastAt || null,
+      admin: Boolean(row.admin),
+    })),
+  });
+}
+
+async function buildActivityWidgets() {
+  const items = await db
+    .query(
+      `SELECT "UserName" AS viewer, "NowPlayingItemName" AS title, "PlayMethod" AS method, "Client" AS client, "ActivityDateInserted" AS "playedAt"
+       FROM jf_playback_activity
+       ORDER BY "ActivityDateInserted" DESC
+       LIMIT 8`
+    )
+    .then((result) => result.rows)
+    .catch(() => []);
+  return widgetPayload({
+    count: items.length,
+    items: items.map((row) => ({
+      viewer: row.viewer || "User",
+      title: row.title || "Playback",
+      method: row.method || "",
+      client: row.client || "",
+      playedAt: row.playedAt || null,
+    })),
+  });
+}
+
+async function buildWatchWidgets() {
+  const [today, week, all] = await Promise.all([
+    db
+      .query(`SELECT COALESCE(sum("PlaybackDuration"), 0)::bigint AS seconds FROM jf_playback_activity WHERE "ActivityDateInserted" >= CURRENT_DATE`)
+      .then((result) => Number(result.rows[0]?.seconds || 0))
+      .catch(() => 0),
+    db
+      .query(`SELECT COALESCE(sum("PlaybackDuration"), 0)::bigint AS seconds FROM jf_playback_activity WHERE "ActivityDateInserted" > NOW() - INTERVAL '7 days'`)
+      .then((result) => Number(result.rows[0]?.seconds || 0))
+      .catch(() => 0),
+    db
+      .query(`SELECT COALESCE(sum("PlaybackDuration"), 0)::bigint AS seconds FROM jf_playback_activity`)
+      .then((result) => Number(result.rows[0]?.seconds || 0))
+      .catch(() => 0),
+  ]);
+  return widgetPayload({
+    hoursToday: hoursFromSeconds(today),
+    hoursWeek: hoursFromSeconds(week),
+    hoursAll: hoursFromSeconds(all),
+    secondsToday: today,
+    secondsWeek: week,
+    secondsAll: all,
+  });
+}
+
+async function buildRecentWidgets() {
+  const items = await db
+    .query(
+      `SELECT "Id" AS id, "Name" AS title, "Type" AS type, "ProductionYear" AS year, "DateCreated" AS added
+       FROM jf_library_items
+       WHERE archived = false
+       ORDER BY "DateCreated" DESC NULLS LAST
+       LIMIT 8`
+    )
+    .then((result) => result.rows)
+    .catch(() => []);
+  return widgetPayload({
+    count: items.length,
+    items: items.map((row) => ({
+      id: row.id,
+      title: row.title || "Title",
+      type: row.type || "",
+      year: row.year || null,
+      added: row.added || null,
+    })),
+  });
+}
+
+async function buildStalledWidgets() {
+  const downloads = (await getIntegrationData()).downloads?.items || [];
+  const items = downloads.filter(isStalledDownload);
+  return widgetPayload({
+    stalled: items.length,
+    items: items.slice(0, 8).map(compactDownload),
+  });
+}
+
+async function buildStitchedWidgets() {
+  const downloads = (await getIntegrationData()).downloads?.items || [];
+  const active = downloads.filter((item) => Number(item.progress || 0) < 100);
+  return widgetPayload({
+    active: active.length,
+    stalled: downloads.filter(isStalledDownload).length,
+    total: downloads.length,
+    items: downloads.slice(0, 8).map((item) => ({
+      ...compactDownload(item),
+      client: item.client || item.source || "",
+    })),
+  });
+}
+
+async function buildTodayWidgets() {
+  const upcoming = ((await getIntegrationData()).calendar?.releases || [])
+    .filter((row) => !row.hasFile && sameCalendarDay(row.date))
+    .slice()
+    .sort((left, right) => new Date(left.date || 0) - new Date(right.date || 0));
+  return widgetPayload({
+    today: upcoming.length,
+    items: upcoming.slice(0, 8).map(compactRelease),
+  });
+}
+
+async function buildInviteWidgets() {
+  const invites = (await getIntegrationData()).invites || {};
+  const items = invites.items || [];
+  const active = items.filter((row) => {
+    const status = String(row.status || "").toLowerCase();
+    return status !== "used" && status !== "expired";
+  });
+  return widgetPayload({
+    invites: items.length,
+    active: active.length,
+    items: items.slice(0, 8).map((row) => ({
+      code: row.code || "",
+      status: row.status || "",
+      source: row.sourceName || "",
+      expires: row.expires || null,
+    })),
+  });
+}
+
+async function buildAutobrrWidgets() {
+  const hits = (await getIntegrationData()).autobrr?.hits || [];
+  return widgetPayload({
+    autobrr: hits.length,
+    items: hits.slice(0, 8).map((row) => ({
+      name: row.name || "Release",
+      filter: row.filter || "",
+      indexer: row.indexer || "",
+      action: row.action || "",
+    })),
+  });
+}
+
+async function buildTranscodeWidgets() {
+  const [integrations, history] = await Promise.all([getIntegrations().catch(() => ({})), getIntegrationHealthHistory().catch(() => [])]);
+  return widgetPayload(compactHealth(findThirdParty(integrations, "tdarr"), latestHealthById(history)));
+}
+
+async function buildMaintainerrWidgets() {
+  const [integrations, history] = await Promise.all([getIntegrations().catch(() => ({})), getIntegrationHealthHistory().catch(() => [])]);
+  return widgetPayload(compactHealth(findThirdParty(integrations, "maintainerr"), latestHealthById(history)));
+}
+
+async function buildAutomationWidgets() {
+  const [integrations, history] = await Promise.all([getIntegrations().catch(() => ({})), getIntegrationHealthHistory().catch(() => [])]);
+  const connected = [...(integrations.arrApps || []), ...(integrations.clients || []), ...(integrations.thirdParty || [])].filter((item) => item.connected);
+  const latest = latestHealthById(history);
+  const failing = latest.filter((row) => !row.ok);
+  return widgetPayload({
+    connected: connected.length,
+    checked: latest.length,
+    failing: failing.length,
+    ok: failing.length === 0,
+    items: latest.slice(0, 8).map((row) => ({
+      name: row.name || "Integration",
+      type: row.type || "",
+      ok: Boolean(row.ok),
+      message: row.message || "",
+    })),
+  });
+}
+
+async function buildDeviceWidgets() {
+  const settings = await getSettings().catch(() => ({}));
+  const known = Array.isArray(settings.KnownJellyfinDevices) ? settings.KnownJellyfinDevices : [];
+  return widgetPayload({
+    devices: known.length,
+    items: known.slice(-8).reverse().map((id) => ({ id })),
+  });
+}
+
+async function buildDigestWidgets() {
+  const digest = await buildOpsDigest();
+  return widgetPayload({
+    digestOk: Boolean(digest.ok),
+    digest: digest.count,
+    backupAt: digest.backupAgeHint || null,
+    items: (digest.items || []).slice(0, 8).map((row) => ({
+      type: row.type || "",
+      label: row.label || "",
+    })),
+  });
+}
+
+async function buildBackupWidgets() {
+  const settings = await getSettings().catch(() => ({}));
+  const dest = settings.BackupDestination || {};
+  return widgetPayload({
+    backupAt: settings.lastBackup || null,
+    kind: String(dest.kind || "local").toLowerCase(),
+    configured: Boolean(dest.url || dest.kind),
+  });
+}
+
+async function buildWebhookWidgets() {
+  const deliveries = await getWebhookDeliveryHistory().catch(() => []);
+  const failed = deliveries.filter((row) => !row.ok);
+  return widgetPayload({
+    total: deliveries.length,
+    failed: failed.length,
+    ok: failed.length === 0,
+    items: deliveries.slice(0, 8).map((row) => ({
+      name: row.name || "Webhook",
+      ok: Boolean(row.ok),
+      at: row.timestamp || null,
+    })),
+  });
+}
+
+async function buildJobWidgets() {
+  const items = await db
+    .query(
+      `WITH latest_tasks AS (
+         SELECT DISTINCT ON ("Name")
+           "Name" AS name,
+           "Result" AS result,
+           "Duration" AS duration,
+           "TimeRun" AS "ranAt"
+         FROM public.jf_logging
+         ORDER BY "Name", "TimeRun" DESC
+       )
+       SELECT * FROM latest_tasks
+       ORDER BY "ranAt" DESC
+       LIMIT 8`
+    )
+    .then((result) => result.rows)
+    .catch(() => []);
+  const failed = items.filter((row) => String(row.result || "").toLowerCase().includes("fail")).length;
+  return widgetPayload({
+    jobs: items.length,
+    failed,
+    ok: failed === 0,
+    items: items.map((row) => ({
+      name: row.name || "Task",
+      result: row.result || "",
+      duration: row.duration || "",
+      ranAt: row.ranAt || null,
+    })),
+  });
 }
 
 async function rememberDevices(devices = []) {
@@ -660,7 +1238,34 @@ module.exports = {
   stitchDownloads,
   buildLibraryStorage,
   buildOpsDigest,
+  listWidgetCatalog,
   buildHomepageWidgets,
+  buildSessionWidgets,
+  buildDownloadWidgets,
+  buildCalendarWidgets,
+  buildLibraryWidgets,
+  buildHealthWidgets,
+  buildRequestWidgets,
+  buildCatalogWidgets,
+  buildStorageWidgets,
+  buildViewerWidgets,
+  buildUserWidgets,
+  buildActivityWidgets,
+  buildWatchWidgets,
+  buildRecentWidgets,
+  buildStalledWidgets,
+  buildStitchedWidgets,
+  buildTodayWidgets,
+  buildInviteWidgets,
+  buildAutobrrWidgets,
+  buildTranscodeWidgets,
+  buildMaintainerrWidgets,
+  buildAutomationWidgets,
+  buildDeviceWidgets,
+  buildDigestWidgets,
+  buildBackupWidgets,
+  buildWebhookWidgets,
+  buildJobWidgets,
   rememberDevices,
   uploadBackupRemote,
   pingThirdParty,
