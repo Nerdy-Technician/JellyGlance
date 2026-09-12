@@ -360,7 +360,7 @@ app.use((req, res, next) => {
 app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", authenticateProxyAsset, authorizeProxyRoute, proxyRouter, () => {
+app.use("/proxy", authenticateProxyAsset, restrictApiKeyScope, authorizeProxyRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);
@@ -378,34 +378,38 @@ app.get("/webhook-cards/:id.jpg", (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=600");
   return res.end(card.buffer);
 });
-app.use("/api", authenticate, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
+app.use("/api", authenticate, restrictApiKeyScope, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
-app.use("/sync", authenticate, requirePermission("settings"), syncRouter, () => {
+app.use("/sync", authenticate, restrictApiKeyScope, requirePermission("settings"), syncRouter, () => {
   /*  #swagger.tags = ['Sync']*/
 }); // mount the API router at /sync, with JWT middleware
-app.use("/stats", authenticate, statsRouter, () => {
+app.use("/stats", authenticate, restrictApiKeyScope, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
-app.use("/backup", authenticate, requirePermission("settings"), backupRouter, () => {
+app.use("/backup", authenticate, restrictApiKeyScope, requirePermission("settings"), backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
-app.use("/tautulli", authenticate, requirePermission("settings"), tautulliRouter, () => {
+app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
+  /*  #swagger.tags = ['Tautulli']*/
+  /*  #swagger.tags = ['Backup']*/
+}); // mount the API router at /backup, with JWT middleware
+app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
   /*  #swagger.tags = ['Tautulli']*/
 }); // mount the Tautulli import router with settings permission
-app.use("/jellystat", authenticate, requirePermission("settings"), jellystatRouter, () => {
+app.use("/jellystat", authenticate, restrictApiKeyScope, requirePermission("settings"), jellystatRouter, () => {
   /*  #swagger.tags = ['Jellystat']*/
 }); // mount the Jellystat import router with settings permission
-app.use("/logs", authenticate, requirePermission("settings"), logRouter, () => {
+app.use("/logs", authenticate, restrictApiKeyScope, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
-app.use("/utils", authenticate, requirePermission("settings"), utilsRouter, () => {
+app.use("/utils", authenticate, restrictApiKeyScope, requirePermission("settings"), utilsRouter, () => {
   /*  #swagger.tags = ['Utils']*/
 }); // mount the API router at /utils, with JWT middleware
-app.use("/webhooks", authenticate, requirePermission("settings"), webhooksRouter, () => {
+app.use("/webhooks", authenticate, restrictApiKeyScope, requirePermission("settings"), webhooksRouter, () => {
   /*  #swagger.tags = ['Webhooks']*/
 }); // mount the API router at /webhooks, with JWT middleware
-app.use("/newsletter", authenticate, requirePermission("settings"), newsletterRouter, () => {
+app.use("/newsletter", authenticate, restrictApiKeyScope, requirePermission("settings"), newsletterRouter, () => {
   /*  #swagger.tags = ['Newsletter']*/
 }); // mount the newsletter router with settings permission
 
@@ -457,7 +461,7 @@ app.use(
       .swagger-ui .topbar { display: none; }
       body { margin: 0; background: #0b1118; }
       .swagger-ui { background: transparent; }
-      .swagger-ui .info .title { color: #f8fafc; }
+      .swagger-ui .info .title { display: none; }
       .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #9aa7bb; }
       .swagger-ui .scheme-container { background: #121821; box-shadow: none; }
       .swagger-ui .opblock-tag { color: #f8fafc; border-color: rgba(255,255,255,0.08); }
@@ -496,6 +500,55 @@ writeEnvVariables().then(() => {
 });
 
 // JWT middleware
+const apiKeyTouchTimes = new Map();
+const API_KEY_TOUCH_MS = 2 * 60 * 1000;
+const WIDGET_API_PATHS = [
+  "/api/widgets",
+  "/api/ops-digest",
+  "/api/library-storage",
+  "/api/jellyfin/status",
+  "/api/item-glance",
+  "/api/downloads/stitched",
+];
+
+function requestPath(req) {
+  return String(req.originalUrl || req.url || "").split("?")[0].toLowerCase();
+}
+
+function isWidgetsOnlyPath(req) {
+  const full = requestPath(req);
+  return WIDGET_API_PATHS.some((prefix) => full === prefix || full.startsWith(`${prefix}/`));
+}
+
+function restrictApiKeyScope(req, res, next) {
+  if (!req.apiKeyScope || req.apiKeyScope === "full") {
+    next();
+    return;
+  }
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return res.status(403).json({ message: "This API key is widgets-only" });
+  }
+  if (!isWidgetsOnlyPath(req)) {
+    return res.status(403).json({ message: "This API key is widgets-only" });
+  }
+  next();
+}
+
+async function touchApiKeyLastUsed(apiKey) {
+  const now = Date.now();
+  if (now - (apiKeyTouchTimes.get(apiKey) || 0) < API_KEY_TOUCH_MS) return;
+  apiKeyTouchTimes.set(apiKey, now);
+  try {
+    const row = await dbInstance.query('SELECT api_keys FROM app_config where "ID"=1').then((result) => result.rows[0]);
+    const keys = Array.isArray(row?.api_keys) ? row.api_keys : [];
+    if (!keys.some((item) => item.key === apiKey)) return;
+    const next = keys.map((item) => (item.key === apiKey ? { ...item, lastUsed: new Date().toISOString() } : item));
+    await dbInstance.query('UPDATE app_config SET api_keys=$1 where "ID"=1', [JSON.stringify(next)]);
+  } catch (error) {
+    console.warn("[API-KEY] last-used update failed:", error.message);
+  }
+}
+
 async function authenticate(req, res, next) {
   const token = req.headers.authorization;
   const apiKey = req.headers["x-api-token"];
@@ -535,10 +588,12 @@ async function authenticate(req, res, next) {
       }
       const keys = keysjson || [];
 
-      const keyExists = keys.some((obj) => obj.key === apiKey);
+      const match = (keys || []).find((obj) => obj.key === apiKey);
 
-      if (keyExists) {
+      if (match) {
         req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
+        req.apiKeyScope = String(match.scope || "full").toLowerCase() === "widgets" ? "widgets" : "full";
+        touchApiKeyLastUsed(apiKey);
         next();
       } else {
         return res.status(403).json({ message: "Invalid API key" });

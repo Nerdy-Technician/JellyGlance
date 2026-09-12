@@ -1,92 +1,67 @@
-version: 1.2.9
-title: JellyGlance v1.2.9
+version: 1.2.10
+title: JellyGlance v1.2.10
 ---
 <div align="center">
 
 # JellyGlance
 
-### v1.2.9
+### v1.2.10
 
-![Version](https://img.shields.io/badge/version-1.2.9-6366f1?style=flat-square)
-![Fixes](https://img.shields.io/badge/fixes-6-22c55e?style=flat-square)
-![New](https://img.shields.io/badge/new%20features-22-f59e0b?style=flat-square)
+![Version](https://img.shields.io/badge/version-1.2.10-6366f1?style=flat-square)
+![Fixes](https://img.shields.io/badge/fixes-3-22c55e?style=flat-square)
+![New](https://img.shields.io/badge/new%20features-8-f59e0b?style=flat-square)
 
-**Finishing the stack you already show — queues, sessions, glance, ops, and themes.**
+**Dashboards poll Glance for real data — scoped keys, compact widgets, and a kit you can copy.**
 
 </div>
 
 <br>
 
-> **Note:** This release focuses on enhancing the core functionality and user experience across downloads, sessions, home, and themes.
-> **The big four this release:** every download client now has full queue control, sessions get a real command bar, Home shows live stream capacity, and themes sync to your account across devices.
+> **Note:** This release turns the token widget API into something Homarr and Homepage can actually display.
+> **The big four this release:** compact GET payloads, widgets-only keys by default, a copy/download kit in Settings and docs, and Swagger for the Widgets tag.
 
 <br>
 
-## ⬇️ Downloads
+## 🔑 API keys
 
 | | |
 |---|---|
-| **Full queue parity** | Transmission, Deluge, NZBGet, and rTorrent join qBittorrent/SABnzbd — add, pause, remove |
-| **"Why stalled?"** | No peers, client error, or stalled time — shown on the queue and Home ops |
-| **autobrr hits** | Filter matches now surface on the Downloads page |
-| **One-click retry** | Retry a failed webhook delivery from Health, or a failed Arr/Seerr grab from Item Glance, Requests, or Downloads |
+| **Widgets-only by default** | New keys may GET widget routes only. Full keys keep the previous `/api` behaviour |
+| **Existing keys stay full** | Older keys keep working until you change their scope |
+| **Last used** | Each key shows when it last authenticated |
 
-## ▶️ Sessions & Playback
+## 📡 Widget API
 
-| | |
-|---|---|
-| **Session command bar** | Stop playback, push a Jellyfin on-screen message, and see *why* a stream is transcoding |
-| **Repair Hub** | New playback-quality repair flow for clients stuck transcoding and titles that won't start |
-| **Item pages** | Watching-now chip, refresh item / scan libraries, and Open in Jellyfin |
+Compact JSON for Homarr, Homepage, and curl — sessions, now playing, catalog, storage, downloads, stalled items, calendar, requests, issues, Tdarr, Maintainerr, digest, Jellyfin jobs, newsletter, and more.
 
-## 🏠 Home & Glance
+`GET /api/widgets/homepage` is the all-in-one snapshot. Dedicated `/api/widgets/...` routes are better one tile at a time. Live Seerr stays on `/api/widgets/requests` and `/api/widgets/issues` only.
 
-| | |
-|---|---|
-| **Stream capacity widget** | Concurrent vs. cap, transcode vs. direct play, over-limit alerts — right on Home |
-| **Ops digest** | Live Jellyfin jobs, library storage size, Arr upcoming-size estimate |
-| **Item Glance / My Glance** | One view pulling Jellyfin + Seerr + Arr + downloads + Tdarr + Maintainerr; a lighter cut for viewers |
-| **Activity Timeline** | Now in the main nav — Calendar stays hidden until Sonarr, Radarr, or Lidarr is connected |
-| **Offline banner** | Persistent nav banner when Jellyfin's unreachable, with last-seen version |
+Send the key as header `x-api-token`. Do not put it in a public iframe URL.
 
-## 🔌 Integrations
-
-`Readarr` on the Arr calendar · `Homepage`/`Homarr` JSON widgets · `Unpackerr` + `Kometa` health pings · `Notifiarr` + `Recyclarr` health-only · `SickChill` stays connect/health only
-
-## 🔔 Notifications
-
-- **ntfy, Telegram, Pushover** join Discord and Gotify as webhook targets
-- **Quiet hours** for webhooks, with an optional morning playback digest
-- **Discord cards** wrap long titles on a tighter canvas instead of clipping
-
-## ⚙️ Settings
+## 🧩 Homarr & Homepage kit
 
 | | |
 |---|---|
-| **Jellyfin job schedules** | Set daily, weekly, interval, or startup times for Jellyfin library scans, metadata, and other scheduled jobs. The Jellyfin Jobs page shows those times and still lets you run a job now |
-| **Quick Connect** | Login starts the Jellyfin approval flow as soon as the page is ready |
+| **36 Homarr widgets** | Custom JSON you copy or download. After import, paste the Glance key as `x-api-token` — it is never stored in the file |
+| **Homepage YAML** | 35 `customapi` services (item glance is Homarr-only) |
+| **New tiles** | Now playing, repair, statistics, Seerr issues, newsletter, Jellyfin jobs |
 
-## 🎨 Themes & App
+## ⚙️ Settings & docs
 
-- **Searchable theme picker**, grouped palettes — preview freely, hit **Apply** to sync it to your account across devices
-- **Installable PWA** for phone and kiosk home screens
-
-## ☁️ Backup
-
-- **S3-compatible backup copy (SigV4)**, alongside WebDAV/HTTP
+| | |
+|---|---|
+| **Settings → API Key** | Grouped widget rows, filter, copy/download, last-used, and scope |
+| **Swagger** | Open `/swagger-ui`, authorize with **apiKey** (`x-api-token`), and use the **Widgets** tag. `/swagger` still lands you in Settings |
 
 <br>
 
 <details>
-<summary><b>🐛 Fixed</b> (6)</summary>
+<summary><b>🐛 Fixed</b> (3)</summary>
 <br>
 
-- Changing language no longer posts External URL and fails with *"Error Updating Configuration: undefined"*
-- Requests status filters no longer break the Vite build
-- Downloads no longer black-screens from a missing integrations import
-- Settings and navbar no longer crash on missing remixicon imports after the theme picker work
-- Users no longer drops Jellyfin server administrators from the activity list
-- Tdarr Active Transcodes no longer shows `[object Object]` for format, status, or reason
+- Tdarr Homarr tiles read Online / Offline / Down as a status string instead of a boolean
+- Failed Tdarr status fetches no longer render as an empty object
+- Maintainerr widgets handle nested collection items
 
 </details>
 
@@ -94,10 +69,10 @@ title: JellyGlance v1.2.9
 <summary><b>🔧 Changed</b> (4)</summary>
 <br>
 
-- Theme choice is preview-only in Settings and the account menu until Apply; Apply writes locally and syncs to the signed-in user
-- i18n catch-up for Requests, Repair Hub, My Glance, Command Center, newsletter, and newer ops copy
-- Discord playback and status images use a smaller wrapped card
-- Desktop pages no longer look zoomed or soft; type, spacing, and the sidebar stay sharp and a bit denser
+- New API keys default to widgets-only; existing keys remain full
+- Homepage snapshot no longer calls live Seerr
+- Settings no longer embeds Swagger in an iframe
+- Widget kit layout in Settings and docs uses grouped icon rows instead of large cards
 
 </details>
 
@@ -107,6 +82,6 @@ title: JellyGlance v1.2.9
 
 <div align="center">
 
-**Full Changelog**: [`v1.2.8...v1.2.9`](https://github.com/Nerdy-Technician/JellyGlance/compare/v1.2.8...v1.2.9)
+**Full Changelog**: [`v1.2.9...v1.2.10`](https://github.com/Nerdy-Technician/JellyGlance/compare/v1.2.9...v1.2.10)
 
 </div>

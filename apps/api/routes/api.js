@@ -5855,8 +5855,13 @@ router.post("/setUntrackedUsers", async (req, res) => {
 
 router.get("/keys", async (req, res) => {
   const config = await new configClass().getConfig();
-
-  res.send(config.api_keys || []);
+  res.send(
+    (config.api_keys || []).map((item) => ({
+      ...item,
+      scope: String(item.scope || "full").toLowerCase() === "widgets" ? "widgets" : "full",
+      lastUsed: item.lastUsed || null,
+    }))
+  );
 });
 
 router.delete("/keys", async (req, res) => {
@@ -5903,7 +5908,8 @@ router.post("/keys", async (req, res) => {
   let keys = config.api_keys || [];
 
   const uuid = randomUUID();
-  const new_key = { name: name, key: uuid };
+  const scope = String(req.body?.scope || "widgets").toLowerCase() === "full" ? "full" : "widgets";
+  const new_key = { name: name, key: uuid, scope, lastUsed: null };
 
   keys.push(new_key);
 
@@ -5911,6 +5917,26 @@ router.post("/keys", async (req, res) => {
 
   await db.query(query, [JSON.stringify(keys)]);
   res.send(keys);
+});
+
+router.patch("/keys", async (req, res) => {
+  const { key, scope } = req.body || {};
+  if (!key) {
+    res.status(400);
+    res.send({ error: "No API key provided" });
+    return;
+  }
+  const nextScope = String(scope || "").toLowerCase() === "full" ? "full" : "widgets";
+  const config = await new configClass().getConfig();
+  const keys = config.api_keys || [];
+  if (!keys.some((obj) => obj.key === key)) {
+    res.status(404);
+    res.send({ error: "API key does not exist" });
+    return;
+  }
+  const next = keys.map((obj) => (obj.key === key ? { ...obj, scope: nextScope } : obj));
+  await db.query('UPDATE app_config SET api_keys=$1 where "ID"=1', [JSON.stringify(next)]);
+  res.send(next);
 });
 
 router.get("/getTaskSettings", async (req, res) => {

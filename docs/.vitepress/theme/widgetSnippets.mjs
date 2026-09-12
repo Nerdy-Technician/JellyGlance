@@ -191,6 +191,32 @@ export const WIDGET_PACK = [
     },
   },
   {
+    id: "nowplaying",
+    group: "Playback",
+    tone: "green",
+    title: "Now playing",
+    detail: "Live Jellyfin sessions watching right now.",
+    filename: "jellyglance-homarr-nowplaying.json",
+    path: "/api/widgets/nowplaying",
+    summary: "Live Jellyfin sessions playing right now",
+    name: "JellyGlance now playing",
+    description: "Who is watching on Jellyfin right now.",
+    jsx: jsxFrame(
+      "Now playing",
+      "{data.playing} live",
+      jsxBadge('data.playing ? "teal" : "violet"', '{data.playing ? String(data.playing) + " live" : "Idle"}'),
+      `${jsxStats([
+        { label: "Live", field: "playing", color: "green" },
+        { label: "Transcoding", field: "transcoding", color: "orange" },
+      ])}\n  ${jsxRows("title", "viewer")}`
+    ),
+    homepage: {
+      service: "JellyGlance Now Playing",
+      description: "Live Jellyfin sessions",
+      mappings: [mapNum("playing", "Live", "transcoding", "adaptive")],
+    },
+  },
+  {
     id: "viewers",
     group: "Playback",
     tone: "orange",
@@ -279,6 +305,32 @@ export const WIDGET_PACK = [
     },
   },
   {
+    id: "statistics",
+    group: "Playback",
+    tone: "violet",
+    title: "Statistics",
+    detail: "Top titles and users from the last seven days.",
+    filename: "jellyglance-homarr-statistics.json",
+    path: "/api/widgets/statistics",
+    summary: "Top titles and users this week",
+    name: "JellyGlance statistics",
+    description: "Most watched titles and users this week.",
+    jsx: jsxFrame(
+      "This week",
+      "{data.topTitle}",
+      "",
+      `${jsxStats([
+        { label: "Top title", field: "topTitle", color: "violet" },
+        { label: "Top user", field: "topUser", color: "blue" },
+      ])}\n  ${jsxRows("title", "viewers")}`
+    ),
+    homepage: {
+      service: "JellyGlance Stats",
+      description: "Top title and user this week",
+      mappings: [mapText("topTitle", "Title"), mapText("topUser", "User")],
+    },
+  },
+  {
     id: "libraries",
     group: "Library",
     tone: "teal",
@@ -316,6 +368,34 @@ export const WIDGET_PACK = [
       service: "JellyGlance Libraries",
       description: "Library sizes",
       mappings: [mapText("totalLabel", "Used", "upcomingCount"), mapText("upcomingEstimate", "Incoming")],
+    },
+  },
+  {
+    id: "repair",
+    group: "Library",
+    tone: "orange",
+    title: "Repair",
+    detail: "Missing posters, runtime, unmatched imports, and orphans.",
+    filename: "jellyglance-homarr-repair.json",
+    path: "/api/widgets/repair",
+    summary: "Missing posters, runtime, and unmatched imports",
+    name: "JellyGlance repair",
+    description: "Library metadata gaps from the Repair hub.",
+    jsx: jsxFrame(
+      "Repair",
+      "{data.issues} gaps",
+      jsxBadge('data.ok ? "teal" : "orange"', '{data.ok ? "Clear" : String(data.issues) + " gaps"}'),
+      jsxStats([
+        { label: "Posters", field: "posters", color: "orange" },
+        { label: "Runtime", field: "runtime", color: "red" },
+        { label: "Unmatched", field: "unmatched", color: "violet" },
+        { label: "Logos", field: "logos", color: "blue" },
+      ])
+    ),
+    homepage: {
+      service: "JellyGlance Repair",
+      description: "Metadata gaps",
+      mappings: [mapNum("issues", "Gaps", "posters", "adaptive"), mapNum("runtime", "Runtime", "unmatched")],
     },
   },
   {
@@ -521,6 +601,32 @@ export const WIDGET_PACK = [
     },
   },
   {
+    id: "issues",
+    group: "Calendar",
+    tone: "red",
+    title: "Issues",
+    detail: "Open Jellyseerr and Overseerr media issues.",
+    filename: "jellyglance-homarr-issues.json",
+    path: "/api/widgets/issues",
+    summary: "Seerr issue counts by status",
+    name: "JellyGlance issues",
+    description: "Open Seerr issues from JellyGlance.",
+    jsx: jsxFrame(
+      "Issues",
+      "{data.open} open",
+      jsxBadge('data.ok ? "teal" : "red"', '{data.ok ? "Clear" : String(data.open) + " open"}'),
+      `${jsxStats([
+        { label: "Open", field: "open", color: "red" },
+        { label: "Resolved", field: "resolved", color: "teal" },
+      ])}\n  ${jsxRows("title", "type")}`
+    ),
+    homepage: {
+      service: "JellyGlance Issues",
+      description: "Seerr issues",
+      mappings: [mapNum("open", "Open", "resolved", "adaptive"), mapNum("total", "Total")],
+    },
+  },
+  {
     id: "invites",
     group: "Calendar",
     tone: "orange",
@@ -569,24 +675,27 @@ export const WIDGET_PACK = [
     group: "Integrations",
     tone: "green",
     title: "Transcodes",
-    detail: "Tdarr connection and last health check.",
+    detail: "Live Tdarr active workers, queue, and errors.",
     filename: "jellyglance-homarr-transcodes.json",
     path: "/api/widgets/transcodes",
-    summary: "Tdarr connection and last health check",
+    summary: "Tdarr active, queued, and error counts",
     name: "JellyGlance transcodes",
-    description: "Tdarr reachability from Glance health history.",
+    description: "Tdarr queue and active workers from Glance.",
     jsx: jsxFrame(
       "Tdarr",
       "{data.name}",
       jsxBadge('data.ok ? "teal" : "red"', '{data.ok ? "Online" : "Down"}'),
-      `<Card withBorder radius="md" p="sm">
-    <Text size="sm">{data.message}</Text>
-  </Card>`
+      `${jsxStats([
+        { label: "Active", field: "active", color: "green" },
+        { label: "Queued", field: "queued", color: "blue" },
+        { label: "Errors", field: "errored", color: "red" },
+        { label: "Status", field: "status", color: "teal" },
+      ])}\n  ${jsxRows("name", "node")}`
     ),
     homepage: {
       service: "JellyGlance Tdarr",
-      description: "Tdarr health",
-      mappings: [remapClear("ok", "Tdarr", null), mapText("name", "Name")],
+      description: "Tdarr queue",
+      mappings: [mapNum("active", "Active", "queued"), mapNum("errored", "Errors")],
     },
   },
   {
@@ -594,24 +703,25 @@ export const WIDGET_PACK = [
     group: "Integrations",
     tone: "red",
     title: "Maintainerr",
-    detail: "Maintainerr connection and last health check.",
+    detail: "Titles marked for cleanup and reclaimable space.",
     filename: "jellyglance-homarr-maintainerr.json",
     path: "/api/widgets/maintainerr",
-    summary: "Maintainerr connection and last health check",
+    summary: "Maintainerr cleanup counts and reclaimable size",
     name: "JellyGlance Maintainerr",
-    description: "Maintainerr reachability from Glance health history.",
+    description: "Maintainerr scheduled cleanups from Glance.",
     jsx: jsxFrame(
       "Maintainerr",
-      "{data.name}",
+      "{data.reclaimable} reclaimable",
       jsxBadge('data.ok ? "teal" : "red"', '{data.ok ? "Online" : "Down"}'),
-      `<Card withBorder radius="md" p="sm">
-    <Text size="sm">{data.message}</Text>
-  </Card>`
+      `${jsxStats([
+        { label: "Scheduled", field: "scheduled", color: "red" },
+        { label: "Collections", field: "collections", color: "violet" },
+      ])}\n  ${jsxRows("title", "status")}`
     ),
     homepage: {
       service: "JellyGlance Maintainerr",
-      description: "Maintainerr health",
-      mappings: [remapClear("ok", "Maintainerr", null), mapText("name", "Name")],
+      description: "Cleanup queue",
+      mappings: [mapNum("scheduled", "Scheduled", "collections"), mapText("reclaimable", "Reclaimable")],
     },
   },
   {
@@ -808,6 +918,60 @@ export const WIDGET_PACK = [
       mappings: [mapNum("jobs", "Tasks", "failed", "adaptive"), remapClear("ok", "Jobs", null)],
     },
   },
+  {
+    id: "jellyfin-jobs",
+    group: "Ops",
+    tone: "blue",
+    title: "Jellyfin jobs",
+    detail: "Live Jellyfin scheduled tasks, not Glance logs.",
+    filename: "jellyglance-homarr-jellyfin-jobs.json",
+    path: "/api/widgets/jellyfin-jobs",
+    summary: "Live Jellyfin scheduled tasks",
+    name: "JellyGlance Jellyfin jobs",
+    description: "Jellyfin scheduled task state.",
+    jsx: jsxFrame(
+      "Jellyfin jobs",
+      "{data.running} running",
+      jsxBadge('data.ok ? "teal" : "red"', '{data.ok ? "Clear" : String(data.failed) + " failed"}'),
+      `${jsxStats([
+        { label: "Running", field: "running", color: "blue" },
+        { label: "Failed", field: "failed", color: "red" },
+      ])}\n  ${jsxRows("name", "state")}`
+    ),
+    homepage: {
+      service: "JellyGlance Jellyfin Jobs",
+      description: "Jellyfin scheduled tasks",
+      mappings: [mapNum("running", "Running", "failed", "adaptive"), mapNum("jobs", "Tasks")],
+    },
+  },
+  {
+    id: "newsletter",
+    group: "Ops",
+    tone: "teal",
+    title: "Newsletter",
+    detail: "Last digest send and the next scheduled campaign.",
+    filename: "jellyglance-homarr-newsletter.json",
+    path: "/api/widgets/newsletter",
+    summary: "Last newsletter send and next digest",
+    name: "JellyGlance newsletter",
+    description: "Newsletter last send and next digest.",
+    jsx: jsxFrame(
+      "Newsletter",
+      "{data.nextName}",
+      jsxBadge('data.lastOk ? "teal" : "red"', '{data.lastOk ? "Sent" : "Failed"}'),
+      jsxStats([
+        { label: "Last", field: "lastAt", color: "teal", span: 12 },
+        { label: "Next", field: "nextAt", color: "blue", span: 12 },
+        { label: "Campaigns", field: "campaigns", color: "violet" },
+        { label: "Frequency", field: "frequency", color: "orange" },
+      ])
+    ),
+    homepage: {
+      service: "JellyGlance Newsletter",
+      description: "Digest schedule",
+      mappings: [mapText("lastAt", "Last send"), mapText("nextAt", "Next"), mapText("frequency", "Frequency")],
+    },
+  },
 ];
 
 const EXTRA_ENDPOINTS = [
@@ -967,7 +1131,7 @@ export function widgetExportFiles(host, key) {
       tone: "blue",
       kind: "YAML",
       title: "Homepage YAML",
-      detail: "Thirty customapi services. Replace YOUR_JELLYGLANCE_API_KEY with a Settings key.",
+      detail: `${WIDGET_PACK.filter((widget) => widget.id !== "item").length} customapi services. Replace YOUR_JELLYGLANCE_API_KEY with a Settings key.`,
       filename: "jellyglance-homepage.yaml",
       mime: "text/yaml",
       wide: true,

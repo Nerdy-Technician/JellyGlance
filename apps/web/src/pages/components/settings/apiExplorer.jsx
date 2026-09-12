@@ -4,6 +4,7 @@ import { Button, Form, Spinner } from "react-bootstrap";
 import PlayLineIcon from "remixicon-react/PlayLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import { TOKEN_API_ENDPOINTS } from "../../../lib/widgetSnippets";
+import { widgetPathIcon } from "./widgetKitIcons";
 import "../../css/settings/apiKeys.css";
 import "../../css/swagger.css";
 
@@ -92,10 +93,9 @@ export default function ApiExplorer({ onMessage, autoLoad = false }) {
     <section className="api-explorer">
       <div className="api-key-widgets-header">
         <div>
-          <p className="api-keys-eyebrow">Live API</p>
-          <h2>Try endpoints</h2>
+          <h2>Try a route</h2>
           <p>
-            Calls use your signed-in session. Dashboards should send <code>x-api-token</code> instead. Current path: <code>{resolvedPath}</code>
+            Uses your signed-in session. Dashboards should send <code>x-api-token</code> instead.
           </p>
         </div>
         <Button variant="outline-primary" onClick={() => runRequest()} disabled={loading || (itemRequired && !itemId.trim())}>
@@ -108,6 +108,7 @@ export default function ApiExplorer({ onMessage, autoLoad = false }) {
         <ul className="api-explorer-list">
           {endpoints.map((item) => {
             const active = item.path === selected?.path;
+            const PathIcon = widgetPathIcon(item.path);
             return (
               <li key={item.path}>
                 <button
@@ -121,11 +122,16 @@ export default function ApiExplorer({ onMessage, autoLoad = false }) {
                     }
                   }}
                 >
-                  <strong>
-                    <em>GET</em>
-                    {item.path}
-                  </strong>
-                  <span>{item.summary}</span>
+                  <span className="api-explorer-item-icon">
+                    <PathIcon size={15} />
+                  </span>
+                  <span className="api-explorer-item-copy">
+                    <strong>
+                      <em>GET</em>
+                      {item.path}
+                    </strong>
+                    <span>{item.summary}</span>
+                  </span>
                 </button>
               </li>
             );

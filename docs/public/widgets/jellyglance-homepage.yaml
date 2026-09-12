@@ -138,6 +138,26 @@
             format: number
             color: theme
 
+- JellyGlance Now Playing:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Live Jellyfin sessions
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/nowplaying
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: playing
+          label: Live
+          format: number
+          additionalField:
+            field: transcoding
+            format: number
+            color: adaptive
+
 - JellyGlance Viewers:
     icon: https://jellyglance.com/project-logo.png
     href: http://jellyglance:3000
@@ -223,6 +243,25 @@
           label: All time
           format: number
 
+- JellyGlance Stats:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Top title and user this week
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/statistics
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: topTitle
+          label: Title
+          format: text
+        - field: topUser
+          label: User
+          format: text
+
 - JellyGlance Libraries:
     icon: https://jellyglance.com/project-logo.png
     href: http://jellyglance:3000
@@ -245,6 +284,33 @@
         - field: upcomingEstimate
           label: Incoming
           format: text
+
+- JellyGlance Repair:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Metadata gaps
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/repair
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: issues
+          label: Gaps
+          format: number
+          additionalField:
+            field: posters
+            format: number
+            color: adaptive
+        - field: runtime
+          label: Runtime
+          format: number
+          additionalField:
+            field: unmatched
+            format: number
+            color: theme
 
 - JellyGlance Recent:
     icon: https://jellyglance.com/project-logo.png
@@ -410,6 +476,29 @@
             format: number
             color: theme
 
+- JellyGlance Issues:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Seerr issues
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/issues
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: open
+          label: Open
+          format: number
+          additionalField:
+            field: resolved
+            format: number
+            color: adaptive
+        - field: total
+          label: Total
+          format: number
+
 - JellyGlance Invites:
     icon: https://jellyglance.com/project-logo.png
     href: http://jellyglance:3000
@@ -449,7 +538,7 @@
 - JellyGlance Tdarr:
     icon: https://jellyglance.com/project-logo.png
     href: http://jellyglance:3000
-    description: Tdarr health
+    description: Tdarr queue
     widget:
       type: customapi
       url: http://jellyglance:3000/api/widgets/transcodes
@@ -458,22 +547,21 @@
       headers:
         x-api-token: YOUR_JELLYGLANCE_API_KEY
       mappings:
-        - field: ok
-          label: Tdarr
-          format: text
-          remap:
-            - value: true
-              to: Clear
-            - any: true
-              to: Check Glance
-        - field: name
-          label: Name
-          format: text
+        - field: active
+          label: Active
+          format: number
+          additionalField:
+            field: queued
+            format: number
+            color: theme
+        - field: errored
+          label: Errors
+          format: number
 
 - JellyGlance Maintainerr:
     icon: https://jellyglance.com/project-logo.png
     href: http://jellyglance:3000
-    description: Maintainerr health
+    description: Cleanup queue
     widget:
       type: customapi
       url: http://jellyglance:3000/api/widgets/maintainerr
@@ -482,16 +570,15 @@
       headers:
         x-api-token: YOUR_JELLYGLANCE_API_KEY
       mappings:
-        - field: ok
-          label: Maintainerr
-          format: text
-          remap:
-            - value: true
-              to: Clear
-            - any: true
-              to: Check Glance
-        - field: name
-          label: Name
+        - field: scheduled
+          label: Scheduled
+          format: number
+          additionalField:
+            field: collections
+            format: number
+            color: theme
+        - field: reclaimable
+          label: Reclaimable
           format: text
 
 - JellyGlance Automation:
@@ -701,3 +788,48 @@
               to: Clear
             - any: true
               to: Check Glance
+
+- JellyGlance Jellyfin Jobs:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Jellyfin scheduled tasks
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/jellyfin-jobs
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: running
+          label: Running
+          format: number
+          additionalField:
+            field: failed
+            format: number
+            color: adaptive
+        - field: jobs
+          label: Tasks
+          format: number
+
+- JellyGlance Newsletter:
+    icon: https://jellyglance.com/project-logo.png
+    href: http://jellyglance:3000
+    description: Digest schedule
+    widget:
+      type: customapi
+      url: http://jellyglance:3000/api/widgets/newsletter
+      refreshInterval: 60000
+      display: list
+      headers:
+        x-api-token: YOUR_JELLYGLANCE_API_KEY
+      mappings:
+        - field: lastAt
+          label: Last send
+          format: text
+        - field: nextAt
+          label: Next
+          format: text
+        - field: frequency
+          label: Frequency
+          format: text

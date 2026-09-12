@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance Jellyfin jobs",
+  "description": "Jellyfin scheduled task state.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/jellyfin-jobs",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Jellyfin jobs</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.running} running</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color={data.ok ? \"teal\" : \"red\"}>{data.ok ? \"Clear\" : String(data.failed) + \" failed\"}</Badge>\n  </Group>\n  <Grid gutter=\"xs\">\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"blue\">Running</Text><Text fw={800} size=\"lg\">{data.running}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"red\">Failed</Text><Text fw={800} size=\"lg\">{data.failed}</Text></Card></Grid.Col>\n  </Grid>\n  <Stack gap=\"xs\">\n    {data.items.map((row) =>\n      <Card withBorder radius=\"md\" p=\"xs\">\n        <Group justify=\"space-between\">\n          <Text size=\"sm\">{row.name}</Text>\n          <Text size=\"xs\" c=\"dimmed\">{row.state}</Text>\n        </Group>\n      </Card>\n    )}\n  </Stack>\n</Stack>"
+  }
+}

@@ -1,13 +1,15 @@
 ---
 title: Homepage widgets
-description: Thirty API key widgets for Homepage and Homarr, including JSON you can import.
+description: Token-auth Homarr JSON and Homepage YAML widgets for JellyGlance.
 ---
 
 # Homepage and Homarr widgets
 
 JellyGlance stays the command center. Homepage and Homarr poll compact JSON instead of scraping the UI.
 
-Create a key in **Settings → API Key**. The same page can copy or download thirty Homarr widgets, a Homepage YAML pack, and a curl command. Homarr never puts the key in the export — paste it after import as header `x-api-token`.
+Create a key in **Settings → API Key**. The same page (and the list below) can copy or download Homarr widgets, a Homepage YAML pack, and a curl command. Homarr never puts the key in the export — paste it after import as header `x-api-token`.
+
+New keys default to **widgets-only**: they may GET compact widget routes. Full keys keep the previous `/api` behaviour. Existing keys stay full until you change them. The same page shows last-used time for each key.
 
 Interactive docs live in the Glance app at **Settings → API Key**. Try widget routes with your session, or authorize Swagger with **apiKey** (`x-api-token`) and open the **Widgets** tag. The standalone spec UI is also at `/swagger-ui`. `/swagger` redirects there.
 
@@ -94,12 +96,15 @@ The JSON uses Homarr **Custom JSX** so each widget has a Glance header, colored 
 | Catalog | [jellyglance-homarr-catalog.json](/widgets/jellyglance-homarr-catalog.json) | `/api/widgets/catalog` |
 | Storage | [jellyglance-homarr-storage.json](/widgets/jellyglance-homarr-storage.json) | `/api/widgets/storage` |
 | Sessions | [jellyglance-homarr-sessions.json](/widgets/jellyglance-homarr-sessions.json) | `/api/widgets/sessions` |
+| Now playing | [jellyglance-homarr-nowplaying.json](/widgets/jellyglance-homarr-nowplaying.json) | `/api/widgets/nowplaying` |
 | Viewers | [jellyglance-homarr-viewers.json](/widgets/jellyglance-homarr-viewers.json) | `/api/widgets/viewers` |
 | Users | [jellyglance-homarr-users.json](/widgets/jellyglance-homarr-users.json) | `/api/widgets/users` |
 | Activity | [jellyglance-homarr-activity.json](/widgets/jellyglance-homarr-activity.json) | `/api/widgets/activity` |
 | Watch time | [jellyglance-homarr-watch.json](/widgets/jellyglance-homarr-watch.json) | `/api/widgets/watch` |
+| Statistics | [jellyglance-homarr-statistics.json](/widgets/jellyglance-homarr-statistics.json) | `/api/widgets/statistics` |
 | Libraries | [jellyglance-homarr-libraries.json](/widgets/jellyglance-homarr-libraries.json) | `/api/widgets/libraries` |
 | Recently added | [jellyglance-homarr-recent.json](/widgets/jellyglance-homarr-recent.json) | `/api/widgets/recent` |
+| Repair | [jellyglance-homarr-repair.json](/widgets/jellyglance-homarr-repair.json) | `/api/widgets/repair` |
 | Item glance | [jellyglance-homarr-item.json](/widgets/jellyglance-homarr-item.json) | `/api/item-glance/ITEM_ID` |
 | Downloads | [jellyglance-homarr-downloads.json](/widgets/jellyglance-homarr-downloads.json) | `/api/widgets/downloads` |
 | Stalled | [jellyglance-homarr-stalled.json](/widgets/jellyglance-homarr-stalled.json) | `/api/widgets/stalled` |
@@ -108,6 +113,7 @@ The JSON uses Homarr **Custom JSX** so each widget has a Glance header, colored 
 | Calendar | [jellyglance-homarr-calendar.json](/widgets/jellyglance-homarr-calendar.json) | `/api/widgets/calendar` |
 | Releases today | [jellyglance-homarr-today.json](/widgets/jellyglance-homarr-today.json) | `/api/widgets/today` |
 | Requests | [jellyglance-homarr-requests.json](/widgets/jellyglance-homarr-requests.json) | `/api/widgets/requests` |
+| Issues | [jellyglance-homarr-issues.json](/widgets/jellyglance-homarr-issues.json) | `/api/widgets/issues` |
 | Invites | [jellyglance-homarr-invites.json](/widgets/jellyglance-homarr-invites.json) | `/api/widgets/invites` |
 | autobrr | [jellyglance-homarr-autobrr.json](/widgets/jellyglance-homarr-autobrr.json) | `/api/widgets/autobrr` |
 | Transcodes | [jellyglance-homarr-transcodes.json](/widgets/jellyglance-homarr-transcodes.json) | `/api/widgets/transcodes` |
@@ -120,10 +126,12 @@ The JSON uses Homarr **Custom JSX** so each widget has a Glance header, colored 
 | Backup | [jellyglance-homarr-backup.json](/widgets/jellyglance-homarr-backup.json) | `/api/widgets/backup` |
 | Webhooks | [jellyglance-homarr-webhooks.json](/widgets/jellyglance-homarr-webhooks.json) | `/api/widgets/webhooks` |
 | Jobs | [jellyglance-homarr-jobs.json](/widgets/jellyglance-homarr-jobs.json) | `/api/widgets/jobs` |
+| Jellyfin jobs | [jellyglance-homarr-jellyfin-jobs.json](/widgets/jellyglance-homarr-jellyfin-jobs.json) | `/api/widgets/jellyfin-jobs` |
+| Newsletter | [jellyglance-homarr-newsletter.json](/widgets/jellyglance-homarr-newsletter.json) | `/api/widgets/newsletter` |
 
 After importing **Item glance**, replace `ITEM_ID` in the widget URL with a Jellyfin item id.
 
-Disconnected integrations return zeros or empty lists. `GET /api/widgets/requests` is the only compact widget that calls Seerr live. The homepage snapshot does not.
+Disconnected integrations return zeros or empty lists. `GET /api/widgets/requests` and `GET /api/widgets/issues` call Seerr live. The homepage snapshot does not.
 
 ## Homepage
 
@@ -185,22 +193,26 @@ The same `x-api-token` header works on the rest of `/api`. Compact widget source
 | `GET /api/widgets/catalog` | `{ movies, shows, episodes, libraries, addedWeek }` |
 | `GET /api/widgets/storage` | `{ totalLabel, upcomingCount, upcomingEstimate }` |
 | `GET /api/widgets/sessions` | `{ recent, today, last24h, viewersToday, users }` |
+| `GET /api/widgets/nowplaying` | Live Jellyfin sessions watching right now |
 | `GET /api/widgets/viewers` | `{ viewersToday, users, today }` |
 | `GET /api/widgets/users` | `{ users, admins, activeToday, items[] }` |
 | `GET /api/widgets/activity` | Latest playback rows |
 | `GET /api/widgets/watch` | `{ hoursToday, hoursWeek, hoursAll }` |
+| `GET /api/widgets/statistics` | Top titles and users this week |
 | `GET /api/widgets/recent` | Newest library titles |
 | `GET /api/widgets/libraries` | `{ totalLabel, libraries[] }` |
+| `GET /api/widgets/repair` | Missing posters, logos, runtime, unmatched imports |
 | `GET /api/widgets/downloads` | `{ active, stalled, total, items[] }` |
 | `GET /api/widgets/stalled` | Stalled queue items |
 | `GET /api/widgets/stitched` | Cached queue with client names |
 | `GET /api/widgets/calendar` | `{ upcoming, today, estimate, items[] }` |
 | `GET /api/widgets/today` | Arr releases due today |
 | `GET /api/widgets/requests` | Seerr `{ pending, approved, available, items[] }` |
+| `GET /api/widgets/issues` | Seerr `{ open, resolved, total, items[] }` |
 | `GET /api/widgets/invites` | Cached Wizarr links |
 | `GET /api/widgets/autobrr` | Cached autobrr hits |
-| `GET /api/widgets/transcodes` | Tdarr connection and last health check |
-| `GET /api/widgets/maintainerr` | Maintainerr connection and last health check |
+| `GET /api/widgets/transcodes` | Tdarr active workers, queue, and errors |
+| `GET /api/widgets/maintainerr` | Maintainerr cleanup counts and reclaimable size |
 | `GET /api/widgets/automation` | Latest integration health results |
 | `GET /api/widgets/devices` | Known Jellyfin clients |
 | `GET /api/widgets/health` | Digest plus a live Jellyfin ping |
@@ -208,6 +220,8 @@ The same `x-api-token` header works on the rest of `/api`. Compact widget source
 | `GET /api/widgets/backup` | Last backup hint |
 | `GET /api/widgets/webhooks` | Recent webhook deliveries |
 | `GET /api/widgets/jobs` | Latest Glance task runs |
+| `GET /api/widgets/jellyfin-jobs` | Live Jellyfin scheduled tasks |
+| `GET /api/widgets/newsletter` | Last newsletter send and next digest |
 | `GET /api/ops-digest` | `{ ok, count, items[] }` |
 | `GET /api/library-storage` | Per-library bytes plus `totalLabel` |
 | `GET /api/downloads/stitched` | Queue items matched to Seerr requests |

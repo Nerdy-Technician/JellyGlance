@@ -5,7 +5,7 @@ const outputFile = "./swagger.json";
 const endpointsFiles = ["./server.js", "./routes/command-center.js"];
 const config = {
   info: {
-    title: "JellyGlance API Documentation",
+    title: "JellyGlance API",
     description: "JellyGlance REST API. Widget and most /api routes accept a Glance API key as x-api-token, or a session Bearer token.",
   },
   tags: [
@@ -94,6 +94,11 @@ const modifySwaggerFile = (filePath) => {
   });
 
   const extra = JSON.parse(fs.readFileSync("./swagger-widgets-paths.json", "utf8"));
+  for (const key of Object.keys(swaggerData.paths)) {
+    if (key.includes("${") || key.includes("`")) {
+      delete swaggerData.paths[key];
+    }
+  }
   Object.assign(swaggerData.paths, extra);
   if (!swaggerData.tags.some((tag) => tag.name === "Widgets")) {
     swaggerData.tags.splice(1, 0, {

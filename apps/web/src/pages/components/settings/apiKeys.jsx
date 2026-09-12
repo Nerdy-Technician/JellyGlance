@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "../../../lib/axios_instance";
 import { Alert, Button, Form, Spinner } from "react-bootstrap";
+import { useTranslation } from "react-i18next";
 import AddLineIcon from "remixicon-react/AddLineIcon";
 import ClipboardLineIcon from "remixicon-react/ClipboardLineIcon";
 import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
@@ -11,6 +12,13 @@ import ApiKeyWidgets from "./apiKeyWidgets";
 
 const token = localStorage.getItem("token");
 
+function authHeaders() {
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+}
+
 function maskKey(key = "") {
   if (key.length <= 12) {
     return key;
@@ -19,9 +27,18 @@ function maskKey(key = "") {
   return `${key.slice(0, 8)} ... ${key.slice(-6)}`;
 }
 
+function formatLastUsed(value, neverLabel) {
+  if (!value) return neverLabel;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return neverLabel;
+  return date.toLocaleString();
+}
+
 export default function ApiKeys() {
+  const { t } = useTranslation();
   const [keys, setKeys] = useState([]);
   const [name, setName] = useState("");
+  const [scope, setScope] = useState("widgets");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -30,15 +47,10 @@ export default function ApiKeys() {
 
   async function fetchKeys() {
     try {
-      const response = await axios.get("/api/keys", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.get("/api/keys", { headers: authHeaders() });
       setKeys(response.data || []);
     } catch (error) {
-      setMessage({ variant: "danger", text: error.response?.data?.error || "Unable to load API keys." });
+      setMessage({ variant: "danger", text: error.response?.data?.error || t("SETTINGS_PAGE.API_KEY_LOAD_ERROR") });
     } finally {
       setLoading(false);
     }
@@ -51,54 +63,52 @@ export default function ApiKeys() {
   async function addKey(event) {
     event.preventDefault();
     if (!name.trim()) {
-      setMessage({ variant: "danger", text: "Add a name before generating a key." });
+      setMessage({ variant: "danger", text: t("SETTINGS_PAGE.API_KEY_NAME_REQUIRED") });
       return;
     }
 
     try {
       setSaving(true);
-      const response = await axios.post(
-        "/api/keys",
-        { name: name.trim() },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await axios.post("/api/keys", { name: name.trim(), scope }, { headers: authHeaders() });
       setKeys(response.data || []);
       setName("");
-      setMessage({ variant: "success", text: "API key created." });
+      setMessage({ variant: "success", text: t("SETTINGS_PAGE.API_KEY_CREATED") });
     } catch (error) {
-      setMessage({ variant: "danger", text: error.response?.data?.error || "Unable to create API key." });
+      setMessage({ variant: "danger", text: error.response?.data?.error || t("SETTINGS_PAGE.API_KEY_CREATE_ERROR") });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function changeScope(keyValue, nextScope) {
+    try {
+      const response = await axios.patch("/api/keys", { key: keyValue, scope: nextScope }, { headers: authHeaders() });
+      setKeys(response.data || []);
+      setMessage({ variant: "success", text: t("SETTINGS_PAGE.API_KEY_SCOPE_SAVED") });
+    } catch (error) {
+      setMessage({ variant: "danger", text: error.response?.data?.error || t("SETTINGS_PAGE.API_KEY_SCOPE_ERROR") });
     }
   }
 
   async function deleteKey(keyValue) {
     try {
       await axios.delete("/api/keys", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders(),
         data: { key: keyValue },
       });
       setKeys((currentKeys) => currentKeys.filter((key) => key.key !== keyValue));
-      setMessage({ variant: "success", text: "API key deleted." });
+      setMessage({ variant: "success", text: t("SETTINGS_PAGE.API_KEY_DELETED") });
     } catch (error) {
-      setMessage({ variant: "danger", text: error.response?.data?.error || "Unable to delete API key." });
+      setMessage({ variant: "danger", text: error.response?.data?.error || t("SETTINGS_PAGE.API_KEY_DELETE_ERROR") });
     }
   }
 
   async function copyKey(keyValue) {
     try {
       await navigator.clipboard.writeText(keyValue);
-      setMessage({ variant: "success", text: "API key copied to clipboard." });
+      setMessage({ variant: "success", text: t("SETTINGS_PAGE.API_KEY_COPIED") });
     } catch {
-      setMessage({ variant: "danger", text: "Clipboard access failed." });
+      setMessage({ variant: "danger", text: t("SETTINGS_PAGE.API_KEY_COPY_ERROR") });
     }
   }
 
@@ -114,14 +124,10 @@ export default function ApiKeys() {
     <div className="api-keys-page">
       <div className="api-keys-header">
         <div>
-          <p className="api-keys-eyebrow">Access tokens</p>
-          <h1>API Keys</h1>
-          <p>Create tokens, then download Homarr JSON or Homepage YAML for dashboards.</p>
+          <h1>{t("SETTINGS_PAGE.API_KEYS")}</h1>
+          <p>{t("SETTINGS_PAGE.API_KEY_INTRO")}</p>
         </div>
-        <div className="api-keys-count">
-          <Key2LineIcon size={22} />
-          <span>{keys.length}</span>
-        </div>
+        <span className="api-keys-count">{t("SETTINGS_PAGE.API_KEY_COUNT", { count: keys.length })}</span>
       </div>
 
       {message && (
@@ -132,14 +138,22 @@ export default function ApiKeys() {
 
       <Form className="api-key-create" onSubmit={addKey}>
         <div>
-          <Form.Label>Key name</Form.Label>
-          <Form.Control value={name} onChange={(event) => setName(event.target.value)} placeholder="Automation, Grafana, Home Assistant..." />
+          <Form.Label>{t("SETTINGS_PAGE.API_KEY_NAME")}</Form.Label>
+          <Form.Control value={name} onChange={(event) => setName(event.target.value)} placeholder={t("SETTINGS_PAGE.API_KEY_NAME_PLACEHOLDER")} />
+        </div>
+        <div>
+          <Form.Label>{t("SETTINGS_PAGE.API_KEY_SCOPE")}</Form.Label>
+          <Form.Select value={scope} onChange={(event) => setScope(event.target.value)}>
+            <option value="widgets">{t("SETTINGS_PAGE.API_KEY_SCOPE_WIDGETS")}</option>
+            <option value="full">{t("SETTINGS_PAGE.API_KEY_SCOPE_FULL")}</option>
+          </Form.Select>
         </div>
         <Button type="submit" disabled={saving}>
           {saving ? <Spinner animation="border" size="sm" /> : <AddLineIcon size={18} />}
-          Add Key
+          {t("SETTINGS_PAGE.API_KEY_ADD")}
         </Button>
       </Form>
+      <p className="api-key-scope-help">{t("SETTINGS_PAGE.API_KEY_SCOPE_HELP")}</p>
 
       {sortedKeys.length ? (
         <div className="api-key-list">
@@ -151,12 +165,24 @@ export default function ApiKeys() {
               <div className="api-key-main">
                 <strong>{apiKey.name}</strong>
                 <code>{maskKey(apiKey.key)}</code>
+                <span className="api-key-meta">
+                  {t("SETTINGS_PAGE.API_KEY_LAST_USED")}: {formatLastUsed(apiKey.lastUsed, t("SETTINGS_PAGE.API_KEY_NEVER_USED"))}
+                </span>
               </div>
               <div className="api-key-actions">
-                <Button variant="outline-primary" onClick={() => copyKey(apiKey.key)} title="Copy key">
+                <Form.Select
+                  className="api-key-scope-select"
+                  value={apiKey.scope === "widgets" ? "widgets" : "full"}
+                  onChange={(event) => changeScope(apiKey.key, event.target.value)}
+                  aria-label={t("SETTINGS_PAGE.API_KEY_SCOPE")}
+                >
+                  <option value="widgets">{t("SETTINGS_PAGE.API_KEY_SCOPE_WIDGETS")}</option>
+                  <option value="full">{t("SETTINGS_PAGE.API_KEY_SCOPE_FULL")}</option>
+                </Form.Select>
+                <Button variant="outline-primary" onClick={() => copyKey(apiKey.key)} title={t("SETTINGS_PAGE.API_KEY_COPY")}>
                   <ClipboardLineIcon size={17} />
                 </Button>
-                <Button variant="outline-danger" onClick={() => deleteKey(apiKey.key)} title="Delete key">
+                <Button variant="outline-danger" onClick={() => deleteKey(apiKey.key)} title={t("SETTINGS_PAGE.API_KEY_DELETE")}>
                   <DeleteBinLineIcon size={17} />
                 </Button>
               </div>
@@ -166,8 +192,8 @@ export default function ApiKeys() {
       ) : (
         <div className="api-keys-empty">
           <Key2LineIcon size={32} />
-          <strong>No API keys yet</strong>
-          <p>Create a key when another tool needs to call JellyGlance.</p>
+          <strong>{t("SETTINGS_PAGE.API_KEY_EMPTY")}</strong>
+          <p>{t("SETTINGS_PAGE.API_KEY_EMPTY_HINT")}</p>
         </div>
       )}
 

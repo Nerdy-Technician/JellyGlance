@@ -8,6 +8,8 @@ const configClass = require("./config");
 const JellyfinAPI = require("./jellyfin-api");
 const WebhookManager = require("./webhook-manager");
 const { getAuditLog, getWebhookDeliveryHistory, mergeSettings, getSettings } = require("./admin-history");
+const { fetchSeerrIssueSnapshot } = require("./seerr-issues");
+const NewsletterCampaigns = require("./newsletter-campaigns");
 
 const jellyfinApi = new JellyfinAPI();
 let lastJellyfinSeenWrite = 0;
@@ -273,22 +275,26 @@ function listWidgetCatalog() {
       { path: "/api/widgets/catalog", method: "GET", summary: "Movies, shows, episodes, and items added this week" },
       { path: "/api/widgets/storage", method: "GET", summary: "Library storage total and upcoming Arr estimate" },
       { path: "/api/widgets/sessions", method: "GET", summary: "Recent, today, and 24h playback counts" },
+      { path: "/api/widgets/nowplaying", method: "GET", summary: "Live Jellyfin sessions playing right now" },
       { path: "/api/widgets/viewers", method: "GET", summary: "Distinct viewers today and synced user count" },
       { path: "/api/widgets/users", method: "GET", summary: "User roster with last activity" },
       { path: "/api/widgets/activity", method: "GET", summary: "Latest playback rows" },
       { path: "/api/widgets/watch", method: "GET", summary: "Watch-time totals for today, week, and all time" },
+      { path: "/api/widgets/statistics", method: "GET", summary: "Top titles and users this week" },
       { path: "/api/widgets/recent", method: "GET", summary: "Recently added library titles" },
       { path: "/api/widgets/libraries", method: "GET", summary: "Per-library sizes and catalog totals" },
+      { path: "/api/widgets/repair", method: "GET", summary: "Missing posters, runtime, and unmatched imports" },
       { path: "/api/widgets/downloads", method: "GET", summary: "Queue counts plus a compact item list" },
       { path: "/api/widgets/stalled", method: "GET", summary: "Stalled or failed download items" },
       { path: "/api/widgets/stitched", method: "GET", summary: "Cached download queue without a live Seerr call" },
       { path: "/api/widgets/calendar", method: "GET", summary: "Arr releases today and upcoming" },
       { path: "/api/widgets/today", method: "GET", summary: "Arr releases due today" },
       { path: "/api/widgets/requests", method: "GET", summary: "Seerr request counts by status" },
+      { path: "/api/widgets/issues", method: "GET", summary: "Seerr issue counts by status" },
       { path: "/api/widgets/invites", method: "GET", summary: "Cached Wizarr invite links" },
       { path: "/api/widgets/autobrr", method: "GET", summary: "Cached autobrr release hits" },
-      { path: "/api/widgets/transcodes", method: "GET", summary: "Tdarr connection and last health check" },
-      { path: "/api/widgets/maintainerr", method: "GET", summary: "Maintainerr connection and last health check" },
+      { path: "/api/widgets/transcodes", method: "GET", summary: "Tdarr active, queued, and error counts" },
+      { path: "/api/widgets/maintainerr", method: "GET", summary: "Maintainerr cleanup counts and reclaimable size" },
       { path: "/api/widgets/automation", method: "GET", summary: "Latest integration health results" },
       { path: "/api/widgets/devices", method: "GET", summary: "Known Jellyfin client devices" },
       { path: "/api/widgets/health", method: "GET", summary: "Digest, live Jellyfin ping, and backup hint" },
@@ -296,6 +302,8 @@ function listWidgetCatalog() {
       { path: "/api/widgets/backup", method: "GET", summary: "Last backup hint and destination kind" },
       { path: "/api/widgets/webhooks", method: "GET", summary: "Recent webhook deliveries" },
       { path: "/api/widgets/jobs", method: "GET", summary: "Latest Glance task runs" },
+      { path: "/api/widgets/jellyfin-jobs", method: "GET", summary: "Live Jellyfin scheduled tasks" },
+      { path: "/api/widgets/newsletter", method: "GET", summary: "Last newsletter send and next digest" },
       { path: "/api/ops-digest", method: "GET", summary: "Ops items that need attention" },
       { path: "/api/library-storage", method: "GET", summary: "Per-library sizes and upcoming estimate" },
       { path: "/api/downloads/stitched", method: "GET", summary: "Download queue matched to Seerr requests" },
@@ -747,13 +755,134 @@ async function buildAutobrrWidgets() {
 }
 
 async function buildTranscodeWidgets() {
-  const [integrations, history] = await Promise.all([getIntegrations().catch(() => ({})), getIntegrationHealthHistory().catch(() => [])]);
-  return widgetPayload(compactHealth(findThirdParty(integrations, "tdarr"), latestHealthById(history)));
+  const integrations = await getIntegrations().catch(() => ({}));
+  const tdarr = findThirdParty(integrations, "tdarr");
+  if (!tdarr?.connected || !cleanUrl(tdarr.values?.url)) {
+    return widgetPayload({
+      connected: false,
+      status: "Offline",
+      ok: false,
+      name: tdarr?.name || "",
+      active: 0,
+      queued: 0,
+      errored: 0,
+      items: [],
+    });
+  }
+  const url = cleanUrl(tdarr.values.url);
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...(tdarr.values?.secret ? { "x-api-key": tdarr.values.secret } : {}),
+  };
+  const [statusResponse, statsResponse, nodesResponse] = await Promise.all([
+    axios.get(`${url}/api/v2/status`, { timeout: 8000, headers }).catch(() => null),
+    axios
+      .post(`${url}/api/v2/cruddb`, { data: { collection: "StatisticsJSONDB", mode: "getById", docID: "statistics" } }, { timeout: 8000, headers })
+      .catch(() => ({ data: {} })),
+    axios.get(`${url}/api/v2/get-nodes`, { timeout: 8000, headers }).catch(() => ({ data: {} })),
+  ]);
+  const statistics = Array.isArray(statsResponse.data) ? statsResponse.data[0] || {} : statsResponse.data || {};
+  const queued =
+    Number(statistics.table1ViewableCount ?? statistics.table1Count ?? 0) + Number(statistics.table4ViewableCount ?? statistics.table4Count ?? 0);
+  const errored =
+    Number(statistics.table3ViewableCount ?? statistics.table3Count ?? 0) + Number(statistics.table6ViewableCount ?? statistics.table6Count ?? 0);
+  const nodes = nodesResponse.data?.data && typeof nodesResponse.data.data === "object" ? nodesResponse.data.data : nodesResponse.data || {};
+  const items = [];
+  for (const node of Object.values(nodes || {})) {
+    if (!node || typeof node !== "object") continue;
+    const workers = node.workers || node.Workers || {};
+    const list = Array.isArray(workers) ? workers : Object.values(workers);
+    for (const worker of list) {
+      const file = String(worker?.file || worker?.filePath || worker?.originalFile || "").trim();
+      if (!file) continue;
+      items.push({
+        name: file.split(/[\\/]/).pop(),
+        node: node.nodeName || node.name || "",
+      });
+    }
+  }
+  const statusOk = Boolean(statusResponse?.data);
+  return widgetPayload({
+    connected: true,
+    status: statusOk ? "Online" : "Down",
+    ok: statusOk,
+    name: tdarr.name || "Tdarr",
+    active: items.length,
+    queued,
+    errored,
+    items: items.slice(0, 8),
+  });
 }
 
 async function buildMaintainerrWidgets() {
-  const [integrations, history] = await Promise.all([getIntegrations().catch(() => ({})), getIntegrationHealthHistory().catch(() => [])]);
-  return widgetPayload(compactHealth(findThirdParty(integrations, "maintainerr"), latestHealthById(history)));
+  const integrations = await getIntegrations().catch(() => ({}));
+  const app = findThirdParty(integrations, "maintainerr");
+  if (!app?.connected || !cleanUrl(app.values?.url)) {
+    return widgetPayload({
+      connected: false,
+      ok: false,
+      name: app?.name || "",
+      scheduled: 0,
+      collections: 0,
+      reclaimable: "0 B",
+      items: [],
+    });
+  }
+  const url = cleanUrl(app.values.url);
+  const secret = String(app.values?.secret || "").trim();
+  const headers = {
+    Accept: "application/json",
+    ...(secret
+      ? {
+          "X-Api-Key": secret,
+          "x-api-key": secret,
+          Authorization: /^bearer\s+/i.test(secret) ? secret : `Bearer ${secret}`,
+        }
+      : {}),
+  };
+  const fetchJson = (pathName) =>
+    axios
+      .get(`${url}${pathName}`, { timeout: 12000, headers })
+      .then((response) => response.data)
+      .catch(() => null);
+  const [health, overlay, storage] = await Promise.all([
+    fetchJson("/api/health"),
+    fetchJson("/api/collections/overlay-data"),
+    fetchJson("/api/storage-metrics"),
+  ]);
+  const raw = overlay && typeof overlay === "object" ? overlay : {};
+  const collections = Array.isArray(raw.collections) ? raw.collections : Array.isArray(raw.activeCollections) ? raw.activeCollections : [];
+  const nestedItems = collections.flatMap((collection) =>
+    Array.isArray(collection?.items) ? collection.items : Array.isArray(collection?.media) ? collection.media : []
+  );
+  const allItems = Array.isArray(raw.items)
+    ? raw.items
+    : Array.isArray(raw.media)
+      ? raw.media
+      : Array.isArray(raw.queue)
+        ? raw.queue
+        : Array.isArray(raw.scheduledItems)
+          ? raw.scheduledItems
+          : nestedItems;
+  const scheduled = allItems.filter((item) => {
+    const status = String(item?.status || item?.state || item?.action || item?.pendingAction || "").toLowerCase();
+    return status.includes("schedul") || status.includes("delet") || Boolean(item?.action || item?.pendingAction);
+  });
+  const reclaimable = Number(storage?.reclaimableBytes || storage?.reclaimable_bytes || raw.reclaimableBytes || 0);
+  const items = (scheduled.length ? scheduled : allItems).slice(0, 8).map((item) => ({
+    title: item.title || item.name || item.mediaTitle || "Title",
+    status: item.status || item.state || item.action || "",
+  }));
+  return widgetPayload({
+    connected: true,
+    ok: health ? health.status !== "error" : true,
+    name: app.name || "Maintainerr",
+    scheduled: scheduled.length || Number(raw.scheduledCount || raw.itemsCount || 0),
+    collections: collections.length,
+    reclaimable: formatBytes(reclaimable),
+    items,
+  });
 }
 
 async function buildAutomationWidgets() {
@@ -852,6 +981,180 @@ async function buildJobWidgets() {
       ranAt: row.ranAt || null,
     })),
   });
+}
+
+function playingTitle(session = {}) {
+  const item = session.NowPlayingItem || {};
+  if (item.Type === "Episode" && item.SeriesName) {
+    return `${item.SeriesName} · ${item.Name || ""}`.trim();
+  }
+  return item.Name || session.NowPlayingItemName || "Playback";
+}
+
+async function buildNowPlayingWidgets() {
+  const sessions = await jellyfinApi.getSessions().catch(() => []);
+  const playing = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.NowPlayingItem);
+  return widgetPayload({
+    playing: playing.length,
+    transcoding: playing.filter((session) => {
+      const method = String(session.PlayMethod || session.PlayState?.PlayMethod || "").toLowerCase();
+      if (method.includes("transcode")) return true;
+      if (method.includes("direct")) return false;
+      return session.TranscodingInfo?.IsVideoDirect === false;
+    }).length,
+    items: playing.slice(0, 8).map((session) => ({
+      viewer: session.UserName || session.LastUserName || "User",
+      title: playingTitle(session),
+      client: session.Client || session.ApplicationVersion || "",
+      device: session.DeviceName || "",
+      method: session.PlayMethod || session.PlayState?.PlayMethod || "",
+    })),
+  });
+}
+
+async function buildRepairWidgets() {
+  const [counts, unmatched, orphaned] = await Promise.all([
+    db
+      .query(
+        `SELECT
+            count(*) FILTER (WHERE COALESCE("PrimaryImageHash", '') = '')::int AS posters,
+            count(*) FILTER (WHERE COALESCE("ImageTagsLogo", '') = '')::int AS logos,
+            count(*) FILTER (WHERE COALESCE("RunTimeTicks", 0) = 0)::int AS runtime
+         FROM jf_library_items
+         WHERE archived = false`
+      )
+      .then((result) => result.rows[0] || {})
+      .catch(() => ({})),
+    queryCount(`SELECT count(*)::int AS count FROM jf_playback_activity WHERE imported = true AND "Id" LIKE 'tautulli:%' AND "NowPlayingItemId" LIKE 'tautulli:%'`),
+    queryCount(
+      `SELECT count(*)::int AS count
+       FROM jf_playback_activity a
+       LEFT JOIN jf_library_items i ON i."Id" = a."NowPlayingItemId"
+       LEFT JOIN jf_library_episodes e ON e."EpisodeId" = a."EpisodeId"
+       WHERE a."NowPlayingItemId" IS NOT NULL
+         AND a."NowPlayingItemId" NOT LIKE 'tautulli:%'
+         AND i."Id" IS NULL
+         AND (a."EpisodeId" IS NULL OR e."EpisodeId" IS NULL)`
+    ),
+  ]);
+  const posters = Number(counts.posters || 0);
+  const logos = Number(counts.logos || 0);
+  const runtime = Number(counts.runtime || 0);
+  const issues = posters + logos + runtime + unmatched + orphaned;
+  return widgetPayload({
+    posters,
+    logos,
+    runtime,
+    unmatched,
+    orphaned,
+    issues,
+    ok: issues === 0,
+  });
+}
+
+async function buildStatisticsWidgets() {
+  const [movies, shows, users] = await Promise.all([
+    db
+      .query(`SELECT unique_viewers, "Name" AS title FROM fs_most_popular_items($1,$2) LIMIT 5`, [6, "Movie"])
+      .then((result) => result.rows)
+      .catch(() => []),
+    db
+      .query(`SELECT unique_viewers, "Name" AS title FROM fs_most_popular_items($1,$2) LIMIT 5`, [6, "Series"])
+      .then((result) => result.rows)
+      .catch(() => []),
+    db
+      .query(`SELECT "Name" AS name, "Plays" AS plays FROM fs_most_active_user($1) LIMIT 5`, [6])
+      .then((result) => result.rows)
+      .catch(() => []),
+  ]);
+  const items = [...movies, ...shows]
+    .map((row) => ({
+      title: row.title || "Title",
+      viewers: Number(row.unique_viewers || 0),
+    }))
+    .sort((left, right) => right.viewers - left.viewers)
+    .slice(0, 8);
+  return widgetPayload({
+    titles: items.length,
+    users: users.length,
+    topTitle: items[0]?.title || "",
+    topUser: users[0]?.name || "",
+    items,
+    people: users.map((row) => ({ name: row.name || "User", plays: Number(row.plays || 0) })),
+  });
+}
+
+async function buildIssueWidgets() {
+  const snapshot = await fetchSeerrIssueSnapshot().catch(() => ({ total: 0, open: 0, resolved: 0, items: [] }));
+  return widgetPayload({
+    total: Number(snapshot.total || 0),
+    open: Number(snapshot.open || 0),
+    resolved: Number(snapshot.resolved || 0),
+    ok: Number(snapshot.open || 0) === 0,
+    items: snapshot.items || [],
+  });
+}
+
+async function buildNewsletterWidgets() {
+  const settings = await getSettings().catch(() => ({}));
+  const newsletter = settings.Newsletter || {};
+  const history = Array.isArray(newsletter.history) ? newsletter.history : [];
+  const [campaigns, sent] = await Promise.all([
+    NewsletterCampaigns.listCampaigns({ includePersonal: true }).catch(() => []),
+    NewsletterCampaigns.listHistory({ limit: 1 }).catch(() => []),
+  ]);
+  const last = history[0] || sent[0] || null;
+  const scheduled = campaigns.filter((campaign) => campaign.enabled && campaign.frequency && campaign.frequency !== "manual");
+  const next = scheduled
+    .map((campaign) => {
+      const lastSent = campaign.lastSentAt ? new Date(campaign.lastSentAt).getTime() : 0;
+      const wait = campaign.frequency === "monthly" ? 28 * 24 * 3600 * 1000 : 7 * 24 * 3600 * 1000;
+      return {
+        name: campaign.name || "Campaign",
+        frequency: campaign.frequency,
+        nextAt: new Date((lastSent || Date.now()) + wait).toISOString(),
+      };
+    })
+    .sort((left, right) => new Date(left.nextAt) - new Date(right.nextAt))[0];
+  return widgetPayload({
+    enabled: Boolean(newsletter.enabled || scheduled.length),
+    lastAt: last?.timestamp || last?.sentAt || null,
+    lastOk: last ? last.ok !== false && last.status !== "failed" : true,
+    frequency: newsletter.frequency || scheduled[0]?.frequency || "manual",
+    nextAt: next?.nextAt || null,
+    nextName: next?.name || "",
+    campaigns: campaigns.length,
+  });
+}
+
+async function buildJellyfinJobWidgets() {
+  const config = await new configClass().getConfig();
+  if (config.error || !config.JF_HOST) {
+    return widgetPayload({ jobs: 0, running: 0, failed: 0, ok: false, items: [] });
+  }
+  try {
+    const response = await axios.get(`${cleanUrl(config.JF_HOST)}/ScheduledTasks`, {
+      timeout: 12000,
+      headers: { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` },
+    });
+    const tasks = Array.isArray(response.data) ? response.data : [];
+    const running = tasks.filter((task) => String(task.State || "").toLowerCase().includes("run"));
+    const failed = tasks.filter((task) => String(task.LastExecutionResult?.Status || "").toLowerCase().includes("fail"));
+    const items = [...running, ...tasks.filter((task) => !running.includes(task))].slice(0, 8).map((task) => ({
+      name: task.Name || "Task",
+      state: task.State || "",
+      result: task.LastExecutionResult?.Status || "",
+    }));
+    return widgetPayload({
+      jobs: tasks.length,
+      running: running.length,
+      failed: failed.length,
+      ok: failed.length === 0,
+      items,
+    });
+  } catch (error) {
+    return widgetPayload({ jobs: 0, running: 0, failed: 0, ok: false, items: [], error: error.message });
+  }
 }
 
 async function rememberDevices(devices = []) {
@@ -1266,6 +1569,12 @@ module.exports = {
   buildBackupWidgets,
   buildWebhookWidgets,
   buildJobWidgets,
+  buildNowPlayingWidgets,
+  buildRepairWidgets,
+  buildStatisticsWidgets,
+  buildIssueWidgets,
+  buildNewsletterWidgets,
+  buildJellyfinJobWidgets,
   rememberDevices,
   uploadBackupRemote,
   pingThirdParty,

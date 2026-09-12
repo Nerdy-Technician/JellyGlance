@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "JellyGlance API Documentation",
+    "title": "JellyGlance API",
     "description": "JellyGlance REST API. Widget and most /api routes accept a Glance API key as x-api-token, or a session Bearer token.",
     "version": "1.0.0"
   },
@@ -835,7 +835,7 @@
           "Widgets"
         ],
         "summary": "Download queue matched to Seerr requests",
-        "description": "Cached download queue items matched to Seerr requests when possible.",
+        "description": "Download queue matched to Seerr requests",
         "parameters": [
           {
             "name": "x-api-token",
@@ -909,7 +909,7 @@
           "Widgets"
         ],
         "summary": "Per-library sizes and upcoming estimate",
-        "description": "Per-library sizes, total bytes, and upcoming Arr estimate.",
+        "description": "Per-library sizes and upcoming estimate",
         "parameters": [
           {
             "name": "x-api-token",
@@ -983,7 +983,7 @@
           "Widgets"
         ],
         "summary": "Dashboard snapshot: sessions, catalog, downloads, digest, storage, invites, calendar",
-        "description": "Sessions, catalog, downloads, digest, storage, invites, and calendar counts for Homepage and Homarr.",
+        "description": "Dashboard snapshot: sessions, catalog, downloads, digest, storage, invites, calendar",
         "parameters": [
           {
             "name": "x-api-token",
@@ -1205,7 +1205,7 @@
           "Widgets"
         ],
         "summary": "Seerr request counts by status",
-        "description": "Pending, approved, and available counts from connected Jellyseerr or Overseerr, plus eight recent rows.",
+        "description": "Seerr request counts by status",
         "parameters": [
           {
             "name": "x-api-token",
@@ -1232,57 +1232,6 @@
           },
           "503": {
             "description": "Unable to load widget"
-          }
-        }
-      }
-    },
-    "/api/widgets/${slug}": {
-      "get": {
-        "tags": [
-          "Widgets"
-        ],
-        "description": "",
-        "produces": [
-          "nosniff"
-        ],
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "map((item",
-            "in": "query",
-            "type": "string"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "type": "string"
-          },
-          {
-            "name": "x-api-token",
-            "in": "header",
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "503": {
-            "description": "Service Unavailable"
           }
         }
       }
@@ -4273,6 +4222,64 @@
               "type": "object",
               "properties": {
                 "name": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "API"
+        ],
+        "description": "",
+        "produces": [
+          "nosniff"
+        ],
+        "parameters": [
+          {
+            "name": "map((item",
+            "in": "query",
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "example": "any"
+                },
+                "scope": {
                   "example": "any"
                 }
               }
@@ -11015,30 +11022,6 @@
         }
       }
     },
-    "/widgets/${slug}": {
-      "get": {
-        "tags": [
-          "Widgets"
-        ],
-        "description": "",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "503": {
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
     "/admin-audit/export": {
       "get": {
         "description": "",
@@ -11286,6 +11269,43 @@
         }
       }
     },
+    "/api/widgets/nowplaying": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Live Jellyfin sessions playing right now",
+        "description": "Live Jellyfin sessions playing right now",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live Jellyfin sessions playing right now"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
     "/api/widgets/viewers": {
       "get": {
         "tags": [
@@ -11421,6 +11441,80 @@
         "responses": {
           "200": {
             "description": "Watch-time totals for today, week, and all time"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
+    "/api/widgets/statistics": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Top titles and users this week",
+        "description": "Top titles and users this week",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Top titles and users this week"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
+    "/api/widgets/repair": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Missing posters, runtime, and unmatched imports",
+        "description": "Missing posters, runtime, and unmatched imports",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Missing posters, runtime, and unmatched imports"
           },
           "401": {
             "description": "Unauthorized"
@@ -11582,6 +11676,43 @@
         }
       }
     },
+    "/api/widgets/issues": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Seerr issue counts by status",
+        "description": "Seerr issue counts by status",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Seerr issue counts by status"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
     "/api/widgets/invites": {
       "get": {
         "tags": [
@@ -11661,8 +11792,8 @@
         "tags": [
           "Widgets"
         ],
-        "summary": "Tdarr connection and last health check",
-        "description": "Tdarr connection and last health check",
+        "summary": "Tdarr active, queued, and error counts",
+        "description": "Tdarr active, queued, and error counts",
         "parameters": [
           {
             "name": "x-api-token",
@@ -11679,7 +11810,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Tdarr connection and last health check"
+            "description": "Tdarr active, queued, and error counts"
           },
           "401": {
             "description": "Unauthorized"
@@ -11698,8 +11829,8 @@
         "tags": [
           "Widgets"
         ],
-        "summary": "Maintainerr connection and last health check",
-        "description": "Maintainerr connection and last health check",
+        "summary": "Maintainerr cleanup counts and reclaimable size",
+        "description": "Maintainerr cleanup counts and reclaimable size",
         "parameters": [
           {
             "name": "x-api-token",
@@ -11716,7 +11847,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Maintainerr connection and last health check"
+            "description": "Maintainerr cleanup counts and reclaimable size"
           },
           "401": {
             "description": "Unauthorized"
@@ -11939,6 +12070,80 @@
         "responses": {
           "200": {
             "description": "Latest Glance task runs"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
+    "/api/widgets/jellyfin-jobs": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Live Jellyfin scheduled tasks",
+        "description": "Live Jellyfin scheduled tasks",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live Jellyfin scheduled tasks"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "503": {
+            "description": "Unable to load widget"
+          }
+        }
+      }
+    },
+    "/api/widgets/newsletter": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Last newsletter send and next digest",
+        "description": "Last newsletter send and next digest",
+        "parameters": [
+          {
+            "name": "x-api-token",
+            "in": "header",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string",
+            "description": "Bearer session token also works"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last newsletter send and next digest"
           },
           "401": {
             "description": "Unauthorized"

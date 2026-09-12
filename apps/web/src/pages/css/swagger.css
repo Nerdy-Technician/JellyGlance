@@ -86,29 +86,56 @@
 .api-explorer-list {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 0;
   margin: 0;
   padding: 0;
   max-height: 420px;
   overflow: auto;
   list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.api-explorer-list li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .api-explorer-list button {
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   text-align: left;
 }
 
+.api-explorer-list button:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
 .api-explorer-list button.is-active {
-  border-color: rgba(var(--primary-light-rgb), 0.45);
   background: rgba(var(--primary-rgb), 0.14);
+}
+
+.api-explorer-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--primary-light-color);
+}
+
+.api-explorer-item-copy {
+  min-width: 0;
 }
 
 .api-explorer-list strong {
@@ -118,26 +145,29 @@
   align-items: center;
   color: #fff;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .api-explorer-list em {
   font-style: normal;
   color: var(--primary-light-color);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  font-weight: 800;
 }
 
-.api-explorer-list span {
+.api-explorer-item-copy > span {
+  display: block;
+  overflow: hidden;
   color: #9aa7bb;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.api-explorer-result,
-.swagger-frame {
+.api-explorer-result {
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: 11px;
   background: rgba(5, 8, 13, 0.72);
 }
 
@@ -151,11 +181,9 @@
 
 .api-explorer-id label {
   margin-bottom: 6px;
-  color: #cbd5e1;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .api-explorer-id .form-control {
@@ -194,19 +222,6 @@
   font-size: 12px;
 }
 
-.swagger-frame {
-  min-height: min(78vh, 920px);
-  overflow: hidden;
-}
-
-.swagger-frame iframe {
-  display: block;
-  width: 100%;
-  height: min(78vh, 920px);
-  border: 0;
-  background: #0b1118;
-}
-
 @media (max-width: 900px) {
   .swagger-header,
   .api-explorer-grid {
@@ -215,11 +230,5 @@
 
   .swagger-header {
     display: grid;
-  }
-
-  .swagger-frame,
-  .swagger-frame iframe {
-    min-height: 70vh;
-    height: 70vh;
   }
 }

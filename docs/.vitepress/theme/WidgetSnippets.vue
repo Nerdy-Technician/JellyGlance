@@ -1,13 +1,36 @@
 <script setup>
 import { computed, ref } from "vue";
 import { DEFAULT_WIDGET_HOST, TOKEN_API_ENDPOINTS, WIDGET_GROUPS, widgetExportFiles } from "./widgetSnippets.mjs";
+import { fileIcon, groupIcon, iconPaths, pathIcon } from "./widgetKitIcons.mjs";
 
 const host = ref(DEFAULT_WIDGET_HOST);
 const copied = ref("");
 const group = ref("All");
+const query = ref("");
 const files = computed(() => widgetExportFiles(host.value));
 const groups = ["All", ...WIDGET_GROUPS, "Kit"];
-const visible = computed(() => (group.value === "All" ? files.value : files.value.filter((file) => file.group === group.value)));
+
+const visible = computed(() => {
+  const byGroup = group.value === "All" ? files.value : files.value.filter((file) => file.group === group.value);
+  const needle = query.value.trim().toLowerCase();
+  if (!needle) return byGroup;
+  return byGroup.filter((file) =>
+    [file.title, file.filename, file.detail, file.kind, file.group].join(" ").toLowerCase().includes(needle)
+  );
+});
+
+const grouped = computed(() => {
+  const order = [];
+  const buckets = new Map();
+  for (const file of visible.value) {
+    if (!buckets.has(file.group)) {
+      buckets.set(file.group, []);
+      order.push(file.group);
+    }
+    buckets.get(file.group).push(file);
+  }
+  return order.map((name) => ({ name, items: buckets.get(name) }));
+});
 
 function download(file) {
   const blob = new Blob([file.body], { type: file.mime });
@@ -45,12 +68,21 @@ async function copy(file) {
 
 <template>
   <section class="widget-kit" aria-label="Widget downloads">
-    <label class="widget-kit-host">
-      <span>Glance URL Homarr and Homepage should call</span>
-      <input v-model="host" type="url" spellcheck="false" placeholder="http://jellyglance:3000" />
-    </label>
-    <p>Thirty Homarr widgets plus a Homepage YAML pack. Exports never include the API key. After import, set auth to API key header <code>x-api-token</code> and paste a key from Settings → API Key.</p>
-    <div class="widget-kit-groups">
+    <div class="widget-kit-toolbar">
+      <label class="widget-kit-host">
+        <span>Glance URL</span>
+        <input v-model="host" type="url" spellcheck="false" placeholder="http://jellyglance:3000" />
+      </label>
+      <label class="widget-kit-host widget-kit-search">
+        <span>Filter</span>
+        <span class="widget-kit-search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths('search')" :key="d" :d="d" /></svg>
+          <input v-model="query" type="search" spellcheck="false" placeholder="Filter" />
+        </span>
+      </label>
+    </div>
+    <p>Homarr JSON and Homepage YAML. Exports never include the API key. After import, set header <code>x-api-token</code> from Settings → API Key. New keys can be widgets-only.</p>
+    <div class="widget-kit-groups" role="tablist" aria-label="Widget groups">
       <button
         v-for="name in groups"
         :key="name"
@@ -58,28 +90,54 @@ async function copy(file) {
         :class="{ 'is-active': group === name }"
         @click="group = name"
       >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths(groupIcon(name))" :key="d" :d="d" /></svg>
         {{ name }}
       </button>
     </div>
-    <div class="widget-kit-grid">
-      <article v-for="file in visible" :key="file.id" :class="['widget-kit-card', `is-${file.tone}`, { 'is-wide': file.wide }]">
-        <div class="widget-kit-card-top">
-          <span>{{ file.kicker }}</span>
-          <em>{{ file.kind }}</em>
+    <div v-if="grouped.length" class="widget-kit-list">
+      <section v-for="section in grouped" :key="section.name" class="widget-kit-section">
+        <h3>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths(groupIcon(section.name))" :key="d" :d="d" /></svg>
+          {{ section.name }}
+          <em>{{ section.items.length }}</em>
+        </h3>
+        <div class="widget-kit-rows">
+          <article v-for="file in section.items" :key="file.id" class="widget-kit-row" :title="file.detail">
+            <span class="widget-kit-row-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths(fileIcon(file.id))" :key="d" :d="d" /></svg>
+            </span>
+            <div class="widget-kit-row-main">
+              <strong>{{ file.title }}</strong>
+              <p>
+                <code>{{ file.filename }}</code>
+                <span>{{ file.detail }}</span>
+              </p>
+            </div>
+            <span class="widget-kit-kind">{{ file.kind }}</span>
+            <div class="widget-kit-row-actions">
+              <button type="button" :title="copied === file.id ? 'Copied' : 'Copy'" @click="copy(file)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path v-for="d in iconPaths(copied === file.id ? 'check' : 'clipboard')" :key="d" :d="d" />
+                </svg>
+              </button>
+              <button type="button" title="Download" @click="download(file)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths('download')" :key="d" :d="d" /></svg>
+              </button>
+            </div>
+          </article>
         </div>
-        <strong>{{ file.title }}</strong>
-        <p>{{ file.detail }}</p>
-        <code>{{ file.filename }}</code>
-        <div class="widget-kit-card-actions">
-          <button type="button" @click="copy(file)">{{ copied === file.id ? "Copied" : "Copy" }}</button>
-          <button type="button" class="is-primary" @click="download(file)">Download</button>
-        </div>
-      </article>
+      </section>
     </div>
+    <p v-else class="widget-kit-empty">No widgets match that filter.</p>
     <ul class="widget-kit-endpoints">
       <li v-for="item in TOKEN_API_ENDPOINTS" :key="item.path">
-        <code>{{ item.path }}</code>
-        <span>{{ item.summary }}</span>
+        <span class="widget-kit-row-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in iconPaths(pathIcon(item.path))" :key="d" :d="d" /></svg>
+        </span>
+        <div>
+          <code>{{ item.path }}</code>
+          <span>{{ item.summary }}</span>
+        </div>
       </li>
     </ul>
   </section>

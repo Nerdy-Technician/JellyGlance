@@ -49,7 +49,7 @@ Main surfaces:
 | `server.js` | Express startup, web asset serving, `/swagger.json`, and `/swagger-ui` |
 | `routes/auth.js` | Login, Quick Connect, OIDC-ready auth |
 | `routes/api.js` | Core config, users, libraries, integrations |
-| `routes/command-center.js` | Item glance, ops digest, storage, thirty compact widget endpoints, widget catalog, audit export |
+| `routes/command-center.js` | Item glance, ops digest, storage, compact widget endpoints, widget catalog, audit export |
 | `classes/command-center.js` | Correlation helpers across Jellyfin, Seerr, Arr, and downloads |
 | `routes/sync.js` | Jellyfin sync and library scan routes |
 | `routes/stats.js` | Dashboard and statistics data |
