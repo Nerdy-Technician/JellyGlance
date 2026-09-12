@@ -924,6 +924,136 @@ async function fetchTdarrNodeDirectory(integration) {
   }
 }
 
+async function fetchTdarrGlobalSettings(integration) {
+  try {
+    return await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "SettingsGlobalJSONDB",
+        mode: "getById",
+        docID: "globalsettings",
+      },
+    });
+  } catch (error) {
+    console.log("Tdarr global settings load failed:", getAxiosErrorMessage(error));
+    return {};
+  }
+}
+
+function normalizeTdarrControlNodes(nodesData, nodeDirectory = []) {
+  const nameById = buildTdarrNodeNameIndex(nodesData, nodeDirectory);
+  return listTdarrNodes(nodesData)
+    .map((node) => {
+      const id = String(node.nodeSessionId || node.nodeID || getTdarrNodeId(node) || "");
+      const name = getTdarrNodeDisplayName(node) || nameById.get(id) || id;
+      return {
+        id,
+        name,
+        paused: Boolean(firstDefined(node.nodePaused, node.paused, node.queuePaused, false)),
+      };
+    })
+    .filter((node) => node.id);
+}
+
+function clearTdarrTranscodeCache() {
+  tdarrTranscodeCache.clear();
+}
+
+function postTdarrApi(integration, path, data) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  return axios.post(`${url}/api/v2/${path.replace(/^\/+/, "")}`, { data }, {
+    timeout: 12000,
+    headers: {
+      ...getTdarrHeaders(integration),
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function skipTdarrQueuedFile(integration, fileId, workKind = "") {
+  const obj = workKind === "healthcheck" ? { HealthCheck: "Not required" } : { TranscodeDecisionMaker: "Not required" };
+  const attempts = [
+    () => postTdarrApi(integration, "client/bulk-update-files", { files: [fileId], obj }),
+    () => postTdarrApi(integration, "client/bulk-update-files", { files: [{ _id: fileId, file: fileId }], obj }),
+    () =>
+      fetchTdarrCrudDb(integration, {
+        data: {
+          collection: "FileJSONDB",
+          mode: "update",
+          docID: fileId,
+          obj,
+        },
+      }),
+  ];
+
+  let lastError;
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (error.response?.status && error.response.status >= 500) {
+        continue;
+      }
+    }
+  }
+  throw lastError || new Error("Unable to skip Tdarr file");
+}
+
+async function runTdarrAction(integration, payload = {}) {
+  const action = String(payload.action || "").trim().toLowerCase();
+  const nodeId = String(payload.nodeId || payload.nodeID || "").trim();
+  const workerId = String(payload.workerId || payload.workerID || "").trim();
+  const fileId = String(payload.fileId || payload.id || payload.file || "").trim();
+  const workKind = String(payload.workKind || "").trim().toLowerCase();
+
+  if (action === "skip" || action === "cancel") {
+    if (nodeId && (workerId || fileId)) {
+      try {
+        await postTdarrApi(integration, "cancel-worker-item", {
+          nodeID: nodeId,
+          workerID: workerId || fileId,
+          cause: "Cancelled from JellyGlance",
+        });
+        return { ok: true, action: "skip", message: "Tdarr job cancelled." };
+      } catch (error) {
+        if (!fileId) throw error;
+      }
+    }
+    if (!fileId || /^(active|queued|history)-\d+$/i.test(fileId)) {
+      const error = new Error("Missing Tdarr file or worker id");
+      error.statusCode = 400;
+      throw error;
+    }
+    await skipTdarrQueuedFile(integration, fileId, workKind);
+    return { ok: true, action: "skip", message: "Tdarr job skipped." };
+  }
+
+  if (action === "pause" || action === "resume") {
+    const paused = action === "pause";
+    if (nodeId) {
+      await postTdarrApi(integration, "update-node", {
+        nodeID: nodeId,
+        nodeUpdates: { nodePaused: paused },
+      });
+      return { ok: true, action, nodeId, message: paused ? "Tdarr node paused." : "Tdarr node resumed." };
+    }
+    await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "SettingsGlobalJSONDB",
+        mode: "update",
+        docID: "globalsettings",
+        obj: { pauseAllNodes: paused },
+      },
+    });
+    return { ok: true, action, message: paused ? "All Tdarr nodes paused." : "All Tdarr nodes resumed." };
+  }
+
+  const error = new Error(`Unsupported Tdarr action: ${action}`);
+  error.statusCode = 400;
+  throw error;
+}
+
 function parseTdarrWorkMeta(record = {}) {
   const workerType = String(
     firstDefined(record.workerType, record.worker?.workerType, record.job?.workerType, record.process, record.type, "")
@@ -990,8 +1120,15 @@ function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
   const historyFrom = normalizeTdarrDisplayStatus(firstDefined(record.originalFormat, record.sourceFormat, record.previousFormat, ""));
   const historyTo = sourceCodec || targetLabel;
 
+  const nodeId = String(firstDefined(record.nodeID, record.nodeId, record.nodeSessionId, getTdarrNodeId(record), getTdarrNodeId(record.job), ""));
+  const fileId = String(firstDefined(getTdarrRecordPath(record), record._id, record.file, record.fileId, ""));
+  const workerId = String(firstDefined(record.workerID, record.workerId, record.workerKey, ""));
+
   return {
     id,
+    fileId,
+    nodeId,
+    workerId,
     title: extractTdarrTitle(record),
     library: firstDefined(record.libraryName, record.library, base.DB, record.DB?.libraryName, record.meta?.LibraryName, ""),
     worker: workMeta.nodeName || firstDefined(record.workerName, record.workerType, ""),
@@ -1504,7 +1641,7 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
     );
   }
 
-  function pushWorker(worker, node) {
+  function pushWorker(worker, node, workerKey = "") {
     if (!worker || typeof worker !== "object") return;
     const file = worker.file || worker.fileId || worker.filePath || worker.path || worker.originalfile || worker.originalFile || worker.source || worker.sourceFile || worker.job?.file || worker.job?.filePath || worker.job?._id;
     const progress = worker.percentage ?? worker.transcodePercent ?? worker.TranscodePercent ?? worker.Progress ?? worker.progress ?? worker.percent;
@@ -1518,25 +1655,27 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
       nodeID: nodeId,
       nodeSessionId: nodeId,
       workerType,
+      workerID: firstDefined(worker.workerID, worker.workerId, worker.id, workerKey),
+      workerKey,
     });
   }
 
-  function walkWorkers(value, node, depth = 0) {
+  function walkWorkers(value, node, depth = 0, workerKey = "") {
     if (!value || typeof value !== "object" || depth > 5) return;
     if (Array.isArray(value)) {
-      value.forEach((item) => walkWorkers(item, node, depth + 1));
+      value.forEach((item, index) => walkWorkers(item, node, depth + 1, workerKey || String(index)));
       return;
     }
-    pushWorker(value, node);
+    pushWorker(value, node, workerKey);
     ["fullWorker", "workerItem", "current", "job"].forEach((key) => {
       if (value[key] && typeof value[key] === "object" && !Array.isArray(value[key])) {
-        walkWorkers(value[key], node, depth + 1);
+        walkWorkers(value[key], node, depth + 1, workerKey || key);
       }
     });
     const looksLikeBucket = !value.workerType && !value.file && !value.filePath && progressIsMissing(value);
     if (looksLikeBucket || value.workers || value.Workers) {
-      Object.values(value).forEach((child) => {
-        if (child && typeof child === "object") walkWorkers(child, node, depth + 1);
+      Object.entries(value).forEach(([key, child]) => {
+        if (child && typeof child === "object") walkWorkers(child, node, depth + 1, key);
       });
     }
   }
@@ -1548,12 +1687,20 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
   for (const node of nodes) {
     const workerRoots = [node.workers, node.Workers, node.workerList, typeof node.queue === "object" ? node.queue : null].filter(Boolean);
     if (workerRoots.length) {
-      workerRoots.forEach((root) => walkWorkers(root, node));
+      workerRoots.forEach((root) => {
+        if (Array.isArray(root)) {
+          root.forEach((item, index) => walkWorkers(item, node, 0, String(index)));
+          return;
+        }
+        Object.entries(root).forEach(([key, value]) => {
+          if (value && typeof value === "object") walkWorkers(value, node, 0, key);
+        });
+      });
       continue;
     }
     Object.entries(node).forEach(([key, value]) => {
       if (/^(nodeName|nodeID|nodeId|nodeSessionId|config|_id)$/.test(key)) return;
-      if (value && typeof value === "object") walkWorkers(value, node);
+      if (value && typeof value === "object") walkWorkers(value, node, 0, key);
     });
   }
 
@@ -1565,10 +1712,14 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
         return;
       }
       const nextNode = isTdarrNodeLike(value) ? value : node;
-      if (value.workers || value.Workers) walkWorkers(value.workers || value.Workers, nextNode);
+      if (value.workers || value.Workers) {
+        Object.entries(value.workers || value.Workers).forEach(([key, child]) => {
+          if (child && typeof child === "object") walkWorkers(child, nextNode, 0, key);
+        });
+      }
       const progress = value.percentage ?? value.transcodePercent ?? value.TranscodePercent ?? value.Progress ?? value.progress ?? value.percent;
       const file = value.file || value.fileId || value.filePath || value.path || value.source || value.sourceFile;
-      if (file != null && progress != null) pushWorker(value, nextNode);
+      if (file != null && progress != null) pushWorker(value, nextNode, value.workerID || value.workerId || value.id);
       Object.values(value).forEach((child) => walk(child, depth + 1, nextNode));
     }
     walk(unwrapTdarrNodesPayload(nodesData));
@@ -1579,7 +1730,7 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
 
 async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const [statusResponse, statistics, queuedSearchRows, healthQueuedRows, historySuccessRows, historyErrorRows, nodesData, nodeDirectory] = await Promise.all([
+  const [statusResponse, statistics, queuedSearchRows, healthQueuedRows, historySuccessRows, historyErrorRows, nodesData, nodeDirectory, globalSettings] = await Promise.all([
     axios
       .get(`${url}/api/v2/status`, {
         timeout: 8000,
@@ -1606,6 +1757,7 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
       .then((response) => response.data || {})
       .catch(() => ({})),
     fetchTdarrNodeDirectory(integration),
+    fetchTdarrGlobalSettings(integration),
   ]);
 
   const workerRows = extractTdarrWorkersFromNodes(nodesData, nodeDirectory);
@@ -1618,8 +1770,12 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
     activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
   ]);
   const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages, [], queuedWithImages, historyWithImages);
+  const nodes = normalizeTdarrControlNodes(nodesData, nodeDirectory);
   return {
     ...bundle,
+    connected: true,
+    nodes,
+    pauseAll: Boolean(globalSettings?.pauseAllNodes),
     source: {
       ...bundle.source,
       name: integration.name || "Tdarr",
@@ -7479,6 +7635,28 @@ router.get("/tdarr/transcodes", async (req, res) => {
   } catch (error) {
     console.error("Tdarr transcodes load failed:", getAxiosErrorMessage(error));
     res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Tdarr transcodes" });
+  }
+});
+
+router.post("/tdarr/actions", async (req, res) => {
+  try {
+    const integration = await getConnectedTdarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Tdarr in Settings > Integrations first." });
+    }
+    const result = await runTdarrAction(integration, req.body || {});
+    clearTdarrTranscodeCache();
+    await addAuditEntry(req, "tdarr.action", {
+      source: integration.name || "Tdarr",
+      action: result.action,
+      nodeId: req.body?.nodeId || req.body?.nodeID || result.nodeId || "",
+      workerId: req.body?.workerId || req.body?.workerID || "",
+      fileId: req.body?.fileId || req.body?.id || "",
+    });
+    res.send(result);
+  } catch (error) {
+    console.error("Tdarr action failed:", getAxiosErrorMessage(error));
+    res.status(error.statusCode || error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Tdarr action" });
   }
 });
 

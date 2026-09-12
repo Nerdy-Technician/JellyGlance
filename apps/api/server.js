@@ -755,6 +755,13 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if (pathName.startsWith("/tdarr")) {
+    if (req.method === "GET" || req.method === "HEAD") {
+      return requirePermission("dashboard")(req, res, next);
+    }
+    return requirePermission("settings")(req, res, next);
+  }
+
   if (pathName.startsWith("/server-management")) {
     if (!req.permissions?.settings || !["Owner", "Admin"].includes(req.user?.role)) {
       return res.status(403).json({ message: "Admin role required" });
