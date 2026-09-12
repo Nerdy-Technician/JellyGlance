@@ -307,8 +307,11 @@ export default function Navbar() {
   const isJellyfinAdmin = currentRole === "Owner" || currentRole === "Admin";
   const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? "Jellyfin Admin" : "Jellyfin User") : authMode === "oidc" ? "OIDC User" : "Local User";
   const showServerManagementNav = isJellyfinAdmin;
+  const permissions = config?.settings?.auth?.permissions || {};
+  const canOpenHome = permissions.home !== false;
+  const canOpenSettings = Boolean(permissions.settings || permissions.apiKeys || permissions.repair);
   const effectiveWorkspaceMode = isJellyfinAdmin ? workspaceMode : "user";
-  const homePath = workspaceHomePath(isJellyfinAdmin, effectiveWorkspaceMode);
+  const homePath = workspaceHomePath(isJellyfinAdmin, effectiveWorkspaceMode, permissions);
   const jellyfinUserId = jellyfinUser?.id || jellyfinUser?.Id || jellyfinUser?.userId || jellyfinUser?.UserId;
   const jellyfinImageTag = jellyfinUser?.primaryImageTag || jellyfinUser?.PrimaryImageTag || jellyfinUser?.imageTags?.Primary || jellyfinUser?.ImageTags?.Primary;
   const jellyfinAvatar = jellyfinUserId
@@ -324,8 +327,12 @@ export default function Navbar() {
         navData.filter((item) => {
           if (!LOCKED_NAV_LINKS.has(item.link) && hiddenNavLinks.includes(item.link)) return false;
           if (isJellyfinAdmin && workspaceMode === "user" && !USER_WORKSPACE_NAV_LINKS.has(item.link)) return false;
-          if (item.link === "requests") return showRequestsNav;
-          if (item.link === "downloads") return showDownloadsNav;
+          if (item.link === "") return canOpenHome;
+          if (item.link === "settings") return canOpenSettings;
+          if (item.link === "users") return Boolean(permissions.users);
+          if (item.link === "me") return permissions.myGlance !== false;
+          if (item.link === "requests") return showRequestsNav && permissions.requests !== false;
+          if (item.link === "downloads") return showDownloadsNav && Boolean(permissions.downloads || permissions.settings);
           if (item.link === "calendar") return showCalendarNav;
           if (item.link === "active-transcodes") return showTdarrNav;
           if (item.link === "maintainerr") return showMaintainerrNav;
@@ -335,9 +342,9 @@ export default function Navbar() {
           return true;
         }),
         navOrder,
-        { myGlanceFirst: isJellyfinAdmin && workspaceMode === "user" }
+        { myGlanceFirst: !canOpenHome || (isJellyfinAdmin && workspaceMode === "user") }
       ),
-    [hiddenNavLinks, isJellyfinAdmin, navOrder, showAutomationHealthNav, showCalendarNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav, workspaceMode]
+    [canOpenHome, canOpenSettings, hiddenNavLinks, isJellyfinAdmin, navOrder, permissions.downloads, permissions.myGlance, permissions.requests, permissions.settings, permissions.users, showAutomationHealthNav, showCalendarNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav, workspaceMode]
   );
 
   const handleLogout = () => {
@@ -959,10 +966,10 @@ export default function Navbar() {
   const handleWorkspaceMode = (nextMode) => {
     const next = saveWorkspaceMode(nextMode);
     setWorkspaceMode(next);
-    applyPwaStartUrl(pwaStartPath(currentRole, next));
+    applyPwaStartUrl(pwaStartPath(currentRole, next, permissions));
     setShowAccount(false);
     setIsMobileNavOpen(false);
-    navigate(workspaceHomePath(true, next));
+    navigate(workspaceHomePath(true, next, permissions));
   };
 
   const getNavBadgeCount = (link) => {

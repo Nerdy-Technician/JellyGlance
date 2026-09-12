@@ -219,7 +219,7 @@ function App() {
   useEffect(() => {
     function handleWorkspaceMode(event) {
       const role = config?.settings?.auth?.role;
-      applyPwaStartUrl(pwaStartPath(role, event.detail || getStoredWorkspaceMode(isOpsRole(role))));
+      applyPwaStartUrl(pwaStartPath(role, event.detail || getStoredWorkspaceMode(isOpsRole(role)), config?.settings?.auth?.permissions));
     }
     window.addEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceMode);
     return () => window.removeEventListener(WORKSPACE_MODE_UPDATED_EVENT, handleWorkspaceMode);
@@ -250,7 +250,7 @@ function App() {
         setLoading(false);
         if (!newConfig.response) {
           setNotificationSettings(storeNotificationSettings(newConfig.settings?.notifications));
-          applyPwaStartUrl(pwaStartPath(newConfig.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(newConfig.settings?.auth?.role))));
+          applyPwaStartUrl(pwaStartPath(newConfig.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(newConfig.settings?.auth?.role)), newConfig.settings?.auth?.permissions));
           hydrateThemeFromPreferences(newConfig.settings?.preferences);
         }
       } catch (error) {
@@ -365,7 +365,7 @@ function App() {
         {kioskMode ? null : (
           <PwaInstallBanner
             enabled
-            viewerStart={pwaStartPath(config?.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(config?.settings?.auth?.role))) === "/me"}
+            viewerStart={pwaStartPath(config?.settings?.auth?.role, getStoredWorkspaceMode(isOpsRole(config?.settings?.auth?.role)), config?.settings?.auth?.permissions) === "/me"}
           />
         )}
       </div>

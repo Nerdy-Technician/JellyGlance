@@ -41,28 +41,23 @@ const {
 } = require("./requests");
 const { fetchSeerrIssues, runSeerrIssueAction } = require("../classes/seerr-issues");
 const { addDownload, deleteDownload, setDownloadPaused, testDownloadClient } = require("../classes/download-client");
+const {
+  DEFAULT_ACCESS_ROLES,
+  DEFAULT_ROLE_PERMISSIONS,
+  normalizeAccessRoles,
+  persistRolePermissions,
+  mergeRolePermissionMap,
+} = require("../classes/role-permissions");
+const { normalizeApiKeyScope } = require("../classes/api-key-scope");
 
 const router = express.Router();
 router.use(requestsExtrasRouter);
-const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
 const REQUEST_CACHE_TTL_MS = 45000;
 const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
 const TDARR_TRANSCODE_CACHE_TTL_MS = 15000;
 const requestCache = new Map();
 const seerrMediaDetailCache = new Map();
 const tdarrTranscodeCache = new Map();
-const DEFAULT_ROLE_PERMISSIONS = {
-  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
-  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
-  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
-};
-
-function normalizeAccessRoles(settings = {}) {
-  return settings.roles || DEFAULT_ACCESS_ROLES;
-}
-
 function roleExists(settings = {}, role) {
   return normalizeAccessRoles(settings).includes(role);
 }
@@ -5576,9 +5571,14 @@ router.get("/userAccess", async (req, res) => {
     const settings = config.settings || {};
     const localUsers = (settings.localUsers || []).map(({ password, ...user }) => user);
     const primaryLocalUser = ["jellyfin-quick-connect", "oidc", "local-auth"].includes(config.APP_USER) ? null : config.APP_USER;
+    const roles = normalizeAccessRoles(settings);
+    if (JSON.stringify(roles) !== JSON.stringify(settings.roles || [])) {
+      settings.roles = roles;
+      await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    }
     res.json({
-      roles: settings.roles || DEFAULT_ACCESS_ROLES,
-      rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...(settings.rolePermissions || {}) },
+      roles,
+      rolePermissions: mergeRolePermissionMap(settings.rolePermissions),
       jellyfinRoles: settings.userRoles || {},
       localUsers,
       primaryLocalUser,
@@ -5603,7 +5603,7 @@ router.post("/roles", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
 
     if (roles.some((existingRole) => existingRole.toLowerCase() === cleanRole.toLowerCase())) {
       res.status(409).json({ errorMessage: "That role already exists" });
@@ -5613,11 +5613,11 @@ router.post("/roles", async (req, res) => {
     settings.roles = [...roles, cleanRole];
     settings.rolePermissions = {
       ...(settings.rolePermissions || {}),
-      [cleanRole]: { dashboard: true, users: false, settings: false, apiKeys: false },
+      [cleanRole]: { ...DEFAULT_ROLE_PERMISSIONS.Viewer },
     };
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.created", { role: cleanRole });
-    res.status(201).json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
+    res.status(201).json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
   } catch (error) {
     console.log(error);
     res.status(500).json({ errorMessage: "Unable to add role" });
@@ -5635,7 +5635,7 @@ router.delete("/roles/:role", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
     settings.roles = roles.filter((existingRole) => existingRole !== role);
     settings.rolePermissions = { ...(settings.rolePermissions || {}) };
     delete settings.rolePermissions[role];
@@ -5651,7 +5651,7 @@ router.delete("/roles/:role", async (req, res) => {
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.deleted", { role });
-    res.json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
+    res.json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
   } catch (error) {
     console.log(error);
     res.status(500).json({ errorMessage: "Unable to remove role" });
@@ -5670,7 +5670,7 @@ router.patch("/roles/:role/permissions", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
 
     if (!roles.includes(role)) {
       res.status(404).json({ errorMessage: "Role not found" });
@@ -5687,16 +5687,10 @@ router.patch("/roles/:role/permissions", async (req, res) => {
       return;
     }
 
+    settings.roles = roles;
     settings.rolePermissions = {
       ...(settings.rolePermissions || {}),
-      [role]: {
-        ...DEFAULT_ROLE_PERMISSIONS[role],
-        ...(settings.rolePermissions || {})[role],
-        dashboard: Boolean(permissions.dashboard),
-        users: Boolean(permissions.users),
-        settings: Boolean(permissions.settings),
-        apiKeys: Boolean(permissions.apiKeys),
-      },
+      [role]: persistRolePermissions(role, permissions, (settings.rolePermissions || {})[role]),
     };
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
@@ -6014,7 +6008,7 @@ router.get("/keys", async (req, res) => {
   res.send(
     (config.api_keys || []).map((item) => ({
       ...item,
-      scope: String(item.scope || "full").toLowerCase() === "widgets" ? "widgets" : "full",
+      scope: normalizeApiKeyScope(item.scope, { fallback: "full" }),
       lastUsed: item.lastUsed || null,
     }))
   );
@@ -6064,7 +6058,7 @@ router.post("/keys", async (req, res) => {
   let keys = config.api_keys || [];
 
   const uuid = randomUUID();
-  const scope = String(req.body?.scope || "widgets").toLowerCase() === "full" ? "full" : "widgets";
+  const scope = normalizeApiKeyScope(req.body?.scope, { fallback: "widgets" });
   const new_key = { name: name, key: uuid, scope, lastUsed: null };
 
   keys.push(new_key);
@@ -6082,7 +6076,12 @@ router.patch("/keys", async (req, res) => {
     res.send({ error: "No API key provided" });
     return;
   }
-  const nextScope = String(scope || "").toLowerCase() === "full" ? "full" : "widgets";
+  const nextScope = normalizeApiKeyScope(scope, { fallback: "" });
+  if (!nextScope) {
+    res.status(400);
+    res.send({ error: "Scope must be widgets, widgets-write, or full" });
+    return;
+  }
   const config = await new configClass().getConfig();
   const keys = config.api_keys || [];
   if (!keys.some((obj) => obj.key === key)) {

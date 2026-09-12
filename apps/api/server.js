@@ -39,6 +39,8 @@ const TaskScheduler = require("./classes/task-scheduler-singleton");
 const { bootstrapFromEnv } = require("./classes/env-bootstrap");
 const { runLatestMigrations } = require("./classes/run-migrations");
 const { getWebhookCard } = require("./classes/discord-webhook-media");
+const { DEFAULT_ROLE_PERMISSIONS, getRolePermissions } = require("./classes/role-permissions");
+const { normalizeApiKeyScope } = require("./classes/api-key-scope");
 // const WebhookScheduler = require("./classes/webhook-scheduler");
 // const tasks = require("./tasks/tasks");
 
@@ -115,14 +117,6 @@ if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
   process.exit(1); // end the program with error status code
 }
-
-const DEFAULT_ROLE_PERMISSIONS = {
-  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
-  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
-  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
-};
 
 // middlewares
 app.set("trust proxy", 1);
@@ -525,11 +519,13 @@ function restrictApiKeyScope(req, res, next) {
     next();
     return;
   }
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    return res.status(403).json({ message: "This API key is widgets-only" });
+  const write = req.apiKeyScope === "widgets-write";
+  const methodOk = req.method === "GET" || req.method === "HEAD" || (write && req.method === "POST");
+  if (!methodOk) {
+    return res.status(403).json({ message: write ? "This API key cannot use that method" : "This API key is widgets-only" });
   }
   if (!isWidgetsOnlyPath(req)) {
-    return res.status(403).json({ message: "This API key is widgets-only" });
+    return res.status(403).json({ message: write ? "This API key is widgets-write only" : "This API key is widgets-only" });
   }
   next();
 }
@@ -592,7 +588,7 @@ async function authenticate(req, res, next) {
 
       if (match) {
         req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
-        req.apiKeyScope = String(match.scope || "full").toLowerCase() === "widgets" ? "widgets" : "full";
+        req.apiKeyScope = normalizeApiKeyScope(match.scope, { fallback: "full" });
         touchApiKeyLastUsed(apiKey);
         next();
       } else {
@@ -648,17 +644,6 @@ function getTokenPermissions(user) {
   }
 
   return DEFAULT_ROLE_PERMISSIONS.Owner;
-}
-
-function getRolePermissions(settings, role) {
-  if (role === "Owner" || role === "Disabled") {
-    return DEFAULT_ROLE_PERMISSIONS[role];
-  }
-
-  return {
-    ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
-    ...((settings.rolePermissions || {})[role] || {}),
-  };
 }
 
 async function resolveTokenAccess(user) {
@@ -755,6 +740,17 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if (pathName.startsWith("/downloads")) {
+    if (req.permissions?.downloads || req.permissions?.settings) {
+      next();
+      return;
+    }
+    if (req.method === "GET" || req.method === "HEAD") {
+      return requirePermission("dashboard")(req, res, next);
+    }
+    return requirePermission("settings")(req, res, next);
+  }
+
   if (pathName.startsWith("/tdarr")) {
     if (req.method === "GET" || req.method === "HEAD") {
       return requirePermission("dashboard")(req, res, next);
@@ -808,7 +804,6 @@ function authorizeApiRoute(req, res, next) {
             pathName.startsWith("/wizarr") ||
             pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
-            pathName.startsWith("/downloads") ||
             pathName.startsWith("/starttask") ||
             pathName.startsWith("/stoptask") ||
             pathName.startsWith("/gettasksettings") ||

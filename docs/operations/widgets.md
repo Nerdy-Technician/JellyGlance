@@ -9,7 +9,7 @@ JellyGlance stays the command center. Homepage and Homarr poll compact JSON inst
 
 Create a key in **Settings → API Key**. The same page (and the list below) can copy or download Homarr widgets, a Homepage YAML pack, and a curl command. Homarr never puts the key in the export — paste it after import as header `x-api-token`.
 
-New keys default to **widgets-only**: they may GET compact widget routes. Full keys keep the previous `/api` behaviour. Existing keys stay full until you change them. The same page shows last-used time for each key.
+New keys default to **widgets-only**: they may GET compact widget routes. Opt into **widgets-write** when a key also needs to POST session, download, request, or repair actions. Full keys keep the previous `/api` behaviour. Existing keys stay full until you change them. The same page shows last-used time for each key.
 
 Interactive docs live in the Glance app at **Settings → API Key**. Try widget routes with your session, or authorize Swagger with **apiKey** (`x-api-token`) and open the **Widgets** tag. The standalone spec UI is also at `/swagger-ui`. `/swagger` redirects there.
 

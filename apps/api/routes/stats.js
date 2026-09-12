@@ -4,6 +4,7 @@ const db = require("../db");
 const dbHelper = require("../classes/db-helper");
 
 const dayjs = require("dayjs");
+const { getIntegrations } = require("../classes/integration-store");
 
 const router = express.Router();
 
@@ -253,6 +254,7 @@ router.get("/getHomeDashboard", async (req, res) => {
       watchPartySuggestions,
       seasonGaps,
       automationFeed,
+      integrations,
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -422,6 +424,7 @@ router.get("/getHomeDashboard", async (req, res) => {
         ORDER BY "TimeRun" DESC
         LIMIT 8
       `),
+      getIntegrations().catch(() => ({ arrApps: [] })),
     ]);
 
     const totals = playbackTotals.rows[0] || {};
@@ -526,6 +529,10 @@ router.get("/getHomeDashboard", async (req, res) => {
         episodes: Number(item.Episodes || 0),
         primaryImageHash: item.PrimaryImageHash,
       })),
+      sonarrConnected: (integrations.arrApps || []).some((app) => {
+        const name = String(app.name || app.slug || "").toLowerCase();
+        return Boolean(app.connected && name.includes("sonarr"));
+      }),
       automationFeed: automationFeed.rows.map((item) => ({
         id: item.Id,
         name: item.Name,

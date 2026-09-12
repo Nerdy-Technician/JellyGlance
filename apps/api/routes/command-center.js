@@ -44,8 +44,18 @@ const {
   buildJellyfinJobWidgets,
   fetchAutobrrHits,
   retryFailedGrab,
+  stopWidgetSession,
+  pauseWidgetDownload,
+  runWidgetRequestAction,
+  refreshWidgetItem,
   getJellyfinStatus,
 } = require("../classes/command-center");
+
+function canUseWidgetWrite(req) {
+  if (req.apiKeyScope === "widgets-write" || req.apiKeyScope === "full") return true;
+  if (req.apiKeyScope === "widgets") return false;
+  return ["Owner", "Admin"].includes(req.user?.role);
+}
 
 const router = express.Router();
 const API = new JellyfinAPI();
@@ -196,6 +206,77 @@ const extraWidgetRoutes = [
   ["jellyfin-jobs", buildJellyfinJobWidgets, "Jellyfin tasks"],
 ];
 
+router.post("/widgets/sessions/stop", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Stop a live session' */
+  if (!canUseWidgetWrite(req)) {
+    return res.status(403).send({ error: "widgets-write key or admin session required" });
+  }
+  try {
+    const sessionId = String(req.body?.sessionId || "").trim();
+    if (!sessionId) return res.status(400).send({ error: "Missing sessionId" });
+    await stopWidgetSession(sessionId);
+    await addAuditEntry(req, "widget.session.stopped", { sessionId });
+    res.send({ ok: true });
+  } catch (error) {
+    console.error("Widget session stop failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to stop session" });
+  }
+});
+
+router.post("/widgets/downloads/pause", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Pause or resume a download' */
+  if (!canUseWidgetWrite(req)) {
+    return res.status(403).send({ error: "widgets-write key or admin session required" });
+  }
+  try {
+    const id = String(req.body?.id || "").trim();
+    if (!id) return res.status(400).send({ error: "Missing download id" });
+    res.send(await pauseWidgetDownload(id, Boolean(req.body?.paused)));
+  } catch (error) {
+    console.error("Widget download pause failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to update download" });
+  }
+});
+
+router.post("/widgets/requests/actions", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Approve, decline, or retry a request' */
+  if (!canUseWidgetWrite(req)) {
+    return res.status(403).send({ error: "widgets-write key or admin session required" });
+  }
+  try {
+    const requestId = req.body?.requestId || req.body?.id;
+    const action = String(req.body?.action || "").toLowerCase();
+    if (!requestId || !action) return res.status(400).send({ error: "requestId and action are required" });
+    res.send(
+      await runWidgetRequestAction({
+        requestId,
+        sourceId: req.body?.sourceId,
+        action,
+      })
+    );
+  } catch (error) {
+    console.error("Widget request action failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to update request" });
+  }
+});
+
+router.post("/widgets/repair/refresh", async (req, res) => {
+  /* #swagger.tags = ['Widgets'] #swagger.summary = 'Refresh a Jellyfin item' */
+  if (!canUseWidgetWrite(req)) {
+    return res.status(403).send({ error: "widgets-write key or admin session required" });
+  }
+  try {
+    const itemId = String(req.body?.itemId || "").trim();
+    if (!itemId) return res.status(400).send({ error: "itemId is required" });
+    await refreshWidgetItem(itemId, req.body?.recursive !== false);
+    await addAuditEntry(req, "widget.repair.refresh", { itemId });
+    res.send({ ok: true });
+  } catch (error) {
+    console.error("Widget repair refresh failed:", error);
+    res.status(error.statusCode || 503).send({ error: error.message || "Unable to refresh item" });
+  }
+});
+
 for (const [slug, builder, summary] of extraWidgetRoutes) {
   router.get(`/widgets/${slug}`, async (_req, res) => {
     /* #swagger.tags = ['Widgets'] */
@@ -269,7 +350,7 @@ router.post("/retry-grab", async (req, res) => {
   try {
     const result = await retryFailedGrab(req.body || {});
     if (!result.ok) {
-      res.status(502).send({ error: "Unable to retry grab", ...result });
+      res.status(502).send({ error: result.error || "Unable to retry grab", ...result });
       return;
     }
     res.send(result);

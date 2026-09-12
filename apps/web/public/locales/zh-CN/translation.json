@@ -241,6 +241,7 @@
     "API_KEY_ADD": "Add Key",
     "API_KEY_SCOPE": "Access",
     "API_KEY_SCOPE_WIDGETS": "Widgets only",
+    "API_KEY_SCOPE_WRITE": "Widgets + write",
     "API_KEY_SCOPE_FULL": "Full API",
     "API_KEY_SCOPE_HELP": "Widgets-only keys may GET compact widget routes. Full keys keep the previous behaviour.",
     "API_KEY_SCOPE_SAVED": "Key access updated.",
@@ -547,6 +548,13 @@
       "RETRY_OK": "Search queued",
       "RETRY_FAIL": "Unable to retry grab",
       "OPEN_SEERR": "Open in Seerr"
+    },
+    "SEASON_GAPS": {
+      "SEARCH_SONARR": "Search in Sonarr",
+      "SEARCHING": "Searching…",
+      "SEARCH_OK": "Missing episode search queued",
+      "SEARCH_FAIL": "Unable to search in Sonarr",
+      "NOT_IN_SONARR": "Series not found in Sonarr"
     },
     "DOWNLOADS": {
       "KICKER": "Queue monitor",

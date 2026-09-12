@@ -1,6 +1,7 @@
 import { Tabs, Tab } from "react-bootstrap";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Config from "../lib/config";
 
 import "./css/settings/settings.css";
 import { useTranslation } from "react-i18next";
@@ -253,12 +254,40 @@ function isSettingsHubPath(pathname = "") {
   return String(pathname).replace(/\/+$/, "") === "/settings";
 }
 
+function settingsTabAllowed(key, permissions = {}) {
+  if (key === "tabKeys") return Boolean(permissions.apiKeys);
+  if (key === "tabRepair") return Boolean(permissions.settings || permissions.repair);
+  return Boolean(permissions.settings);
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => getSettingsInitialTab(location));
   const [activeIntegrationTab, setActiveIntegrationTab] = useState(() => getSettingsIntegrationPathTab(location.pathname) || "media-server");
+  const [permissions, setPermissions] = useState(null);
+
+  useEffect(() => {
+    Config.getConfig()
+      .then((cfg) => setPermissions(cfg?.settings?.auth?.permissions || {}))
+      .catch(() => setPermissions({}));
+  }, []);
+
+  const allowedTabItems = useMemo(
+    () => settingsTabItems.filter((item) => settingsTabAllowed(item.key, permissions || {})),
+    [permissions]
+  );
+  const visibleTabGroups = useMemo(
+    () =>
+      settingsTabGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => settingsTabAllowed(item.key, permissions || {})),
+        }))
+        .filter((group) => group.items.length),
+    [permissions]
+  );
 
   useEffect(() => {
     const nextTab = getSettingsInitialTab(location);
@@ -295,9 +324,23 @@ export default function Settings() {
     }
   }, [activeIntegrationTab, activeTab, location.hash, location.pathname, location.search, navigate]);
 
+  useEffect(() => {
+    if (!permissions) return;
+    if (!allowedTabItems.length) {
+      navigate("/me", { replace: true });
+      return;
+    }
+    if (!allowedTabItems.some((item) => item.key === activeTab)) {
+      const nextTab = allowedTabItems[0].key;
+      setActiveTab(nextTab);
+      localStorage.setItem(`PREF_SETTINGS_LAST_SELECTED_TAB`, nextTab);
+      navigate(getSettingsPath(nextTab, activeIntegrationTab), { replace: true });
+    }
+  }, [activeIntegrationTab, activeTab, allowedTabItems, navigate, permissions]);
+
   function setTab(tabName, updateMode = "push") {
-    if (!settingsTabs.includes(tabName)) {
-      tabName = "tabGeneral";
+    if (!allowedTabItems.some((item) => item.key === tabName)) {
+      tabName = allowedTabItems[0]?.key || "tabGeneral";
     }
     setActiveTab(tabName);
     localStorage.setItem(`PREF_SETTINGS_LAST_SELECTED_TAB`, tabName);
@@ -439,11 +482,15 @@ export default function Settings() {
     }
   }
 
+  if (!permissions) {
+    return <Loading />;
+  }
+
   return (
     <div className="settings has-mobile-settings-menu">
       <div className="settings-mobile-menu">
         <div className="settings-mobile-menu-list" role="tablist" aria-label="Settings sections">
-          {settingsTabItems.map(({ key, Icon, labelKey }) => (
+          {allowedTabItems.map(({ key, Icon, labelKey }) => (
             <button
               key={key}
               type="button"
@@ -459,7 +506,7 @@ export default function Settings() {
       </div>
 
       <nav className="nav nav-pills settings-sidebar-nav" role="tablist" aria-label="Settings sections">
-        {settingsTabGroups.map((group) => (
+        {visibleTabGroups.map((group) => (
           <div className="settings-sidebar-group" key={group.groupKey}>
             <span className="settings-sidebar-category">{t(group.groupKey)}</span>
             {group.items.map(({ key }) => (

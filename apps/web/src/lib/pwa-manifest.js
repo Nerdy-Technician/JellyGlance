@@ -21,7 +21,8 @@ export function isOpsRole(role = "") {
   return ["Owner", "Admin"].includes(String(role || ""));
 }
 
-export function pwaStartPath(role = "Viewer", workspaceMode) {
+export function pwaStartPath(role = "Viewer", workspaceMode, permissions = {}) {
+  if (permissions.home === false) return "/me";
   if (!isOpsRole(role)) return "/me";
   return workspaceMode === "user" ? "/me" : "/";
 }

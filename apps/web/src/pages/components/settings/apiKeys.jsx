@@ -145,6 +145,7 @@ export default function ApiKeys() {
           <Form.Label>{t("SETTINGS_PAGE.API_KEY_SCOPE")}</Form.Label>
           <Form.Select value={scope} onChange={(event) => setScope(event.target.value)}>
             <option value="widgets">{t("SETTINGS_PAGE.API_KEY_SCOPE_WIDGETS")}</option>
+            <option value="widgets-write">{t("SETTINGS_PAGE.API_KEY_SCOPE_WRITE")}</option>
             <option value="full">{t("SETTINGS_PAGE.API_KEY_SCOPE_FULL")}</option>
           </Form.Select>
         </div>
@@ -172,11 +173,12 @@ export default function ApiKeys() {
               <div className="api-key-actions">
                 <Form.Select
                   className="api-key-scope-select"
-                  value={apiKey.scope === "widgets" ? "widgets" : "full"}
+                  value={apiKey.scope === "widgets" || apiKey.scope === "widgets-write" ? apiKey.scope : "full"}
                   onChange={(event) => changeScope(apiKey.key, event.target.value)}
                   aria-label={t("SETTINGS_PAGE.API_KEY_SCOPE")}
                 >
                   <option value="widgets">{t("SETTINGS_PAGE.API_KEY_SCOPE_WIDGETS")}</option>
+                  <option value="widgets-write">{t("SETTINGS_PAGE.API_KEY_SCOPE_WRITE")}</option>
                   <option value="full">{t("SETTINGS_PAGE.API_KEY_SCOPE_FULL")}</option>
                 </Form.Select>
                 <Button variant="outline-primary" onClick={() => copyKey(apiKey.key)} title={t("SETTINGS_PAGE.API_KEY_COPY")}>

@@ -1451,5 +1451,77 @@
         }
       }
     }
+  },
+  "/api/widgets/sessions/stop": {
+    "post": {
+      "tags": ["Widgets"],
+      "summary": "Stop a live Jellyfin session",
+      "description": "Requires a widgets-write or full API key, or an admin session. Body: { sessionId }.",
+      "parameters": [
+        { "name": "x-api-token", "in": "header", "type": "string", "required": true },
+        { "name": "authorization", "in": "header", "type": "string", "description": "Bearer session token also works" }
+      ],
+      "responses": {
+        "200": { "description": "Session stopped" },
+        "400": { "description": "Missing sessionId" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden" },
+        "503": { "description": "Unable to stop session" }
+      }
+    }
+  },
+  "/api/widgets/downloads/pause": {
+    "post": {
+      "tags": ["Widgets"],
+      "summary": "Pause or resume a download",
+      "description": "Requires a widgets-write or full API key, or an admin session. Body: { id, paused }.",
+      "parameters": [
+        { "name": "x-api-token", "in": "header", "type": "string", "required": true },
+        { "name": "authorization", "in": "header", "type": "string", "description": "Bearer session token also works" }
+      ],
+      "responses": {
+        "200": { "description": "Download updated" },
+        "400": { "description": "Missing download id" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden" },
+        "503": { "description": "Unable to update download" }
+      }
+    }
+  },
+  "/api/widgets/requests/actions": {
+    "post": {
+      "tags": ["Widgets"],
+      "summary": "Approve, decline, or retry a Seerr request",
+      "description": "Requires a widgets-write or full API key, or an admin session. Body: { requestId, sourceId, action }.",
+      "parameters": [
+        { "name": "x-api-token", "in": "header", "type": "string", "required": true },
+        { "name": "authorization", "in": "header", "type": "string", "description": "Bearer session token also works" }
+      ],
+      "responses": {
+        "200": { "description": "Request updated" },
+        "400": { "description": "Missing requestId or action" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden" },
+        "503": { "description": "Unable to update request" }
+      }
+    }
+  },
+  "/api/widgets/repair/refresh": {
+    "post": {
+      "tags": ["Widgets"],
+      "summary": "Refresh a Jellyfin item",
+      "description": "Requires a widgets-write or full API key, or an admin session. Body: { itemId, recursive? }.",
+      "parameters": [
+        { "name": "x-api-token", "in": "header", "type": "string", "required": true },
+        { "name": "authorization", "in": "header", "type": "string", "description": "Bearer session token also works" }
+      ],
+      "responses": {
+        "200": { "description": "Refresh queued" },
+        "400": { "description": "Missing itemId" },
+        "401": { "description": "Unauthorized" },
+        "403": { "description": "Forbidden" },
+        "503": { "description": "Unable to refresh item" }
+      }
+    }
   }
 }

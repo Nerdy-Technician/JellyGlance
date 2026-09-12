@@ -1186,6 +1186,35 @@
   font-weight: 800;
 }
 
+.home-season-gap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.home-season-gap-row button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 0.28rem 0.7rem;
+}
+
+.home-season-gap-row button:disabled {
+  opacity: 0.55;
+}
+
+.home-season-gap-message {
+  margin: 0.55rem 0 0;
+  color: #bbf7d0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .home-jellyfin-down {
   display: flex;
   align-items: center;

@@ -26,7 +26,12 @@ import i18next from "i18next";
 
 const token = localStorage.getItem("token");
 const PERMISSION_DEFINITIONS = [
-  { key: "dashboard", label: "Dashboard", detail: "Can open JellyGlance and view dashboards." },
+  { key: "dashboard", label: "Dashboard", detail: "Can sign in and call protected routes." },
+  { key: "home", label: "Home", detail: "Can open the admin Home dashboard." },
+  { key: "myGlance", label: "My Glance", detail: "Can open their personal Glance page." },
+  { key: "requests", label: "Requests", detail: "Can open the Requests page." },
+  { key: "downloads", label: "Downloads", detail: "Can manage the download queue." },
+  { key: "repair", label: "Repair", detail: "Can open the Repair hub." },
   { key: "users", label: "Users", detail: "Can manage user roles, tracking, and local accounts." },
   { key: "settings", label: "Settings", detail: "Can change integrations, backups, imports, and maintenance settings." },
   { key: "apiKeys", label: "API Keys", detail: "Can view and manage API keys." },
@@ -519,6 +524,11 @@ export default function Users() {
   async function updateRolePermission(role, permission, enabled) {
     const nextPermissions = {
       dashboard: false,
+      home: false,
+      myGlance: false,
+      requests: false,
+      downloads: false,
+      repair: false,
       users: false,
       settings: false,
       apiKeys: false,

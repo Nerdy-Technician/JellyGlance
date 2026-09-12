@@ -234,15 +234,16 @@
     "API_KEYS": "API Keys",
     "API_KEY_EYEBROW": "Access tokens",
     "API_KEY_COUNT": "{{count}} keys",
-    "API_KEY_INTRO": "Create tokens, then download Homarr JSON or Homepage YAML. Widgets-only keys can poll dashboard endpoints; full keys can call the rest of the API.",
+    "API_KEY_INTRO": "Create tokens, then download Homarr JSON or Homepage YAML. Widgets-only keys can poll dashboard endpoints; widgets-write keys can also POST compact actions; full keys can call the rest of the API.",
     "API_KEY_NAME": "Key name",
-    "API_KEY_NAME_PLACEHOLDER": "Homarr, Homepage, Home Assistant...",
+    "API_KEY_NAME_PLACEHOLDER": "Homarr, Homepage...",
     "API_KEY_NAME_REQUIRED": "Add a name before generating a key.",
     "API_KEY_ADD": "Add Key",
     "API_KEY_SCOPE": "Access",
     "API_KEY_SCOPE_WIDGETS": "Widgets only",
+    "API_KEY_SCOPE_WRITE": "Widgets + write",
     "API_KEY_SCOPE_FULL": "Full API",
-    "API_KEY_SCOPE_HELP": "Widgets-only keys may GET compact widget routes. Full keys keep the previous behaviour.",
+    "API_KEY_SCOPE_HELP": "Widgets-only keys may GET compact widget routes. Widgets + write can also POST session, download, request, and repair actions. Full keys keep the previous behaviour.",
     "API_KEY_SCOPE_SAVED": "Key access updated.",
     "API_KEY_SCOPE_ERROR": "Unable to update key access.",
     "API_KEY_LAST_USED": "Last used",
@@ -547,6 +548,13 @@
       "RETRY_OK": "Search queued",
       "RETRY_FAIL": "Unable to retry grab",
       "OPEN_SEERR": "Open in Seerr"
+    },
+    "SEASON_GAPS": {
+      "SEARCH_SONARR": "Search in Sonarr",
+      "SEARCHING": "Searching…",
+      "SEARCH_OK": "Missing episode search queued",
+      "SEARCH_FAIL": "Unable to search in Sonarr",
+      "NOT_IN_SONARR": "Series not found in Sonarr"
     },
     "DOWNLOADS": {
       "KICKER": "Queue monitor",

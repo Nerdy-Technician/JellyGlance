@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import axios from "../lib/axios_instance";
 import { cachedGet } from "../lib/api-cache";
@@ -421,6 +421,7 @@ function HomeIntegrationWidget({ icon: Icon, title, eyebrow, widget, error, to }
 
 export default function Home({ kioskMode = false }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(() => loadHomeCache(HOME_DASHBOARD_CACHE_KEY));
   const [operations, setOperations] = useState(() => loadHomeCache(HOME_OPERATIONS_CACHE_KEY) || { requests: null, health: null });
   const [integrationWidgets, setIntegrationWidgets] = useState({ tdarr: null, wizarr: null, maintainerr: null, automation: null });
@@ -434,7 +435,24 @@ export default function Home({ kioskMode = false }) {
   const [draggedSection, setDraggedSection] = useState("");
   const [liveSessions, setLiveSessions] = useState(() => getCachedActiveSessions() || []);
   const [detailModal, setDetailModal] = useState(null);
+  const [gapBusyId, setGapBusyId] = useState("");
+  const [gapMessage, setGapMessage] = useState("");
   const [, setError] = useState("");
+
+  useEffect(() => {
+    if (kioskMode) return undefined;
+    let active = true;
+    Config.getConfig()
+      .then((cfg) => {
+        if (active && cfg?.settings?.auth?.permissions?.home === false) {
+          navigate("/me", { replace: true });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [kioskMode, navigate]);
 
   async function loadDashboardData() {
     try {
@@ -620,6 +638,27 @@ export default function Home({ kioskMode = false }) {
     })),
   ].filter((item) => item && !homeSettings.dismissedAlerts?.[item.key]);
   const seasonGaps = dashboard?.seasonGaps || [];
+  const sonarrConnected = Boolean(dashboard?.sonarrConnected);
+
+  async function searchSeasonGap(item) {
+    if (!sonarrConnected || !item?.itemId) return;
+    setGapBusyId(item.itemId);
+    setGapMessage("");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "/api/retry-grab",
+        { itemId: item.itemId, title: item.name, mediaType: "series" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGapMessage(response.data?.ok ? t("FEATURES.SEASON_GAPS.SEARCH_OK") : response.data?.error || t("FEATURES.SEASON_GAPS.SEARCH_FAIL"));
+    } catch (error) {
+      const message = error?.response?.data?.error || t("FEATURES.SEASON_GAPS.SEARCH_FAIL");
+      setGapMessage(message === "Series not found in Sonarr" ? t("FEATURES.SEASON_GAPS.NOT_IN_SONARR") : message);
+    } finally {
+      setGapBusyId("");
+    }
+  }
   const automationFeed = dashboard?.automationFeed || [];
   const milestones = useMemo(() => buildHomeMilestones(dashboard, operations), [dashboard, operations]);
   const visibleWidgetCount = HOME_SECTION_DEFINITIONS.length - homeSettings.hidden.length;
@@ -1364,12 +1403,20 @@ export default function Home({ kioskMode = false }) {
           </div>
           <div className="home-watch-party-list">
             {seasonGaps.length ? seasonGaps.map((item) => (
-              <article key={item.itemId}>
-                <strong>{item.name}</strong>
-                <small>No synced episodes found</small>
+              <article key={item.itemId} className="home-season-gap-row">
+                <div>
+                  <strong>{item.name}</strong>
+                  <small>No synced episodes found</small>
+                </div>
+                {sonarrConnected ? (
+                  <button type="button" disabled={Boolean(gapBusyId)} onClick={() => searchSeasonGap(item)}>
+                    {gapBusyId === item.itemId ? t("FEATURES.SEASON_GAPS.SEARCHING") : t("FEATURES.SEASON_GAPS.SEARCH_SONARR")}
+                  </button>
+                ) : null}
               </article>
             )) : <span>No season gaps found.</span>}
           </div>
+          {gapMessage ? <p className="home-season-gap-message">{gapMessage}</p> : null}
         </section>
       ) : null}
 
@@ -1554,11 +1601,19 @@ export default function Home({ kioskMode = false }) {
             </p>
           ) : null}
           {detailModal?.items?.length ? detailModal.items.map((item) => (
-            <article key={item.itemId} className="home-detail-row">
-              <strong>{item.name}</strong>
-              <small>No synced episodes found</small>
+            <article key={item.itemId} className="home-detail-row home-season-gap-row">
+              <div>
+                <strong>{item.name}</strong>
+                <small>No synced episodes found</small>
+              </div>
+              {sonarrConnected ? (
+                <button type="button" disabled={Boolean(gapBusyId)} onClick={() => searchSeasonGap(item)}>
+                  {gapBusyId === item.itemId ? t("FEATURES.SEASON_GAPS.SEARCHING") : t("FEATURES.SEASON_GAPS.SEARCH_SONARR")}
+                </button>
+              ) : null}
             </article>
           )) : null}
+          {detailModal?.type === "seasonGaps" && gapMessage ? <p className="home-season-gap-message">{gapMessage}</p> : null}
         </Modal.Body>
       </Modal>
     </div>

@@ -10,6 +10,7 @@ const WebhookManager = require("./webhook-manager");
 const { getAuditLog, getWebhookDeliveryHistory, mergeSettings, getSettings } = require("./admin-history");
 const { fetchSeerrIssueSnapshot } = require("./seerr-issues");
 const NewsletterCampaigns = require("./newsletter-campaigns");
+const { setDownloadPaused } = require("./download-client");
 
 const jellyfinApi = new JellyfinAPI();
 let lastJellyfinSeenWrite = 0;
@@ -109,6 +110,7 @@ async function fetchSeerrSnapshot() {
           jellyfinItemId: media.jellyfinItemId || media.jellyfinMediaId,
           openUrl: `${cleanUrl(app.values.url)}/${media.mediaType === "tv" ? "tv" : "movie"}/${media.tmdbId || media.tvdbId || ""}`,
           source: app.name,
+          sourceId: app.instanceId,
         });
       }
     } catch (error) {
@@ -304,6 +306,10 @@ function listWidgetCatalog() {
       { path: "/api/widgets/jobs", method: "GET", summary: "Latest Glance task runs" },
       { path: "/api/widgets/jellyfin-jobs", method: "GET", summary: "Live Jellyfin scheduled tasks" },
       { path: "/api/widgets/newsletter", method: "GET", summary: "Last newsletter send and next digest" },
+      { path: "/api/widgets/sessions/stop", method: "POST", summary: "Stop a live Jellyfin session (widgets-write)" },
+      { path: "/api/widgets/downloads/pause", method: "POST", summary: "Pause or resume a download (widgets-write)" },
+      { path: "/api/widgets/requests/actions", method: "POST", summary: "Approve, decline, or retry a Seerr request (widgets-write)" },
+      { path: "/api/widgets/repair/refresh", method: "POST", summary: "Refresh a Jellyfin item (widgets-write)" },
       { path: "/api/ops-digest", method: "GET", summary: "Ops items that need attention" },
       { path: "/api/library-storage", method: "GET", summary: "Per-library sizes and upcoming estimate" },
       { path: "/api/downloads/stitched", method: "GET", summary: "Download queue matched to Seerr requests" },
@@ -333,6 +339,7 @@ function sameCalendarDay(value, now = new Date()) {
 
 function compactDownload(item) {
   return {
+    id: item.id || item.hash || item.nzoId || "",
     name: item.name || item.title || "Download",
     state: item.state || "",
     progress: Number(item.progress || 0),
@@ -500,6 +507,8 @@ async function buildRequestWidgets() {
     jellyglance: true,
     ...counts,
     items: rows.slice(0, 8).map((row) => ({
+      id: row.id,
+      sourceId: row.sourceId || "",
       title: row.title,
       status: row.status,
       source: row.source || "",
@@ -1003,6 +1012,7 @@ async function buildNowPlayingWidgets() {
       return session.TranscodingInfo?.IsVideoDirect === false;
     }).length,
     items: playing.slice(0, 8).map((session) => ({
+      sessionId: session.Id || "",
       viewer: session.UserName || session.LastUserName || "User",
       title: playingTitle(session),
       client: session.Client || session.ApplicationVersion || "",
@@ -1013,7 +1023,7 @@ async function buildNowPlayingWidgets() {
 }
 
 async function buildRepairWidgets() {
-  const [counts, unmatched, orphaned] = await Promise.all([
+  const [counts, unmatched, orphaned, samples] = await Promise.all([
     db
       .query(
         `SELECT
@@ -1036,6 +1046,26 @@ async function buildRepairWidgets() {
          AND i."Id" IS NULL
          AND (a."EpisodeId" IS NULL OR e."EpisodeId" IS NULL)`
     ),
+    db
+      .query(
+        `SELECT "Id" AS "itemId", "Name" AS title,
+            CASE
+              WHEN COALESCE("PrimaryImageHash", '') = '' THEN 'poster'
+              WHEN COALESCE("RunTimeTicks", 0) = 0 THEN 'runtime'
+              ELSE 'logo'
+            END AS issue
+         FROM jf_library_items
+         WHERE archived = false
+           AND (
+             COALESCE("PrimaryImageHash", '') = ''
+             OR COALESCE("RunTimeTicks", 0) = 0
+             OR COALESCE("ImageTagsLogo", '') = ''
+           )
+         ORDER BY "Name"
+         LIMIT 8`
+      )
+      .then((result) => result.rows)
+      .catch(() => []),
   ]);
   const posters = Number(counts.posters || 0);
   const logos = Number(counts.logos || 0);
@@ -1049,6 +1079,7 @@ async function buildRepairWidgets() {
     orphaned,
     issues,
     ok: issues === 0,
+    items: Array.isArray(samples) ? samples : [],
   });
 }
 
@@ -1465,11 +1496,44 @@ async function findArrSeries(app, { title, tvdb }) {
   }
 }
 
+async function resolveRetryItem(payload = {}) {
+  const itemId = payload.itemId || payload.Id;
+  let title = payload.title || payload.name || "";
+  let mediaType = String(payload.mediaType || payload.type || "").toLowerCase();
+  let tmdb = payload.tmdb || payload.tmdbId;
+  let tvdb = payload.tvdb || payload.tvdbId;
+  if (!itemId) return { title, mediaType, tmdb, tvdb, itemId: "" };
+
+  const item = await loadItem(itemId).catch(() => null);
+  if (item) {
+    title = title || item.Name || item.SeriesName || "";
+    const itemType = String(item.Type || "").toLowerCase();
+    if (!mediaType && (itemType.includes("series") || item.SeriesName || item.EpisodeId)) mediaType = "series";
+    if (!mediaType && itemType.includes("movie")) mediaType = "movie";
+  }
+
+  try {
+    const live = await jellyfinApi.getItemsByID({ ids: [itemId] });
+    const jfItem = Array.isArray(live) ? live[0] : null;
+    const providers = jfItem?.ProviderIds || {};
+    tvdb = tvdb || providers.Tvdb || providers.TVDB || providers.tvdb;
+    tmdb = tmdb || providers.Tmdb || providers.TMDB || providers.tmdb;
+    title = title || jfItem?.Name || "";
+    if (!mediaType && String(jfItem?.Type || "").toLowerCase() === "series") mediaType = "series";
+    if (!mediaType && String(jfItem?.Type || "").toLowerCase() === "movie") mediaType = "movie";
+  } catch {
+    /* keep local title */
+  }
+
+  return { title, mediaType, tmdb, tvdb, itemId };
+}
+
 async function retryFailedGrab(payload = {}) {
-  const title = payload.title || payload.name || "";
-  const mediaType = String(payload.mediaType || payload.type || "").toLowerCase();
-  const tmdb = payload.tmdb || payload.tmdbId;
-  const tvdb = payload.tvdb || payload.tvdbId;
+  const resolved = await resolveRetryItem(payload);
+  const title = resolved.title;
+  const mediaType = resolved.mediaType;
+  const tmdb = resolved.tmdb;
+  const tvdb = resolved.tvdb;
   const requestId = payload.requestId || payload.request?.id;
   const sourceId = payload.sourceId || payload.request?.sourceId;
   const steps = [];
@@ -1496,8 +1560,10 @@ async function retryFailedGrab(payload = {}) {
     }
   }
 
-  const wantMovie = mediaType.includes("movie") || Boolean(tmdb) || (!tvdb && !mediaType.includes("tv"));
-  const wantSeries = mediaType.includes("tv") || mediaType.includes("series") || mediaType.includes("show") || Boolean(tvdb) || !wantMovie;
+  const explicitSeries = mediaType.includes("tv") || mediaType.includes("series") || mediaType.includes("show");
+  const explicitMovie = mediaType.includes("movie");
+  const wantMovie = explicitSeries && !explicitMovie ? false : explicitMovie && !explicitSeries ? true : Boolean(tmdb) || (!tvdb && !mediaType);
+  const wantSeries = explicitSeries || Boolean(tvdb) || !wantMovie;
 
   for (const app of arrApps) {
     const slug = integrationSlug(app);
@@ -1533,7 +1599,55 @@ async function retryFailedGrab(payload = {}) {
     }
   }
 
-  return { ok: steps.some((step) => step.ok), steps, title };
+  const ok = steps.some((step) => step.ok);
+  if (!ok && wantSeries && !wantMovie) {
+    const sonarrApps = arrApps.filter((app) => integrationSlug(app).includes("sonarr"));
+    if (!sonarrApps.length) {
+      return { ok: false, error: "Sonarr is not connected", steps, title };
+    }
+    if (!steps.some((step) => step.action === "MissingEpisodeSearch")) {
+      return { ok: false, error: "Series not found in Sonarr", steps, title };
+    }
+  }
+
+  return { ok, steps, title };
+}
+
+async function stopWidgetSession(sessionId) {
+  return jellyfinApi.stopSession(sessionId);
+}
+
+async function pauseWidgetDownload(id, paused) {
+  return setDownloadPaused(id, paused);
+}
+
+async function runWidgetRequestAction({ requestId, sourceId, action }) {
+  const integrations = await getIntegrations();
+  const seerrApps = (integrations.arrApps || []).filter((app) => {
+    const name = integrationSlug(app);
+    return name.includes("jellyseerr") || name.includes("overseerr") || name === "seerr";
+  });
+  const app = sourceId ? seerrApps.find((row) => row.instanceId === sourceId) : seerrApps[0];
+  if (!app) {
+    const error = new Error("Seerr source not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  if (!["approve", "decline", "retry"].includes(action)) {
+    const error = new Error("Unsupported request action");
+    error.statusCode = 400;
+    throw error;
+  }
+  const response = await axios.post(
+    `${cleanUrl(app.values.url)}/api/v1/request/${encodeURIComponent(requestId)}/${action}`,
+    {},
+    { timeout: 10000, headers: { "X-Api-Key": app.values.secret } }
+  );
+  return { ok: true, source: app.name, action, status: response.status, data: response.data };
+}
+
+async function refreshWidgetItem(itemId, recursive = true) {
+  return jellyfinApi.refreshItem(itemId, { recursive });
 }
 
 module.exports = {
@@ -1580,6 +1694,10 @@ module.exports = {
   pingThirdParty,
   fetchAutobrrHits,
   retryFailedGrab,
+  stopWidgetSession,
+  pauseWidgetDownload,
+  runWidgetRequestAction,
+  refreshWidgetItem,
   getJellyfinStatus,
   formatBytes,
 };
