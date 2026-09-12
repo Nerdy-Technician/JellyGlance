@@ -21,6 +21,7 @@ import IpInfoModal from "../ip-info";
 import { Trans } from "react-i18next";
 import baseUrl from "../../../lib/baseurl";
 import axios from "../../../lib/axios_instance";
+import SessionGlanceStrip from "./session-glance-strip";
 
 function formatTranscodeReasons(session) {
   const reasons = session?.TranscodingInfo?.TranscodeReasons;
@@ -765,6 +766,7 @@ function SessionCard(props) {
                   ? props.data.session.NowPlayingItem.Artists[0]
                   : props.data.session.NowPlayingItem.SeriesName || props.data.session.NowPlayingItem.Type}
             </Card.Text>
+            <SessionGlanceStrip stitch={props.stitch} />
           </div>
         </Col>
         <Col className="session-card-user">

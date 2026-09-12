@@ -81,16 +81,16 @@ After the first Jellyfin sync, these areas are worth opening first:
 
 | Page | Why It Matters |
 | --- | --- |
-| Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. |
+| Home | Reorder sections, hide noise, choose a preset, pin important widgets, switch density, tune alert rules, or open `/home/kiosk` for a wall display. Family presets surface Watch tonight from household continue watching, shared watchlists, and unfinished titles. |
 | Settings > Integrations > 3rd Party Apps | Connect Wizarr, Tdarr, Maintainerr, or SickChill for invites, transcodes, cleanup visibility, and alternative TV automation. |
 | Requests | Connect Jellyseerr or Overseerr to review request cards, posters, availability, requester info, status filters, and actions. |
 | Downloads | Connect qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or rTorrent for live queues, add, pause, and remove. |
 | Active Transcodes | Connect Tdarr to monitor active, queued, and historical transcode work with progress and media artwork. |
 | Invites | Connect Wizarr to create, copy, open, and remove invite links inside JellyGlance. |
-| Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. |
+| Users | Open a profile to see favourites, Movie and Show watchlists, Continue Watching, Recently Watched, next episodes, and profile media search. The Household role lands on My Glance and does not get admin Home. Manager can manage users and requests but does not get Repair. |
 | Repair | Review missing artwork, missing runtime, empty series, orphaned activity, unmatched imports, and recent task failures. |
 | Settings > Imports | Bring old Tautulli watch history into JellyGlance and link unmatched legacy media to current Jellyfin items. |
-| Settings > Newsletter | Build and send a JellyGlance digest with recently added media, weekly watch stats, active viewers, and repair status. |
+| Settings > Newsletter | Build and send a house digest, or a per-user campaign that emails each opted-in Jellyfin user their continue watching, requests, and recently added. |
 | Settings > Health | Check Jellyfin, database, tasks, webhooks, integrations, and backup freshness from one compact operations view. |
 
 ## Integrations Quick List

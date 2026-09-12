@@ -16,6 +16,8 @@ import AuthArtworkBackground from "./components/AuthArtworkBackground";
 import Loading from "./components/general/loading";
 import { Trans } from "react-i18next";
 import i18next from "i18next";
+import { isOpsRole } from "../lib/pwa-manifest";
+import { getStoredWorkspaceMode, workspaceHomePath } from "../lib/workspace-mode";
 
 function Login() {
   const [config, setConfig] = useState(null);
@@ -92,6 +94,13 @@ function Login() {
     beginLogin(formValues.JS_USERNAME, hashedPassword);
   }
 
+  function redirectAfterLogin(nextConfig) {
+    const role = nextConfig?.settings?.auth?.role || "";
+    const permissions = nextConfig?.settings?.auth?.permissions || {};
+    const ops = isOpsRole(role);
+    window.location.replace(workspaceHomePath(ops, getStoredWorkspaceMode(ops), permissions));
+  }
+
   function startOidcLogin() {
     setProcessing(true);
     setOidcStatus("");
@@ -114,8 +123,8 @@ function Login() {
 
       localStorage.setItem("token", response.data.token);
       localStorage.removeItem("jellyglance_logged_out");
-      await Config.setConfig();
-      window.location.reload();
+      const nextConfig = await Config.setConfig();
+      redirectAfterLogin(nextConfig);
     } catch (error) {
       const errorMessage = error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`;
       setQuickConnectStatus(errorMessage);
@@ -168,9 +177,9 @@ function Login() {
         localStorage.removeItem("jellyglance_logged_out");
         setProcessing(false);
         if (JS_USERNAME || response.data.token) {
-          await Config.setConfig();
+          const nextConfig = await Config.setConfig();
           setsubmitButtonText(i18next.t("SUCCESS"));
-          window.location.reload();
+          redirectAfterLogin(nextConfig);
           return;
         }
       })

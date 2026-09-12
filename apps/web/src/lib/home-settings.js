@@ -1,6 +1,6 @@
 export const HOME_SETTINGS_STORAGE_PREFIX = "jellyglance_home_settings";
 export const LEGACY_HOME_ORDER_STORAGE_KEY = "jellyglance_home_section_order";
-export const HOME_LAYOUT_VERSION = 4;
+export const HOME_LAYOUT_VERSION = 5;
 
 const DEFAULT_HIDDEN_SECTION_IDS = ["seasonGaps", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"];
 const INTEGRATION_WIDGET_SECTION_IDS = ["tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"];
@@ -18,6 +18,7 @@ export const HOME_SECTION_DEFINITIONS = [
   { id: "trends", label: "Today vs last week" },
   { id: "issues", label: "Library issues" },
   { id: "watchParty", label: "Watch party" },
+  { id: "watchTonight", label: "Watch tonight" },
   { id: "seasonGaps", label: "Season gaps" },
   { id: "tdarr", label: "Tdarr transcodes" },
   { id: "wizarr", label: "Wizarr invites" },
@@ -42,6 +43,7 @@ export const CURATED_DEFAULT_HOME_ORDER = [
   "hall",
   "trends",
   "watchParty",
+  "watchTonight",
   "quickActions",
   "library",
   "catalog",
@@ -76,6 +78,7 @@ export const DEFAULT_HOME_SETTINGS = {
     library: "large",
     milestones: "large",
     week: "large",
+    watchTonight: "large",
     tdarr: "small",
     wizarr: "small",
     maintainerr: "small",
@@ -100,7 +103,7 @@ export const HOME_PRESETS = {
   },
   admin: {
     label: "Admin",
-    order: ["attention", "operations", "quickActions", "automation", "tdarr", "maintainerr", "bazarr", "prowlarr", "wizarr", "sessions", "streamCapacity", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty"],
+    order: ["attention", "operations", "quickActions", "automation", "tdarr", "maintainerr", "bazarr", "prowlarr", "wizarr", "sessions", "streamCapacity", "overview", "milestones", "trends", "issues", "week", "hall", "library", "catalog", "seasonGaps", "watchParty", "watchTonight"],
     hidden: ["watchParty", ...INTEGRATION_WIDGET_SECTION_IDS],
     density: "compact",
     sizes: {
@@ -117,19 +120,19 @@ export const HOME_PRESETS = {
   },
   family: {
     label: "Family",
-    order: ["sessions", "watchParty", "week", "milestones", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "automation", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"],
-    hidden: ["issues", "seasonGaps", "automation", "streamCapacity", ...INTEGRATION_WIDGET_SECTION_IDS],
+    order: ["sessions", "watchTonight", "week", "milestones", "hall", "overview", "trends", "catalog", "operations", "quickActions", "library", "attention", "issues", "seasonGaps", "watchParty", "automation", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"],
+    hidden: ["watchParty", "issues", "seasonGaps", "automation", "streamCapacity", ...INTEGRATION_WIDGET_SECTION_IDS],
     density: "comfortable",
     sizes: {
       sessions: "large",
-      watchParty: "large",
+      watchTonight: "large",
       week: "medium",
       hall: "large",
     },
   },
   media: {
     label: "Media Stats",
-    order: ["overview", "milestones", "trends", "catalog", "library", "issues", "seasonGaps", "week", "watchParty", "hall", "sessions", "operations", "quickActions", "attention", "automation", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"],
+    order: ["overview", "milestones", "trends", "catalog", "library", "issues", "seasonGaps", "week", "watchParty", "watchTonight", "hall", "sessions", "operations", "quickActions", "attention", "automation", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr"],
     hidden: ["automation", ...INTEGRATION_WIDGET_SECTION_IDS],
     density: "comfortable",
     sizes: {
@@ -141,7 +144,7 @@ export const HOME_PRESETS = {
   },
   requests: {
     label: "Requests First",
-    order: ["attention", "operations", "quickActions", "automation", "wizarr", "maintainerr", "sessions", "week", "milestones", "overview", "hall", "trends", "library", "catalog", "issues", "seasonGaps", "watchParty", "tdarr", "bazarr", "prowlarr"],
+    order: ["attention", "operations", "quickActions", "automation", "wizarr", "maintainerr", "sessions", "week", "milestones", "overview", "hall", "trends", "library", "catalog", "issues", "seasonGaps", "watchParty", "watchTonight", "tdarr", "bazarr", "prowlarr"],
     hidden: DEFAULT_HIDDEN_SECTION_IDS,
     density: "compact",
     sizes: {
@@ -153,7 +156,7 @@ export const HOME_PRESETS = {
   },
   kiosk: {
     label: "Kiosk",
-    order: ["sessions", "overview", "hall", "week", "trends", "watchParty", "catalog", "library", "milestones", "operations", "attention", "issues", "seasonGaps", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr", "automation", "quickActions"],
+    order: ["sessions", "overview", "hall", "week", "trends", "watchParty", "watchTonight", "catalog", "library", "milestones", "operations", "attention", "issues", "seasonGaps", "tdarr", "wizarr", "maintainerr", "bazarr", "prowlarr", "automation", "quickActions"],
     hidden: KIOSK_DEFAULT_HIDDEN,
     density: "comfortable",
     sizes: {

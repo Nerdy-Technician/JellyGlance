@@ -7972,14 +7972,16 @@ router.get("/startTask", async (req, res) => {
 router.get("/newsletter/my-subscriptions", async (req, res) => {
   try {
     const newsletterCampaigns = require("../classes/newsletter-campaigns");
-    const userId = req.user?.id || req.user?.username || req.user?.email;
+    const userId = req.user?.jellyfinUser?.id || req.user?.id || req.user?.username || req.user?.email;
     if (!userId) return res.status(401).send({ error: "Unauthorized" });
     const [subscribable, subscriptions] = await Promise.all([
       newsletterCampaigns.listCampaigns({ includePersonal: true }),
       newsletterCampaigns.getSubscriptionsForUser(String(userId)),
     ]);
     res.send({
-      campaigns: subscribable.filter((campaign) => campaign.type === "global" || campaign.type === "personal" || campaign.enabled),
+      campaigns: subscribable.filter(
+        (campaign) => campaign.type === "global" || campaign.type === "personal" || campaign.type === "per-user" || campaign.enabled
+      ),
       subscriptions,
     });
   } catch (error) {
@@ -7991,7 +7993,7 @@ router.get("/newsletter/my-subscriptions", async (req, res) => {
 router.put("/newsletter/my-subscriptions", async (req, res) => {
   try {
     const newsletterCampaigns = require("../classes/newsletter-campaigns");
-    const userId = req.user?.id || req.user?.username || req.user?.email;
+    const userId = req.user?.jellyfinUser?.id || req.user?.id || req.user?.username || req.user?.email;
     if (!userId) return res.status(401).send({ error: "Unauthorized" });
     const subscriptions = await newsletterCampaigns.upsertSubscription({
       userId: String(userId),

@@ -1091,7 +1091,7 @@ export default function Users() {
                 <article className="role-permission-card" key={role}>
                   <div className="role-permission-title">
                     <Badge className={`users-role-badge ${roleClass(role)}`}>{role}</Badge>
-                    {!["Owner", "Admin", "Manager", "Viewer", "Disabled"].includes(role) && (
+                    {!["Owner", "Admin", "Manager", "Viewer", "Household", "Disabled"].includes(role) && (
                       <button type="button" onClick={() => removeRole(role)} aria-label={`Remove ${role}`}>
                         <CloseFillIcon size={14} />
                       </button>

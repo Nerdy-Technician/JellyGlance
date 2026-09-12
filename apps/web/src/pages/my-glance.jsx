@@ -233,6 +233,8 @@ export default function MyGlance() {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [digests, setDigests] = useState([]);
+  const [digestBusyId, setDigestBusyId] = useState("");
 
   useEffect(() => {
     Config.getConfig().then(setConfig).catch(() => setConfig((current) => current || {}));
@@ -291,6 +293,54 @@ export default function MyGlance() {
       active = false;
     };
   }, [config, jellyfinUserId]);
+
+  useEffect(() => {
+    if (!config) return undefined;
+    let active = true;
+    axios
+      .get("/api/newsletter/my-subscriptions", { headers: authHeaders() })
+      .then((response) => {
+        if (!active) return;
+        const subscriptions = response.data?.subscriptions || [];
+        setDigests(
+          (response.data?.campaigns || [])
+            .filter((campaign) => campaign.type === "per-user" && campaign.enabled)
+            .map((campaign) => {
+              const sub = subscriptions.find((row) => row.campaignId === campaign.id);
+              return { ...campaign, optedIn: sub ? sub.optedIn !== false : true };
+            })
+        );
+      })
+      .catch(() => {
+        if (active) setDigests([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [config]);
+
+  async function toggleDigest(campaign, optedIn) {
+    setDigestBusyId(campaign.id);
+    try {
+      const response = await axios.put(
+        "/api/newsletter/my-subscriptions",
+        { campaignId: campaign.id, optedIn },
+        { headers: authHeaders() }
+      );
+      const subscriptions = response.data?.subscriptions || [];
+      setDigests((current) =>
+        current.map((item) => {
+          if (item.id !== campaign.id) return item;
+          const sub = subscriptions.find((row) => row.campaignId === item.id);
+          return { ...item, optedIn: sub ? sub.optedIn !== false : optedIn };
+        })
+      );
+    } catch {
+      setMessage(t("FEATURES.MY_GLANCE.UPDATE_FAIL"));
+    } finally {
+      setDigestBusyId("");
+    }
+  }
 
   const liveSession = useMemo(
     () =>
@@ -481,6 +531,25 @@ export default function MyGlance() {
           </div>
         ))}
       </div>
+
+      {digests.length ? (
+        <section className="my-glance-digest">
+          <p>{t("FEATURES.MY_GLANCE.DIGEST")}</p>
+          <span>{t("FEATURES.MY_GLANCE.DIGEST_SUB")}</span>
+          {digests.map((campaign) => (
+            <div key={campaign.id}>
+              <strong>{campaign.name}</strong>
+              <button
+                type="button"
+                disabled={digestBusyId === campaign.id}
+                onClick={() => toggleDigest(campaign, !campaign.optedIn)}
+              >
+                {campaign.optedIn ? t("FEATURES.NEWSLETTER.OPT_OUT") : t("FEATURES.NEWSLETTER.OPT_IN")}
+              </button>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       {taste.length ? (
         <section className="my-glance-taste">

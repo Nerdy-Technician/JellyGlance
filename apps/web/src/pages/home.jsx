@@ -563,6 +563,13 @@ export default function Home({ kioskMode = false }) {
   const todayTrend = dashboard?.trends?.today || {};
   const libraryIssues = dashboard?.libraryIssues || {};
   const watchParty = dashboard?.watchParty || [];
+  const watchTonight = dashboard?.watchTonight || [];
+  const watchTonightReasonLabel = {
+    continue: t("FEATURES.WATCH_TONIGHT.CONTINUE"),
+    "shared-watchlist": t("FEATURES.WATCH_TONIGHT.SHARED_WATCHLIST"),
+    "shared-favourite": t("FEATURES.WATCH_TONIGHT.SHARED_FAVOURITE"),
+    unfinished: t("FEATURES.WATCH_TONIGHT.UNFINISHED"),
+  };
   const requestUrgency = Number(requestStats.pending || 0) + Number(requestStats.failed || 0);
   const maintainerrData = operations.maintainerr || null;
   const digestItems = operations.digest?.items || [];
@@ -1391,6 +1398,33 @@ export default function Home({ kioskMode = false }) {
                 <small>{formatNumber(item.users)} users · {formatNumber(item.plays)} plays in 30 days</small>
               </article>
             )) : <span>No shared viewing overlap yet.</span>}
+          </div>
+        </section>
+      ) : null}
+
+      {shouldRenderSection("watchTonight") ? (
+        <section className={getHomeSectionClass("watchTonight", "home-watch-party home-glass-card")} aria-label={t("FEATURES.WATCH_TONIGHT.TITLE")} style={getHomeSectionStyle("watchTonight")}>
+          <div className="home-section-title">
+            <PlayCircleLineIcon size={20} />
+            <h2>{t("FEATURES.WATCH_TONIGHT.TITLE")}</h2>
+          </div>
+          <div className="home-watch-party-list">
+            {watchTonight.length ? watchTonight.map((item) => (
+              <article key={`${item.itemId}-${item.name}`}>
+                <Link to={`/libraries/item/${item.itemId}`} className="home-watch-tonight-card">
+                  <strong>{item.name}</strong>
+                  <small>{t("FEATURES.WATCH_TONIGHT.USERS", { count: (item.users || []).length })}</small>
+                  {(item.users || []).length ? <span className="home-watch-tonight-users">{item.users.join(", ")}</span> : null}
+                  {(item.reasons || []).length ? (
+                    <span className="home-watch-tonight-reasons">
+                      {item.reasons.map((reason) => (
+                        <em key={`${item.itemId}-${reason}`}>{watchTonightReasonLabel[reason] || reason}</em>
+                      ))}
+                    </span>
+                  ) : null}
+                </Link>
+              </article>
+            )) : <span>{t("FEATURES.WATCH_TONIGHT.NO_PICKS")}</span>}
           </div>
         </section>
       ) : null}

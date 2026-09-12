@@ -2387,6 +2387,13 @@
   justify-content: flex-end;
 }
 
+.newsletter-help {
+  margin: 12px 0 0;
+  color: #aebbd0;
+  font-size: 13px;
+  font-weight: 750;
+}
+
 .newsletter-recipient-box {
   margin-top: 12px;
 }

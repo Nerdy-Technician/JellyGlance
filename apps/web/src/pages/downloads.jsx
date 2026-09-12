@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AddLineIcon from "remixicon-react/AddLineIcon";
 import CloseLineIcon from "remixicon-react/CloseLineIcon";
 import DownloadCloud2FillIcon from "remixicon-react/DownloadCloud2FillIcon";
@@ -42,6 +42,7 @@ function isDownloadPaused(download) {
 
 export default function Downloads() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [integrations, setIntegrations] = useState(loadSavedIntegrations({ clients: [] }));
   const savedClients = integrations.clients || [];
@@ -112,9 +113,12 @@ export default function Downloads() {
       .then((cfg) => {
         const permissions = cfg?.settings?.auth?.permissions || {};
         setCanManageDownloads(Boolean(permissions.downloads || permissions.settings));
+        if (permissions.home === false && !permissions.downloads && !permissions.settings) {
+          navigate("/me", { replace: true });
+        }
       })
       .catch(() => setCanManageDownloads(false));
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!selectedClientId && usableClients[0]?.instanceId) {
