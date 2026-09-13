@@ -96,9 +96,10 @@ export default defineConfig({
 
           const aliases = {
             "guide/getting-started.md": "install setup compose first-run wizard local development docker start",
-            "guide/faq.md": "faq help troubleshooting first sync stuck api key jwt reverse proxy unraid truenas 403 hidden pages requests downloads",
+            "guide/faq.md": "faq help troubleshooting first sync stuck api key jwt reverse proxy unraid truenas 403 hidden pages requests downloads homarr homepage widgets",
             "features.md": "compare comparison jellystat jellydash vs alternative features table",
             "operations/docker.md": "install docker compose container self-host deploy postgres",
+            "operations/widgets.md": "homepage homarr widgets api key x-api-token customapi json import dashboard sessions downloads calendar requests invites tdarr maintainerr",
             "operations/catalog.md": "unraid truenas scale community apps helm kubernetes catalog"
           };
 

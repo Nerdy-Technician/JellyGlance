@@ -1,4 +1,36 @@
 {
+  "1.2.10": [
+    {
+      "icon": "rocket",
+      "title": "Token Widget API",
+      "body": "Homarr and Homepage poll compact JSON for sessions, queues, catalog, requests, and ops — real Glance data, not a health ping."
+    },
+    {
+      "icon": "shield",
+      "title": "Widgets-Only API Keys",
+      "body": "New keys default to GET widget routes only. Full keys keep the previous /api behaviour. Existing keys stay full until you change them."
+    },
+    {
+      "icon": "magic",
+      "title": "Homarr And Homepage Kit",
+      "body": "Copy or download 36 Homarr widgets and a Homepage YAML pack from Settings → API Key. Homarr never stores the key in the file — paste x-api-token after import."
+    },
+    {
+      "icon": "movie",
+      "title": "Now Playing, Repair, Issues",
+      "body": "New tiles for live sessions, repair counts, weekly stats, Seerr issues, newsletter, and Jellyfin jobs. Item glance stays Homarr-only."
+    },
+    {
+      "icon": "palette",
+      "title": "API Key Page",
+      "body": "Keys show last used and scope. Widget files sit in grouped rows with a filter. Swagger opens in its own tab instead of an iframe."
+    },
+    {
+      "icon": "speed",
+      "title": "Try Routes In Swagger",
+      "body": "Authorize with x-api-token and use the Widgets tag, or try a route from Settings. Standalone UI is at /swagger-ui."
+    }
+  ],
   "1.2.9": [
     {
       "icon": "download",

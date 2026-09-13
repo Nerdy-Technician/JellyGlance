@@ -4,8 +4,11 @@ const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");
+const { axios } = require("../classes/axios");
 const { addAuditEntry } = require("../classes/admin-history");
 const campaigns = require("../classes/newsletter-campaigns");
+const { getIntegrations } = require("../classes/integration-store");
+const { fetchJellyfinUserItems, normalizeJellyfinMediaItem } = require("../classes/watch-tonight");
 
 const router = express.Router();
 const HISTORY_LIMIT = 50;
@@ -156,6 +159,10 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function cleanUrl(url = "") {
+  return String(url || "").trim().replace(/\/+$/, "");
+}
+
 function formatWatchTime(seconds) {
   const hours = Math.round(Number(seconds || 0) / 3600);
   if (hours >= 1) return `${hours.toLocaleString()}h`;
@@ -246,21 +253,97 @@ async function buildNewsletterData() {
   };
 }
 
+async function fetchUserSeerrRequests(userName) {
+  const integrations = await getIntegrations().catch(() => ({ arrApps: [] }));
+  const seerrApps = (integrations.arrApps || []).filter((app) => {
+    const name = String(app.name || app.slug || "").toLowerCase();
+    return app.connected && (name.includes("jellyseerr") || name.includes("overseerr") || name === "seerr");
+  });
+  const needle = String(userName || "").toLowerCase();
+  const requests = [];
+  for (const app of seerrApps) {
+    try {
+      const response = await axios.get(`${cleanUrl(app.values.url)}/api/v1/request`, {
+        timeout: 12000,
+        headers: { "X-Api-Key": app.values.secret },
+        params: { take: 40, skip: 0, sort: "added", skipCount: "false" },
+      });
+      const rows = response.data?.results || response.data || [];
+      for (const row of Array.isArray(rows) ? rows : []) {
+        const requestedBy = row.requestedBy?.displayName || row.requestedBy?.jellyfinUsername || row.user?.jellyfinUsername || "";
+        if (needle && !String(requestedBy).toLowerCase().includes(needle)) continue;
+        const media = row.media || {};
+        requests.push({
+          Name: media.title || media.name || row.title || "Request",
+          Type: media.mediaType || row.type || "Request",
+          status: row.status,
+        });
+      }
+    } catch {
+      // Skip this Seerr instance and keep building the digest.
+    }
+  }
+  return requests.slice(0, 8);
+}
+
+async function buildUserNewsletterData(person) {
+  const [continueItems, recentItems, requests] = await Promise.all([
+    fetchJellyfinUserItems(person.userId, {
+      Filters: "IsResumable",
+      IncludeItemTypes: "Movie,Episode",
+      SortBy: "DatePlayed",
+      SortOrder: "Descending",
+      Limit: 8,
+    }).catch(() => []),
+    fetchJellyfinUserItems(person.userId, {
+      SortBy: "DateCreated",
+      SortOrder: "Descending",
+      IncludeItemTypes: "Movie,Series,Episode",
+      Limit: 8,
+    }).catch(() => []),
+    fetchUserSeerrRequests(person.name).catch(() => []),
+  ]);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    subject: `Your JellyGlance digest - ${formatDate(new Date())}`,
+    perUser: true,
+    personName: person.name,
+    continueWatching: continueItems.map(normalizeJellyfinMediaItem).map((item) => ({
+      Name: item.seriesName || item.name,
+      Type: item.type,
+    })),
+    myRequests: requests,
+    recentlyAdded: recentItems.map(normalizeJellyfinMediaItem).map((item) => ({
+      Name: item.seriesName || item.name,
+      Type: item.type,
+    })),
+    topWatched: [],
+    activeUsers: [],
+    repairSummary: { missingPosters: 0, missingLogos: 0, missingRuntime: 0, unmatchedImports: 0 },
+  };
+}
+
 function listHtml(items, rowBuilder, emptyText) {
   if (!items.length) return `<p style="color:#8fa3bd;margin:0;font-size:14px;">${emptyText}</p>`;
   return `<div>${items.map(rowBuilder).join("")}</div>`;
 }
 
 function buildNewsletterHtml(data, options = {}) {
-  const sections = { recentlyAdded: true, topWatched: true, activeUsers: true, repairSummary: true, ...(options.sections || {}) };
+  const perUser = Boolean(data.perUser || options.perUser);
+  const sections = perUser
+    ? { continueWatching: true, myRequests: true, recentlyAdded: true, ...(options.sections || {}) }
+    : { recentlyAdded: true, topWatched: true, activeUsers: true, repairSummary: true, ...(options.sections || {}) };
   const logoSrc = options.logoSrc || getLogoDataUri();
+  const repairSummary = data.repairSummary || {};
   const totalRepairIssues =
-    data.repairSummary.missingPosters +
-    data.repairSummary.missingLogos +
-    data.repairSummary.missingRuntime +
-    data.repairSummary.unmatchedImports;
-  const totalPlays = data.topWatched.reduce((total, item) => total + Number(item.Plays || 0), 0);
-  const totalWatchSeconds = data.topWatched.reduce((total, item) => total + Number(item.WatchSeconds || 0), 0);
+    Number(repairSummary.missingPosters || 0) +
+    Number(repairSummary.missingLogos || 0) +
+    Number(repairSummary.missingRuntime || 0) +
+    Number(repairSummary.unmatchedImports || 0);
+  const topWatched = data.topWatched || [];
+  const totalPlays = topWatched.reduce((total, item) => total + Number(item.Plays || 0), 0);
+  const totalWatchSeconds = topWatched.reduce((total, item) => total + Number(item.WatchSeconds || 0), 0);
   const metricBox = (label, value, detail, color = "#6ee7f9") => `
     <td style="width:25%;padding:6px;">
       <div style="background:#121a24;border:1px solid #27364a;border-radius:14px;padding:14px;min-height:86px;">
@@ -273,32 +356,65 @@ function buildNewsletterHtml(data, options = {}) {
   const sectionTitle = (title) => `<h2 style="color:#e8eef8;font-size:16px;margin:24px 0 10px;">${title}</h2>`;
   const recentlyAddedHtml = sections.recentlyAdded
     ? `${sectionTitle("Recently Added")}${listHtml(
-        data.recentlyAdded,
+        data.recentlyAdded || [],
         (item) =>
-          `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${escapeHtml([item.Type, item.ProductionYear].filter(Boolean).join(" · "))}</span></div>`,
+          `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${escapeHtml([item.Type, item.ProductionYear, item.status].filter(Boolean).join(" · "))}</span></div>`,
         "No new media this period."
       )}`
     : "";
-  const topWatchedHtml = sections.topWatched
-    ? `${sectionTitle("Most Watched")}${listHtml(
-        data.topWatched,
-        (item) =>
-          `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${item.Plays} plays · ${formatWatchTime(item.WatchSeconds)}</span></div>`,
-        "No watch activity yet."
-      )}`
-    : "";
-  const activeUsersHtml = sections.activeUsers
-    ? `${sectionTitle("Active Viewers")}${listHtml(
-        data.activeUsers,
-        (item) =>
-          `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${item.Plays} plays · ${formatWatchTime(item.WatchSeconds)}</span></div>`,
-        "No active viewers this period."
-      )}`
-    : "";
-  const repairHtml = sections.repairSummary
-    ? `${sectionTitle("Repair Snapshot")}<p style="color:#9fb0c7;font-size:14px;margin:0;">Missing posters ${data.repairSummary.missingPosters} · logos ${data.repairSummary.missingLogos} · runtime ${data.repairSummary.missingRuntime} · unmatched imports ${data.repairSummary.unmatchedImports}</p>`
-    : "";
+  const continueWatchingHtml =
+    perUser && sections.continueWatching
+      ? `${sectionTitle("Continue Watching")}${listHtml(
+          data.continueWatching || [],
+          (item) =>
+            `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${escapeHtml(item.Type || "")}</span></div>`,
+          "Nothing in progress."
+        )}`
+      : "";
+  const myRequestsHtml =
+    perUser && sections.myRequests
+      ? `${sectionTitle("My Requests")}${listHtml(
+          data.myRequests || [],
+          (item) =>
+            `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${escapeHtml([item.Type, item.status].filter(Boolean).join(" · "))}</span></div>`,
+          "No requests for this account."
+        )}`
+      : "";
+  const topWatchedHtml =
+    !perUser && sections.topWatched
+      ? `${sectionTitle("Most Watched")}${listHtml(
+          topWatched,
+          (item) =>
+            `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${item.Plays} plays · ${formatWatchTime(item.WatchSeconds)}</span></div>`,
+          "No watch activity yet."
+        )}`
+      : "";
+  const activeUsersHtml =
+    !perUser && sections.activeUsers
+      ? `${sectionTitle("Active Viewers")}${listHtml(
+          data.activeUsers || [],
+          (item) =>
+            `<div style="padding:8px 0;border-bottom:1px solid #243246;color:#d7e2f2;font-size:14px;"><strong>${escapeHtml(item.Name)}</strong> <span style="color:#8fa3bd;">${item.Plays} plays · ${formatWatchTime(item.WatchSeconds)}</span></div>`,
+          "No active viewers this period."
+        )}`
+      : "";
+  const repairHtml =
+    !perUser && sections.repairSummary
+      ? `${sectionTitle("Repair Snapshot")}<p style="color:#9fb0c7;font-size:14px;margin:0;">Missing posters ${repairSummary.missingPosters || 0} · logos ${repairSummary.missingLogos || 0} · runtime ${repairSummary.missingRuntime || 0} · unmatched imports ${repairSummary.unmatchedImports || 0}</p>`
+      : "";
   const customHtml = sections.customHtml ? `<div style="margin-top:20px;">${sections.customHtml}</div>` : "";
+  const metricRow = perUser
+    ? `${metricBox("Continue", String((data.continueWatching || []).length), "In progress")}
+       ${metricBox("Requests", String((data.myRequests || []).length), "Your Seerr queue", "#a78bfa")}
+       ${metricBox("New", String((data.recentlyAdded || []).length), "Recently added", "#34d399")}
+       ${metricBox("For", escapeHtml(data.personName || "You"), "Personal digest", "#fbbf24")}`
+    : `${metricBox("Plays", totalPlays.toLocaleString(), "Top titles this week")}
+       ${metricBox("Watch", formatWatchTime(totalWatchSeconds), "Across top titles", "#a78bfa")}
+       ${metricBox("New", String((data.recentlyAdded || []).length), "Recently added items", "#34d399")}
+       ${metricBox("Repair", String(totalRepairIssues), "Open metadata issues", "#fbbf24")}`;
+  const bodyHtml = perUser
+    ? `${continueWatchingHtml}${myRequestsHtml}${recentlyAddedHtml}${customHtml}`
+    : `${recentlyAddedHtml}${topWatchedHtml}${activeUsersHtml}${repairHtml}${customHtml}`;
 
   return `
     <!doctype html>
@@ -320,21 +436,14 @@ function buildNewsletterHtml(data, options = {}) {
                   <td style="padding:8px 22px 8px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        ${metricBox("Plays", totalPlays.toLocaleString(), "Top titles this week")}
-                        ${metricBox("Watch", formatWatchTime(totalWatchSeconds), "Across top titles", "#a78bfa")}
-                        ${metricBox("New", String(data.recentlyAdded.length), "Recently added items", "#34d399")}
-                        ${metricBox("Repair", String(totalRepairIssues), "Open metadata issues", "#fbbf24")}
+                        ${metricRow}
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:8px 28px 32px;">
-                    ${recentlyAddedHtml}
-                    ${topWatchedHtml}
-                    ${activeUsersHtml}
-                    ${repairHtml}
-                    ${customHtml}
+                    ${bodyHtml}
                   </td>
                 </tr>
               </table>
@@ -347,24 +456,39 @@ function buildNewsletterHtml(data, options = {}) {
 }
 
 function buildNewsletterText(data) {
+  if (data.perUser) {
+    return [
+      `JellyGlance digest for ${data.personName || "you"}`,
+      `Generated ${formatDate(data.generatedAt)}`,
+      "",
+      "Continue Watching",
+      ...((data.continueWatching || []).map((item) => `- ${item.Name} (${item.Type || "Media"})`) || ["- Nothing in progress."]),
+      "",
+      "My Requests",
+      ...((data.myRequests || []).map((item) => `- ${item.Name} (${[item.Type, item.status].filter(Boolean).join(", ") || "Request"})`) || ["- No requests."]),
+      "",
+      "Recently Added",
+      ...((data.recentlyAdded || []).map((item) => `- ${item.Name} (${item.Type || "Media"})`) || ["- No new media."]),
+    ].join("\n");
+  }
   const lines = [
     "JellyGlance Newsletter",
     `Generated ${formatDate(data.generatedAt)}`,
     "",
     "Recently Added",
-    ...data.recentlyAdded.map((item) => `- ${item.Name} (${[item.Type, item.ProductionYear].filter(Boolean).join(", ") || "Media"})`),
+    ...(data.recentlyAdded || []).map((item) => `- ${item.Name} (${[item.Type, item.ProductionYear].filter(Boolean).join(", ") || "Media"})`),
     "",
     "Most Watched This Week",
-    ...data.topWatched.map((item) => `- ${item.Name}: ${item.Plays} plays, ${formatWatchTime(item.WatchSeconds)}`),
+    ...(data.topWatched || []).map((item) => `- ${item.Name}: ${item.Plays} plays, ${formatWatchTime(item.WatchSeconds)}`),
     "",
     "Active Viewers",
-    ...data.activeUsers.map((item) => `- ${item.Name}: ${item.Plays} plays, ${formatWatchTime(item.WatchSeconds)}`),
+    ...(data.activeUsers || []).map((item) => `- ${item.Name}: ${item.Plays} plays, ${formatWatchTime(item.WatchSeconds)}`),
     "",
     "Repair Snapshot",
-    `Missing posters: ${data.repairSummary.missingPosters}`,
-    `Missing logos: ${data.repairSummary.missingLogos}`,
-    `Runtime gaps: ${data.repairSummary.missingRuntime}`,
-    `Unmatched imports: ${data.repairSummary.unmatchedImports}`,
+    `Missing posters: ${data.repairSummary?.missingPosters || 0}`,
+    `Missing logos: ${data.repairSummary?.missingLogos || 0}`,
+    `Runtime gaps: ${data.repairSummary?.missingRuntime || 0}`,
+    `Unmatched imports: ${data.repairSummary?.unmatchedImports || 0}`,
   ];
   return lines.join("\n");
 }
@@ -412,13 +536,105 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
     }
   }
 
-  const targets = normalizeRecipients(
-    recipients?.length
-      ? recipients
-      : campaign
-        ? await campaigns.resolveCampaignRecipients(campaign)
-        : newsletter.recipients
-  );
+  const overrideRecipients = normalizeRecipients(recipients);
+  const isPerUser = campaign?.type === "per-user";
+  const attachments = fs.existsSync(logoPath)
+    ? [
+        {
+          filename: "jellyglance-logo.png",
+          path: logoPath,
+          cid: "jellyglance-logo",
+        },
+      ]
+    : [];
+  const transporter = createTransport(newsletter);
+  const from = `"${newsletter.senderName || "JellyGlance"}" <${newsletter.senderEmail}>`;
+
+  if (isPerUser) {
+    const people = await campaigns.resolvePerUserCampaignRecipients(campaign);
+    const deliveries = overrideRecipients.length
+      ? [{ person: people[0] || { userId: "", name: "Viewer" }, emails: overrideRecipients }]
+      : people.map((person) => ({ person, emails: [person.email] }));
+    if (!deliveries.length) {
+      const error = new Error("No opted-in per-user recipients with an email address");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const sections = {
+      ...campaigns.PER_USER_SECTIONS,
+      ...(campaign.sections || {}),
+      ...(campaign.template?.blocks || {}),
+    };
+    let sent = 0;
+    let lastMessageId = null;
+    let lastSubject = campaign.name ? `${campaign.name} - ${formatDate(new Date())}` : "";
+    const errors = [];
+    for (const delivery of deliveries) {
+      try {
+        const data = delivery.person.userId
+          ? await buildUserNewsletterData(delivery.person)
+          : {
+              generatedAt: new Date().toISOString(),
+              subject: lastSubject || `Your JellyGlance digest - ${formatDate(new Date())}`,
+              perUser: true,
+              personName: delivery.person.name,
+              continueWatching: [],
+              myRequests: [],
+              recentlyAdded: [],
+              topWatched: [],
+              activeUsers: [],
+              repairSummary: { missingPosters: 0, missingLogos: 0, missingRuntime: 0, unmatchedImports: 0 },
+            };
+        if (campaign.name) data.subject = `${campaign.name} - ${formatDate(new Date())}`;
+        lastSubject = data.subject;
+        const result = await transporter.sendMail({
+          from,
+          to: delivery.emails,
+          subject: data.subject,
+          text: buildNewsletterText(data),
+          html: buildNewsletterHtml(data, {
+            logoSrc: "cid:jellyglance-logo",
+            campaignName: campaign.name,
+            sections,
+            perUser: true,
+          }),
+          attachments,
+        });
+        lastMessageId = result.messageId;
+        sent += delivery.emails.length;
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
+    if (!sent) {
+      const error = new Error(errors[0] || "Unable to send per-user newsletter");
+      error.statusCode = 503;
+      throw error;
+    }
+    await addNewsletterHistory(req, {
+      ok: true,
+      mode,
+      subject: lastSubject,
+      recipientCount: sent,
+      messageId: lastMessageId,
+    });
+    await campaigns.addHistoryEntry({
+      campaignId: campaign.id,
+      recipientCount: sent,
+      status: "ok",
+      mode,
+      subject: lastSubject,
+      meta: { messageId: lastMessageId, perUser: true, errors },
+    });
+    return { ok: true, messageId: lastMessageId, recipientCount: sent, subject: lastSubject, campaignId: campaign.id };
+  }
+
+  const targets = overrideRecipients.length
+    ? overrideRecipients
+    : campaign
+      ? await campaigns.resolveCampaignRecipients(campaign)
+      : newsletter.recipients;
   if (!targets.length || targets.some((email) => !validateEmail(email))) {
     const error = new Error("At least one valid recipient is required");
     error.statusCode = 400;
@@ -434,9 +650,8 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
     ...(campaign?.sections || {}),
     ...(campaign?.template?.blocks || {}),
   };
-  const transporter = createTransport(newsletter);
   const result = await transporter.sendMail({
-    from: `"${newsletter.senderName || "JellyGlance"}" <${newsletter.senderEmail}>`,
+    from,
     to: targets,
     subject: data.subject,
     text: buildNewsletterText(data),
@@ -445,15 +660,7 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
       campaignName: campaign?.name,
       sections,
     }),
-    attachments: fs.existsSync(logoPath)
-      ? [
-          {
-            filename: "jellyglance-logo.png",
-            path: logoPath,
-            cid: "jellyglance-logo",
-          },
-        ]
-      : [],
+    attachments,
   });
 
   await addNewsletterHistory(req, {
@@ -522,18 +729,25 @@ router.post("/settings", async (req, res) => {
 
 router.get("/preview", async (req, res) => {
   try {
-    const data = await buildNewsletterData();
+    let data = await buildNewsletterData();
     let sections = { ...campaigns.DEFAULT_SECTIONS };
     let campaignName = "JellyGlance Newsletter";
     if (req.query?.campaignId) {
       const campaign = await campaigns.getCampaign(req.query.campaignId);
       if (campaign) {
-        sections = { ...sections, ...(campaign.sections || {}), ...(campaign.template?.blocks || {}) };
         campaignName = campaign.name;
+        if (campaign.type === "per-user") {
+          const people = await campaigns.resolvePerUserCampaignRecipients(campaign);
+          const person = people.find((row) => String(row.userId) === String(req.query.userId || "")) || people[0] || { userId: "", name: "Viewer" };
+          data = person.userId ? await buildUserNewsletterData(person) : await buildUserNewsletterData({ userId: "", name: person.name });
+          sections = { ...campaigns.PER_USER_SECTIONS, ...(campaign.sections || {}), ...(campaign.template?.blocks || {}) };
+        } else {
+          sections = { ...sections, ...(campaign.sections || {}), ...(campaign.template?.blocks || {}) };
+        }
         data.subject = `${campaign.name} - ${formatDate(new Date())}`;
       }
     }
-    res.json({ ...data, html: buildNewsletterHtml(data, { sections, campaignName }), text: buildNewsletterText(data) });
+    res.json({ ...data, html: buildNewsletterHtml(data, { sections, campaignName, perUser: data.perUser }), text: buildNewsletterText(data) });
   } catch (error) {
     console.error("Newsletter preview failed:", error);
     res.status(503).json({ error: "Unable to generate newsletter preview" });

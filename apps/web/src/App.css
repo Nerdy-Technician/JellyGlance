@@ -16,13 +16,13 @@
 }
 
 @media (min-width: 901px) and (hover: hover) {
-  .app-shell-main > *:not(.libraries):not(.calendar-dashboard):not(.downloads-page):not(.transcodes-page):not(.watch-stats):not(.my-glance-page):not(.about-page):not(.users-page):not(.Home) {
+  .app-shell-main > *:not(.libraries):not(.calendar-dashboard):not(.downloads-page):not(.transcodes-page):not(.watch-stats):not(.my-glance-page):not(.about-page):not(.users-page):not(.swagger-page):not(.Home) {
     transform: scale(var(--jg-content-scale, 0.82));
     transform-origin: top left;
     width: calc(100% / var(--jg-content-scale, 0.82)) !important;
   }
 
-  .app-shell-main > :is(.libraries, .calendar-dashboard, .downloads-page, .transcodes-page, .watch-stats, .my-glance-page, .about-page, .users-page, .Home) {
+  .app-shell-main > :is(.libraries, .calendar-dashboard, .downloads-page, .transcodes-page, .watch-stats, .my-glance-page, .about-page, .users-page, .swagger-page, .Home) {
     transform: none;
     width: 100% !important;
   }
@@ -34,7 +34,7 @@
   overflow-x: clip;
 }
 
-.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .transcodes-page, .watch-stats, .user-profile-page, .my-glance-page, .Home) {
+.app-shell-main > :is(.about-page, .downloads-page, .integrations-page, .libraries, .repair-hub, .settings, .swagger-page, .transcodes-page, .watch-stats, .user-profile-page, .my-glance-page, .Home) {
   width: 100%;
   min-width: 0;
   max-width: 100%;

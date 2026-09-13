@@ -124,6 +124,52 @@ function getApp(apps, sourceId) {
   return apps.find((app) => app.instanceId === sourceId);
 }
 
+async function fetchSeerrIssueSnapshot() {
+  const apps = await connectedSeerrApps();
+  const items = [];
+  if (!apps.length) {
+    return { total: 0, open: 0, resolved: 0, items: [], updatedAt: new Date().toISOString() };
+  }
+
+  for (const app of apps) {
+    const url = cleanUrl(app.values?.url);
+    const apiKey = app.values?.secret;
+    if (!url || !apiKey) continue;
+    try {
+      const response = await axios.get(`${url}/api/v1/issue`, {
+        timeout: 12000,
+        headers: { "X-Api-Key": apiKey },
+        params: { take: 40, skip: 0, filter: "all", sort: "added" },
+      });
+      const rows = Array.isArray(response.data?.results)
+        ? response.data.results
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
+      for (const issue of rows) {
+        const media = issue.media || {};
+        items.push({
+          title: media.title || media.name || issue.title || "Issue",
+          status: issueStatusLabel(issue.status),
+          type: issueTypeLabel(issue.issueType || issue.type),
+          source: app.name || "Seerr",
+        });
+      }
+    } catch (error) {
+      console.log(`[REQUESTS] ${app.name} issue snapshot failed:`, error.response?.status || error.message);
+    }
+  }
+
+  const open = items.filter((row) => row.status === "Open").length;
+  return {
+    total: items.length,
+    open,
+    resolved: items.length - open,
+    items: items.slice(0, 8),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 async function fetchSeerrIssues() {
   const apps = await connectedSeerrApps();
   const issues = [];
@@ -209,5 +255,6 @@ async function runSeerrIssueAction({ issueId, sourceId, action, comment }) {
 
 module.exports = {
   fetchSeerrIssues,
+  fetchSeerrIssueSnapshot,
   runSeerrIssueAction,
 };

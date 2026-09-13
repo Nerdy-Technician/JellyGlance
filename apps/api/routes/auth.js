@@ -10,6 +10,8 @@ const { axios } = require("../classes/axios");
 const TaskManager = require("../classes/task-manager-singleton");
 const triggertype = require("../logging/triggertype");
 
+const { getRolePermissions } = require("../classes/role-permissions");
+
 const JWT_SECRET = process.env.JWT_SECRET;
 const JS_USER = process.env.JS_USER;
 const JS_PASSWORD = process.env.JS_PASSWORD;
@@ -31,25 +33,6 @@ function signSetupToken(username) {
       }
     });
   });
-}
-
-const DEFAULT_ROLE_PERMISSIONS = {
-  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
-  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
-  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
-};
-
-function getRolePermissions(settings, role) {
-  if (role === "Owner" || role === "Disabled") {
-    return DEFAULT_ROLE_PERMISSIONS[role];
-  }
-
-  return {
-    ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
-    ...((settings.rolePermissions || {})[role] || {}),
-  };
 }
 
 function signAuthToken(user) {

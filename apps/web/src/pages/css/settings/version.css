@@ -1,37 +1,76 @@
 @import '../variables.css';
-.version
-{
+
+.version {
     background-color: var(--background-color) !important;
-
     color: white !important;
-    position: fixed !important;
-    bottom: 0;
-    max-width: 200px;
-    text-align: center;
     width: 100%;
-
-  
+    text-align: center;
 }
 
-
-.version a
-{
+.version a {
     text-decoration: none;
 }
 
-.version a:hover
-{
+.version a:hover {
     text-decoration: underline;
 }
 
-.version-community-row
-{
-    margin-top: 4px;
+.version-current {
+    margin: 0;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    white-space: nowrap;
 }
 
-.version-community-row a
-{
+.version-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.version-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     color: var(--primary-light-color);
     font-size: 12px;
     font-weight: 800;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.version-stars {
+    color: var(--muted-text-color, #b3bfce) !important;
+    font-size: 11px !important;
+    font-weight: 750 !important;
+}
+
+.version-stars:hover {
+    color: var(--text-color, #f8fafc) !important;
+}
+
+.version-stars svg {
+    flex: 0 0 auto;
+    color: #fbbf24;
+}
+
+.version-update {
+    display: grid;
+    gap: 2px;
+    margin-top: 8px;
+    color: var(--secondary-color) !important;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+.version-update strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 850;
 }

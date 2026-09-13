@@ -256,6 +256,56 @@
   overflow: hidden;
 }
 
+.my-glance-digest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.my-glance-digest p {
+  margin: 0;
+  color: var(--secondary-color);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.my-glance-digest > span {
+  color: #9cabbe;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.my-glance-digest div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.my-glance-digest strong {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.my-glance-digest button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.32);
+  border-radius: 999px;
+  background: rgba(var(--primary-rgb), 0.16);
+  color: #e9d5ff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .my-glance-taste,
 .my-glance-pipeline {
   display: flex;

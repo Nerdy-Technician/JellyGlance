@@ -1,6 +1,8 @@
 const { randomUUID } = require("crypto");
 const db = require("../db");
 
+const CAMPAIGN_TYPES = ["global", "role", "personal", "per-user"];
+
 const DEFAULT_SECTIONS = {
   recentlyAdded: true,
   topWatched: true,
@@ -8,6 +10,29 @@ const DEFAULT_SECTIONS = {
   repairSummary: true,
   customHtml: "",
 };
+
+const PER_USER_SECTIONS = {
+  continueWatching: true,
+  myRequests: true,
+  recentlyAdded: true,
+  customHtml: "",
+};
+
+function isCampaignType(type) {
+  return CAMPAIGN_TYPES.includes(type);
+}
+
+function sectionsForType(type, sections = {}) {
+  if (type === "per-user") {
+    return {
+      continueWatching: sections.continueWatching !== false,
+      myRequests: sections.myRequests !== false,
+      recentlyAdded: sections.recentlyAdded !== false,
+      customHtml: sections.customHtml || "",
+    };
+  }
+  return { ...DEFAULT_SECTIONS, ...sections };
+}
 
 let campaignSchemaReady = null;
 
@@ -111,7 +136,7 @@ async function listCampaigns({ includePersonal = true, ownerUserId = null } = {}
     LEFT JOIN newsletter_templates t ON t.id = c.template_id
     ${where}
     ORDER BY
-      CASE c.type WHEN 'global' THEN 0 WHEN 'role' THEN 1 WHEN 'personal' THEN 2 ELSE 3 END,
+      CASE c.type WHEN 'global' THEN 0 WHEN 'role' THEN 1 WHEN 'personal' THEN 2 WHEN 'per-user' THEN 3 ELSE 4 END,
       c.name ASC
     `,
     params
@@ -138,7 +163,8 @@ async function createCampaign(input = {}) {
     throw new Error("Newsletter campaign tables are not ready yet. Restart JellyGlance to apply pending database migrations.");
   }
   const id = randomUUID();
-  const sections = { ...DEFAULT_SECTIONS, ...(input.sections || {}) };
+  const type = isCampaignType(input.type) ? input.type : "global";
+  const sections = sectionsForType(type, input.sections || {});
   await db.query(
     `
     INSERT INTO newsletter_campaigns
@@ -148,7 +174,7 @@ async function createCampaign(input = {}) {
     [
       id,
       String(input.name || "Untitled campaign").trim(),
-      ["global", "role", "personal"].includes(input.type) ? input.type : "global",
+      type,
       input.ownerUserId || null,
       input.templateId || null,
       input.scheduleCron || null,
@@ -167,14 +193,17 @@ async function updateCampaign(id, input = {}) {
 
   const next = {
     name: input.name != null ? String(input.name).trim() : current.name,
-    type: ["global", "role", "personal"].includes(input.type) ? input.type : current.type,
+    type: isCampaignType(input.type) ? input.type : current.type,
     ownerUserId: input.ownerUserId !== undefined ? input.ownerUserId : current.ownerUserId,
     templateId: input.templateId !== undefined ? input.templateId : current.templateId,
     scheduleCron: input.scheduleCron !== undefined ? input.scheduleCron : current.scheduleCron,
     frequency: ["manual", "weekly", "monthly"].includes(input.frequency) ? input.frequency : current.frequency,
     enabled: input.enabled !== undefined ? Boolean(input.enabled) : current.enabled,
     audience: input.audience !== undefined ? input.audience : current.audience,
-    sections: input.sections !== undefined ? { ...DEFAULT_SECTIONS, ...input.sections } : current.sections,
+    sections:
+      input.sections !== undefined
+        ? sectionsForType(isCampaignType(input.type) ? input.type : current.type, input.sections)
+        : current.sections,
   };
 
   if (next.frequency === "weekly" && !next.scheduleCron) next.scheduleCron = "0 9 * * 1";
@@ -366,6 +395,42 @@ async function resolveCampaignRecipients(campaign) {
   return [...recipients].filter(Boolean);
 }
 
+function userEmail(user, extras = []) {
+  return String(user?.Email || user?.email || user?.Configuration?.Email || extras[0] || "")
+    .trim()
+    .toLowerCase();
+}
+
+async function resolvePerUserCampaignRecipients(campaign) {
+  const settingsResult = await db.query('SELECT settings FROM app_config where "ID"=1').catch(() => ({ rows: [] }));
+  const excluded = new Set((settingsResult.rows?.[0]?.settings?.ExcludedUsers || []).map(String));
+  const API = require("./api-loader");
+  const users = (await API.getUsers(true).catch(() => [])).filter((user) => user?.Id && !excluded.has(String(user.Id)));
+  const { rows: subs } = await db
+    .query(`SELECT user_id, opted_in, extra_recipients FROM newsletter_subscriptions WHERE campaign_id=$1`, [campaign.id])
+    .catch(() => ({ rows: [] }));
+  const subByUser = new Map(subs.map((row) => [String(row.user_id), row]));
+
+  const people = [];
+  for (const user of users) {
+    const sub = subByUser.get(String(user.Id));
+    if (sub && sub.opted_in === false) continue;
+    const extras = sub
+      ? typeof sub.extra_recipients === "string"
+        ? JSON.parse(sub.extra_recipients)
+        : sub.extra_recipients || []
+      : [];
+    const email = userEmail(user, extras);
+    if (!email) continue;
+    people.push({
+      userId: user.Id,
+      name: user.Name || user.Id,
+      email,
+    });
+  }
+  return people;
+}
+
 function campaignDue(campaign, now = new Date()) {
   if (!campaign.enabled || campaign.frequency === "manual") return false;
   const last = campaign.lastSentAt ? new Date(campaign.lastSentAt).getTime() : 0;
@@ -382,6 +447,7 @@ async function listDueCampaigns() {
 
 module.exports = {
   DEFAULT_SECTIONS,
+  PER_USER_SECTIONS,
   isCampaignSchemaReady,
   resetCampaignSchemaCache,
   listTemplates,
@@ -396,6 +462,7 @@ module.exports = {
   getSubscriptionsForUser,
   upsertSubscription,
   resolveCampaignRecipients,
+  resolvePerUserCampaignRecipients,
   listDueCampaigns,
   campaignDue,
 };

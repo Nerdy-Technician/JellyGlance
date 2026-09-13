@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "../lib/axios_instance";
 
 import "./css/about.css";
@@ -16,6 +17,7 @@ import PulseLineIcon from "remixicon-react/PulseLineIcon";
 import PriceTag3LineIcon from "remixicon-react/PriceTag3LineIcon";
 import RadarLineIcon from "remixicon-react/RadarLineIcon";
 import Settings3LineIcon from "remixicon-react/Settings3LineIcon";
+import CodeSSlashLineIcon from "remixicon-react/CodeSSlashLineIcon";
 import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
 import TaskLineIcon from "remixicon-react/TaskLineIcon";
 import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
@@ -84,6 +86,17 @@ const PROJECT_OWNER_FALLBACK = {
   contributions: 0,
 };
 
+function aboutUpdateMessage(data) {
+  if (data.update_available) {
+    return data.latest_version ? `Update ${data.latest_version} available` : "Update available";
+  }
+  const message = String(data.message || "");
+  if (/is up to date/i.test(message)) return "Up to date";
+  if (/beta version/i.test(message)) return "Using a beta build";
+  if (/Unable to check/i.test(message)) return "Unable to check";
+  return message || "Checking…";
+}
+
 export default function SettingsAbout() {
   const token = localStorage.getItem("token");
   const [data, setData] = useState({
@@ -97,7 +110,7 @@ export default function SettingsAbout() {
   const [releaseMenuOpen, setReleaseMenuOpen] = useState(false);
   const [contributors, setContributors] = useState([]);
   const [contributorsMessage, setContributorsMessage] = useState("Loading GitHub profiles...");
-  const updateMessage = data.message === "JellyGlance is up to date" ? "Up to date" : data.message;
+  const updateMessage = aboutUpdateMessage(data);
   const selectedRelease = releaseData.releases.find((release) => String(release.id) === selectedReleaseId) || releaseData.releases[0];
   const selectedReleaseSections = parseReleaseBody(selectedRelease?.body);
   const projectOwner = contributors.find((contributor) => contributor.login?.toLowerCase() === PROJECT_OWNER_LOGIN.toLowerCase()) || PROJECT_OWNER_FALLBACK;
@@ -427,6 +440,10 @@ export default function SettingsAbout() {
               <PulseLineIcon />
               Join Discord
             </a>
+            <Link to="/settings/api-key">
+              <CodeSSlashLineIcon />
+              API / Swagger
+            </Link>
             <a href="https://jellyglance.com/" target="_blank" rel="noreferrer">
               <RadarLineIcon />
               Website

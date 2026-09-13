@@ -296,6 +296,9 @@ export default function WebhooksSettings() {
   const [currentWebhook, setCurrentWebhook] = useState(defaultWebhook);
   const [quietHours, setQuietHours] = useState({ enabled: false, start: "22:00", end: "08:00", digest: true });
   const [quietSaving, setQuietSaving] = useState(false);
+  const [cardSettings, setCardSettings] = useState({ theme: "glance", showClientIcon: true });
+  const [cardSaving, setCardSaving] = useState(false);
+  const [cardPreviewUrl, setCardPreviewUrl] = useState("");
 
   const groupedWebhooks = useMemo(() => groupWebhookRows(webhooks), [webhooks]);
   const activeEventCount = groupedWebhooks.reduce(
@@ -322,6 +325,13 @@ export default function WebhooksSettings() {
           digest: quietResponse.data.digest !== false,
         });
       }
+      const cardResponse = await axios.get("/webhooks/card-settings", { headers }).catch(() => null);
+      if (cardResponse?.data) {
+        setCardSettings({
+          theme: cardResponse.data.theme || "glance",
+          showClientIcon: cardResponse.data.showClientIcon !== false,
+        });
+      }
     } catch (err) {
       console.error("Error loading webhooks:", err);
       setError("Unable to load webhooks: " + (err.response?.data?.error || err.message));
@@ -335,6 +345,49 @@ export default function WebhooksSettings() {
     const intervalId = setInterval(loadWebhooks, 1000 * 10);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    axios
+      .get("/webhooks/card-preview", {
+        headers,
+        params: { theme: cardSettings.theme, showClientIcon: cardSettings.showClientIcon },
+        responseType: "blob",
+      })
+      .then((response) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(response.data);
+        setCardPreviewUrl((current) => {
+          if (current) URL.revokeObjectURL(current);
+          return objectUrl;
+        });
+      })
+      .catch(() => {
+        if (active) setCardPreviewUrl("");
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [cardSettings.theme, cardSettings.showClientIcon]);
+
+  async function saveCardSettings(nextCard) {
+    try {
+      setCardSaving(true);
+      setError(null);
+      const response = await axios.post("/webhooks/card-settings", nextCard, { headers });
+      setCardSettings({
+        theme: response.data.theme || "glance",
+        showClientIcon: response.data.showClientIcon !== false,
+      });
+      setSuccess(t("FEATURES.OPS.CARD_SAVED"));
+    } catch (err) {
+      setError(err.response?.data?.error || t("FEATURES.OPS.CARD_SAVE_FAIL"));
+    } finally {
+      setCardSaving(false);
+    }
+  }
 
   async function saveQuietHours(nextQuiet) {
     try {
@@ -604,6 +657,48 @@ export default function WebhooksSettings() {
             onBlur={(event) => saveQuietHours({ ...quietHours, end: event.target.value })}
           />
         </label>
+      </section>
+
+      <section className="webhook-card-theme">
+        <div>
+          <h2>{t("FEATURES.OPS.CARD_THEME")}</h2>
+          <p>{t("FEATURES.OPS.CARD_THEME_INTRO")}</p>
+        </div>
+        <div className="webhook-card-theme-options">
+          <div className="webhook-card-theme-group">
+            <button
+              type="button"
+              className={cardSettings.theme === "match" ? "is-active" : ""}
+              disabled={cardSaving}
+              onClick={() => saveCardSettings({ ...cardSettings, theme: "match" })}
+            >
+              {t("FEATURES.OPS.THEME_match")}
+            </button>
+          </div>
+          <div className="webhook-card-theme-group">
+            {["glance", "jellyfin", "midnight", "compact"].map((theme) => (
+              <button
+                type="button"
+                key={theme}
+                className={cardSettings.theme === theme ? "is-active" : ""}
+                disabled={cardSaving}
+                onClick={() => saveCardSettings({ ...cardSettings, theme })}
+              >
+                {t(`FEATURES.OPS.THEME_${theme}`)}
+              </button>
+            ))}
+          </div>
+          <label className="webhook-quiet-toggle">
+            <input
+              type="checkbox"
+              checked={cardSettings.showClientIcon !== false}
+              disabled={cardSaving}
+              onChange={(event) => saveCardSettings({ ...cardSettings, showClientIcon: event.target.checked })}
+            />
+            {t("FEATURES.OPS.SHOW_CLIENT_ICON")}
+          </label>
+        </div>
+        {cardPreviewUrl ? <img className="webhook-card-preview" src={cardPreviewUrl} alt={t("FEATURES.OPS.CARD_THEME")} /> : null}
       </section>
 
       <ErrorBoundary>

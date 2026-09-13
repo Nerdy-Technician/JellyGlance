@@ -51,6 +51,7 @@ const routes = [
   { path: "/activity", element: <Activity />, exact: true },
   { path: "/timeline", element: <ActivityTimeline />, exact: true },
   { path: "/about", element: <About />, exact: true },
+  { path: "/swagger", element: <Navigate to="/settings/api-key" replace />, exact: true },
   { path: "/testing/*", element: <TestingRoutes />, exact: true },
 ];
 

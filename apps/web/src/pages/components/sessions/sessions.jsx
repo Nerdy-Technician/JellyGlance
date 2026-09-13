@@ -13,6 +13,7 @@ import {
   getCachedActiveSessions,
   subscribeActiveSessions,
 } from "../../../lib/session-cache";
+import { useSessionGlanceStitch } from "../../../lib/session-glance-cache";
 import {
   ACTIVE_SESSION_IP_PRIVACY_EVENT,
   ACTIVE_SESSION_IP_PRIVACY_KEY,
@@ -45,6 +46,7 @@ function Sessions({ surface = "home" }) {
     }
   });
   const canManage = canManageSessions(config);
+  const stitchByItemId = useSessionGlanceStitch(data || []);
 
   useEffect(() => {
     const handleIpPrivacyUpdate = () => setIpPrivacy(getActiveSessionIpPrivacy());
@@ -137,7 +139,13 @@ function Sessions({ surface = "home" }) {
             .sort((a, b) => a.Id.padStart(12, "0").localeCompare(b.Id.padStart(12, "0")))
             .map((session) => (
               <ErrorBoundary key={session.Id}>
-                <SessionCard data={{ session: session, base_url: config?.base_url }} hideIpAddress={hideIpAddress} kiosk={surface === "kiosk"} canManage={canManage} />
+                <SessionCard
+                  data={{ session: session, base_url: config?.base_url }}
+                  hideIpAddress={hideIpAddress}
+                  kiosk={surface === "kiosk"}
+                  canManage={canManage}
+                  stitch={stitchByItemId.get(session.NowPlayingItem?.Id) || null}
+                />
               </ErrorBoundary>
             ))}
       </div>

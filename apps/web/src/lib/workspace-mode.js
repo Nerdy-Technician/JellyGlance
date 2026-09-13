@@ -30,7 +30,8 @@ export function saveWorkspaceMode(mode = "admin") {
   return next;
 }
 
-export function workspaceHomePath(isOpsRole, mode = getStoredWorkspaceMode(isOpsRole)) {
+export function workspaceHomePath(isOpsRole, mode = getStoredWorkspaceMode(isOpsRole), permissions = {}) {
+  if (permissions.home === false) return "/me";
   if (!isOpsRole) return "/";
   return mode === "user" ? "/me" : "/";
 }

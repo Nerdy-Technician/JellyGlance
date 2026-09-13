@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance backup",
+  "description": "Last backup hint from Glance settings.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/backup",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Backup</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.kind}</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color={data.configured ? \"teal\" : \"orange\"}>{data.configured ? \"Set\" : \"Local\"}</Badge>\n  </Group>\n  <Card withBorder radius=\"md\" p=\"sm\">\n    <Text size=\"sm\">{data.backupAt}</Text>\n  </Card>\n</Stack>"
+  }
+}

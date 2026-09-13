@@ -28,20 +28,36 @@ const emptySettings = {
   history: [],
 };
 
+const HOUSE_SECTIONS = {
+  recentlyAdded: true,
+  topWatched: true,
+  activeUsers: true,
+  repairSummary: true,
+  customHtml: "",
+};
+
+const PER_USER_SECTIONS = {
+  continueWatching: true,
+  myRequests: true,
+  recentlyAdded: true,
+  customHtml: "",
+};
+
 const emptyCampaign = {
   name: "",
   type: "global",
   frequency: "manual",
   enabled: false,
   audience: { recipients: [], roles: [] },
-  sections: {
-    recentlyAdded: true,
-    topWatched: true,
-    activeUsers: true,
-    repairSummary: true,
-    customHtml: "",
-  },
+  sections: { ...HOUSE_SECTIONS },
 };
+
+function sectionsForType(type, sections = {}) {
+  if (type === "per-user") {
+    return { ...PER_USER_SECTIONS, ...sections, customHtml: sections.customHtml || "" };
+  }
+  return { ...HOUSE_SECTIONS, ...sections };
+}
 
 function headers() {
   return {
@@ -120,7 +136,7 @@ export default function NewsletterSettings() {
       setCampaignDraft({
         ...emptyCampaign,
         ...current,
-        sections: { ...emptyCampaign.sections, ...(current.sections || {}) },
+        sections: sectionsForType(current.type, current.sections || {}),
         audience: { recipients: [], roles: [], ...(current.audience || {}) },
       });
       setCampaignRecipients(recipientsToText(current.audience?.recipients || []));
@@ -164,7 +180,7 @@ export default function NewsletterSettings() {
     setCampaignDraft({
       ...emptyCampaign,
       ...current,
-      sections: { ...emptyCampaign.sections, ...(current.sections || {}) },
+      sections: sectionsForType(current.type, current.sections || {}),
       audience: { recipients: [], roles: [], ...(current.audience || {}) },
     });
     setCampaignRecipients(recipientsToText(current.audience?.recipients || []));
@@ -203,9 +219,10 @@ export default function NewsletterSettings() {
       setMessage(null);
       const payload = {
         ...campaignDraft,
+        sections: sectionsForType(campaignDraft.type, campaignDraft.sections || {}),
         audience: {
           ...(campaignDraft.audience || {}),
-          recipients: textToRecipients(campaignRecipients),
+          recipients: campaignDraft.type === "per-user" ? [] : textToRecipients(campaignRecipients),
         },
       };
       if (selectedCampaignId) {
@@ -231,14 +248,14 @@ export default function NewsletterSettings() {
 
   async function sendCampaign() {
     if (!selectedCampaignId) return;
-    const count = textToRecipients(campaignRecipients).length;
+    const count = campaignDraft.type === "per-user" ? "opted-in users" : textToRecipients(campaignRecipients).length;
     const confirmed = window.confirm(`Send “${campaignDraft.name}” to ${count || "configured"} recipients?`);
     if (!confirmed) return;
     try {
       setBusyAction("campaign-send");
       const response = await axios.post(
         `/newsletter/campaigns/${encodeURIComponent(selectedCampaignId)}/send`,
-        { recipients: textToRecipients(campaignRecipients) },
+        { recipients: campaignDraft.type === "per-user" ? [] : textToRecipients(campaignRecipients) },
         { headers: headers() }
       );
       setMessage({ type: "success", text: `Campaign sent to ${response.data.recipientCount} recipient${response.data.recipientCount === 1 ? "" : "s"}.` });
@@ -410,10 +427,21 @@ export default function NewsletterSettings() {
                   </Form.Group>
                   <Form.Group>
                     <Form.Label>{t("FEATURES.NEWSLETTER.TYPE")}</Form.Label>
-                    <Form.Select value={campaignDraft.type} onChange={(event) => setCampaignDraft((current) => ({ ...current, type: event.target.value }))}>
-                      <option value="global">Global admin</option>
-                      <option value="role">Role-based</option>
-                      <option value="personal">Personal</option>
+                    <Form.Select
+                      value={campaignDraft.type}
+                      onChange={(event) => {
+                        const type = event.target.value;
+                        setCampaignDraft((current) => ({
+                          ...current,
+                          type,
+                          sections: sectionsForType(type, { customHtml: current.sections?.customHtml || "" }),
+                        }));
+                      }}
+                    >
+                      <option value="global">{t("FEATURES.NEWSLETTER.TYPE_GLOBAL")}</option>
+                      <option value="role">{t("FEATURES.NEWSLETTER.TYPE_ROLE")}</option>
+                      <option value="personal">{t("FEATURES.NEWSLETTER.TYPE_PERSONAL")}</option>
+                      <option value="per-user">{t("FEATURES.NEWSLETTER.TYPE_PER_USER")}</option>
                     </Form.Select>
                   </Form.Group>
                   <Form.Group>
@@ -429,10 +457,14 @@ export default function NewsletterSettings() {
                     <Form.Control type="email" value={testRecipient} onChange={(event) => setTestRecipient(event.target.value)} placeholder="you@example.com" />
                   </Form.Group>
                 </div>
-                <Form.Group className="newsletter-recipient-box">
-                  <Form.Label>{t("FEATURES.NEWSLETTER.CAMPAIGN_RECIPIENTS")}</Form.Label>
-                  <Form.Control as="textarea" rows={4} value={campaignRecipients} onChange={(event) => setCampaignRecipients(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
-                </Form.Group>
+                {campaignDraft.type === "per-user" ? (
+                  <p className="newsletter-help">{t("FEATURES.NEWSLETTER.PER_USER_HELP")}</p>
+                ) : (
+                  <Form.Group className="newsletter-recipient-box">
+                    <Form.Label>{t("FEATURES.NEWSLETTER.CAMPAIGN_RECIPIENTS")}</Form.Label>
+                    <Form.Control as="textarea" rows={4} value={campaignRecipients} onChange={(event) => setCampaignRecipients(event.target.value)} placeholder={"one@example.com\nfamily@example.com"} />
+                  </Form.Group>
+                )}
                 <div className="newsletter-toggle-row">
                   <Form.Check
                     type="switch"
@@ -441,12 +473,12 @@ export default function NewsletterSettings() {
                     checked={Boolean(campaignDraft.enabled)}
                     onChange={(event) => setCampaignDraft((current) => ({ ...current, enabled: event.target.checked }))}
                   />
-                  {["recentlyAdded", "topWatched", "activeUsers", "repairSummary"].map((section) => (
+                  {(campaignDraft.type === "per-user" ? ["continueWatching", "myRequests", "recentlyAdded"] : ["recentlyAdded", "topWatched", "activeUsers", "repairSummary"]).map((section) => (
                     <Form.Check
                       key={section}
                       type="switch"
                       id={`campaign-section-${section}`}
-                      label={section.replace(/([A-Z])/g, " $1")}
+                      label={t(`FEATURES.NEWSLETTER.SECTION_${section}`, { defaultValue: section.replace(/([A-Z])/g, " $1") })}
                       checked={Boolean(campaignDraft.sections?.[section])}
                       onChange={(event) =>
                         setCampaignDraft((current) => ({

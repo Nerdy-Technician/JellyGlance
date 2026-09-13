@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AddLineIcon from "remixicon-react/AddLineIcon";
 import CloseLineIcon from "remixicon-react/CloseLineIcon";
 import DownloadCloud2FillIcon from "remixicon-react/DownloadCloud2FillIcon";
@@ -8,6 +8,7 @@ import PauseLineIcon from "remixicon-react/PauseLineIcon";
 import PlayLineIcon from "remixicon-react/PlayLineIcon";
 import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
 import axios from "../lib/axios_instance";
+import Config from "../lib/config";
 import { loadSavedIntegrations } from "../lib/integrations-storage";
 import { useTranslation } from "react-i18next";
 import "./css/integrations.css";
@@ -41,6 +42,7 @@ function isDownloadPaused(download) {
 
 export default function Downloads() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [integrations, setIntegrations] = useState(loadSavedIntegrations({ clients: [] }));
   const savedClients = integrations.clients || [];
@@ -53,6 +55,7 @@ export default function Downloads() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [busyDownloadId, setBusyDownloadId] = useState("");
+  const [canManageDownloads, setCanManageDownloads] = useState(false);
 
   const selectedClient = usableClients.find((client) => client.instanceId === selectedClientId) || usableClients[0];
   const clientByName = useMemo(() => {
@@ -68,7 +71,7 @@ export default function Downloads() {
       const [integrationResponse, downloadResponse, autobrrResponse] = await Promise.all([
         axios.get("/api/integrations", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
+        }).catch(() => ({ data: loadSavedIntegrations({ clients: [] }) })),
         axios.get("/api/downloads/stitched", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }).catch(() => axios.get("/api/integrations/downloads", {
@@ -106,7 +109,16 @@ export default function Downloads() {
 
   useEffect(() => {
     loadDownloadData();
-  }, []);
+    Config.getConfig()
+      .then((cfg) => {
+        const permissions = cfg?.settings?.auth?.permissions || {};
+        setCanManageDownloads(Boolean(permissions.downloads || permissions.settings));
+        if (permissions.home === false && !permissions.downloads && !permissions.settings) {
+          navigate("/me", { replace: true });
+        }
+      })
+      .catch(() => setCanManageDownloads(false));
+  }, [navigate]);
 
   useEffect(() => {
     if (!selectedClientId && usableClients[0]?.instanceId) {
@@ -222,7 +234,7 @@ export default function Downloads() {
         </div>
       </header>
 
-      <section className="download-add-bar">
+      {canManageDownloads ? <section className="download-add-bar">
         <label>
           <span>{t("FEATURES.DOWNLOADS.CLIENT")}</span>
           <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)} disabled={!usableClients.length}>
@@ -254,7 +266,7 @@ export default function Downloads() {
           <TimerFlashLineIcon size={18} />
           {t("FEATURES.DOWNLOADS.SYNC_NOW")}
         </button>
-      </section>
+      </section> : null}
       {message ? <p className="download-inline-message">{message}</p> : null}
 
       <section className="download-console-grid">
@@ -278,6 +290,8 @@ export default function Downloads() {
                   </div>
                   <div className="download-row-actions">
                     <small>{download.progress}%</small>
+                    {canManageDownloads ? (
+                      <>
                     <button
                       type="button"
                       aria-label={isDownloadPaused(download) ? t("FEATURES.DOWNLOADS.RESUME") : t("FEATURES.DOWNLOADS.PAUSE")}
@@ -295,6 +309,8 @@ export default function Downloads() {
                     >
                       <CloseLineIcon size={17} />
                     </button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className="download-progress-track">

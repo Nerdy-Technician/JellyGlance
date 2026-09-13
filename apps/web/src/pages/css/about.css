@@ -6,7 +6,7 @@
   max-width: 70rem;
   min-height: 0;
   padding: var(--jg-page-pad) clamp(0.55rem, 1.2vw, 1rem) 1.1rem;
-  color: #f8fafc;
+  color: var(--text-color);
 }
 
 .about-header {
@@ -18,7 +18,7 @@
 
 .about-header p {
   margin: 0;
-  color: #9da8b8;
+  color: var(--subtle-text-color);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -27,18 +27,18 @@
 
 .about-header h1 {
   margin: 0 !important;
-  color: #fff;
+  color: var(--text-color);
   font-size: var(--jg-type-display);
   font-weight: 720 !important;
-  line-height: 1.05;
+  line-height: 1.1;
 }
 
 .about-header span {
-  max-width: 760px;
-  color: #b3bfce;
-  font-size: 0.85rem;
-  font-weight: 520;
-  line-height: 1.6;
+  max-width: 46rem;
+  color: var(--muted-text-color);
+  font-size: 14px;
+  font-weight: 540;
+  line-height: 1.55;
 }
 
 .about-layout {
@@ -76,18 +76,18 @@
 .about-install h2,
 .about-links h2 {
   margin: 0 !important;
-  color: #f4f7fb;
+  color: var(--text-color);
   font-size: var(--jg-type-title);
   font-weight: 700 !important;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .about-section p {
   margin: 0;
-  color: #aeb8c7;
+  color: var(--muted-text-color);
   font-size: 14px;
   font-weight: 520;
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 .about-feature-grid {
@@ -101,11 +101,11 @@
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 4px 12px;
-  min-height: 116px;
+  min-height: 0;
   padding: 16px;
   border: 1px solid var(--surface-border-color);
   border-radius: 8px;
-  background: rgba(17, 22, 30, 0.64);
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
 }
 
 .about-feature-grid svg {
@@ -117,17 +117,17 @@
 }
 
 .about-feature-grid strong {
-  color: #f8fafc;
+  color: var(--text-color);
   font-size: 14px;
   font-weight: 720;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .about-feature-grid span {
-  color: #aeb8c7;
+  color: var(--muted-text-color);
   font-size: 13px;
   font-weight: 520;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .about-note {
@@ -147,7 +147,7 @@
 .about-note li {
   position: relative;
   padding-left: 18px;
-  color: #aeb8c7;
+  color: var(--muted-text-color);
   font-size: 14px;
   font-weight: 520;
   line-height: 1.55;
@@ -173,9 +173,9 @@
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid var(--surface-border-color);
   border-radius: 8px;
-  background: rgba(17, 22, 30, 0.72);
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
 }
 
 .about-release-head h2 {
@@ -184,7 +184,7 @@
 
 .about-release-head p {
   margin: 0;
-  color: #9da8b8;
+  color: var(--muted-text-color);
   font-size: 13px;
 }
 
@@ -197,8 +197,8 @@
 }
 
 .about-release-picker > span {
-  color: #9da8b8;
-  font-size: 11px;
+  color: var(--muted-text-color);
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -213,8 +213,8 @@
   padding: 0 10px 0 12px;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 8px;
-  background-color: #101720;
-  color: #f8fafc;
+  background-color: var(--secondary-background-color);
+  color: var(--text-color);
   text-align: left;
 }
 
@@ -230,8 +230,8 @@
 
 .about-release-picker em {
   overflow: hidden;
-  color: #91a1b6;
-  font-size: 12px;
+  color: var(--muted-text-color);
+  font-size: 13px;
   font-style: normal;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -286,14 +286,14 @@
 
 .about-release-empty,
 .about-release-card {
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid var(--surface-border-color);
   border-radius: 8px;
-  background: rgba(18, 27, 38, 0.82);
+  background: color-mix(in srgb, var(--surface-color) 96%, #000 4%);
 }
 
 .about-release-empty {
   padding: 18px;
-  color: #aeb8c7;
+  color: var(--muted-text-color);
   font-size: 14px;
 }
 
@@ -327,7 +327,7 @@
 }
 
 .about-release-card strong {
-  color: #f8fafc;
+  color: var(--text-color);
   font-size: 16px;
   font-weight: 760;
 }
@@ -342,8 +342,8 @@
 }
 
 .about-release-card time {
-  color: #91a1b6;
-  font-size: 12px;
+  color: var(--muted-text-color);
+  font-size: 13px;
   font-weight: 680;
   white-space: nowrap;
 }
@@ -355,7 +355,7 @@
 
 .about-release-card h3 {
   margin: 0 !important;
-  color: #f8fafc;
+  color: var(--text-color);
   font-size: 15px;
   font-weight: 760 !important;
 }
@@ -368,7 +368,7 @@
 }
 
 .about-release-card li {
-  color: #c2ccda;
+  color: var(--muted-text-color);
   font-size: 13px;
   font-weight: 520;
   line-height: 1.55;
@@ -398,7 +398,7 @@
   padding: 16px;
   border: 1px solid var(--surface-border-color);
   border-radius: 8px;
-  background: rgba(17, 22, 30, 0.72);
+  background: color-mix(in srgb, var(--surface-color) 96%, #000 4%);
 }
 
 .about-project-copy .about-contributors {
@@ -415,15 +415,23 @@
 
 .about-install dl > div {
   display: grid;
-  grid-template-columns: minmax(110px, 0.82fr) minmax(0, 1fr);
-  gap: 12px;
-  padding: 11px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--surface-border-color);
 }
 
 .about-install dl > div:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.about-install .is-update {
+  margin: 0 -8px;
+  padding: 10px 8px;
+  border: 1px solid color-mix(in srgb, var(--primary-light-color) 28%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-color) 16%, transparent);
 }
 
 .about-install dt,
@@ -436,9 +444,9 @@
   display: inline-flex;
   gap: 7px;
   align-items: center;
-  color: #9da8b8;
-  font-size: 12px;
-  font-weight: 650;
+  color: var(--muted-text-color);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .about-install dt svg {
@@ -449,13 +457,12 @@
 
 .about-install dd,
 .about-install dd a {
-  overflow: hidden;
-  color: #f2f5f9;
-  font-size: 13px;
-  font-weight: 640;
+  color: var(--text-color);
+  font-size: 14px;
+  font-weight: 720;
+  line-height: 1.45;
   text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .about-install .is-update dd a {
@@ -467,14 +474,14 @@
   gap: 9px;
   align-items: center;
   min-height: 36px;
-  color: #dce5f2;
+  color: var(--text-color);
   font-size: 13px;
   font-weight: 640;
   text-decoration: none;
 }
 
 .about-links a:hover {
-  color: #fff;
+  color: var(--primary-light-color);
 }
 
 .about-links svg {
@@ -485,7 +492,7 @@
 
 .about-contributors p {
   margin: 0;
-  color: #9da8b8;
+  color: var(--muted-text-color);
   font-size: 13px;
   font-weight: 560;
 }
@@ -497,8 +504,8 @@
 
 .about-profile-group h3 {
   margin: 0;
-  color: #9da8b8;
-  font-size: 11px;
+  color: var(--muted-text-color);
+  font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -579,7 +586,7 @@
 
 .about-owner-card strong,
 .about-contributor-list strong {
-  color: #fff;
+  color: var(--text-color);
   font-size: 13px;
   font-weight: 720;
 }
@@ -591,8 +598,8 @@
 
 .about-owner-card small,
 .about-contributor-list small {
-  color: #9da8b8;
-  font-size: 12px;
+  color: var(--muted-text-color);
+  font-size: 13px;
   font-weight: 560;
 }
 
@@ -619,11 +626,6 @@
 @media (max-width: 560px) {
   .about-page {
     padding: 18px 14px 32px;
-  }
-
-  .about-install dl > div {
-    grid-template-columns: 1fr;
-    gap: 4px;
   }
 
   .about-release-card > header {

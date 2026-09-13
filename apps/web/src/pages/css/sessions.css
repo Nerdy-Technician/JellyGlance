@@ -424,6 +424,35 @@
   white-space: nowrap;
 }
 
+.session-glance-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin-top: 0.28rem;
+}
+
+.session-glance-strip a {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 0.08rem 0.45rem;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.28);
+  border-radius: 999px;
+  background: rgba(var(--primary-rgb), 0.16);
+  color: #e9d5ff !important;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.session-glance-strip a.is-on {
+  border-color: rgba(52, 211, 153, 0.32);
+  background: rgba(6, 78, 59, 0.28);
+  color: #bbf7d0 !important;
+}
+
 .session-card-user {
   display: flex;
   flex: 0 1 128px !important;

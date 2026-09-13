@@ -10,7 +10,7 @@ const pgp = require("pg-promise")();
 const { randomUUID } = require("crypto");
 
 const configClass = require("../classes/config");
-const { checkForUpdates, fetchGithubContributors, fetchReleaseNotes } = require("../version-control");
+const { checkForUpdates, fetchGithubContributors, fetchGithubStars, fetchReleaseNotes } = require("../version-control");
 const API = require("../classes/api-loader");
 const { sendUpdate } = require("../ws");
 const { tables } = require("../global/backup_tables");
@@ -41,28 +41,23 @@ const {
 } = require("./requests");
 const { fetchSeerrIssues, runSeerrIssueAction } = require("../classes/seerr-issues");
 const { addDownload, deleteDownload, setDownloadPaused, testDownloadClient } = require("../classes/download-client");
+const {
+  DEFAULT_ACCESS_ROLES,
+  DEFAULT_ROLE_PERMISSIONS,
+  normalizeAccessRoles,
+  persistRolePermissions,
+  mergeRolePermissionMap,
+} = require("../classes/role-permissions");
+const { normalizeApiKeyScope } = require("../classes/api-key-scope");
 
 const router = express.Router();
 router.use(requestsExtrasRouter);
-const DEFAULT_ACCESS_ROLES = ["Owner", "Admin", "Manager", "Viewer", "Disabled"];
 const REQUEST_CACHE_TTL_MS = 45000;
 const SEERR_MEDIA_DETAIL_CACHE_TTL_MS = 10 * 60 * 1000;
 const TDARR_TRANSCODE_CACHE_TTL_MS = 15000;
 const requestCache = new Map();
 const seerrMediaDetailCache = new Map();
 const tdarrTranscodeCache = new Map();
-const DEFAULT_ROLE_PERMISSIONS = {
-  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
-  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
-  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
-};
-
-function normalizeAccessRoles(settings = {}) {
-  return settings.roles || DEFAULT_ACCESS_ROLES;
-}
-
 function roleExists(settings = {}, role) {
   return normalizeAccessRoles(settings).includes(role);
 }
@@ -924,6 +919,136 @@ async function fetchTdarrNodeDirectory(integration) {
   }
 }
 
+async function fetchTdarrGlobalSettings(integration) {
+  try {
+    return await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "SettingsGlobalJSONDB",
+        mode: "getById",
+        docID: "globalsettings",
+      },
+    });
+  } catch (error) {
+    console.log("Tdarr global settings load failed:", getAxiosErrorMessage(error));
+    return {};
+  }
+}
+
+function normalizeTdarrControlNodes(nodesData, nodeDirectory = []) {
+  const nameById = buildTdarrNodeNameIndex(nodesData, nodeDirectory);
+  return listTdarrNodes(nodesData)
+    .map((node) => {
+      const id = String(node.nodeSessionId || node.nodeID || getTdarrNodeId(node) || "");
+      const name = getTdarrNodeDisplayName(node) || nameById.get(id) || id;
+      return {
+        id,
+        name,
+        paused: Boolean(firstDefined(node.nodePaused, node.paused, node.queuePaused, false)),
+      };
+    })
+    .filter((node) => node.id);
+}
+
+function clearTdarrTranscodeCache() {
+  tdarrTranscodeCache.clear();
+}
+
+function postTdarrApi(integration, path, data) {
+  const url = cleanIntegrationUrl(integration.values?.url);
+  return axios.post(`${url}/api/v2/${path.replace(/^\/+/, "")}`, { data }, {
+    timeout: 12000,
+    headers: {
+      ...getTdarrHeaders(integration),
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+async function skipTdarrQueuedFile(integration, fileId, workKind = "") {
+  const obj = workKind === "healthcheck" ? { HealthCheck: "Not required" } : { TranscodeDecisionMaker: "Not required" };
+  const attempts = [
+    () => postTdarrApi(integration, "client/bulk-update-files", { files: [fileId], obj }),
+    () => postTdarrApi(integration, "client/bulk-update-files", { files: [{ _id: fileId, file: fileId }], obj }),
+    () =>
+      fetchTdarrCrudDb(integration, {
+        data: {
+          collection: "FileJSONDB",
+          mode: "update",
+          docID: fileId,
+          obj,
+        },
+      }),
+  ];
+
+  let lastError;
+  for (const attempt of attempts) {
+    try {
+      await attempt();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (error.response?.status && error.response.status >= 500) {
+        continue;
+      }
+    }
+  }
+  throw lastError || new Error("Unable to skip Tdarr file");
+}
+
+async function runTdarrAction(integration, payload = {}) {
+  const action = String(payload.action || "").trim().toLowerCase();
+  const nodeId = String(payload.nodeId || payload.nodeID || "").trim();
+  const workerId = String(payload.workerId || payload.workerID || "").trim();
+  const fileId = String(payload.fileId || payload.id || payload.file || "").trim();
+  const workKind = String(payload.workKind || "").trim().toLowerCase();
+
+  if (action === "skip" || action === "cancel") {
+    if (nodeId && (workerId || fileId)) {
+      try {
+        await postTdarrApi(integration, "cancel-worker-item", {
+          nodeID: nodeId,
+          workerID: workerId || fileId,
+          cause: "Cancelled from JellyGlance",
+        });
+        return { ok: true, action: "skip", message: "Tdarr job cancelled." };
+      } catch (error) {
+        if (!fileId) throw error;
+      }
+    }
+    if (!fileId || /^(active|queued|history)-\d+$/i.test(fileId)) {
+      const error = new Error("Missing Tdarr file or worker id");
+      error.statusCode = 400;
+      throw error;
+    }
+    await skipTdarrQueuedFile(integration, fileId, workKind);
+    return { ok: true, action: "skip", message: "Tdarr job skipped." };
+  }
+
+  if (action === "pause" || action === "resume") {
+    const paused = action === "pause";
+    if (nodeId) {
+      await postTdarrApi(integration, "update-node", {
+        nodeID: nodeId,
+        nodeUpdates: { nodePaused: paused },
+      });
+      return { ok: true, action, nodeId, message: paused ? "Tdarr node paused." : "Tdarr node resumed." };
+    }
+    await fetchTdarrCrudDb(integration, {
+      data: {
+        collection: "SettingsGlobalJSONDB",
+        mode: "update",
+        docID: "globalsettings",
+        obj: { pauseAllNodes: paused },
+      },
+    });
+    return { ok: true, action, message: paused ? "All Tdarr nodes paused." : "All Tdarr nodes resumed." };
+  }
+
+  const error = new Error(`Unsupported Tdarr action: ${action}`);
+  error.statusCode = 400;
+  throw error;
+}
+
 function parseTdarrWorkMeta(record = {}) {
   const workerType = String(
     firstDefined(record.workerType, record.worker?.workerType, record.job?.workerType, record.process, record.type, "")
@@ -990,8 +1115,15 @@ function normalizeTdarrRecord(record = {}, status = "queued", index = 0) {
   const historyFrom = normalizeTdarrDisplayStatus(firstDefined(record.originalFormat, record.sourceFormat, record.previousFormat, ""));
   const historyTo = sourceCodec || targetLabel;
 
+  const nodeId = String(firstDefined(record.nodeID, record.nodeId, record.nodeSessionId, getTdarrNodeId(record), getTdarrNodeId(record.job), ""));
+  const fileId = String(firstDefined(getTdarrRecordPath(record), record._id, record.file, record.fileId, ""));
+  const workerId = String(firstDefined(record.workerID, record.workerId, record.workerKey, ""));
+
   return {
     id,
+    fileId,
+    nodeId,
+    workerId,
     title: extractTdarrTitle(record),
     library: firstDefined(record.libraryName, record.library, base.DB, record.DB?.libraryName, record.meta?.LibraryName, ""),
     worker: workMeta.nodeName || firstDefined(record.workerName, record.workerType, ""),
@@ -1504,7 +1636,7 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
     );
   }
 
-  function pushWorker(worker, node) {
+  function pushWorker(worker, node, workerKey = "") {
     if (!worker || typeof worker !== "object") return;
     const file = worker.file || worker.fileId || worker.filePath || worker.path || worker.originalfile || worker.originalFile || worker.source || worker.sourceFile || worker.job?.file || worker.job?.filePath || worker.job?._id;
     const progress = worker.percentage ?? worker.transcodePercent ?? worker.TranscodePercent ?? worker.Progress ?? worker.progress ?? worker.percent;
@@ -1518,25 +1650,27 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
       nodeID: nodeId,
       nodeSessionId: nodeId,
       workerType,
+      workerID: firstDefined(worker.workerID, worker.workerId, worker.id, workerKey),
+      workerKey,
     });
   }
 
-  function walkWorkers(value, node, depth = 0) {
+  function walkWorkers(value, node, depth = 0, workerKey = "") {
     if (!value || typeof value !== "object" || depth > 5) return;
     if (Array.isArray(value)) {
-      value.forEach((item) => walkWorkers(item, node, depth + 1));
+      value.forEach((item, index) => walkWorkers(item, node, depth + 1, workerKey || String(index)));
       return;
     }
-    pushWorker(value, node);
+    pushWorker(value, node, workerKey);
     ["fullWorker", "workerItem", "current", "job"].forEach((key) => {
       if (value[key] && typeof value[key] === "object" && !Array.isArray(value[key])) {
-        walkWorkers(value[key], node, depth + 1);
+        walkWorkers(value[key], node, depth + 1, workerKey || key);
       }
     });
     const looksLikeBucket = !value.workerType && !value.file && !value.filePath && progressIsMissing(value);
     if (looksLikeBucket || value.workers || value.Workers) {
-      Object.values(value).forEach((child) => {
-        if (child && typeof child === "object") walkWorkers(child, node, depth + 1);
+      Object.entries(value).forEach(([key, child]) => {
+        if (child && typeof child === "object") walkWorkers(child, node, depth + 1, key);
       });
     }
   }
@@ -1548,12 +1682,20 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
   for (const node of nodes) {
     const workerRoots = [node.workers, node.Workers, node.workerList, typeof node.queue === "object" ? node.queue : null].filter(Boolean);
     if (workerRoots.length) {
-      workerRoots.forEach((root) => walkWorkers(root, node));
+      workerRoots.forEach((root) => {
+        if (Array.isArray(root)) {
+          root.forEach((item, index) => walkWorkers(item, node, 0, String(index)));
+          return;
+        }
+        Object.entries(root).forEach(([key, value]) => {
+          if (value && typeof value === "object") walkWorkers(value, node, 0, key);
+        });
+      });
       continue;
     }
     Object.entries(node).forEach(([key, value]) => {
       if (/^(nodeName|nodeID|nodeId|nodeSessionId|config|_id)$/.test(key)) return;
-      if (value && typeof value === "object") walkWorkers(value, node);
+      if (value && typeof value === "object") walkWorkers(value, node, 0, key);
     });
   }
 
@@ -1565,10 +1707,14 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
         return;
       }
       const nextNode = isTdarrNodeLike(value) ? value : node;
-      if (value.workers || value.Workers) walkWorkers(value.workers || value.Workers, nextNode);
+      if (value.workers || value.Workers) {
+        Object.entries(value.workers || value.Workers).forEach(([key, child]) => {
+          if (child && typeof child === "object") walkWorkers(child, nextNode, 0, key);
+        });
+      }
       const progress = value.percentage ?? value.transcodePercent ?? value.TranscodePercent ?? value.Progress ?? value.progress ?? value.percent;
       const file = value.file || value.fileId || value.filePath || value.path || value.source || value.sourceFile;
-      if (file != null && progress != null) pushWorker(value, nextNode);
+      if (file != null && progress != null) pushWorker(value, nextNode, value.workerID || value.workerId || value.id);
       Object.values(value).forEach((child) => walk(child, depth + 1, nextNode));
     }
     walk(unwrapTdarrNodesPayload(nodesData));
@@ -1579,7 +1725,7 @@ function extractTdarrWorkersFromNodes(nodesData, nodeDirectory = []) {
 
 async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const [statusResponse, statistics, queuedSearchRows, healthQueuedRows, historySuccessRows, historyErrorRows, nodesData, nodeDirectory] = await Promise.all([
+  const [statusResponse, statistics, queuedSearchRows, healthQueuedRows, historySuccessRows, historyErrorRows, nodesData, nodeDirectory, globalSettings] = await Promise.all([
     axios
       .get(`${url}/api/v2/status`, {
         timeout: 8000,
@@ -1606,6 +1752,7 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
       .then((response) => response.data || {})
       .catch(() => ({})),
     fetchTdarrNodeDirectory(integration),
+    fetchTdarrGlobalSettings(integration),
   ]);
 
   const workerRows = extractTdarrWorkersFromNodes(nodesData, nodeDirectory);
@@ -1618,8 +1765,12 @@ async function fetchTdarrBundle(integration, { activeOnly = false } = {}) {
     activeOnly ? Promise.resolve([]) : attachJellyfinIdsToTdarrRecords(historyFiles),
   ]);
   const bundle = normalizeTdarrBundle(statusResponse.data || {}, statistics, activeWithImages, [], queuedWithImages, historyWithImages);
+  const nodes = normalizeTdarrControlNodes(nodesData, nodeDirectory);
   return {
     ...bundle,
+    connected: true,
+    nodes,
+    pauseAll: Boolean(globalSettings?.pauseAllNodes),
     source: {
       ...bundle.source,
       name: integration.name || "Tdarr",
@@ -5420,9 +5571,14 @@ router.get("/userAccess", async (req, res) => {
     const settings = config.settings || {};
     const localUsers = (settings.localUsers || []).map(({ password, ...user }) => user);
     const primaryLocalUser = ["jellyfin-quick-connect", "oidc", "local-auth"].includes(config.APP_USER) ? null : config.APP_USER;
+    const roles = normalizeAccessRoles(settings);
+    if (JSON.stringify(roles) !== JSON.stringify(settings.roles || [])) {
+      settings.roles = roles;
+      await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
+    }
     res.json({
-      roles: settings.roles || DEFAULT_ACCESS_ROLES,
-      rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...(settings.rolePermissions || {}) },
+      roles,
+      rolePermissions: mergeRolePermissionMap(settings.rolePermissions),
       jellyfinRoles: settings.userRoles || {},
       localUsers,
       primaryLocalUser,
@@ -5447,7 +5603,7 @@ router.post("/roles", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
 
     if (roles.some((existingRole) => existingRole.toLowerCase() === cleanRole.toLowerCase())) {
       res.status(409).json({ errorMessage: "That role already exists" });
@@ -5457,11 +5613,11 @@ router.post("/roles", async (req, res) => {
     settings.roles = [...roles, cleanRole];
     settings.rolePermissions = {
       ...(settings.rolePermissions || {}),
-      [cleanRole]: { dashboard: true, users: false, settings: false, apiKeys: false },
+      [cleanRole]: { ...DEFAULT_ROLE_PERMISSIONS.Viewer },
     };
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.created", { role: cleanRole });
-    res.status(201).json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
+    res.status(201).json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
   } catch (error) {
     console.log(error);
     res.status(500).json({ errorMessage: "Unable to add role" });
@@ -5479,7 +5635,7 @@ router.delete("/roles/:role", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
     settings.roles = roles.filter((existingRole) => existingRole !== role);
     settings.rolePermissions = { ...(settings.rolePermissions || {}) };
     delete settings.rolePermissions[role];
@@ -5495,7 +5651,7 @@ router.delete("/roles/:role", async (req, res) => {
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.deleted", { role });
-    res.json({ roles: settings.roles, rolePermissions: { ...DEFAULT_ROLE_PERMISSIONS, ...settings.rolePermissions } });
+    res.json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
   } catch (error) {
     console.log(error);
     res.status(500).json({ errorMessage: "Unable to remove role" });
@@ -5514,7 +5670,7 @@ router.patch("/roles/:role/permissions", async (req, res) => {
 
     const config = await new configClass().getConfig();
     const settings = config.settings || {};
-    const roles = settings.roles || DEFAULT_ACCESS_ROLES;
+    const roles = normalizeAccessRoles(settings);
 
     if (!roles.includes(role)) {
       res.status(404).json({ errorMessage: "Role not found" });
@@ -5531,16 +5687,10 @@ router.patch("/roles/:role/permissions", async (req, res) => {
       return;
     }
 
+    settings.roles = roles;
     settings.rolePermissions = {
       ...(settings.rolePermissions || {}),
-      [role]: {
-        ...DEFAULT_ROLE_PERMISSIONS[role],
-        ...(settings.rolePermissions || {})[role],
-        dashboard: Boolean(permissions.dashboard),
-        users: Boolean(permissions.users),
-        settings: Boolean(permissions.settings),
-        apiKeys: Boolean(permissions.apiKeys),
-      },
+      [role]: persistRolePermissions(role, permissions, (settings.rolePermissions || {})[role]),
     };
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
@@ -5855,8 +6005,13 @@ router.post("/setUntrackedUsers", async (req, res) => {
 
 router.get("/keys", async (req, res) => {
   const config = await new configClass().getConfig();
-
-  res.send(config.api_keys || []);
+  res.send(
+    (config.api_keys || []).map((item) => ({
+      ...item,
+      scope: normalizeApiKeyScope(item.scope, { fallback: "full" }),
+      lastUsed: item.lastUsed || null,
+    }))
+  );
 });
 
 router.delete("/keys", async (req, res) => {
@@ -5903,7 +6058,8 @@ router.post("/keys", async (req, res) => {
   let keys = config.api_keys || [];
 
   const uuid = randomUUID();
-  const new_key = { name: name, key: uuid };
+  const scope = normalizeApiKeyScope(req.body?.scope, { fallback: "widgets" });
+  const new_key = { name: name, key: uuid, scope, lastUsed: null };
 
   keys.push(new_key);
 
@@ -5911,6 +6067,31 @@ router.post("/keys", async (req, res) => {
 
   await db.query(query, [JSON.stringify(keys)]);
   res.send(keys);
+});
+
+router.patch("/keys", async (req, res) => {
+  const { key, scope } = req.body || {};
+  if (!key) {
+    res.status(400);
+    res.send({ error: "No API key provided" });
+    return;
+  }
+  const nextScope = normalizeApiKeyScope(scope, { fallback: "" });
+  if (!nextScope) {
+    res.status(400);
+    res.send({ error: "Scope must be widgets, widgets-write, or full" });
+    return;
+  }
+  const config = await new configClass().getConfig();
+  const keys = config.api_keys || [];
+  if (!keys.some((obj) => obj.key === key)) {
+    res.status(404);
+    res.send({ error: "API key does not exist" });
+    return;
+  }
+  const next = keys.map((obj) => (obj.key === key ? { ...obj, scope: nextScope } : obj));
+  await db.query('UPDATE app_config SET api_keys=$1 where "ID"=1', [JSON.stringify(next)]);
+  res.send(next);
 });
 
 router.get("/getTaskSettings", async (req, res) => {
@@ -6085,6 +6266,16 @@ router.get("/github/contributors", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503).send({ error: "Unable to load GitHub contributors" });
+  }
+});
+
+router.get("/github/stars", async (req, res) => {
+  try {
+    const result = await fetchGithubStars();
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    res.status(503).send({ error: "Unable to load GitHub stars" });
   }
 });
 
@@ -7456,6 +7647,28 @@ router.get("/tdarr/transcodes", async (req, res) => {
   }
 });
 
+router.post("/tdarr/actions", async (req, res) => {
+  try {
+    const integration = await getConnectedTdarrIntegration();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Tdarr in Settings > Integrations first." });
+    }
+    const result = await runTdarrAction(integration, req.body || {});
+    clearTdarrTranscodeCache();
+    await addAuditEntry(req, "tdarr.action", {
+      source: integration.name || "Tdarr",
+      action: result.action,
+      nodeId: req.body?.nodeId || req.body?.nodeID || result.nodeId || "",
+      workerId: req.body?.workerId || req.body?.workerID || "",
+      fileId: req.body?.fileId || req.body?.id || "",
+    });
+    res.send(result);
+  } catch (error) {
+    console.error("Tdarr action failed:", getAxiosErrorMessage(error));
+    res.status(error.statusCode || error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Tdarr action" });
+  }
+});
+
 router.get("/integrations/calendar", async (req, res) => {
   try {
     const data = await getIntegrationData();
@@ -7769,14 +7982,16 @@ router.get("/startTask", async (req, res) => {
 router.get("/newsletter/my-subscriptions", async (req, res) => {
   try {
     const newsletterCampaigns = require("../classes/newsletter-campaigns");
-    const userId = req.user?.id || req.user?.username || req.user?.email;
+    const userId = req.user?.jellyfinUser?.id || req.user?.id || req.user?.username || req.user?.email;
     if (!userId) return res.status(401).send({ error: "Unauthorized" });
     const [subscribable, subscriptions] = await Promise.all([
       newsletterCampaigns.listCampaigns({ includePersonal: true }),
       newsletterCampaigns.getSubscriptionsForUser(String(userId)),
     ]);
     res.send({
-      campaigns: subscribable.filter((campaign) => campaign.type === "global" || campaign.type === "personal" || campaign.enabled),
+      campaigns: subscribable.filter(
+        (campaign) => campaign.type === "global" || campaign.type === "personal" || campaign.type === "per-user" || campaign.enabled
+      ),
       subscriptions,
     });
   } catch (error) {
@@ -7788,7 +8003,7 @@ router.get("/newsletter/my-subscriptions", async (req, res) => {
 router.put("/newsletter/my-subscriptions", async (req, res) => {
   try {
     const newsletterCampaigns = require("../classes/newsletter-campaigns");
-    const userId = req.user?.id || req.user?.username || req.user?.email;
+    const userId = req.user?.jellyfinUser?.id || req.user?.id || req.user?.username || req.user?.email;
     if (!userId) return res.status(401).send({ error: "Unauthorized" });
     const subscriptions = await newsletterCampaigns.upsertSubscription({
       userId: String(userId),

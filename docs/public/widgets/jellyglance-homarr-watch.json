@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance watch time",
+  "description": "Playback hours from JellyGlance history.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/watch",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Watch time</Text>\n        <Text size=\"xs\" c=\"dimmed\">Hours</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color=\"violet\">Glance</Badge>\n  </Group>\n  <Grid gutter=\"xs\">\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"green\">Today</Text><Text fw={800} size=\"lg\">{data.hoursToday}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"teal\">Week</Text><Text fw={800} size=\"lg\">{data.hoursWeek}</Text></Card></Grid.Col>\n    <Grid.Col span={12}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"violet\">All time</Text><Text fw={800} size=\"lg\">{data.hoursAll}</Text></Card></Grid.Col>\n  </Grid>\n</Stack>"
+  }
+}

@@ -39,6 +39,8 @@ const TaskScheduler = require("./classes/task-scheduler-singleton");
 const { bootstrapFromEnv } = require("./classes/env-bootstrap");
 const { runLatestMigrations } = require("./classes/run-migrations");
 const { getWebhookCard } = require("./classes/discord-webhook-media");
+const { DEFAULT_ROLE_PERMISSIONS, getRolePermissions } = require("./classes/role-permissions");
+const { normalizeApiKeyScope } = require("./classes/api-key-scope");
 // const WebhookScheduler = require("./classes/webhook-scheduler");
 // const tasks = require("./tasks/tasks");
 
@@ -115,14 +117,6 @@ if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
   process.exit(1); // end the program with error status code
 }
-
-const DEFAULT_ROLE_PERMISSIONS = {
-  Owner: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Admin: { dashboard: true, users: true, settings: true, apiKeys: true },
-  Manager: { dashboard: true, users: true, settings: false, apiKeys: false },
-  Viewer: { dashboard: true, users: false, settings: false, apiKeys: false },
-  Disabled: { dashboard: false, users: false, settings: false, apiKeys: false },
-};
 
 // middlewares
 app.set("trust proxy", 1);
@@ -315,12 +309,17 @@ app.use((req, res, next) => {
   if (BASE_NAME && BASE_NAME != "" && (req.url == "/" || req.url == "")) {
     return res.redirect(BASE_NAME);
   }
-  // Ignore requests containing 'socket.io'
-  if (req.url.includes("socket.io") || req.url.includes("swagger") || req.url.startsWith("/backup") || req.url.includes("webhook-cards")) {
+  const pathname = getRequestPathname(req);
+  const isSwaggerAsset = pathname === "/swagger.json" || pathname === "/swagger-ui" || pathname.startsWith("/swagger-ui/");
+
+  // Keep socket, backup, webhook cards, and swagger-ui assets off the SPA static rewrite.
+  // /swagger is the SPA route that redirects to Settings → Swagger.
+  if (req.url.includes("socket.io") || req.url.startsWith("/backup") || req.url.includes("webhook-cards") || isSwaggerAsset) {
+    if (isSwaggerAsset && BASE_NAME && req.url.startsWith(BASE_NAME) && req.url !== BASE_NAME) {
+      req.url = req.url.slice(BASE_NAME.length);
+    }
     return next();
   }
-
-  const pathname = getRequestPathname(req);
   if (pathname === "/env.js" || (BASE_NAME && pathname === `${BASE_NAME}/env.js`)) {
     res.set("Cache-Control", "no-store");
     return res.type("application/javascript").send(buildEnvContent());
@@ -355,7 +354,7 @@ app.use((req, res, next) => {
 app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", authenticateProxyAsset, authorizeProxyRoute, proxyRouter, () => {
+app.use("/proxy", authenticateProxyAsset, restrictApiKeyScope, authorizeProxyRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);
@@ -373,34 +372,38 @@ app.get("/webhook-cards/:id.jpg", (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=600");
   return res.end(card.buffer);
 });
-app.use("/api", authenticate, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
+app.use("/api", authenticate, restrictApiKeyScope, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
-app.use("/sync", authenticate, requirePermission("settings"), syncRouter, () => {
+app.use("/sync", authenticate, restrictApiKeyScope, requirePermission("settings"), syncRouter, () => {
   /*  #swagger.tags = ['Sync']*/
 }); // mount the API router at /sync, with JWT middleware
-app.use("/stats", authenticate, statsRouter, () => {
+app.use("/stats", authenticate, restrictApiKeyScope, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
-app.use("/backup", authenticate, requirePermission("settings"), backupRouter, () => {
+app.use("/backup", authenticate, restrictApiKeyScope, requirePermission("settings"), backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
-app.use("/tautulli", authenticate, requirePermission("settings"), tautulliRouter, () => {
+app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
+  /*  #swagger.tags = ['Tautulli']*/
+  /*  #swagger.tags = ['Backup']*/
+}); // mount the API router at /backup, with JWT middleware
+app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
   /*  #swagger.tags = ['Tautulli']*/
 }); // mount the Tautulli import router with settings permission
-app.use("/jellystat", authenticate, requirePermission("settings"), jellystatRouter, () => {
+app.use("/jellystat", authenticate, restrictApiKeyScope, requirePermission("settings"), jellystatRouter, () => {
   /*  #swagger.tags = ['Jellystat']*/
 }); // mount the Jellystat import router with settings permission
-app.use("/logs", authenticate, requirePermission("settings"), logRouter, () => {
+app.use("/logs", authenticate, restrictApiKeyScope, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
-app.use("/utils", authenticate, requirePermission("settings"), utilsRouter, () => {
+app.use("/utils", authenticate, restrictApiKeyScope, requirePermission("settings"), utilsRouter, () => {
   /*  #swagger.tags = ['Utils']*/
 }); // mount the API router at /utils, with JWT middleware
-app.use("/webhooks", authenticate, requirePermission("settings"), webhooksRouter, () => {
+app.use("/webhooks", authenticate, restrictApiKeyScope, requirePermission("settings"), webhooksRouter, () => {
   /*  #swagger.tags = ['Webhooks']*/
 }); // mount the API router at /webhooks, with JWT middleware
-app.use("/newsletter", authenticate, requirePermission("settings"), newsletterRouter, () => {
+app.use("/newsletter", authenticate, restrictApiKeyScope, requirePermission("settings"), newsletterRouter, () => {
   /*  #swagger.tags = ['Newsletter']*/
 }); // mount the newsletter router with settings permission
 
@@ -438,8 +441,32 @@ app.get("/backup-download/:filename", (req, res) => {
   }
 });
 
-// Swagger
-app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Swagger spec + standalone UI. The Glance app owns GET /swagger.
+app.get("/swagger.json", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(swaggerDocument);
+});
+app.use(
+  "/swagger-ui",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    customSiteTitle: "JellyGlance API",
+    customCss: `
+      .swagger-ui .topbar { display: none; }
+      body { margin: 0; background: #0b1118; }
+      .swagger-ui { background: transparent; }
+      .swagger-ui .info .title { display: none; }
+      .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #9aa7bb; }
+      .swagger-ui .scheme-container { background: #121821; box-shadow: none; }
+      .swagger-ui .opblock-tag { color: #f8fafc; border-color: rgba(255,255,255,0.08); }
+    `,
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: "alpha",
+      operationsSorter: "alpha",
+    },
+  })
+);
 
 // for deployment of static page
 writeEnvVariables().then(() => {
@@ -467,6 +494,57 @@ writeEnvVariables().then(() => {
 });
 
 // JWT middleware
+const apiKeyTouchTimes = new Map();
+const API_KEY_TOUCH_MS = 2 * 60 * 1000;
+const WIDGET_API_PATHS = [
+  "/api/widgets",
+  "/api/ops-digest",
+  "/api/library-storage",
+  "/api/jellyfin/status",
+  "/api/item-glance",
+  "/api/downloads/stitched",
+];
+
+function requestPath(req) {
+  return String(req.originalUrl || req.url || "").split("?")[0].toLowerCase();
+}
+
+function isWidgetsOnlyPath(req) {
+  const full = requestPath(req);
+  return WIDGET_API_PATHS.some((prefix) => full === prefix || full.startsWith(`${prefix}/`));
+}
+
+function restrictApiKeyScope(req, res, next) {
+  if (!req.apiKeyScope || req.apiKeyScope === "full") {
+    next();
+    return;
+  }
+  const write = req.apiKeyScope === "widgets-write";
+  const methodOk = req.method === "GET" || req.method === "HEAD" || (write && req.method === "POST");
+  if (!methodOk) {
+    return res.status(403).json({ message: write ? "This API key cannot use that method" : "This API key is widgets-only" });
+  }
+  if (!isWidgetsOnlyPath(req)) {
+    return res.status(403).json({ message: write ? "This API key is widgets-write only" : "This API key is widgets-only" });
+  }
+  next();
+}
+
+async function touchApiKeyLastUsed(apiKey) {
+  const now = Date.now();
+  if (now - (apiKeyTouchTimes.get(apiKey) || 0) < API_KEY_TOUCH_MS) return;
+  apiKeyTouchTimes.set(apiKey, now);
+  try {
+    const row = await dbInstance.query('SELECT api_keys FROM app_config where "ID"=1').then((result) => result.rows[0]);
+    const keys = Array.isArray(row?.api_keys) ? row.api_keys : [];
+    if (!keys.some((item) => item.key === apiKey)) return;
+    const next = keys.map((item) => (item.key === apiKey ? { ...item, lastUsed: new Date().toISOString() } : item));
+    await dbInstance.query('UPDATE app_config SET api_keys=$1 where "ID"=1', [JSON.stringify(next)]);
+  } catch (error) {
+    console.warn("[API-KEY] last-used update failed:", error.message);
+  }
+}
+
 async function authenticate(req, res, next) {
   const token = req.headers.authorization;
   const apiKey = req.headers["x-api-token"];
@@ -506,10 +584,12 @@ async function authenticate(req, res, next) {
       }
       const keys = keysjson || [];
 
-      const keyExists = keys.some((obj) => obj.key === apiKey);
+      const match = (keys || []).find((obj) => obj.key === apiKey);
 
-      if (keyExists) {
+      if (match) {
         req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
+        req.apiKeyScope = normalizeApiKeyScope(match.scope, { fallback: "full" });
+        touchApiKeyLastUsed(apiKey);
         next();
       } else {
         return res.status(403).json({ message: "Invalid API key" });
@@ -564,17 +644,6 @@ function getTokenPermissions(user) {
   }
 
   return DEFAULT_ROLE_PERMISSIONS.Owner;
-}
-
-function getRolePermissions(settings, role) {
-  if (role === "Owner" || role === "Disabled") {
-    return DEFAULT_ROLE_PERMISSIONS[role];
-  }
-
-  return {
-    ...(DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Viewer),
-    ...((settings.rolePermissions || {})[role] || {}),
-  };
 }
 
 async function resolveTokenAccess(user) {
@@ -671,6 +740,24 @@ function authorizeApiRoute(req, res, next) {
     return;
   }
 
+  if (pathName.startsWith("/downloads")) {
+    if (req.permissions?.downloads || req.permissions?.settings) {
+      next();
+      return;
+    }
+    if (req.method === "GET" || req.method === "HEAD") {
+      return requirePermission("dashboard")(req, res, next);
+    }
+    return requirePermission("settings")(req, res, next);
+  }
+
+  if (pathName.startsWith("/tdarr")) {
+    if (req.method === "GET" || req.method === "HEAD") {
+      return requirePermission("dashboard")(req, res, next);
+    }
+    return requirePermission("settings")(req, res, next);
+  }
+
   if (pathName.startsWith("/server-management")) {
     if (!req.permissions?.settings || !["Owner", "Admin"].includes(req.user?.role)) {
       return res.status(403).json({ message: "Admin role required" });
@@ -717,7 +804,6 @@ function authorizeApiRoute(req, res, next) {
             pathName.startsWith("/wizarr") ||
             pathName.startsWith("/jellyfin/") ||
             pathName.startsWith("/first-run") ||
-            pathName.startsWith("/downloads") ||
             pathName.startsWith("/starttask") ||
             pathName.startsWith("/stoptask") ||
             pathName.startsWith("/gettasksettings") ||

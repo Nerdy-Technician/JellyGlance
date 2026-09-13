@@ -248,6 +248,12 @@ function applyNavbarIntegrations(integrations, setters) {
   return { tdarr, requests };
 }
 
+function navItemTo(item) {
+  const link = String(item?.link || "");
+  if (!link) return "/";
+  return link.startsWith("/") ? link : `/${link}`;
+}
+
 function isNavItemActive(item, location) {
   const pathname = location.pathname.toLocaleLowerCase();
   const navPath = String(item.link || "").split("?")[0].toLocaleLowerCase();
@@ -301,8 +307,11 @@ export default function Navbar() {
   const isJellyfinAdmin = currentRole === "Owner" || currentRole === "Admin";
   const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? "Jellyfin Admin" : "Jellyfin User") : authMode === "oidc" ? "OIDC User" : "Local User";
   const showServerManagementNav = isJellyfinAdmin;
+  const permissions = config?.settings?.auth?.permissions || {};
+  const canOpenHome = permissions.home !== false;
+  const canOpenSettings = Boolean(permissions.settings || permissions.apiKeys || permissions.repair);
   const effectiveWorkspaceMode = isJellyfinAdmin ? workspaceMode : "user";
-  const homePath = workspaceHomePath(isJellyfinAdmin, effectiveWorkspaceMode);
+  const homePath = workspaceHomePath(isJellyfinAdmin, effectiveWorkspaceMode, permissions);
   const jellyfinUserId = jellyfinUser?.id || jellyfinUser?.Id || jellyfinUser?.userId || jellyfinUser?.UserId;
   const jellyfinImageTag = jellyfinUser?.primaryImageTag || jellyfinUser?.PrimaryImageTag || jellyfinUser?.imageTags?.Primary || jellyfinUser?.ImageTags?.Primary;
   const jellyfinAvatar = jellyfinUserId
@@ -318,8 +327,12 @@ export default function Navbar() {
         navData.filter((item) => {
           if (!LOCKED_NAV_LINKS.has(item.link) && hiddenNavLinks.includes(item.link)) return false;
           if (isJellyfinAdmin && workspaceMode === "user" && !USER_WORKSPACE_NAV_LINKS.has(item.link)) return false;
-          if (item.link === "requests") return showRequestsNav;
-          if (item.link === "downloads") return showDownloadsNav;
+          if (item.link === "") return canOpenHome;
+          if (item.link === "settings") return canOpenSettings;
+          if (item.link === "users") return Boolean(permissions.users);
+          if (item.link === "me") return permissions.myGlance !== false;
+          if (item.link === "requests") return showRequestsNav && permissions.requests !== false;
+          if (item.link === "downloads") return showDownloadsNav && Boolean(permissions.downloads || permissions.settings);
           if (item.link === "calendar") return showCalendarNav;
           if (item.link === "active-transcodes") return showTdarrNav;
           if (item.link === "maintainerr") return showMaintainerrNav;
@@ -329,9 +342,9 @@ export default function Navbar() {
           return true;
         }),
         navOrder,
-        { myGlanceFirst: isJellyfinAdmin && workspaceMode === "user" }
+        { myGlanceFirst: !canOpenHome || (isJellyfinAdmin && workspaceMode === "user") }
       ),
-    [hiddenNavLinks, isJellyfinAdmin, navOrder, showAutomationHealthNav, showCalendarNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav, workspaceMode]
+    [canOpenHome, canOpenSettings, hiddenNavLinks, isJellyfinAdmin, navOrder, permissions.downloads, permissions.myGlance, permissions.requests, permissions.settings, permissions.users, showAutomationHealthNav, showCalendarNav, showDownloadsNav, showMaintainerrNav, showRequestsNav, showServerManagementNav, showTdarrNav, showWizarrNav, workspaceMode]
   );
 
   const handleLogout = () => {
@@ -953,10 +966,10 @@ export default function Navbar() {
   const handleWorkspaceMode = (nextMode) => {
     const next = saveWorkspaceMode(nextMode);
     setWorkspaceMode(next);
-    applyPwaStartUrl(pwaStartPath(currentRole, next));
+    applyPwaStartUrl(pwaStartPath(currentRole, next, permissions));
     setShowAccount(false);
     setIsMobileNavOpen(false);
-    navigate(workspaceHomePath(true, next));
+    navigate(workspaceHomePath(true, next, permissions));
   };
 
   const getNavBadgeCount = (link) => {
@@ -1000,7 +1013,7 @@ export default function Navbar() {
                 <Link
                   key={item.id}
                   className={`mobile-app-menu-tile${isActive ? " active" : ""}`}
-                  to={item.link}
+                  to={navItemTo(item)}
                   onClick={() => setIsMobileNavOpen(false)}
                 >
                   <span className="mobile-app-menu-icon">{item.icon}</span>
@@ -1073,7 +1086,7 @@ export default function Navbar() {
                 as={Link}
                 key={item.id}
                 className={`navitem${isActive ? " active" : ""} p-2`} // add the "active" class if the link is active
-                to={item.link}
+                to={navItemTo(item)}
                 onClick={() => setIsMobileNavOpen(false)}
                 title={navLabel}
                 aria-label={navLabel}
@@ -1106,6 +1119,15 @@ export default function Navbar() {
               </Nav.Link>
             );
           })}
+          <button
+            type="button"
+            className="navbar-collapse-toggle"
+            onClick={() => setIsNavCollapsed((current) => !current)}
+            aria-label={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
+            title={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
+          >
+            {isNavCollapsed ? <ArrowRightSLineIcon size={16} /> : <ArrowLeftSLineIcon size={16} />}
+          </button>
           <div className="navbar-inline-footer">
             <div className="navbar-footer-account-row">
               <button className="navitem account-navitem p-2" type="button" onClick={() => setShowAccount(true)}>
@@ -1120,15 +1142,6 @@ export default function Navbar() {
                   <strong>{accountName}</strong>
                   <small>{accountRole}</small>
                 </span>
-              </button>
-              <button
-                type="button"
-                className="navbar-collapse-toggle"
-                onClick={() => setIsNavCollapsed((current) => !current)}
-                aria-label={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
-                title={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
-              >
-                {isNavCollapsed ? <ArrowRightSLineIcon size={20} /> : <ArrowLeftSLineIcon size={20} />}
               </button>
             </div>
             <div className="navbar-version-row">
@@ -1146,11 +1159,21 @@ export default function Navbar() {
 
       </BootstrapNavbar>
 
-      <Modal show={showAccount} onHide={() => setShowAccount(false)} centered dialogClassName="profile-modal">
+      <Modal
+        show={showAccount}
+        onHide={() => setShowAccount(false)}
+        centered
+        size="xl"
+        className="profile-modal-root"
+        dialogClassName="profile-modal"
+        backdropClassName="profile-modal-backdrop"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Account</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          <div className="profile-modal-layout">
+          <div className="profile-modal-main">
           <div className="profile-modal-identity">
             <div className="profile-modal-avatar">
               {avatarSrc ? <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} /> : <AccountCircleLineIcon />}
@@ -1211,7 +1234,9 @@ export default function Navbar() {
               <small>{t("FEATURES.WORKSPACE.WHAT_NEW")}</small>
             </span>
           </button>
+          </div>
 
+          <div className="profile-modal-prefs">
           <section className="profile-font-panel" aria-labelledby="profile-font-heading">
             <div className="profile-font-header">
               <h3 id="profile-font-heading"><Trans i18nKey="SETTINGS_PAGE.FONT_WEIGHT" /></h3>
@@ -1345,6 +1370,8 @@ export default function Navbar() {
               {hasThemeDraftChanges ? <span>{t("SETTINGS_PAGE.THEME_PREVIEW_PENDING")}</span> : null}
             </div>
           </section>
+          </div>
+          </div>
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="profile-modal-action is-ghost" onClick={() => setShowAccount(false)}>

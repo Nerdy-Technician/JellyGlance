@@ -4,8 +4,25 @@ const db = require("../db");
 const dbHelper = require("../classes/db-helper");
 
 const dayjs = require("dayjs");
+const { getIntegrations } = require("../classes/integration-store");
+const { fetchHouseholdWatchTonight } = require("../classes/watch-tonight");
 
 const router = express.Router();
+
+router.use((req, res, next) => {
+  const pathName = String(req.path || "").toLowerCase();
+  if (pathName === "/gethomedashboard") {
+    if (req.permissions?.home === false) {
+      return res.status(403).json({ message: "Permission required: home" });
+    }
+    return next();
+  }
+  if (pathName === "/repair-hub") {
+    if (req.permissions?.repair || req.permissions?.settings) return next();
+    return res.status(403).json({ message: "Permission required: repair" });
+  }
+  next();
+});
 
 //functions
 function countOverlapsPerHour(records) {
@@ -253,6 +270,8 @@ router.get("/getHomeDashboard", async (req, res) => {
       watchPartySuggestions,
       seasonGaps,
       automationFeed,
+      integrations,
+      watchTonight,
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -422,6 +441,8 @@ router.get("/getHomeDashboard", async (req, res) => {
         ORDER BY "TimeRun" DESC
         LIMIT 8
       `),
+      getIntegrations().catch(() => ({ arrApps: [] })),
+      fetchHouseholdWatchTonight(excludedUsers).catch(() => []),
     ]);
 
     const totals = playbackTotals.rows[0] || {};
@@ -520,12 +541,17 @@ router.get("/getHomeDashboard", async (req, res) => {
         plays: Number(item.Plays || 0),
         primaryImageHash: item.PrimaryImageHash,
       })),
+      watchTonight: Array.isArray(watchTonight) ? watchTonight : [],
       seasonGaps: seasonGaps.rows.map((item) => ({
         itemId: item.Id,
         name: item.Name,
         episodes: Number(item.Episodes || 0),
         primaryImageHash: item.PrimaryImageHash,
       })),
+      sonarrConnected: (integrations.arrApps || []).some((app) => {
+        const name = String(app.name || app.slug || "").toLowerCase();
+        return Boolean(app.connected && name.includes("sonarr"));
+      }),
       automationFeed: automationFeed.rows.map((item) => ({
         id: item.Id,
         name: item.Name,

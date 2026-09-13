@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ArrowRightLineIcon from "remixicon-react/ArrowRightLineIcon";
+import CloseCircleLineIcon from "remixicon-react/CloseCircleLineIcon";
 import CpuLineIcon from "remixicon-react/CpuLineIcon";
 import HistoryLineIcon from "remixicon-react/HistoryLineIcon";
 import ListCheck2Icon from "remixicon-react/ListCheck2Icon";
+import PauseCircleLineIcon from "remixicon-react/PauseCircleLineIcon";
+import PlayCircleLineIcon from "remixicon-react/PlayCircleLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import axios from "../lib/axios_instance";
+import Config from "../lib/config";
 import "./css/active-transcodes.css";
 
 const tabs = [
@@ -12,9 +16,22 @@ const tabs = [
   { key: "queued", label: "Queued", Icon: ListCheck2Icon },
   { key: "history", label: "History", Icon: HistoryLineIcon },
 ];
-const TRANSCODES_CACHE_KEY = "jellyglance_tdarr_transcodes_cache_v5";
+const TRANSCODES_CACHE_KEY = "jellyglance_tdarr_transcodes_cache_v6";
 const TRANSCODES_CACHE_MAX_AGE_MS = 2 * 60 * 1000;
-const emptyBundle = { active: [], queued: [], history: [], stats: {} };
+const emptyBundle = { active: [], queued: [], history: [], stats: {}, nodes: [], pauseAll: false, connected: false };
+
+function canManageTdarr(config) {
+  if (config?.settings?.auth?.permissions?.settings) return true;
+  const role = String(config?.settings?.auth?.role || "").toLowerCase();
+  return role === "owner" || role === "admin";
+}
+
+function canSkipTdarrJob(job, kind) {
+  if (kind === "history" || !job) return false;
+  if (job.nodeId && job.workerId) return true;
+  const fileId = String(job.fileId || "").trim();
+  return Boolean(fileId) && !/^(active|queued|history)-\d+$/i.test(fileId);
+}
 
 function readTranscodesCache() {
   try {
@@ -85,7 +102,7 @@ function hardwareLabel(job) {
   return "";
 }
 
-function JobCard({ job, kind }) {
+function JobCard({ job, kind, canManage, busy, onSkip }) {
   const artUrl = job.bannerUrl || job.thumbnailUrl;
   const bannerStyle = artUrl
     ? {
@@ -155,6 +172,14 @@ function JobCard({ job, kind }) {
         </div>
       ) : null}
       {displayText(job.reason) ? <p className="transcode-reason">{displayText(job.reason)}</p> : null}
+      {canManage && canSkipTdarrJob(job, kind) ? (
+        <div className="transcode-job-actions">
+          <button type="button" className="is-skip" disabled={busy} onClick={() => onSkip(job)}>
+            <CloseCircleLineIcon size={16} />
+            {busy ? "Skipping" : "Skip"}
+          </button>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -165,14 +190,21 @@ export default function ActiveTranscodes() {
   const [bundle, setBundle] = useState(() => cachedTranscodes?.data || emptyBundle);
   const [loading, setLoading] = useState(() => !cachedTranscodes);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [lastUpdated, setLastUpdated] = useState(() => cachedTranscodes?.cachedAt || null);
+  const [config, setConfig] = useState(null);
+  const [busyAction, setBusyAction] = useState("");
 
   const jobs = useMemo(() => bundle[activeTab] || [], [activeTab, bundle]);
+  const nodes = useMemo(() => (Array.isArray(bundle.nodes) ? bundle.nodes.filter((node) => node?.id) : []), [bundle.nodes]);
   const activeCount = Number(bundle.stats?.active || bundle.active?.length || 0);
   const queueCount = Number(bundle.stats?.queue ?? bundle.stats?.queued ?? bundle.queued?.length ?? 0);
   const processedCount = Number(bundle.stats?.processed || 0);
   const erroredCount = Number(bundle.stats?.errored || 0);
   const savedSize = formatBytes(bundle.stats?.saved || 0);
+  const disconnected = /connect tdarr/i.test(error);
+  const canManage = canManageTdarr(config) && !disconnected && (bundle.connected || Boolean(bundle.source?.url));
+  const allPaused = nodes.length ? nodes.every((node) => node.paused) : Boolean(bundle.pauseAll);
 
   const loadTranscodes = useCallback(async ({ silent = false, force = false, activeOnly = false } = {}) => {
     try {
@@ -207,10 +239,47 @@ export default function ActiveTranscodes() {
       if (!silent) {
         setError(requestError?.response?.data?.error || "Unable to load Tdarr transcodes.");
       }
+      if (requestError?.response?.status === 404) {
+        setBundle((current) => ({ ...current, connected: false, nodes: [] }));
+      }
       return { active: 0, queued: 0 };
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const runTdarrAction = useCallback(
+    async (action, payload = {}, { confirmText } = {}) => {
+      if (!canManage || busyAction) return;
+      if (confirmText && !window.confirm(confirmText)) return;
+      const key = `${action}:${payload.nodeId || payload.fileId || payload.id || "all"}`;
+      try {
+        setBusyAction(key);
+        setNotice("");
+        const response = await axios.post("/api/tdarr/actions", { action, ...payload });
+        setNotice(response.data?.message || `Tdarr ${action} sent.`);
+        if (action === "skip" && (payload.fileId || payload.id)) {
+          const jobId = payload.id || payload.fileId;
+          setBundle((current) => ({
+            ...current,
+            active: (current.active || []).filter((job) => job.id !== jobId && job.fileId !== jobId),
+            queued: (current.queued || []).filter((job) => job.id !== jobId && job.fileId !== jobId),
+          }));
+        }
+        await loadTranscodes({ silent: true, force: true, activeOnly: false });
+      } catch (actionError) {
+        setNotice(actionError?.response?.data?.error || actionError?.response?.data?.message || `Unable to ${action} Tdarr job.`);
+      } finally {
+        setBusyAction("");
+      }
+    },
+    [busyAction, canManage, loadTranscodes]
+  );
+
+  useEffect(() => {
+    Config.getConfig()
+      .then((next) => setConfig(next))
+      .catch(() => setConfig({}));
   }, []);
 
   useEffect(() => {
@@ -234,12 +303,32 @@ export default function ActiveTranscodes() {
           <h1>Tdarr</h1>
           <span>{lastUpdated ? `Last updated ${new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(lastUpdated))}` : "Monitor active workers, queued files, and finished transcode history."}</span>
         </div>
-        <button type="button" onClick={() => loadTranscodes({ force: true })} disabled={loading}>
-          <RefreshLineIcon size={18} />
-          {loading ? "Refreshing" : "Refresh"}
-        </button>
+        <div className="transcodes-header-actions">
+          {canManage && nodes.map((node) => (
+            <button
+              type="button"
+              key={node.id}
+              disabled={Boolean(busyAction)}
+              onClick={() => runTdarrAction(node.paused ? "resume" : "pause", { nodeId: node.id })}
+            >
+              {node.paused ? <PlayCircleLineIcon size={18} /> : <PauseCircleLineIcon size={18} />}
+              {node.paused ? "Resume" : "Pause"} {node.name}
+            </button>
+          ))}
+          {canManage && (nodes.length > 1 || (!nodes.length && (bundle.pauseAll || bundle.connected))) ? (
+            <button type="button" disabled={Boolean(busyAction)} onClick={() => runTdarrAction(allPaused ? "resume" : "pause")}>
+              {allPaused ? <PlayCircleLineIcon size={18} /> : <PauseCircleLineIcon size={18} />}
+              {allPaused ? "Resume all" : "Pause all"}
+            </button>
+          ) : null}
+          <button type="button" onClick={() => loadTranscodes({ force: true })} disabled={loading}>
+            <RefreshLineIcon size={18} />
+            {loading ? "Refreshing" : "Refresh"}
+          </button>
+        </div>
       </header>
 
+      {notice ? <div className={`transcodes-notice${/unable|fail|error/i.test(notice) ? " is-error" : ""}`}>{notice}</div> : null}
       {error ? <div className="transcodes-error">{error}</div> : null}
 
       <section className="transcode-summary-grid">
@@ -281,7 +370,26 @@ export default function ActiveTranscodes() {
 
       <section className="transcode-list">
         {jobs.map((job, index) => (
-          <JobCard job={job} kind={activeTab} key={`${job.id}-${index}`} />
+          <JobCard
+            job={job}
+            kind={activeTab}
+            canManage={canManage}
+            busy={busyAction === `skip:${job.fileId || job.id}`}
+            onSkip={(nextJob) =>
+              runTdarrAction(
+                "skip",
+                {
+                  id: nextJob.id,
+                  fileId: nextJob.fileId || nextJob.id,
+                  nodeId: nextJob.nodeId,
+                  workerId: nextJob.workerId,
+                  workKind: nextJob.workKind,
+                },
+                { confirmText: `Skip ${nextJob.title || "this Tdarr job"}?` }
+              )
+            }
+            key={`${job.id}-${index}`}
+          />
         ))}
         {!jobs.length ? (
           <div className="transcode-empty">
