@@ -67,7 +67,7 @@ Once Jellyfin is connected, the most useful follow-up configuration lives in **S
 | --- | --- |
 | Integrations | Jellyfin, 3rd Party Apps, Seerr apps, Arr apps, download clients, health checks, and integration event sources |
 | Tasks | Manual and scheduled sync jobs for Jellyfin, calendar, downloads, health checks, and backups |
-| Webhooks | One or many webhook destinations with event toggles, test delivery, and delivery history |
+| Webhooks | One or many webhook destinations with event toggles, test delivery, delivery history, and notification cards that can match the web UI theme or use a default card style |
 | API Key | Create tokens (widgets-only, widgets-write, or full), then copy Homarr widgets or the Homepage YAML pack. The same page can try widget routes in Swagger |
 | Library Settings | Library sync behavior and manual scan options |
 | Imports | Tautulli backup upload, preview, safe import, and manual media linking for unmatched history |

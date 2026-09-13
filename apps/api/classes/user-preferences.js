@@ -67,9 +67,59 @@ async function saveUserTheme(user, theme) {
   return nextTheme;
 }
 
+function preferenceMap(settings) {
+  return settings.UserPreferences && typeof settings.UserPreferences === "object" ? settings.UserPreferences : {};
+}
+
+function themeFromPreference(preference) {
+  return preference?.theme ? normalizeTheme(preference.theme) : null;
+}
+
+function newerPreference(current, next) {
+  if (!next) return current;
+  if (!current) return next;
+  return String(next.updatedAt || "") > String(current.updatedAt || "") ? next : current;
+}
+
+async function resolveCardUiTheme({ jellyfinUserId, user } = {}) {
+  const settings = await getSettings().catch(() => ({}));
+  const map = preferenceMap(settings);
+
+  if (jellyfinUserId) {
+    const watching = themeFromPreference(map[`jf:${jellyfinUserId}`]);
+    if (watching) return watching;
+  }
+
+  if (user) {
+    const current = await getUserPreferences(user).catch(() => ({ theme: null }));
+    if (current.theme) return current.theme;
+  }
+
+  const roles = settings.userRoles && typeof settings.userRoles === "object" ? settings.userRoles : {};
+  const adminRoles = new Set(["Owner", "Admin"]);
+  let latestAdmin = null;
+  for (const [id, role] of Object.entries(roles)) {
+    if (!adminRoles.has(role)) continue;
+    const preference = map[`jf:${id}`];
+    if (!preference?.theme) continue;
+    latestAdmin = newerPreference(latestAdmin, preference);
+  }
+  const adminTheme = themeFromPreference(latestAdmin);
+  if (adminTheme) return adminTheme;
+
+  let latest = null;
+  for (const preference of Object.values(map)) {
+    if (!preference?.theme) continue;
+    latest = newerPreference(latest, preference);
+  }
+  return themeFromPreference(latest) || DEFAULT_THEME;
+}
+
 module.exports = {
+  DEFAULT_THEME,
   preferenceUserKey,
   normalizeTheme,
   getUserPreferences,
   saveUserTheme,
+  resolveCardUiTheme,
 };

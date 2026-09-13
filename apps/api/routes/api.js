@@ -10,7 +10,7 @@ const pgp = require("pg-promise")();
 const { randomUUID } = require("crypto");
 
 const configClass = require("../classes/config");
-const { checkForUpdates, fetchGithubContributors, fetchReleaseNotes } = require("../version-control");
+const { checkForUpdates, fetchGithubContributors, fetchGithubStars, fetchReleaseNotes } = require("../version-control");
 const API = require("../classes/api-loader");
 const { sendUpdate } = require("../ws");
 const { tables } = require("../global/backup_tables");
@@ -6266,6 +6266,16 @@ router.get("/github/contributors", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503).send({ error: "Unable to load GitHub contributors" });
+  }
+});
+
+router.get("/github/stars", async (req, res) => {
+  try {
+    const result = await fetchGithubStars();
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    res.status(503).send({ error: "Unable to load GitHub stars" });
   }
 });
 

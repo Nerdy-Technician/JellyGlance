@@ -2175,6 +2175,71 @@
   color: #fff;
 }
 
+.webhook-card-theme {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(var(--primary-light-rgb), 0.18);
+  border-radius: 16px;
+  background: rgba(8, 11, 17, 0.82);
+}
+
+.webhook-card-theme h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.webhook-card-theme p {
+  margin: 4px 0 0;
+  color: #aebbd0;
+  font-size: 13px;
+}
+
+.webhook-card-theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.webhook-card-theme-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.webhook-card-theme-group:first-child {
+  padding-right: 8px;
+  margin-right: 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.webhook-card-theme-options button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #dbe7f7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.webhook-card-theme-options button.is-active {
+  border-color: rgba(var(--primary-light-rgb), 0.45);
+  background: rgba(var(--primary-rgb), 0.22);
+  color: #fff;
+}
+
+.webhook-card-preview {
+  width: min(100%, 36rem);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .health-table article {
   display: grid;
   grid-template-columns: minmax(130px, 0.8fr) minmax(120px, 0.6fr) minmax(80px, 0.35fr) minmax(100px, 0.45fr) minmax(180px, 1fr) minmax(90px, auto) minmax(88px, auto);

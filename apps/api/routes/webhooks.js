@@ -4,6 +4,7 @@ const dbInstance = require('../db');
 const WebhookManager = require('../classes/webhook-manager');
 const WebhookScheduler = require('../classes/webhook-scheduler');
 const { addAuditEntry, getWebhookDeliveryHistory, mergeSettings, getSettings } = require('../classes/admin-history');
+const { getCardSettings, normalizeCardSettings, previewWebhookCard, CARD_THEMES } = require('../classes/discord-webhook-media');
 
 const webhookScheduler = new WebhookScheduler();
 const webhookManager = new WebhookManager();
@@ -106,6 +107,49 @@ router.get('/quiet-hours', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to load quiet hours' });
+    }
+});
+
+router.get('/card-settings', async (req, res) => {
+    try {
+        res.json(await getCardSettings());
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to load card settings' });
+    }
+});
+
+router.post('/card-settings', async (req, res) => {
+    try {
+        const next = normalizeCardSettings({
+            theme: req.body?.theme,
+            showClientIcon: req.body?.showClientIcon,
+        });
+        await mergeSettings({ WebhookCardSettings: next });
+        await addAuditEntry(req, 'webhook.card-settings', next);
+        res.json(next);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to save card settings' });
+    }
+});
+
+router.get('/card-preview', async (req, res) => {
+    try {
+        const file = await previewWebhookCard({
+            theme: CARD_THEMES.includes(req.query?.theme) ? req.query.theme : undefined,
+            showClientIcon: req.query?.showClientIcon === 'false' ? false : req.query?.showClientIcon === 'true' ? true : undefined,
+            clientName: req.query?.clientName,
+            deviceName: req.query?.deviceName,
+            user: req.user,
+        });
+        if (!file?.buffer) {
+            return res.status(503).json({ error: 'Unable to render a preview card' });
+        }
+        res.setHeader('Content-Type', file.contentType || 'image/jpeg');
+        res.setHeader('Cache-Control', 'no-store');
+        res.send(file.buffer);
+    } catch (error) {
+        console.error('Webhook card preview failed:', error);
+        res.status(503).json({ error: 'Unable to render a preview card' });
     }
 });
 

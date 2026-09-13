@@ -95,6 +95,135 @@ const configClass = require("./config");
 const db = require("../db");
 const { getIntegrations, getIntegrationData } = require("./integration-store");
 const { getConfigDir } = require("../utils/storage-paths");
+const { getSettings } = require("./admin-history");
+const { renderClientIconBadge } = require("./client-icons");
+const { DEFAULT_THEME, resolveCardUiTheme } = require("./user-preferences");
+
+const CARD_THEMES = ["match", "glance", "jellyfin", "midnight", "compact"];
+
+function normalizeCardSettings(value = {}) {
+  return {
+    theme: CARD_THEMES.includes(value.theme) ? value.theme : "glance",
+    showClientIcon: value.showClientIcon !== false,
+  };
+}
+
+async function getCardSettings() {
+  const settings = await getSettings().catch(() => ({}));
+  return normalizeCardSettings(settings.WebhookCardSettings);
+}
+
+function rgbFromHex(hex, fallback = { r: 17, g: 24, b: 39 }) {
+  const value = String(hex || "").replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(value)) return fallback;
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function mixHex(hex, other, amount = 0.5) {
+  const left = rgbFromHex(hex);
+  const right = rgbFromHex(other, { r: 255, g: 255, b: 255 });
+  const mix = (from, to) => Math.round(from + (to - from) * amount);
+  return `#${[mix(left.r, right.r), mix(left.g, right.g), mix(left.b, right.b)]
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function canvasBackground(palette) {
+  return rgbFromHex(palette.canvas, { r: 17, g: 24, b: 39 });
+}
+
+function themePalette(theme, accent, uiTheme) {
+  const rgb = colorToRgb(accent);
+  if (theme === "match") {
+    const colors = uiTheme || DEFAULT_THEME;
+    return {
+      panel: colors.surface,
+      kicker: mixHex(colors.secondary, "#ffffff", 0.28),
+      name: "#f8fafc",
+      title: "#ffffff",
+      subtitle: mixHex(colors.secondary, "#f8fafc", 0.42),
+      details: colors.secondary,
+      accent: rgbFromHex(colors.primary),
+      iconBg: colors.background,
+      canvas: colors.background,
+      width: 560,
+      height: 252,
+      posterWidth: 168,
+      iconSize: 36,
+    };
+  }
+  if (theme === "jellyfin") {
+    return {
+      panel: "#1a1024",
+      kicker: "#d8b4fe",
+      name: "#f8fafc",
+      title: "#ffffff",
+      subtitle: "#e9d5ff",
+      details: "#c4b5fd",
+      accent: { r: 170, g: 92, b: 195 },
+      iconBg: "#2e1065",
+      canvas: "#1a1024",
+      width: 560,
+      height: 252,
+      posterWidth: 168,
+      iconSize: 36,
+    };
+  }
+  if (theme === "midnight") {
+    return {
+      panel: "#080a10",
+      panelOpacity: 0.84,
+      kicker: "#7dd3fc",
+      name: "#f8fafc",
+      title: "#ffffff",
+      subtitle: "#cbd5e1",
+      details: "#94a3b8",
+      accent: rgb,
+      iconBg: "#0f172a",
+      canvas: "#080a10",
+      width: 600,
+      height: 280,
+      posterWidth: 176,
+      iconSize: 38,
+    };
+  }
+  if (theme === "compact") {
+    return {
+      panel: "#111827",
+      kicker: "#94a3b8",
+      name: "#f8fafc",
+      title: "#ffffff",
+      subtitle: "#cbd5e1",
+      details: "#94a3b8",
+      accent: rgb,
+      iconBg: "#1f2937",
+      canvas: "#111827",
+      width: 560,
+      height: 188,
+      posterWidth: 126,
+      iconSize: 28,
+    };
+  }
+  return {
+    panel: "#111827",
+    kicker: "#94a3b8",
+    name: "#f8fafc",
+    title: "#ffffff",
+    subtitle: "#cbd5e1",
+    details: "#94a3b8",
+    accent: rgb,
+    iconBg: "#1f2937",
+    canvas: "#111827",
+    width: 560,
+    height: 252,
+    posterWidth: 168,
+    iconSize: 36,
+  };
+}
 
 const PLAYBACK_EVENTS = new Set(["playback_started", "playback_ended"]);
 const DOWNLOAD_EVENTS = new Set(["download_added", "download_started", "download_completed", "download_failed"]);
@@ -314,35 +443,45 @@ async function roundedImage(buffer, size) {
     .toBuffer();
 }
 
-async function composeLandscapeCard({ poster, avatar, accent, kicker, username, title, subtitle, details }) {
-  const height = 252;
-  const posterWidth = 168;
-  const panelWidth = 392;
-  const width = posterWidth + panelWidth;
+async function composeLandscapeCard({ poster, avatar, accent, kicker, username, title, subtitle, details, theme = "glance", clientIcon = null, uiTheme = null }) {
+  const palette = themePalette(theme, accent, uiTheme);
+  const { width, height, posterWidth, iconSize } = palette;
+  const panelWidth = width - posterWidth;
   const textLeft = posterWidth + 22;
-  const accentRgb = colorToRgb(accent);
-  const titleLines = wrapLines(title, 28, 2);
-  const subtitleLines = wrapLines(subtitle, 36, 2);
+  const compact = theme === "compact";
+  const titleLines = wrapLines(title, compact ? 32 : 28, compact ? 1 : 2);
+  const subtitleLines = wrapLines(subtitle, compact ? 38 : 36, compact ? 1 : 2);
   const hasAvatar = Boolean(avatar?.buffer);
-  const avatarSize = 36;
+  const hasIcon = Boolean(clientIcon?.buffer);
+  const avatarSize = compact ? 28 : 36;
   const nameLeft = hasAvatar ? textLeft + avatarSize + 10 : textLeft;
-  let cursor = hasAvatar ? 86 : 78;
+  let cursor = compact ? (hasAvatar ? 78 : 70) : hasAvatar ? 86 : 78;
+  const titleSize = compact ? 18 : 22;
   const titleSvg = titleLines
     .map((line, index) => {
-      const y = cursor + index * 28;
-      return `<text x="${textLeft}" y="${y}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`;
+      const y = cursor + index * (compact ? 22 : 28);
+      return `<text x="${textLeft}" y="${y}" fill="${palette.title}" font-size="${titleSize}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`;
     })
     .join("");
-  cursor += titleLines.length * 28 + 6;
+  cursor += titleLines.length * (compact ? 22 : 28) + (compact ? 4 : 6);
   const subtitleSvg = subtitleLines
     .map((line, index) => {
-      const y = cursor + index * 20;
-      return `<text x="${textLeft}" y="${y}" fill="#cbd5e1" font-size="15" font-family="${CARD_FONT}" font-weight="400">${escapeXml(line)}</text>`;
+      const y = cursor + index * (compact ? 18 : 20);
+      return `<text x="${textLeft}" y="${y}" fill="${palette.subtitle}" font-size="${compact ? 13 : 15}" font-family="${CARD_FONT}" font-weight="400">${escapeXml(line)}</text>`;
     })
     .join("");
-  const detailY = height - 22;
+  const detailY = height - 18;
+  const detailMax = hasIcon ? 34 : 42;
+  const panelOpacity = palette.panelOpacity != null ? ` fill-opacity="${palette.panelOpacity}"` : "";
 
   const layers = [];
+  if (theme === "midnight" && poster?.buffer) {
+    layers.push({
+      input: await sharp(poster.buffer).resize(width, height, { fit: "cover" }).blur(16).modulate({ brightness: 0.42 }).png().toBuffer(),
+      left: 0,
+      top: 0,
+    });
+  }
   if (poster?.buffer) {
     layers.push({
       input: await sharp(poster.buffer).resize(posterWidth, height, { fit: "cover" }).png().toBuffer(),
@@ -353,13 +492,13 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
 
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     ${CARD_FONT_FACE}
-    <rect x="${posterWidth}" y="0" width="${panelWidth}" height="${height}" fill="#111827"/>
-    <rect x="${posterWidth}" y="0" width="5" height="${height}" fill="rgb(${accentRgb.r},${accentRgb.g},${accentRgb.b})"/>
-    <text x="${nameLeft}" y="32" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
-    <text x="${nameLeft}" y="54" fill="#f8fafc" font-size="16" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(username, 22))}</text>
+    <rect x="${posterWidth}" y="0" width="${panelWidth}" height="${height}" fill="${palette.panel}"${panelOpacity}/>
+    <rect x="${posterWidth}" y="0" width="5" height="${height}" fill="rgb(${palette.accent.r},${palette.accent.g},${palette.accent.b})"/>
+    <text x="${nameLeft}" y="${compact ? 28 : 32}" fill="${palette.kicker}" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
+    <text x="${nameLeft}" y="${compact ? 48 : 54}" fill="${palette.name}" font-size="${compact ? 14 : 16}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(username, 22))}</text>
     ${titleSvg}
     ${subtitleSvg}
-    <text x="${textLeft}" y="${detailY}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, 42))}</text>
+    <text x="${textLeft}" y="${detailY}" fill="${palette.details}" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, detailMax))}</text>
   </svg>`);
 
   layers.push({ input: svg, left: 0, top: 0 });
@@ -368,12 +507,19 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
     layers.push({
       input: await roundedImage(avatar.buffer, avatarSize),
       left: textLeft,
-      top: 18,
+      top: compact ? 14 : 18,
     });
   }
 
+  if (hasIcon) {
+    const icon = await sharp(clientIcon.buffer).resize(iconSize, iconSize).png().toBuffer();
+    const iconLeft = theme === "jellyfin" || compact ? width - iconSize - 16 : width - iconSize - 14;
+    const iconTop = theme === "jellyfin" || compact ? 14 : height - iconSize - 14;
+    layers.push({ input: icon, left: iconLeft, top: iconTop });
+  }
+
   const buffer = await sharp({
-    create: { width, height, channels: 3, background: { r: 17, g: 24, b: 39 } },
+    create: { width, height, channels: 3, background: canvasBackground(palette) },
   })
     .composite(layers)
     .jpeg({ quality: 88 })
@@ -504,28 +650,44 @@ function operationalCopy(data) {
   };
 }
 
-async function composeStatusCard({ color, kicker, title, subtitle, details, railLabel }) {
-  const width = 560;
-  const height = 168;
-  const rail = 92;
-  const accent = colorToRgb(color);
-  const titleLines = wrapLines(title, 26, 2);
+async function composeStatusCard({ color, kicker, title, subtitle, details, railLabel, theme = "glance", clientIcon = null, uiTheme = null }) {
+  const palette = themePalette(theme, color, uiTheme);
+  const width = theme === "compact" ? 520 : 560;
+  const height = theme === "compact" ? 140 : 168;
+  const rail = theme === "jellyfin" ? 88 : 92;
+  const titleLines = wrapLines(title, 26, theme === "compact" ? 1 : 2);
   const titleSvg = titleLines
-    .map((line, index) => `<text x="${rail + 22}" y="${68 + index * 28}" fill="#ffffff" font-size="22" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`)
+    .map((line, index) => `<text x="${rail + 22}" y="${(theme === "compact" ? 58 : 68) + index * 28}" fill="${palette.title}" font-size="${theme === "compact" ? 18 : 22}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(line)}</text>`)
     .join("");
-  const subtitleY = 68 + titleLines.length * 28 + 4;
+  const subtitleY = (theme === "compact" ? 58 : 68) + titleLines.length * (theme === "compact" ? 22 : 28) + 4;
+  const hasIcon = Boolean(clientIcon?.buffer);
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     ${CARD_FONT_FACE}
-    <rect width="${width}" height="${height}" fill="#12161c"/>
-    <rect width="${rail}" height="${height}" fill="rgb(${accent.r},${accent.g},${accent.b})"/>
-    <text x="${rail / 2}" y="94" text-anchor="middle" fill="#ffffff" font-size="16" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(railLabel, 8))}</text>
-    <text x="${rail + 22}" y="36" fill="#94a3b8" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 22).toUpperCase())}</text>
+    <rect width="${width}" height="${height}" fill="${palette.panel}"/>
+    <rect width="${rail}" height="${height}" fill="rgb(${palette.accent.r},${palette.accent.g},${palette.accent.b})"/>
+    <text x="${rail / 2}" y="${Math.round(height / 2) + 6}" text-anchor="middle" fill="#ffffff" font-size="16" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(railLabel, 8))}</text>
+    <text x="${rail + 22}" y="36" fill="${palette.kicker}" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 22).toUpperCase())}</text>
     ${titleSvg}
-    <text x="${rail + 22}" y="${subtitleY}" fill="#e2e8f0" font-size="14" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(subtitle, 40))}</text>
-    <text x="${rail + 22}" y="${height - 18}" fill="#94a3b8" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, 44))}</text>
+    <text x="${rail + 22}" y="${subtitleY}" fill="${palette.subtitle}" font-size="14" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(subtitle, 40))}</text>
+    <text x="${rail + 22}" y="${height - 18}" fill="${palette.details}" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, hasIcon ? 36 : 44))}</text>
   </svg>`);
 
-  const buffer = await sharp(svg).jpeg({ quality: 90 }).toBuffer();
+  const layers = [{ input: svg, left: 0, top: 0 }];
+  if (hasIcon) {
+    const iconSize = 32;
+    layers.push({
+      input: await sharp(clientIcon.buffer).resize(iconSize, iconSize).png().toBuffer(),
+      left: width - iconSize - 16,
+      top: 14,
+    });
+  }
+
+  const buffer = await sharp({
+    create: { width, height, channels: 3, background: canvasBackground(palette) },
+  })
+    .composite(layers)
+    .jpeg({ quality: 90 })
+    .toBuffer();
   return { name: "card.jpg", buffer, contentType: "image/jpeg" };
 }
 
@@ -632,15 +794,42 @@ function publicCardUrl(id) {
   return `${base}${prefix}/webhook-cards/${id}.jpg`;
 }
 
-async function renderEventCard(data = {}) {
+function clientLabel(data = {}) {
+  return {
+    client: data.ClientName || data.sessionInfo?.clientName || data.client || data.source || data.item?.client || "",
+    device: data.DeviceName || data.sessionInfo?.deviceName || "",
+  };
+}
+
+async function resolveCardIcon(data, cardSettings, background) {
+  if (!cardSettings.showClientIcon) return null;
+  const { client, device } = clientLabel(data);
+  if (!client && !device) return null;
+  return renderClientIconBadge(client, device, { background });
+}
+
+async function renderEventCard(data = {}, overrides = {}) {
   const isPlayback = PLAYBACK_EVENTS.has(data.event);
   const isDownloadItem = DOWNLOAD_EVENTS.has(data.event);
   const isOperational = OPERATIONAL_EVENTS.has(data.event);
   const copy = isPlayback ? playbackCopy(data) : isDownloadItem ? downloadCopy(data) : operationalCopy(data);
+  const cardSettings = normalizeCardSettings({ ...(await getCardSettings()), ...overrides });
+  const uiTheme = cardSettings.theme === "match"
+    ? overrides.uiTheme || await resolveCardUiTheme({
+        jellyfinUserId: data.UserId || data.userData?.userId,
+        user: overrides.user,
+      })
+    : null;
+  const palette = themePalette(cardSettings.theme, EVENT_COLORS[data.event] || copy.color || 3447003, uiTheme);
   let file = null;
   try {
+    const clientIcon = await resolveCardIcon(data, cardSettings, palette.iconBg);
     if (isPlayback || isDownloadItem) {
-      const files = isPlayback ? await fetchPlaybackArtwork(data) : await fetchDownloadArtwork(data);
+      const files = Array.isArray(data.previewArtwork)
+        ? data.previewArtwork
+        : isPlayback
+          ? await fetchPlaybackArtwork(data)
+          : await fetchDownloadArtwork(data);
       file = await composeLandscapeCard({
         poster: files.find((item) => item.name === "poster.jpg"),
         avatar: files.find((item) => item.name === "user.jpg"),
@@ -650,14 +839,57 @@ async function renderEventCard(data = {}) {
         title: copy.title,
         subtitle: copy.subtitle,
         details: copy.details,
+        theme: cardSettings.theme,
+        clientIcon,
+        uiTheme,
       });
     } else {
-      file = await composeStatusCard(copy);
+      file = await composeStatusCard({ ...copy, theme: cardSettings.theme, clientIcon, uiTheme });
     }
   } catch (error) {
     console.warn("[WEBHOOK] Unable to render notification card:", error.message);
   }
   return { copy, file, isPlayback, isDownloadItem, isOperational };
+}
+
+async function samplePoster() {
+  return sharp({
+    create: { width: 336, height: 504, channels: 3, background: { r: 76, g: 29, b: 149 } },
+  })
+    .composite([
+      {
+        input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="336" height="504">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs>
+          <rect width="336" height="504" fill="url(#g)"/>
+        </svg>`),
+      },
+    ])
+    .jpeg({ quality: 80 })
+    .toBuffer();
+}
+
+async function previewWebhookCard(overrides = {}) {
+  const poster = await samplePoster();
+  const sample = {
+    event: "playback_started",
+    UserName: "Nerdy",
+    ItemName: "The Watcher",
+    SeriesName: "Night Shift",
+    SeasonNumber: 1,
+    EpisodeNumber: 4,
+    ClientName: overrides.clientName || "Infuse",
+    DeviceName: overrides.deviceName || "Apple TV",
+    PlayMethod: "DirectPlay",
+    mediaInfo: { seasonNumber: 1, episodeNumber: 4, mediaName: "The Watcher", seriesName: "Night Shift" },
+    previewArtwork: [{ name: "poster.jpg", buffer: poster, contentType: "image/jpeg" }],
+  };
+  const { file } = await renderEventCard(sample, {
+    theme: overrides.theme,
+    showClientIcon: overrides.showClientIcon,
+    user: overrides.user,
+    uiTheme: overrides.uiTheme,
+  });
+  return file;
 }
 
 function gotifyPriority(event) {
@@ -796,4 +1028,8 @@ module.exports = {
   postDiscordWebhook,
   shouldAttachMedia,
   getWebhookCard,
+  getCardSettings,
+  normalizeCardSettings,
+  previewWebhookCard,
+  CARD_THEMES,
 };

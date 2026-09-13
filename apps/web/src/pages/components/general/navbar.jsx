@@ -1119,6 +1119,15 @@ export default function Navbar() {
               </Nav.Link>
             );
           })}
+          <button
+            type="button"
+            className="navbar-collapse-toggle"
+            onClick={() => setIsNavCollapsed((current) => !current)}
+            aria-label={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
+            title={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
+          >
+            {isNavCollapsed ? <ArrowRightSLineIcon size={16} /> : <ArrowLeftSLineIcon size={16} />}
+          </button>
           <div className="navbar-inline-footer">
             <div className="navbar-footer-account-row">
               <button className="navitem account-navitem p-2" type="button" onClick={() => setShowAccount(true)}>
@@ -1133,15 +1142,6 @@ export default function Navbar() {
                   <strong>{accountName}</strong>
                   <small>{accountRole}</small>
                 </span>
-              </button>
-              <button
-                type="button"
-                className="navbar-collapse-toggle"
-                onClick={() => setIsNavCollapsed((current) => !current)}
-                aria-label={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
-                title={isNavCollapsed ? "Expand side menu" : "Collapse side menu"}
-              >
-                {isNavCollapsed ? <ArrowRightSLineIcon size={20} /> : <ArrowLeftSLineIcon size={20} />}
               </button>
             </div>
             <div className="navbar-version-row">
@@ -1159,11 +1159,21 @@ export default function Navbar() {
 
       </BootstrapNavbar>
 
-      <Modal show={showAccount} onHide={() => setShowAccount(false)} centered dialogClassName="profile-modal">
+      <Modal
+        show={showAccount}
+        onHide={() => setShowAccount(false)}
+        centered
+        size="xl"
+        className="profile-modal-root"
+        dialogClassName="profile-modal"
+        backdropClassName="profile-modal-backdrop"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Account</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          <div className="profile-modal-layout">
+          <div className="profile-modal-main">
           <div className="profile-modal-identity">
             <div className="profile-modal-avatar">
               {avatarSrc ? <img src={avatarSrc} alt="" onError={(event) => (event.currentTarget.style.display = "none")} /> : <AccountCircleLineIcon />}
@@ -1224,7 +1234,9 @@ export default function Navbar() {
               <small>{t("FEATURES.WORKSPACE.WHAT_NEW")}</small>
             </span>
           </button>
+          </div>
 
+          <div className="profile-modal-prefs">
           <section className="profile-font-panel" aria-labelledby="profile-font-heading">
             <div className="profile-font-header">
               <h3 id="profile-font-heading"><Trans i18nKey="SETTINGS_PAGE.FONT_WEIGHT" /></h3>
@@ -1358,6 +1370,8 @@ export default function Navbar() {
               {hasThemeDraftChanges ? <span>{t("SETTINGS_PAGE.THEME_PREVIEW_PENDING")}</span> : null}
             </div>
           </section>
+          </div>
+          </div>
         </Modal.Body>
         <Modal.Footer>
           <button type="button" className="profile-modal-action is-ghost" onClick={() => setShowAccount(false)}>
