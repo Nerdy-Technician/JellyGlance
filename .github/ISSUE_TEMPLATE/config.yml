@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: JellyGlance Docs
+  - name: JellyGlance documentation
+    url: http://docs.jellyglance.com/
+    about: Browse installation, integrations, reverse proxy, and operations guides.
+  - name: Documentation errors and requests
+    url: https://github.com/JellyGlance/Documentation/issues/new/choose
+    about: Report missing, incorrect, or confusing documentation in the dedicated docs repository.
+  - name: JellyGlance website
     url: https://jellyglance.com/
-    about: Check setup, Docker, integrations, screenshots, and operations docs.
+    about: Visit the JellyGlance project website.
   - name: GitHub Discussions
     url: https://github.com/Nerdy-Technician/JellyGlance/discussions
     about: Ask questions, share ideas, or talk through a setup before opening an issue.

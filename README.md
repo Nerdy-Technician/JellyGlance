@@ -59,7 +59,9 @@
 
 
 <p align="center">
-  <a href="https://jellyglance.com/"><strong>Docs</strong></a>
+  <a href="https://jellyglance.com/"><strong>Website</strong></a>
+  ·
+  <a href="http://docs.jellyglance.com/"><strong>Documentation</strong></a>
   ·
   <a href="https://discord.gg/dMGhv8j2kx"><strong>Discord</strong></a>
   ·
@@ -67,6 +69,19 @@
   ·
   <a href="#integrations"><strong>Integrations</strong></a>
 </p>
+
+## Documentation
+
+Read the live guides at **[docs.jellyglance.com](http://docs.jellyglance.com/)**. Source and contributions are maintained in **[JellyGlance/Documentation](https://github.com/JellyGlance/Documentation)**.
+
+- [Installation and first setup](http://docs.jellyglance.com/guide/getting-started/)
+- [Integration directory](http://docs.jellyglance.com/integrations/)
+- [Reverse proxy: Nginx, Caddy, Nginx Proxy Manager, and Traefik](http://docs.jellyglance.com/operations/reverse-proxy/)
+- [Configuration reference](http://docs.jellyglance.com/reference/configuration/)
+- [Backup and restore](http://docs.jellyglance.com/operations/backup-restore/)
+- [Troubleshooting](http://docs.jellyglance.com/guide/troubleshooting/)
+
+For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/Nerdy-Technician/JellyGlance/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website.
 
 ## Why JellyGlance
 

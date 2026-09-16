@@ -448,6 +448,18 @@ export default function SettingsAbout() {
               <RadarLineIcon />
               Website
             </a>
+            <a href="http://docs.jellyglance.com/" target="_blank" rel="noreferrer">
+              <CodeSSlashLineIcon />
+              Documentation
+            </a>
+            <a href="https://github.com/JellyGlance/Documentation/issues/new/choose" target="_blank" rel="noreferrer">
+              <GithubFillIcon />
+              Documentation feedback
+            </a>
+            <a href="https://github.com/JellyGlance/Documentation" target="_blank" rel="noreferrer">
+              <GithubFillIcon />
+              Documentation source
+            </a>
             <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Source code

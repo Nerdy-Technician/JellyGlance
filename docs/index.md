@@ -10,8 +10,8 @@ hero:
     alt: JellyGlance
   actions:
     - theme: brand
-      text: Get Started
-      link: /guide/getting-started
+      text: Documentation
+      link: http://docs.jellyglance.com/
     - theme: alt
       text: Features
       link: /features
@@ -32,6 +32,10 @@ features:
   - title: Operations Tools
     details: Manage Jellyfin jobs, tasks, logs, backups, API keys, webhooks, imports, newsletters, health checks, authorised devices, plugins, and repair workflows.
 ---
+
+::: info Documentation repository
+The maintained guides are at [docs.jellyglance.com](http://docs.jellyglance.com/), with source in [JellyGlance/Documentation](https://github.com/JellyGlance/Documentation). Visit the documentation site for installation, configuration, integrations, reverse proxy, backup, and troubleshooting guides. [Report documentation issues there](https://github.com/JellyGlance/Documentation/issues/new/choose).
+:::
 
 ## Built For Daily Server Checks
 

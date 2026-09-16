@@ -1,5 +1,5 @@
 name: JellyGlance Docs Request
-description: Report missing, confusing, or outdated JellyGlance documentation.
+description: Report documentation or README changes specific to the application repository.
 title: "docs: "
 labels: ["documentation", "needs triage"]
 body:
@@ -12,7 +12,9 @@ body:
 
         ## JellyGlance Docs Intake
 
-        Help keep the JellyGlance README and docs site clear, useful, and up to date.
+        Guides and site documentation are maintained in [JellyGlance/Documentation](https://github.com/JellyGlance/Documentation).
+        For missing guides, incorrect instructions, or docs-site problems, [use the documentation issue forms](https://github.com/JellyGlance/Documentation/issues/new/choose).
+        Use this form for README or documentation changes that belong in the application repository.
 
   - type: checkboxes
     id: checks
