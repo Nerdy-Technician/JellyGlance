@@ -257,6 +257,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -321,7 +322,6 @@ jobs:
                 : '_Posted by github-actions[bot] (configure CHECK_BOT_APP_ID / CHECK_BOT_PRIVATE_KEY to use JellyGlance Check Bot)._',
             ].join('\n');
 
-            core.setOutput('body', body);
             core.setOutput('overall', overall);
 
             await core.summary
@@ -329,12 +329,44 @@ jobs:
               .addRaw(body)
               .write();
 
-      - name: Post sticky PR comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: jellyglance-check-report
-          message: ${{ steps.summary.outputs.body }}
-          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
+            // New comment on every PR commit — do not edit/delete previous notes.
+            const prNumber = context.payload.pull_request?.number;
+            if (prNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
 
       # Do not fail Report when other jobs fail — Quality/Secrets/Security/Compatibility
-      # already gate the run. Report only publishes the sticky PR summary.
+      # already gate the run. Report only publishes the PR summary comment.
+
+  notify-secrets:
+    name: "Discord · Secrets failure"
+    needs: [secrets]
+    if: always() && needs.secrets.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Notify Discord
+        env:
+          DISCORD_EVENT_TYPE: secrets
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SECURITY_WEBHOOK || secrets.DISCORD_CI_WEBHOOK }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PR_URL: ${{ github.event.pull_request.html_url || '' }}
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_SECURITY_WEBHOOK (or DISCORD_CI_WEBHOOK) not set. Skipping."
+            exit 0
+          fi
+          node .github/scripts/discord-notify.mjs
+

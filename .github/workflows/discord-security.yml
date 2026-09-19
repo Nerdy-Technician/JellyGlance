@@ -1,0 +1,41 @@
+name: Notify / Discord Security
+
+on:
+  workflow_run:
+    workflows:
+      - Security
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    name: Post security result to Discord
+    runs-on: ubuntu-latest
+    # Only ping Discord when something failed / found issues
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Post security notification
+        env:
+          DISCORD_EVENT_TYPE: security
+          # Prefer dedicated security webhook; fall back to CI webhook
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SECURITY_WEBHOOK || secrets.DISCORD_CI_WEBHOOK }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event }}
+          DISPLAY_TITLE: ${{ github.event.workflow_run.display_title }}
+          SECURITY_SUMMARY: "One or more of CodeQL / Trivy / OSV failed. Open the run for details."
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_SECURITY_WEBHOOK (or DISCORD_CI_WEBHOOK) is not set. Skipping."
+            exit 0
+          fi
+          node .github/scripts/discord-notify.mjs

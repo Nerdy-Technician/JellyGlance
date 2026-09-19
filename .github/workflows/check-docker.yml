@@ -158,14 +158,17 @@ jobs:
                 : '_Posted by github-actions[bot] (configure BUILD_BOT_APP_ID / BUILD_BOT_PRIVATE_KEY to use JellyGlance Build Bot)._',
             ].join('\n');
 
-            core.setOutput('body', body);
             core.setOutput('overall', overall);
 
-      - name: Post sticky PR comment
-        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
-        with:
-          header: jellyglance-check-docker-report
-          message: ${{ steps.summary.outputs.body }}
-          GITHUB_TOKEN: ${{ steps.bot.outputs.token }}
+            // New comment on every PR commit — do not edit/delete previous notes.
+            const prNumber = context.payload.pull_request?.number;
+            if (prNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
 
       # Do not fail Report when Build fails — Build already gates the run.

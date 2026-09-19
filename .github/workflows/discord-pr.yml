@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - reopened
+      - synchronize
   workflow_dispatch:
 
 permissions:
@@ -52,17 +53,26 @@ jobs:
           body = (os.environ.get("PR_BODY", "").strip()[:1200] or "No description provided.")
           action = os.environ.get("PR_ACTION", "opened")
 
-          action_label = "Reopened" if action == "reopened" else "Opened"
-          color = 0x9b59b6 if action == "opened" else 0x61a0ff
+          if action == "synchronize":
+            action_label = "Updated"
+            color = 0xf0b429
+            description = f"New commits pushed to PR #{number}."
+          elif action == "reopened":
+            action_label = "Reopened"
+            color = 0x61a0ff
+            description = body
+          else:
+            action_label = "Opened"
+            color = 0x9b59b6
+            description = body
 
           payload = {
             "username": "JellyGlance Pull Requests",
-            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
             "embeds": [
               {
                 "title": f"PR #{number}: {title}",
                 "url": url,
-                "description": body,
+                "description": description,
                 "color": color,
                 "fields": [
                   {"name": "Status", "value": action_label, "inline": True},
@@ -70,6 +80,7 @@ jobs:
                   {"name": "Branch", "value": f"`{head}` → `{base}`", "inline": False},
                   {"name": "Labels", "value": labels or "(none)", "inline": False},
                 ],
+                "footer": {"text": "jellyglance.com"},
               }
             ],
           }

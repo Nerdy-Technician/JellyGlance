@@ -3,7 +3,8 @@ name: Notify / Discord Stars
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    # Once an hour: one Discord post listing everyone who starred since the last run.
+    - cron: "0 * * * *"
 
 permissions:
   actions: write
@@ -15,7 +16,7 @@ concurrency:
 
 jobs:
   stars:
-    name: Post new star updates
+    name: Post hourly star digest
     runs-on: ubuntu-latest
     env:
       DISCORD_STARS_WEBHOOK: ${{ secrets.DISCORD_STARS_WEBHOOK }}
@@ -56,10 +57,16 @@ jobs:
 
           const gained = Math.max(0, current - previous);
           let users = "";
+          let usersJson = "[]";
           if (gained > 0) {
             try {
               const lastPage = Math.max(1, Math.ceil(current / 100));
-              const pages = [...new Set([1, lastPage])];
+              // Pull enough recent pages so a burst of stars is not missed.
+              const pageCount = Math.min(lastPage, Math.max(1, Math.ceil(gained / 100) + 1));
+              const pages = [];
+              for (let page = lastPage; page > lastPage - pageCount && page >= 1; page -= 1) {
+                pages.push(page);
+              }
               const stargazers = pages.flatMap((page) => JSON.parse(execFileSync("gh", [
                   "api",
                   `repos/${repo}/stargazers?per_page=100&page=${page}`,
@@ -67,24 +74,44 @@ jobs:
                   "Accept: application/vnd.github.star+json",
                 ], { encoding: "utf8" })));
 
-              users = stargazers
+              const recent = stargazers
                 .filter((entry) => entry?.user?.login)
                 .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.user.login === entry.user.login) === index)
                 .sort((a, b) => new Date(b.starred_at || 0) - new Date(a.starred_at || 0))
-                .slice(0, gained)
+                .slice(0, gained);
+
+              users = recent
                 .map((entry) => `[@${entry.user.login}](${entry.user.html_url})`)
                 .join(", ");
+
+              usersJson = JSON.stringify(recent.map((entry) => ({
+                login: entry.user.login,
+                html_url: entry.user.html_url,
+                avatar_url: entry.user.avatar_url,
+              })));
             } catch (error) {
               console.log(`Unable to read stargazer users: ${error.message}`);
             }
           }
 
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `current=${current}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous=${previous}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${current > previous ? "true" : "false"}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_state=${hasState ? "true" : "false"}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `users=${users}\n`);
+          const appendOutput = (name, value) => {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+          };
+          const appendMultiline = (name, value) => {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}<<EOF\n${value}\nEOF\n`);
+          };
+
+          appendOutput("current", current);
+          appendOutput("previous", previous);
+          appendOutput("changed", current > previous ? "true" : "false");
+          appendOutput("has_state", hasState ? "true" : "false");
+          appendOutput("users", users);
+          appendMultiline("users_json", usersJson);
           NODE
+
+      - name: Install roster image deps
+        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
+        run: python3 -m pip install --user pillow
 
       - name: Post Discord star update
         if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
@@ -94,6 +121,7 @@ jobs:
           STAR_COUNT: ${{ steps.stars.outputs.current }}
           PREVIOUS_STAR_COUNT: ${{ steps.stars.outputs.previous }}
           STAR_USERS: ${{ steps.stars.outputs.users }}
+          STAR_USERS_JSON: ${{ steps.stars.outputs.users_json }}
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: node .github/scripts/discord-notify.mjs
 
