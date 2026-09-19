@@ -27,18 +27,25 @@ function trimDescription(value, limit = DISCORD_LIMIT) {
   return `${value.slice(0, limit - 28).trim()}\n\n…read more on GitHub`;
 }
 
-/** Light cleanup so release notes read cleanly in Discord. */
+/** Light cleanup so release notes read cleanly in Discord (plain text, not HTML). */
 function stripToText(raw) {
   if (!raw) return "";
-  return raw
-    .replace(/\r\n/g, "\n")
-    .replace(/<!--[\s\S]*?-->/g, "")
+  let s = String(raw).replace(/\r\n/g, "\n");
+
+  // Drop HTML comments until stable (avoids incomplete <!-- leftovers).
+  for (let i = 0; i < 8; i++) {
+    const next = s.replace(/<!--[\s\S]*?-->/g, "");
+    if (next === s) break;
+    s = next;
+  }
+
+  s = s
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<\/div>/gi, "\n")
     .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<summary[^>]*>\s*<b>(.*?)<\/b>[^<]*/gi, "$1")
-    .replace(/<summary[^>]*>(.*?)<\/summary>/gis, "$1\n")
+    .replace(/<summary[^>]*>\s*<b>([\s\S]*?)<\/b>[^<]*/gi, "$1")
+    .replace(/<summary[^>]*>([\s\S]*?)<\/summary>/gi, "$1\n")
     .replace(/<details[^>]*>/gi, "")
     .replace(/<\/details>/gi, "\n")
     .replace(/<li[^>]*>/gi, "• ")
@@ -47,23 +54,42 @@ function stripToText(raw) {
     .replace(/<\/(?:ul|ol)>/gi, "\n")
     .replace(/<blockquote[^>]*>/gi, "")
     .replace(/<\/blockquote>/gi, "\n")
-    .replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis, "$2")
-    .replace(/<(strong|b)>(.*?)<\/\1>/gis, "$2")
-    .replace(/<(em|i)>(.*?)<\/\1>/gis, "$2")
-    .replace(/<code>(.*?)<\/code>/gis, "`$1`")
+    .replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, "$2")
+    .replace(/<(strong|b)>([\s\S]*?)<\/\1>/gi, "$2")
+    .replace(/<(em|i)>([\s\S]*?)<\/\1>/gi, "$2")
+    .replace(/<code>([\s\S]*?)<\/code>/gi, "`$1`")
     .replace(/<img[^>]*>/gi, "")
-    .replace(/<hr\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
+    .replace(/<hr\s*\/?>/gi, "\n");
+
+  // Strip remaining tags until stable, then remove leftover angle brackets
+  // so incomplete fragments like "<script" cannot survive.
+  for (let i = 0; i < 8; i++) {
+    const next = s.replace(/<\/?[a-zA-Z][^>]*>/g, "");
+    if (next === s) break;
+    s = next;
+  }
+  s = s.replace(/[<>]/g, "");
+
+  // Decode common entities. Named entities first; &amp; last (once) so
+  // sequences like &amp;lt; do not double-unescape into raw markup.
+  s = s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;/g, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, "")
+    .replace(/&gt;/gi, "")
+    .replace(/&amp;/gi, "&")
+    // Drop any &lt;/&gt; revealed by the single &amp; decode (no further amp pass).
+    .replace(/&lt;/gi, "")
+    .replace(/&gt;/gi, "")
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
     .replace(/\|[^\n]*\|/g, "")
     .replace(/^[\t ]+$/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  return s;
 }
 
 /** Compact Discord digest — highlight + up to a few bullets, not the full notes. */

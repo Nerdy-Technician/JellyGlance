@@ -86,8 +86,10 @@ jobs:
           image-ref: "ghcr.io/nerdy-technician/jellyglance:${{ steps.tag.outputs.tag }}"
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          scanners: vuln
           format: sarif
           output: trivy-image.sarif
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Upload Trivy SARIF

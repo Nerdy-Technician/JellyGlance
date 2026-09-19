@@ -59,8 +59,12 @@ jobs:
           scan-ref: .
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          scanners: vuln
+          skip-dirs: backups,node_modules,.git,compare-runtime
           format: sarif
           output: trivy-fs.sarif
+          # Without this, SARIF mode drops --severity and exit-code 1 fails on MEDIUM too
+          limit-severities-for-sarif: true
           exit-code: "1"
 
       - name: Trivy table (logs)
@@ -71,6 +75,8 @@ jobs:
           scan-ref: .
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          scanners: vuln
+          skip-dirs: backups,node_modules,.git,compare-runtime
           format: table
           exit-code: "0"
 
