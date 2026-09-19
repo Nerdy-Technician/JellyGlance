@@ -81,7 +81,7 @@ jobs:
         run: docker pull "ghcr.io/nerdy-technician/jellyglance:${{ steps.tag.outputs.tag }}"
 
       - name: Trivy image scan (HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: "ghcr.io/nerdy-technician/jellyglance:${{ steps.tag.outputs.tag }}"
           severity: HIGH,CRITICAL
