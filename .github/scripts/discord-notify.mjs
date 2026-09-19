@@ -70,8 +70,8 @@ function stripToText(raw) {
   }
   s = s.replace(/[<>]/g, "");
 
-  // Decode common entities. Named entities first; &amp; last (once) so
-  // sequences like &amp;lt; do not double-unescape into raw markup.
+  // Normalize a few safe entities only. Do NOT decode &amp; → & —
+  // CodeQL flags that as double-unescape, and Discord is plain text anyway.
   s = s
     .replace(/&nbsp;/gi, " ")
     .replace(/&quot;/gi, '"')
@@ -79,10 +79,7 @@ function stripToText(raw) {
     .replace(/&apos;/gi, "'")
     .replace(/&lt;/gi, "")
     .replace(/&gt;/gi, "")
-    .replace(/&amp;/gi, "&")
-    // Drop any &lt;/&gt; revealed by the single &amp; decode (no further amp pass).
-    .replace(/&lt;/gi, "")
-    .replace(/&gt;/gi, "")
+    .replace(/&amp;/gi, " and ")
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
     .replace(/\|[^\n]*\|/g, "")
     .replace(/^[\t ]+$/gm, "")
