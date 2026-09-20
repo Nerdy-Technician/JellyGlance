@@ -1,5 +1,6 @@
 const configClass = require("./config");
 const { axios } = require("./axios");
+const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl } = require("../utils/security");
 
 class EmbyAPI {
   constructor() {
@@ -550,24 +551,25 @@ class EmbyAPI {
   async validateSettings(url, apikey) {
     let result = { isValid: false, status: 400, errorMessage: "Invalid URL", url: url, cleanedUrl: "" };
     try {
-      let _url = url.replace(/\/web\/index\.html#!\/home\.html$/, "");
+      let _url = String(url || "").replace(/\/web\/index\.html#!\/home\.html$/, "");
 
-      _url = _url.replace(/\/$/, "");
+      _url = stripTrailingSlashes(_url);
       if (!/^https?:\/\//i.test(_url)) {
         _url = "http://" + _url;
       }
 
-      if (!url.includes("/emby")) {
-        _url = _url + "/emby";
+      if (!String(url || "").includes("/emby")) {
+        _url = `${_url}/emby`;
       }
 
+      _url = toSafeHttpUrl(_url);
       result.cleanedUrl = _url;
 
       if (!this.#isValidUrl(_url)) {
         return result;
       }
 
-      const validation_url = _url.replace(/\/$/, "") + "/system/configuration";
+      const validation_url = joinSafeHttpUrl(_url, "/system/configuration");
 
       const response = await axios.get(validation_url, {
         headers: {

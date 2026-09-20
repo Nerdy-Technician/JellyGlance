@@ -12,7 +12,13 @@ import axios from "../lib/axios_instance";
 import { loadSavedIntegrations } from "../lib/integrations-storage";
 import "./css/integrations.css";
 
-const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
+const iconUrl = (slug) => {
+  const safe = String(slug || "sonarr")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+  const iconSlug = /^[a-z0-9][a-z0-9-]{0,63}$/.test(safe) ? safe : "sonarr";
+  return `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${iconSlug}.svg`;
+};
 const calendarSourceDefaults = [
   { name: "Sonarr", slug: "sonarr", connected: false },
   { name: "Radarr", slug: "radarr", connected: false },

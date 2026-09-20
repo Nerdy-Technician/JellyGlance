@@ -6,6 +6,7 @@ const dbHelper = require("../classes/db-helper");
 const dayjs = require("dayjs");
 const { getIntegrations } = require("../classes/integration-store");
 const { fetchHouseholdWatchTonight } = require("../classes/watch-tonight");
+const { sendSafeError } = require("../utils/security");
 
 const router = express.Router();
 
@@ -244,7 +245,7 @@ router.get("/getLibraryOverview", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -562,7 +563,7 @@ router.get("/getHomeDashboard", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    res.status(503).send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -594,7 +595,7 @@ router.post("/getMostViewedByType", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -618,7 +619,7 @@ router.post("/getMostPopularByType", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -633,7 +634,7 @@ router.post("/getMostViewedLibraries", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -648,7 +649,7 @@ router.post("/getMostUsedClient", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -663,7 +664,7 @@ router.post("/getMostActiveUsers", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -755,7 +756,7 @@ router.get("/getPlaybackActivity", async (req, res) => {
     res.send(response);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -918,7 +919,7 @@ router.get("/getUserWrapUp", async (req, res) => {
     res.json(enrichedUsers);
   } catch (error) {
     console.log(error);
-    res.status(503).send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -971,7 +972,7 @@ router.get("/getUserProfileWrapUp", async (req, res) => {
     return res.json({ user, rank: Number(rows[0].Rank || 1) });
   } catch (error) {
     console.log(error);
-    res.status(503).send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -983,7 +984,7 @@ router.post("/getUserLastPlayed", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1000,7 +1001,7 @@ router.post("/getGlobalUserStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1024,7 +1025,7 @@ router.post("/getGlobalItemStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1040,7 +1041,7 @@ router.post("/getGlobalLibraryStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1052,7 +1053,7 @@ router.get("/getLibraryCardStats", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1072,7 +1073,7 @@ router.post("/getLibraryCardStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1082,7 +1083,7 @@ router.get("/getLibraryMetadata", async (req, res) => {
     res.send(rows);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1228,7 +1229,7 @@ router.post("/getLibraryItemsPlayMethodStats", async (req, res) => {
     res.send(hoursRes);
   } catch (error) {
     console.log(error);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1254,7 +1255,7 @@ router.post("/getPlaybackMethodStats", async (req, res) => {
     res.send(rows);
   } catch (error) {
     console.log(error);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1266,7 +1267,7 @@ router.post("/getLibraryLastPlayed", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1306,7 +1307,7 @@ router.get("/getViewsOverTime", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1342,7 +1343,7 @@ router.get("/getViewsByDays", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1378,7 +1379,7 @@ router.get("/getViewsByHour", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1416,7 +1417,7 @@ router.get("/getViewsByLibraryType", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1480,7 +1481,7 @@ router.get("/getGenreUserStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -1544,7 +1545,7 @@ router.get("/getGenreLibraryStats", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 

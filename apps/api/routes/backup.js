@@ -12,6 +12,7 @@ const taskstate = require("../logging/taskstate");
 const taskName = require("../logging/taskName");
 const sanitizeFilename = require("../utils/sanitizer");
 const { getBackupDir } = require("../utils/storage-paths");
+const { assertPathInside, fileRateLimit } = require("../utils/security");
 const db = require("../db");
 const { addAuditEntry } = require("../classes/admin-history");
 const { tables } = require("../global/backup_tables");
@@ -20,6 +21,7 @@ const configClass = require("../classes/config");
 const { sendUpdate } = require("../ws");
 
 const router = express.Router();
+router.use(fileRateLimit);
 const TaskManager = require("../classes/task-manager-singleton");
 const TaskScheduler = require("../classes/task-scheduler-singleton");
 const restorableTables = new Set(tables.map((table) => table.value));
@@ -35,9 +37,10 @@ const jwtSecret = process.env.JWT_SECRET;
 
 // Restore function
 
-function readFile(path) {
+function readFile(filePath) {
+  const safePath = assertPathInside(getBackupDir(), filePath);
   return new Promise((resolve, reject) => {
-    fs.readFile(path, "utf8", (err, data) => {
+    fs.readFile(safePath, "utf8", (err, data) => {
       if (err) {
         reject(err);
         return;

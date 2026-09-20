@@ -14,6 +14,7 @@ const configClass = require("../classes/config");
 const API = require("../classes/api-loader");
 const TaskManager = require("../classes/task-manager-singleton");
 const TaskScheduler = require("../classes/task-scheduler-singleton");
+const { sendSafeError } = require("../utils/security");
 
 const router = express.Router();
 
@@ -1382,7 +1383,7 @@ router.post("/fetchItem", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500);
-    res.send(error);
+    sendSafeError(res, error, { status: 500 });
   }
 });
 

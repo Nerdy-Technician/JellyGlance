@@ -1,6 +1,8 @@
 const CryptoJS = require("crypto-js");
 const nodemailer = require("nodemailer");
 const db = require("../db");
+const { decryptSecret } = require("./integration-store");
+const { isValidEmail } = require("../utils/security");
 
 const SETTINGS_KEY = "Newsletter";
 
@@ -45,6 +47,10 @@ function getNewsletterSettings(settings) {
 
 function decryptPassword(value) {
   if (!value) return "";
+  const modern = decryptSecret(value);
+  if (modern && modern !== value) {
+    return modern;
+  }
   try {
     const bytes = CryptoJS.AES.decrypt(value, secretKey());
     return bytes.toString(CryptoJS.enc.Utf8);
@@ -54,7 +60,7 @@ function decryptPassword(value) {
 }
 
 function validateEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  return isValidEmail(value);
 }
 
 function validateSmtpSettings(newsletter) {

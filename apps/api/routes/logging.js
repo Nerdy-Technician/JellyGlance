@@ -1,4 +1,5 @@
 const db = require("../db");
+const { sendSafeError } = require("../utils/security");
 
 const express = require("express");
 const router = express.Router();
@@ -6,9 +7,9 @@ const router = express.Router();
 router.get("/getLogs", async (req, res) => {
   try {
     const { rows } = await db.query(`SELECT * FROM jf_logging order by "TimeRun" desc LIMIT 50 `);
-    res.send(rows);
+    res.json(rows);
   } catch (error) {
-    res.send(error);
+    sendSafeError(res, error, { message: "Unable to load logs" });
   }
 });
 

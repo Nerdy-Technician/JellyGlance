@@ -57,7 +57,8 @@ class WebSocketClient {
   }
 
   onMessage(data) {
-    console.log("Default onMessage handler:", data);
+    const { sanitizeForLog } = require("../utils/security");
+    console.log("Default onMessage handler:", sanitizeForLog(typeof data === "string" ? data : "[binary]"));
   }
 
   onClose() {

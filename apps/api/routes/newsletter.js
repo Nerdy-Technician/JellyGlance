@@ -7,7 +7,8 @@ const db = require("../db");
 const { axios } = require("../classes/axios");
 const { addAuditEntry } = require("../classes/admin-history");
 const campaigns = require("../classes/newsletter-campaigns");
-const { getIntegrations } = require("../classes/integration-store");
+const { encryptSecret, decryptSecret, getIntegrations } = require("../classes/integration-store");
+const { isValidEmail } = require("../utils/security");
 const { fetchJellyfinUserItems, normalizeJellyfinMediaItem } = require("../classes/watch-tonight");
 
 const router = express.Router();
@@ -49,6 +50,10 @@ function defaultNewsletterSettings() {
 
 function decryptPassword(value) {
   if (!value) return "";
+  const modern = decryptSecret(value);
+  if (modern && modern !== value) {
+    return modern;
+  }
   try {
     const bytes = CryptoJS.AES.decrypt(value, secretKey());
     return bytes.toString(CryptoJS.enc.Utf8);
@@ -88,7 +93,7 @@ function normalizeRecipients(value) {
 }
 
 function validateEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  return isValidEmail(value);
 }
 
 function mergeNewsletterSettings(existingSettings, incoming) {
@@ -103,7 +108,7 @@ function mergeNewsletterSettings(existingSettings, incoming) {
 
   const nextPassword =
     incoming.smtp?.password && String(incoming.smtp.password).trim()
-      ? CryptoJS.AES.encrypt(String(incoming.smtp.password), secretKey()).toString()
+      ? encryptSecret(String(incoming.smtp.password))
       : current.smtp.password;
 
   return {

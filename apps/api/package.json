@@ -18,6 +18,7 @@
     "dayjs": "^1.11.23",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "i18next": "^26.4.2",
     "i18next-fs-backend": "^2.6.8",
     "jsonwebtoken": "^9.0.3",

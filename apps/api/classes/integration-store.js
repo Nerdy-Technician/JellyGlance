@@ -235,4 +235,6 @@ module.exports = {
   saveIntegrationData,
   getIntegrationHealthHistory,
   saveIntegrationHealthResults,
+  encryptSecret,
+  decryptSecret,
 };

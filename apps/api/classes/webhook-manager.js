@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 const configClass = require('./config');
 const { addWebhookDelivery, getSettings, mergeSettings } = require('./admin-history');
 const { enrichDiscordPayload, enrichGotifyPayload, postDiscordWebhook } = require('./discord-webhook-media');
+const { hostnameEquals, sanitizeForLog } = require('../utils/security');
 
 function parseClockMinutes(value, fallback) {
     const match = String(value || fallback).match(/^(\d{1,2}):(\d{2})$/);
@@ -279,8 +280,8 @@ class WebhookManager {
             const isDiscordWebhook = webhook.url.includes('discord.com/api/webhooks') || webhook.webhook_type === 'discord';
             const isGotifyWebhook = webhook.webhook_type === 'gotify';
             const isNtfyWebhook = webhook.webhook_type === 'ntfy' || /ntfy/i.test(String(webhook.url || ""));
-            const isTelegramWebhook = webhook.webhook_type === 'telegram' || String(webhook.url || "").includes('api.telegram.org');
-            const isPushoverWebhook = webhook.webhook_type === 'pushover' || String(webhook.url || "").includes('api.pushover.net');
+            const isTelegramWebhook = webhook.webhook_type === 'telegram' || hostnameEquals(webhook.url, 'api.telegram.org');
+            const isPushoverWebhook = webhook.webhook_type === 'pushover' || hostnameEquals(webhook.url, 'api.pushover.net');
 
             try {
                 headers = typeof webhook.headers === 'string'
@@ -843,7 +844,7 @@ class WebhookManager {
             );
 
             if (result.rows.length === 0) {
-                console.error(`[WEBHOOK] Webhook ID ${webhookId} not found or disable`);
+                console.error(`[WEBHOOK] Webhook ID ${sanitizeForLog(webhookId)} not found or disable`);
                 return false;
             }
 

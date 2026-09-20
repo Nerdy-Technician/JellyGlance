@@ -1,6 +1,6 @@
 const { randomUUID } = require("crypto");
-const CryptoJS = require("crypto-js");
 const db = require("../db");
+const { hashPassword, isEmptyPassword } = require("../utils/security");
 const JellyfinAPI = require("./jellyfin-api");
 const TaskManager = require("./task-manager-singleton");
 const triggertype = require("../logging/triggertype");
@@ -12,7 +12,7 @@ function envFlag(name) {
 }
 
 function hashLocalPassword(password) {
-  return CryptoJS.SHA3(String(password || "")).toString();
+  return hashPassword(password);
 }
 
 async function readAppConfigRow() {
@@ -82,10 +82,10 @@ async function bootstrapLocalAuthFromEnv(row) {
     return { applied: false, reason: "JS_USER and JS_PASSWORD are required for local auth bootstrap" };
   }
 
-  const password = hashLocalPassword(rawPassword);
-  if (password === hashLocalPassword("")) {
+  if (isEmptyPassword(rawPassword)) {
     return { applied: false, reason: "JS_PASSWORD cannot be empty" };
   }
+  const password = hashLocalPassword(rawPassword);
 
   const settings = {
     ...(row?.settings || {}),
