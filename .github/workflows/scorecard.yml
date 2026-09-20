@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard
-        uses: ossf/scorecard-action@v2.4.0
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4 — ghcr.io (v2.4.0 gcr.io pull fails: billing required)
         with:
           results_file: results.sarif
           results_format: sarif
