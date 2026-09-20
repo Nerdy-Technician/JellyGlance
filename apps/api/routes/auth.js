@@ -25,7 +25,7 @@ const router = express.Router();
 function signSetupToken(username) {
   return new Promise((resolve, reject) => {
     const user = { id: 1, username };
-    jwt.sign({ user }, JWT_SECRET, (err, token) => {
+    jwt.sign({ user }, JWT_SECRET, { algorithm: "HS256", expiresIn: "1h" }, (err, token) => {
       if (err) {
         reject(err);
       } else {
@@ -37,7 +37,7 @@ function signSetupToken(username) {
 
 function signAuthToken(user) {
   return new Promise((resolve, reject) => {
-    jwt.sign({ user }, JWT_SECRET, (err, token) => {
+    jwt.sign({ user }, JWT_SECRET, { algorithm: "HS256", expiresIn: "12h" }, (err, token) => {
       if (err) {
         reject(err);
       } else {
