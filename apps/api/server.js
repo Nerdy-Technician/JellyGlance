@@ -525,15 +525,17 @@ async function authenticate(req, res, next) {
   if (extractedToken && extractedToken !== "null") {
     try {
       const decoded = jwt.verify(extractedToken, JWT_SECRET, { algorithms: ["HS256"] });
+      if (!decoded || typeof decoded !== "object" || decoded.user == null) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
       const access = await resolveTokenAccess(decoded.user);
-      if (!access.permissions.dashboard) {
+      if (!access?.permissions?.dashboard) {
         return res.status(403).json({ message: "This account is disabled in JellyGlance" });
       }
 
       req.user = access.user;
       req.permissions = access.permissions;
-      next();
-      return;
+      return next();
     } catch (error) {
       console.log("Invalid token");
       return res.status(401).json({ message: "Invalid token" });

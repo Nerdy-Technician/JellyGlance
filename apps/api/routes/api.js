@@ -3827,10 +3827,14 @@ async function jellyfinRequest(path, options = {}) {
     throw new Error(config.error);
   }
 
+  const jellyfinBase = cleanIntegrationUrl(config.JF_HOST);
+  if (!jellyfinBase) {
+    throw new Error("Jellyfin host is not configured");
+  }
   return axios({
     timeout: 12000,
     method: options.method || "get",
-    url: `${cleanIntegrationUrl(config.JF_HOST)}${path}`,
+    url: joinSafeHttpUrl(jellyfinBase, path),
     headers: {
       Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
       "User-Agent": "JellyGlance/1.0.6",

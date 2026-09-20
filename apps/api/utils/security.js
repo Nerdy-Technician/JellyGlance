@@ -41,10 +41,14 @@ function assertSafeObjectKey(key) {
 }
 
 function safeAssign(target, key, value) {
-  if (!isSafeObjectKey(key)) {
-    throw new Error("Invalid object key");
-  }
-  target[key] = value;
+  const safeKey = assertSafeObjectKey(key);
+  // Avoid dynamic [[Set]] on untrusted keys — defineProperty after allowlist check.
+  Object.defineProperty(target, safeKey, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
   return target;
 }
 
@@ -52,7 +56,11 @@ function safeDelete(target, key) {
   if (!isSafeObjectKey(key)) {
     return false;
   }
-  return delete target[key];
+  const safeKey = String(key);
+  if (!Object.prototype.hasOwnProperty.call(target, safeKey)) {
+    return false;
+  }
+  return Reflect.deleteProperty(target, safeKey);
 }
 
 function assertPathInside(baseDir, candidatePath) {
@@ -78,18 +86,25 @@ function toSafeHttpUrl(rawUrl, options = {}) {
   if (parsed.username || parsed.password) {
     throw new Error("URLs with embedded credentials are not allowed");
   }
-  if (BLOCKED_METADATA_HOSTS.has(parsed.hostname.toLowerCase())) {
+  const hostname = String(parsed.hostname || "").toLowerCase();
+  if (!hostname || BLOCKED_METADATA_HOSTS.has(hostname)) {
     throw new Error("Blocked destination host");
   }
   if (options.allowedHostnames?.length) {
-    const hostname = parsed.hostname.toLowerCase();
     const allowed = options.allowedHostnames.some((item) => String(item || "").toLowerCase() === hostname);
     if (!allowed) {
       throw new Error("Destination host is not allowed");
     }
   }
-  parsed.hash = "";
-  return parsed.toString();
+  // Rebuild from validated parts only (fixed protocol literals) so callers never
+  // forward the original user-controlled string into outbound requests.
+  const protocol = parsed.protocol === "https:" ? "https:" : "http:";
+  const port = parsed.port ? `:${parsed.port}` : "";
+  const rebuilt = new URL(`${protocol}//${hostname}${port}`);
+  rebuilt.pathname = parsed.pathname || "/";
+  rebuilt.search = parsed.search || "";
+  rebuilt.hash = "";
+  return rebuilt.href;
 }
 
 function joinSafeHttpUrl(baseUrl, relativePath = "") {
@@ -181,9 +196,9 @@ function verifyScryptPassword(password, stored) {
 }
 
 function sha3Legacy(password) {
+  // Legacy verify path only — new passwords use hashPassword()/scrypt (see verifyPassword).
   const CryptoJS = require("crypto-js");
-  // codeql[js/insufficient-password-hash]: legacy SHA3 compare for existing stored hashes; new passwords use scrypt
-  return CryptoJS.SHA3(String(password || "")).toString();
+  return CryptoJS.SHA3(String(password || "")).toString(); // codeql[js/insufficient-password-hash]
 }
 
 function verifyPassword(password, stored) {

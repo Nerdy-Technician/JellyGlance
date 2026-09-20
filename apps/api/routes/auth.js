@@ -73,7 +73,7 @@ function createOidcChallenge(verifier) {
 
 function signOidcState(payload) {
   return new Promise((resolve, reject) => {
-    jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" }, (err, token) => {
+    jwt.sign(payload, JWT_SECRET, { algorithm: "HS256", expiresIn: "10m" }, (err, token) => {
       if (err) {
         reject(err);
       } else {
@@ -85,13 +85,12 @@ function signOidcState(payload) {
 
 function verifyOidcState(state) {
   return new Promise((resolve, reject) => {
-    jwt.verify(state, JWT_SECRET, (err, decoded) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(decoded);
-      }
-    });
+    try {
+      const decoded = jwt.verify(state, JWT_SECRET, { algorithms: ["HS256"] });
+      resolve(decoded);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -186,7 +185,12 @@ async function authenticateWithQuickConnect(host, secret) {
 }
 
 function normalizeIssuerUrl(url) {
-  return stripTrailingSlashes(url);
+  try {
+    const trimmed = stripTrailingSlashes(url);
+    return trimmed ? stripTrailingSlashes(toSafeHttpUrl(trimmed)) : "";
+  } catch {
+    return "";
+  }
 }
 
 function getRequestOrigin(req) {
@@ -606,19 +610,21 @@ router.get("/oidc/login", async (req, res) => {
 
 router.get("/oidc/callback", async (req, res) => {
   try {
-    const { code, state, error } = req.query;
-    if (typeof state !== "string" || !state) {
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const code = typeof req.query.code === "string" ? req.query.code : "";
+    if (!state) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC callback is missing state" }));
       return;
     }
 
     const statePayload = await verifyOidcState(state);
-    if (statePayload.type !== "oidc" || !statePayload.verifier) {
+    if (!statePayload || statePayload.type !== "oidc" || typeof statePayload.verifier !== "string" || !statePayload.verifier) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC state is invalid" }));
       return;
     }
 
-    if (error || typeof code !== "string" || !code) {
+    // Do not branch security on query `error` — only accept a present authorization code.
+    if (!code) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC login was denied or incomplete" }));
       return;
     }
