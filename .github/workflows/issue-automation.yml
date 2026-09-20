@@ -1,0 +1,162 @@
+name: Issue Automation
+
+on:
+  issues:
+    types: [opened, reopened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    name: Label + assign
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure assignee + labels from template fields
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ASSIGNEE = 'Nerdy-Technician';
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = issue.number;
+            const action = context.payload.action;
+
+            const assignees = (issue.assignees || []).map((a) => a.login);
+            if (!assignees.includes(ASSIGNEE)) {
+              await github.rest.issues.addAssignees({
+                owner, repo, issue_number,
+                assignees: [ASSIGNEE],
+              });
+              core.info(`Assigned ${ASSIGNEE} to #${issue_number}`);
+            }
+
+            const body = issue.body || '';
+            const existing = new Set((issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name)));
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+            };
+
+            // Pull a GitHub issue-form section value by heading.
+            const sectionValue = (heading) => {
+              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const re = new RegExp(`###\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n###\\s|$)`, 'i');
+              const m = body.match(re);
+              return m ? m[1].trim() : '';
+            };
+
+            const wanted = [];
+
+            // Related tags checkboxes → labels (option text starts with `label`)
+            const related = sectionValue('Related tags');
+            for (const line of related.split('\n')) {
+              const m = line.match(/^\s*-\s*\[x\]\s*`([^`]+)`/i);
+              if (m) wanted.push(m[1].trim().toLowerCase());
+            }
+
+            // Area dropdowns from templates
+            const areaRaw = (
+              sectionValue('JellyGlance Area') ||
+              sectionValue('JellyGlance Feature Area') ||
+              sectionValue('JellyGlance Docs Area') ||
+              ''
+            ).split('\n')[0].trim().toLowerCase();
+
+            const areaMap = {
+              'home dashboard': 'area/home',
+              'requests': 'area/requests',
+              'requests / seerr apps': 'area/requests',
+              'users / profiles': 'area/users',
+              'libraries': 'area/libraries',
+              'libraries / metadata': 'area/libraries',
+              'activity': 'area/activity',
+              'activity / watch history': 'area/activity',
+              'favourites / watchlist': 'area/favourites',
+              'statistics': 'area/statistics',
+              'calendar': 'area/calendar',
+              'downloads': 'area/downloads',
+              'integrations': 'integration',
+              'webhooks': 'area/webhooks',
+              'webhooks / notifications': 'area/webhooks',
+              'settings': 'area/settings',
+              'backup / restore': 'area/backup',
+              'docker / deployment': 'docker',
+              'docker': 'docker',
+              'api': 'area/api',
+              'docs': 'documentation',
+              'readme': 'documentation',
+              'getting started': 'documentation',
+              'screenshots': 'documentation',
+              'architecture': 'documentation',
+              'releases': 'documentation',
+              'security / auth': 'security',
+              'health / audit / operations': 'area/operations',
+              'mobile / responsive ui': 'area/ui',
+            };
+
+            if (areaRaw && areaMap[areaRaw]) {
+              wanted.push(areaMap[areaRaw]);
+              if (areaRaw.includes('docker')) wanted.push('area/docker');
+              if (areaRaw === 'integrations') wanted.push('area/integrations');
+              if (areaRaw === 'docs' || areaRaw === 'readme') wanted.push('area/docs');
+              if (areaRaw.includes('security')) wanted.push('area/security');
+              if (areaRaw === 'api') wanted.push('api');
+              if (areaRaw.includes('webhook')) wanted.push('webhooks');
+            }
+
+            if ((action === 'opened' || action === 'reopened') && !existing.has('needs triage')) {
+              wanted.push('needs triage');
+            }
+
+            const colors = {
+              bug: 'd73a4a',
+              enhancement: 'a2eeef',
+              documentation: '0075ca',
+              integration: '5319e7',
+              security: 'b60205',
+              docker: '0e8a16',
+              performance: 'fbca04',
+              api: '1d76db',
+              webhooks: 'd4c5f9',
+              'needs triage': 'ededed',
+              'area/home': 'c5def5',
+              'area/requests': 'c5def5',
+              'area/users': 'c5def5',
+              'area/libraries': 'c5def5',
+              'area/activity': 'c5def5',
+              'area/favourites': 'c5def5',
+              'area/statistics': 'c5def5',
+              'area/calendar': 'c5def5',
+              'area/downloads': 'c5def5',
+              'area/integrations': 'c5def5',
+              'area/webhooks': 'c5def5',
+              'area/settings': 'c5def5',
+              'area/backup': 'c5def5',
+              'area/docker': 'c5def5',
+              'area/api': 'c5def5',
+              'area/docs': 'c5def5',
+              'area/security': 'c5def5',
+              'area/operations': 'c5def5',
+              'area/ui': 'c5def5',
+            };
+
+            const toAdd = [...new Set(wanted)]
+              .map((n) => n.toLowerCase())
+              .filter((n) => n && !existing.has(n));
+
+            for (const name of toAdd) {
+              await ensureLabel(name, colors[name] || 'cfd3d7', 'Auto-applied from issue form');
+            }
+            if (toAdd.length) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: toAdd });
+              core.info(`Labeled #${issue_number}: ${toAdd.join(', ')}`);
+            } else {
+              core.info(`No extra labels for #${issue_number}`);
+            }

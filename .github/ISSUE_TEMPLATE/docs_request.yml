@@ -2,6 +2,7 @@ name: JellyGlance Docs Request
 description: Report documentation or README changes specific to the application repository.
 title: "docs: "
 labels: ["documentation", "needs triage"]
+assignees: ["Nerdy-Technician"]
 body:
   - type: markdown
     attributes:
@@ -41,6 +42,19 @@ body:
         - Other
     validations:
       required: true
+
+
+  - type: checkboxes
+    id: related_tags
+    attributes:
+      label: Related tags
+      description: Optional — tick anything that also applies. These become GitHub labels.
+      options:
+        - label: `docker` — Docker / Compose docs
+        - label: `integration` — integration docs
+        - label: `api` — API / widgets docs
+        - label: `security` — auth / hardening docs
+        - label: `webhooks` — webhook / Discord docs
 
   - type: textarea
     id: issue

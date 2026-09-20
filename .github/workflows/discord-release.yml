@@ -52,6 +52,7 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
           RELEASE_URL: ${{ steps.release.outputs.url }}
+          RELEASE_PRERELEASE: ${{ steps.release.outputs.is_prerelease }}
           DISCORD_CHANNEL: stable
         run: |
           RELEASE_NOTES="$(cat RELEASE_NOTES.txt)" node .github/scripts/discord-notify.mjs
@@ -64,6 +65,7 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
           RELEASE_URL: ${{ steps.release.outputs.url }}
+          RELEASE_PRERELEASE: ${{ steps.release.outputs.is_prerelease }}
           DISCORD_CHANNEL: beta
         run: |
           RELEASE_NOTES="$(cat RELEASE_NOTES.txt)" node .github/scripts/discord-notify.mjs

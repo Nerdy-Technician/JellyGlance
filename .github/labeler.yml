@@ -1,0 +1,46 @@
+# Path-based PR labels (actions/labeler v5)
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+          - "README*"
+
+web:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/web/**"
+
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/api/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/package-lock.json"
+          - "**/package.json"
+          - "Dockerfile*"
+          - "docker-compose*.yml"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile*"
+          - "docker-compose*.yml"
+          - "scripts/entrypoint.sh"
+
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*secret*"
+          - "**/*auth*"
+          - "**/security*"
+          - ".github/workflows/security.yml"
+          - ".github/workflows/scorecard.yml"

@@ -1,0 +1,35 @@
+name: Stale
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          days-before-pr-stale: 45
+          days-before-pr-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >
+            This issue has been marked stale because it has been quiet for a while.
+            Comment to keep it open, or it will close automatically.
+          stale-pr-message: >
+            This PR has been marked stale because it has been quiet for a while.
+            Push or comment to keep it open, or it will close automatically.
+          close-issue-message: Closed as stale. Reopen if this is still relevant.
+          close-pr-message: Closed as stale. Reopen or open a fresh PR if you still want this merged.
+          exempt-issue-labels: security,pinned,epic
+          exempt-pr-labels: security,pinned,work-in-progress
+          operations-per-run: 60
