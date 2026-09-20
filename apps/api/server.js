@@ -11,6 +11,14 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 const sanitizeFilename = require("./utils/sanitizer");
 const { getBackupDir } = require("./utils/storage-paths");
+const {
+  apiRateLimit,
+  assertPathInside,
+  authRateLimit,
+  fileRateLimit,
+  staticRateLimit,
+  taskRateLimit,
+} = require("./utils/security");
 
 // db
 const dbInstance = require("./db");
@@ -155,50 +163,23 @@ app.use((req, res, next) => {
   next();
 });
 
-function createRateLimiter({ windowMs, max, message }) {
-  const hits = new Map();
-
-  return (req, res, next) => {
-    const key = req.ip || req.socket?.remoteAddress || "unknown";
-    const now = Date.now();
-    const current = hits.get(key) || { count: 0, resetAt: now + windowMs };
-
-    if (current.resetAt <= now) {
-      current.count = 0;
-      current.resetAt = now + windowMs;
-    }
-
-    current.count += 1;
-    hits.set(key, current);
-    res.setHeader("RateLimit-Limit", String(max));
-    res.setHeader("RateLimit-Remaining", String(Math.max(0, max - current.count)));
-    res.setHeader("RateLimit-Reset", String(Math.ceil(current.resetAt / 1000)));
-
-    if (current.count > max) {
-      res.status(429).json({ message });
-      return;
-    }
-
-    next();
-  };
-}
-
-const authRateLimit = createRateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 60),
-  message: "Too many authentication requests. Try again later.",
-});
 function authRateLimitUnlessPublicStatus(req, res, next) {
   if (req.method === "GET" && req.path === "/isConfigured") {
     return next();
   }
   return authRateLimit(req, res, next);
 }
-const taskRateLimit = createRateLimiter({
-  windowMs: 60 * 1000,
-  max: Number(process.env.TASK_RATE_LIMIT_MAX || 20),
-  message: "Too many task requests. Try again shortly.",
-});
+
+function isSocketIoPath(pathnameOrUrl) {
+  try {
+    const pathname = String(pathnameOrUrl || "").includes("://")
+      ? new URL(pathnameOrUrl, "http://jellyglance.local").pathname
+      : String(pathnameOrUrl || "").split("?")[0];
+    return pathname === "/socket.io" || pathname.startsWith("/socket.io/");
+  } catch {
+    return false;
+  }
+}
 
 function typeInferenceMiddleware(req, res, next) {
   Object.keys(req.query).forEach((key) => {
@@ -305,6 +286,7 @@ function getTranslationFilePath(req) {
 
 //hacky middleware to handle basename changes for UI
 
+app.use(staticRateLimit);
 app.use((req, res, next) => {
   if (BASE_NAME && BASE_NAME != "" && (req.url == "/" || req.url == "")) {
     return res.redirect(BASE_NAME);
@@ -314,7 +296,7 @@ app.use((req, res, next) => {
 
   // Keep socket, backup, webhook cards, and swagger-ui assets off the SPA static rewrite.
   // /swagger is the SPA route that redirects to Settings → Swagger.
-  if (req.url.includes("socket.io") || req.url.startsWith("/backup") || req.url.includes("webhook-cards") || isSwaggerAsset) {
+  if (isSocketIoPath(req.url) || req.url.startsWith("/backup") || req.url.includes("webhook-cards") || isSwaggerAsset) {
     if (isSwaggerAsset && BASE_NAME && req.url.startsWith(BASE_NAME) && req.url !== BASE_NAME) {
       req.url = req.url.slice(BASE_NAME.length);
     }
@@ -354,7 +336,7 @@ app.use((req, res, next) => {
 app.use(`/auth`, authRateLimitUnlessPublicStatus, authRouter, () => {
   /*  #swagger.tags = ['Auth'] */
 }); // mount the API router at /auth
-app.use("/proxy", authenticateProxyAsset, restrictApiKeyScope, authorizeProxyRoute, proxyRouter, () => {
+app.use("/proxy", apiRateLimit, authenticateProxyAsset, restrictApiKeyScope, authorizeProxyRoute, proxyRouter, () => {
   /*  #swagger.tags = ['Proxy']*/
 }); // mount the API router at /proxy
 app.use("/api/startTask", taskRateLimit);
@@ -363,7 +345,7 @@ app.use("/sync", taskRateLimit);
 app.use("/backup/beginBackup", taskRateLimit);
 app.post("/backup/first-run/restore", taskRateLimit, firstRunRestoreHandler);
 app.get("/backup/first-run/restore/status", getFirstRunRestoreStatusHandler);
-app.get("/webhook-cards/:id.jpg", (req, res) => {
+app.get("/webhook-cards/:id.jpg", fileRateLimit, (req, res) => {
   const card = getWebhookCard(req.params.id);
   if (!card) {
     return res.status(404).type("text/plain").send("Not found");
@@ -372,58 +354,47 @@ app.get("/webhook-cards/:id.jpg", (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=600");
   return res.end(card.buffer);
 });
-app.use("/api", authenticate, restrictApiKeyScope, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
+app.use("/api", apiRateLimit, authenticate, restrictApiKeyScope, authorizeApiRoute, commandCenterRouter, apiRouter, () => {
   /*  #swagger.tags = ['API']*/
 }); // mount the API router at /api, with JWT middleware
-app.use("/sync", authenticate, restrictApiKeyScope, requirePermission("settings"), syncRouter, () => {
+app.use("/sync", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), syncRouter, () => {
   /*  #swagger.tags = ['Sync']*/
 }); // mount the API router at /sync, with JWT middleware
-app.use("/stats", authenticate, restrictApiKeyScope, statsRouter, () => {
+app.use("/stats", apiRateLimit, authenticate, restrictApiKeyScope, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
-app.use("/backup", authenticate, restrictApiKeyScope, requirePermission("settings"), backupRouter, () => {
+app.use("/backup", fileRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), backupRouter, () => {
   /*  #swagger.tags = ['Backup']*/
 }); // mount the API router at /backup, with JWT middleware
-app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
-  /*  #swagger.tags = ['Tautulli']*/
-  /*  #swagger.tags = ['Backup']*/
-}); // mount the API router at /backup, with JWT middleware
-app.use("/tautulli", authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
+app.use("/tautulli", fileRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), tautulliRouter, () => {
   /*  #swagger.tags = ['Tautulli']*/
 }); // mount the Tautulli import router with settings permission
-app.use("/jellystat", authenticate, restrictApiKeyScope, requirePermission("settings"), jellystatRouter, () => {
+app.use("/jellystat", fileRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), jellystatRouter, () => {
   /*  #swagger.tags = ['Jellystat']*/
 }); // mount the Jellystat import router with settings permission
-app.use("/logs", authenticate, restrictApiKeyScope, requirePermission("settings"), logRouter, () => {
+app.use("/logs", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
-app.use("/utils", authenticate, restrictApiKeyScope, requirePermission("settings"), utilsRouter, () => {
+app.use("/utils", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), utilsRouter, () => {
   /*  #swagger.tags = ['Utils']*/
 }); // mount the API router at /utils, with JWT middleware
-app.use("/webhooks", authenticate, restrictApiKeyScope, requirePermission("settings"), webhooksRouter, () => {
+app.use("/webhooks", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), webhooksRouter, () => {
   /*  #swagger.tags = ['Webhooks']*/
 }); // mount the API router at /webhooks, with JWT middleware
-app.use("/newsletter", authenticate, restrictApiKeyScope, requirePermission("settings"), newsletterRouter, () => {
+app.use("/newsletter", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), newsletterRouter, () => {
   /*  #swagger.tags = ['Newsletter']*/
 }); // mount the newsletter router with settings permission
 
-app.get("/backup-download/:filename", (req, res) => {
+app.get("/backup-download/:filename", fileRateLimit, (req, res) => {
   try {
     const filename = sanitizeFilename(req.params.filename);
-    const ticket = req.query.ticket;
-
-    if (!ticket || typeof ticket !== "string") {
-      res.status(401).send("Download ticket is required");
-      return;
-    }
-
-    const decoded = jwt.verify(ticket, JWT_SECRET);
+    const decoded = jwt.verify(String(req.query.ticket || ""), JWT_SECRET, { algorithms: ["HS256"] });
     if (decoded.purpose !== "backup-download" || decoded.filename !== filename) {
       res.status(403).send("Invalid download ticket");
       return;
     }
 
-    const filePath = path.join(getBackupDir(), filename);
+    const filePath = assertPathInside(getBackupDir(), path.join(getBackupDir(), filename));
     if (!fs.existsSync(filePath)) {
       res.status(404).send("Backup file not found");
       return;
@@ -482,7 +453,7 @@ writeEnvVariables().then(() => {
     })
   );
   app.get("/{*splat}", (req, res, next) => {
-    if (req.url.includes("socket.io")) {
+    if (isSocketIoPath(req.url)) {
       return next();
     }
     if (STATIC_FILE_EXTENSION_REGEX.test(getRequestPathname(req))) {
@@ -546,23 +517,14 @@ async function touchApiKeyLastUsed(apiKey) {
 }
 
 async function authenticate(req, res, next) {
-  const token = req.headers.authorization;
+  const authorization = req.headers.authorization;
   const apiKey = req.headers["x-api-token"];
+  const extractedToken =
+    typeof authorization === "string" && authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
 
-  if (!token && !apiKey) {
-    return res.status(401).json({
-      message: "Authentication failed. No token or API key provided.",
-    });
-  }
-
-  if (token) {
-    const extracted_token = token.split(" ")[1];
-    if (!extracted_token || extracted_token === "null") {
-      return res.sendStatus(403);
-    }
-
+  if (extractedToken && extractedToken !== "null") {
     try {
-      const decoded = jwt.verify(extracted_token, JWT_SECRET);
+      const decoded = jwt.verify(extractedToken, JWT_SECRET, { algorithms: ["HS256"] });
       const access = await resolveTokenAccess(decoded.user);
       if (!access.permissions.dashboard) {
         return res.status(403).json({ message: "This account is disabled in JellyGlance" });
@@ -571,31 +533,35 @@ async function authenticate(req, res, next) {
       req.user = access.user;
       req.permissions = access.permissions;
       next();
+      return;
     } catch (error) {
       console.log("Invalid token");
       return res.status(401).json({ message: "Invalid token" });
     }
-  } else {
-    if (apiKey) {
-      const keysjson = await dbInstance.query('SELECT api_keys FROM app_config where "ID"=1').then((res) => res.rows[0].api_keys);
-
-      if (!keysjson || Object.keys(keysjson).length === 0) {
-        return res.status(404).json({ message: "No API keys configured" });
-      }
-      const keys = keysjson || [];
-
-      const match = (keys || []).find((obj) => obj.key === apiKey);
-
-      if (match) {
-        req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
-        req.apiKeyScope = normalizeApiKeyScope(match.scope, { fallback: "full" });
-        touchApiKeyLastUsed(apiKey);
-        next();
-      } else {
-        return res.status(403).json({ message: "Invalid API key" });
-      }
-    }
   }
+
+  if (typeof apiKey === "string" && apiKey) {
+    const keysjson = await dbInstance.query('SELECT api_keys FROM app_config where "ID"=1').then((res) => res.rows[0].api_keys);
+
+    if (!keysjson || Object.keys(keysjson).length === 0) {
+      return res.status(404).json({ message: "No API keys configured" });
+    }
+    const keys = keysjson || [];
+    const match = keys.find((obj) => obj.key === apiKey);
+
+    if (match) {
+      req.permissions = DEFAULT_ROLE_PERMISSIONS.Owner;
+      req.apiKeyScope = normalizeApiKeyScope(match.scope, { fallback: "full" });
+      touchApiKeyLastUsed(apiKey);
+      next();
+      return;
+    }
+    return res.status(403).json({ message: "Invalid API key" });
+  }
+
+  return res.status(401).json({
+    message: "Authentication failed. No token or API key provided.",
+  });
 }
 
 function isPublicProxyAssetRequest(req) {

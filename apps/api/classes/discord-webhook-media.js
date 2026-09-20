@@ -1,8 +1,8 @@
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { randomUUID } = require("crypto");
+const { assertPathInside, createSafeTempDir } = require("../utils/security");
 
 const CARD_FONT = "JellyGlanceCard";
 const BUNDLED_FONT_DIR = path.join(__dirname, "..", "assets", "fonts");
@@ -40,6 +40,8 @@ function escapeFontconfigXml(value) {
     .replace(/"/g, "&quot;");
 }
 
+let cardFontconfigDir = null;
+
 function ensureCardFontconfig({ regular, bold }) {
   const fontDirs = new Set();
   for (const file of [regular, bold]) {
@@ -47,8 +49,10 @@ function ensureCardFontconfig({ regular, bold }) {
   }
   if (!fontDirs.size) return;
 
-  const confDir = path.join(os.tmpdir(), "jellyglance-fontconfig");
-  fs.mkdirSync(confDir, { recursive: true });
+  if (!cardFontconfigDir) {
+    cardFontconfigDir = createSafeTempDir("jellyglance-fontconfig-");
+  }
+  const confDir = cardFontconfigDir;
   const confPath = path.join(confDir, "fonts.conf");
   const dirXml = [...fontDirs].map((dir) => `  <dir>${escapeFontconfigXml(dir)}</dir>`).join("\n");
   fs.writeFileSync(
@@ -272,9 +276,9 @@ function jellyfinHeaders(config) {
 function normalizeTitle(value) {
   return String(value || "")
     .toLowerCase()
-    .replace(/\[[^\]]*]/g, " ")
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/s\d{1,2}e\d{1,2}.*$/i, " ")
+    .replace(/\[[^[\]]{0,200}]/g, " ")
+    .replace(/\([^()]{0,200}\)/g, " ")
+    .replace(/s\d{1,2}e\d{1,2}.{0,80}$/i, " ")
     .replace(/\b(1080p|720p|2160p|4k|web[-.]?dl|bluray|remux|proper|extended|internal)\b/gi, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -779,7 +783,7 @@ function putWebhookCard(buffer) {
 function getWebhookCard(id) {
   if (!/^[a-f0-9]{32}$/i.test(String(id || ""))) return null;
   try {
-    return { buffer: fs.readFileSync(path.join(webhookCardDir(), `${id}.jpg`)), contentType: "image/jpeg" };
+    return { buffer: fs.readFileSync(assertPathInside(webhookCardDir(), path.join(webhookCardDir(), `${id}.jpg`))), contentType: "image/jpeg" };
   } catch {
     return null;
   }

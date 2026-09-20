@@ -1,6 +1,7 @@
 const db = require("../db");
 const { axios } = require("./axios");
 const { getIntegrations } = require("./integration-store");
+const { isSafeObjectKey, joinSafeHttpUrl, safeAssign, safeDelete, sanitizeForLog, stripTrailingSlashes } = require("../utils/security");
 
 const PROVIDER_SEERR = "seerr";
 const PROVIDER_MANUAL = "manual";
@@ -219,8 +220,13 @@ async function saveUserRequestFolders(userKey, nextFolders = {}) {
   const map = settings.UserRequestFolders && typeof settings.UserRequestFolders === "object" ? { ...settings.UserRequestFolders } : {};
   const normalized = normalizeUserFolders(nextFolders);
   const isEmpty = !normalized.movieRootFolder && !normalized.tvRootFolder;
-  if (isEmpty) delete map[key];
-  else map[key] = normalized;
+  if (!isSafeObjectKey(key)) {
+    const error = new Error("Invalid user key");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (isEmpty) safeDelete(map, key);
+  else safeAssign(map, key, normalized);
   settings.UserRequestFolders = map;
   await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
   return normalized;
@@ -326,10 +332,7 @@ function getNestedRequesterValue(requester = {}, paths = []) {
 }
 
 function basenamePath(fullPath = "") {
-  const parts = String(fullPath || "")
-    .replace(/\/+$/, "")
-    .split("/")
-    .filter(Boolean);
+  const parts = stripTrailingSlashes(fullPath).split("/").filter(Boolean);
   return parts[parts.length - 1] || "";
 }
 
@@ -357,7 +360,7 @@ async function ensureArrRootFolderForSeerrItem(item, rootFolder) {
   const media = item?.media || {};
   const mediaType = String(media.mediaType || item?.type || item?.mediaType || "").toLowerCase();
   const externalId = media.externalServiceId ?? media.externalId;
-  const targetRoot = String(rootFolder || "").replace(/\/+$/, "");
+  const targetRoot = stripTrailingSlashes(rootFolder);
   if (!targetRoot || externalId == null || externalId === "") {
     return { updated: false, reason: "missing arr link" };
   }
@@ -372,11 +375,11 @@ async function ensureArrRootFolderForSeerrItem(item, rootFolder) {
   const headers = { "X-Api-Key": apiKey };
 
   try {
-    const { data: entity } = await axios.get(`${url}/api/v3/${resource}/${encodeURIComponent(externalId)}`, {
+    const { data: entity } = await axios.get(joinSafeHttpUrl(url, `/api/v3/${resource}/${encodeURIComponent(externalId)}`), {
       timeout: 15000,
       headers,
     });
-    const currentRoot = String(entity.rootFolderPath || "").replace(/\/+$/, "");
+    const currentRoot = stripTrailingSlashes(entity.rootFolderPath || "");
     if (currentRoot === targetRoot) {
       return { updated: false, alreadyMatched: true };
     }
@@ -392,7 +395,7 @@ async function ensureArrRootFolderForSeerrItem(item, rootFolder) {
       timeout: 30000,
       headers: { ...headers, "Content-Type": "application/json" },
     });
-    console.log(`[REQUESTS] Moved ${app.name} ${resource} ${entity.id} -> ${targetRoot}`);
+    console.log(`[REQUESTS] Moved ${sanitizeForLog(app.name)} ${sanitizeForLog(resource)} ${sanitizeForLog(entity.id)} -> ${sanitizeForLog(targetRoot)}`);
     return { updated: true, path: newPath, rootFolderPath: targetRoot, app: app.name };
   } catch (error) {
     const message = error.response?.data?.message || error.response?.data?.[0]?.errorMessage || error.message;
@@ -648,7 +651,7 @@ async function syncUserFolderOverridesToSeerr(userKey, foldersInput) {
         const result = await updateSeerrItemFolder(url, apiKey, item, override);
         if (result.updated) {
           updated += 1;
-          console.log(`[REQUESTS] Updated Seerr request ${item.id} for ${userKey} -> ${override.rootFolder}`);
+          console.log(`[REQUESTS] Updated Seerr request ${sanitizeForLog(item.id)} for ${sanitizeForLog(userKey)} -> ${sanitizeForLog(override.rootFolder)}`);
         } else {
           skipped += 1;
         }
@@ -669,7 +672,7 @@ async function syncUserFolderOverridesToSeerr(userKey, foldersInput) {
 }
 
 function cleanIntegrationUrl(url = "") {
-  return String(url).trim().replace(/\/+$/, "");
+  return stripTrailingSlashes(url);
 }
 
 function isSeerrIntegration(integration) {

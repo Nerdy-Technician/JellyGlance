@@ -18,7 +18,13 @@ import { loadSavedIntegrations, saveSavedIntegrations } from "../lib/integration
 import JellyfinIntegrationSettings from "./components/settings/JellyfinIntegrationSettings";
 import "./css/integrations.css";
 
-const iconUrl = (slug) => `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${slug}.svg`;
+const iconUrl = (slug) => {
+  const safe = String(slug || "sonarr")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+  const iconSlug = /^[a-z0-9][a-z0-9-]{0,63}$/.test(safe) ? safe : "sonarr";
+  return `https://cdn.jsdelivr.net/gh/selfhst/icons/svg/${iconSlug}.svg`;
+};
 const tdarrLogoUrl = "https://home.tdarr.io/static/media/logo3-min.246d6df44c7f16ddebaf.png";
 const sickChillLogoUrl = "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sickchill.png";
 const integrationTabItems = [

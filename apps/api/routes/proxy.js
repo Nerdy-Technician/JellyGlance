@@ -4,8 +4,10 @@ const { axios } = require("../classes/axios");
 const configClass = require("../classes/config");
 const API = require("../classes/api-loader");
 const { getIntegrations } = require("../classes/integration-store");
+const { joinSafeHttpUrl, sendSafeError, toSafeHttpUrl } = require("../utils/security");
 
 const router = express.Router();
+const SAFE_DEVICE_NAME = /^[A-Za-z0-9._-]{1,64}$/;
 
 let sessionSonarrCache = { expiresAt: 0, ratingsByKey: new Map() };
 
@@ -141,15 +143,18 @@ router.get("/web/assets/img/devices/", async (req, res) => {
     return;
   }
 
-  if (!devicename) {
+  if (!devicename || !SAFE_DEVICE_NAME.test(String(devicename))) {
     res.status(400).send("device name is required");
     return;
   }
 
   const encodedDevice = encodeURIComponent(String(devicename));
-  let url = `${config.JF_HOST}/web/assets/img/devices/${encodedDevice}.svg`;
+  let url = joinSafeHttpUrl(config.JF_HOST, `/web/assets/img/devices/${encodedDevice}.svg`);
   if (config.IS_JELLYFIN == false) {
-    url = `https://raw.githubusercontent.com/MediaBrowser/Emby.Resources/master/images/devices/${devicename}.png`;
+    url = toSafeHttpUrl(
+      `https://raw.githubusercontent.com/MediaBrowser/Emby.Resources/master/images/devices/${encodedDevice}.png`,
+      { allowedHostnames: ["raw.githubusercontent.com"] }
+    );
   }
 
   axios
@@ -326,7 +331,7 @@ router.get("/Plugins/Images/", async (req, res) => {
         continue;
       }
 
-      const response = await axios.get(url, {
+      const response = await axios.get(toSafeHttpUrl(url), {
         responseType: "arraybuffer",
         headers: {
           ...(imageUrl ? {} : { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` }),
@@ -355,7 +360,7 @@ router.get("/getSessions", async (req, res) => {
     res.send(await attachSonarrSessionRatings(sessions));
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -365,7 +370,7 @@ router.get("/getAdminUsers", async (req, res) => {
     res.send(adminUser);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -377,7 +382,7 @@ router.get("/getRecentlyAdded", async (req, res) => {
     res.send(recentlyAdded);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 

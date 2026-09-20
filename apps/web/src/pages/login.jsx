@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import axios from "../lib/axios_instance";
 import Config from "../lib/config";
 import baseUrl from "../lib/baseurl";
-import CryptoJS from "crypto-js";
 import "./css/setup.css";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
@@ -89,9 +88,7 @@ function Login() {
       return;
     }
 
-    let hashedPassword = CryptoJS.SHA3(formValues.JS_PASSWORD).toString();
-
-    beginLogin(formValues.JS_USERNAME, hashedPassword);
+    beginLogin(formValues.JS_USERNAME, formValues.JS_PASSWORD);
   }
 
   function redirectAfterLogin(nextConfig) {
@@ -262,8 +259,8 @@ function Login() {
 
     const interval = window.setInterval(async () => {
       try {
-        const response = await axios.get("/auth/jellyfin-quick-connect/status", {
-          params: { secret: quickConnect.secret },
+        const response = await axios.post("/auth/jellyfin-quick-connect/status", {
+          secret: quickConnect.secret,
         });
 
         if (response.data.authenticated) {

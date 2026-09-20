@@ -8,11 +8,20 @@ function requestUrl(error) {
   return String(error?.config?.url || error?.config?.baseURL || "");
 }
 
+function isSocketIoRequest(url) {
+  try {
+    const parsed = new URL(url, "https://placeholder.local");
+    return parsed.pathname === "/socket.io" || parsed.pathname.startsWith("/socket.io/");
+  } catch {
+    return false;
+  }
+}
+
 function isJellyGlanceAuthFailure(error) {
   if (error?.response?.status !== 401) return false;
   const url = requestUrl(error);
   if (/\/proxy(\/|$)/i.test(url)) return false;
-  if (/\/socket\.io/i.test(url)) return false;
+  if (isSocketIoRequest(url)) return false;
   return Boolean(localStorage.getItem("token"));
 }
 

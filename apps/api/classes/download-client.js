@@ -1,8 +1,11 @@
 const { axios } = require("./axios");
 const { getIntegrations, getIntegrationData, saveIntegrationData } = require("./integration-store");
+const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl } = require("../utils/security");
 
 function cleanUrl(url = "") {
-  return String(url).trim().replace(/\/+$/, "");
+  const trimmed = stripTrailingSlashes(url);
+  if (!trimmed) return "";
+  return stripTrailingSlashes(toSafeHttpUrl(trimmed));
 }
 
 function normalizeName(value = "") {
@@ -135,9 +138,9 @@ async function qbittorrentCookie(client) {
     throw Object.assign(new Error("Missing qBittorrent URL, username, or password"), { statusCode: 400 });
   }
 
-  const login = await axios.post(`${url}/api/v2/auth/login`, new URLSearchParams({ username, password }), {
+  const login = await axios.post(joinSafeHttpUrl(url, "/api/v2/auth/login"), new URLSearchParams({ username, password }), {
     timeout: 15000,
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: `${url}/` },
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: joinSafeHttpUrl(url, "/") },
     validateStatus: () => true,
   });
 
@@ -150,9 +153,9 @@ async function qbittorrentCookie(client) {
 
 async function qbittorrentPost(client, path, params) {
   const { url, cookie } = await qbittorrentCookie(client);
-  const response = await axios.post(`${url}${path}`, new URLSearchParams(params), {
+  const response = await axios.post(joinSafeHttpUrl(url, path), new URLSearchParams(params), {
     timeout: 15000,
-    headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded", Referer: `${url}/` },
+    headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded", Referer: joinSafeHttpUrl(url, "/") },
     validateStatus: () => true,
   });
   if (response.status >= 400 || String(response.data || "").toLowerCase().includes("fails.")) {
@@ -169,7 +172,7 @@ async function transmissionRpc(client, method, args = {}) {
     throw Object.assign(new Error("Missing Transmission URL or password"), { statusCode: 400 });
   }
 
-  const endpoints = [`${url}/transmission/rpc`, `${url}/rpc`];
+  const endpoints = [joinSafeHttpUrl(url, "/transmission/rpc"), joinSafeHttpUrl(url, "/rpc")];
   let lastError;
   for (const endpoint of endpoints) {
     try {
@@ -219,7 +222,7 @@ async function delugeRpc(client, method, params = []) {
   const cookieJar = { cookie: "" };
   const call = async (rpcMethod, rpcParams) => {
     const response = await axios.post(
-      `${url}/json`,
+      joinSafeHttpUrl(url, "/json"),
       { method: rpcMethod, params: rpcParams, id: Date.now() },
       {
         timeout: 15000,
@@ -255,7 +258,7 @@ async function nzbgetRpc(client, method, params = []) {
     throw Object.assign(new Error("Missing NZBGet URL or API key"), { statusCode: 400 });
   }
   const response = await axios.post(
-    `${url}/jsonrpc`,
+    joinSafeHttpUrl(url, "/jsonrpc"),
     { method, params, id: 1 },
     {
       timeout: 15000,
@@ -294,7 +297,7 @@ async function rtorrentXml(client, method, params = []) {
   const body = `<?xml version="1.0"?><methodCall><methodName>${xmlEscape(method)}</methodName><params>${params
     .map((param) => `<param>${xmlValue(param)}</param>`)
     .join("")}</params></methodCall>`;
-  const endpoints = [`${url}/RPC2`, url];
+  const endpoints = [joinSafeHttpUrl(url, "/RPC2"), toSafeHttpUrl(url)];
   let lastError;
   for (const endpoint of endpoints) {
     try {
@@ -471,7 +474,7 @@ async function fetchQbittorrentQueue(client) {
   }
   try {
     const { cookie } = await qbittorrentCookie(client);
-    const response = await axios.get(`${url}/api/v2/torrents/info`, {
+    const response = await axios.get(joinSafeHttpUrl(url, "/api/v2/torrents/info"), {
       timeout: 15000,
       headers: { Cookie: cookie },
       params: { filter: "all" },
@@ -488,7 +491,7 @@ async function fetchSabnzbdQueue(client) {
   const apiKey = client.values?.secret;
   if (!url || !apiKey) return { items: [], error: "Missing SABnzbd URL or API key" };
   try {
-    const response = await axios.get(`${url}/api`, {
+    const response = await axios.get(joinSafeHttpUrl(url, "/api"), {
       timeout: 15000,
       params: { mode: "queue", output: "json", apikey: apiKey },
     });
@@ -607,11 +610,11 @@ async function testDownloadClient(client) {
   try {
     if (kind === "qbittorrent") {
       const { cookie } = await qbittorrentCookie(client);
-      const response = await axios.get(`${url}/api/v2/app/version`, { timeout: 10000, headers: { Cookie: cookie } });
+      const response = await axios.get(joinSafeHttpUrl(url, "/api/v2/app/version"), { timeout: 10000, headers: { Cookie: cookie } });
       return { ok: true, version: response.data, message: `Connected to ${response.data}` };
     }
     if (kind === "sabnzbd") {
-      const response = await axios.get(`${url}/api`, {
+      const response = await axios.get(joinSafeHttpUrl(url, "/api"), {
         timeout: 10000,
         params: { mode: "version", apikey: secret, output: "json" },
       });
@@ -694,7 +697,7 @@ async function addDownload({ instanceId, client: clientName, value }) {
     if (!url || !apiKey) {
       throw Object.assign(new Error("Missing SABnzbd URL or API key"), { statusCode: 400 });
     }
-    await axios.get(`${url}/api`, {
+    await axios.get(joinSafeHttpUrl(url, "/api"), {
       timeout: 15000,
       params: { mode: "addurl", name: source, output: "json", apikey: apiKey },
     });
@@ -744,7 +747,7 @@ async function deleteDownload(id, { deleteFiles = false } = {}) {
       await removeStoredItem(data, id);
       return { ok: true, item, localOnly: true };
     }
-    await axios.get(`${cleanUrl(client.values.url)}/api`, {
+    await axios.get(joinSafeHttpUrl(cleanUrl(client.values.url), "/api"), {
       timeout: 15000,
       params: { mode: "queue", name: "delete", value: idValue, del_files: deleteFiles ? 1 : 0, apikey: client.values.secret },
     });
@@ -810,7 +813,7 @@ async function setDownloadPaused(id, paused) {
   if (kind === "sabnzbd") {
     const idValue = nzoId(item);
     if (!idValue) throw Object.assign(new Error("Missing SABnzbd job id"), { statusCode: 400 });
-    await axios.get(`${cleanUrl(client.values.url)}/api`, {
+    await axios.get(joinSafeHttpUrl(cleanUrl(client.values.url), "/api"), {
       timeout: 15000,
       params: { mode: "queue", name: paused ? "pause" : "resume", value: idValue, apikey: client.values.secret },
     });

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "../lib/axios_instance";
 import Config from "../lib/config";
 import { Link } from "react-router-dom";
-import CryptoJS from "crypto-js";
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
 import CheckFillIcon from "remixicon-react/CheckFillIcon";
 import CloseFillIcon from "remixicon-react/CloseFillIcon";
@@ -458,7 +457,7 @@ export default function Users() {
         "/api/localUsers",
         {
           ...newLocalUser,
-          password: CryptoJS.SHA3(newLocalUser.password).toString(),
+          password: newLocalUser.password,
         },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
@@ -602,7 +601,7 @@ export default function Users() {
       return;
     }
 
-    const payload = { password: CryptoJS.SHA3(resetPassword).toString() };
+    const payload = { password: resetPassword };
     if (resetTarget.primary) {
       await axios.patch("/api/primaryLocalPassword", payload, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

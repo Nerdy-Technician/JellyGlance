@@ -5,8 +5,10 @@ const { randomUUID } = require("crypto");
 const multer = require("multer");
 
 const db = require("../db");
+const { assertPathInside, fileRateLimit } = require("../utils/security");
 
 const router = express.Router();
+router.use(fileRateLimit);
 const UPLOAD_DIR = path.join(__dirname, "..", "backup-data", "jellystat-uploads");
 const IMPORT_COLUMNS = [
   "Id",
@@ -65,7 +67,7 @@ function resolveUploadedBackup(uploadId) {
     throw new Error("Invalid uploaded Jellystat backup reference.");
   }
 
-  const filePath = path.join(UPLOAD_DIR, fileName);
+  const filePath = assertPathInside(UPLOAD_DIR, path.join(UPLOAD_DIR, fileName));
   if (!fs.existsSync(filePath)) {
     throw new Error("Uploaded Jellystat backup has expired or was removed.");
   }
@@ -86,7 +88,8 @@ function extractTableFromBackup(data, tableName) {
 }
 
 function loadJellystatRows(sourcePath) {
-  const raw = fs.readFileSync(sourcePath, "utf8");
+  const safePath = assertPathInside(UPLOAD_DIR, sourcePath);
+  const raw = fs.readFileSync(safePath, "utf8");
   const data = JSON.parse(raw);
   const activityRows = extractTableFromBackup(data, "jf_playback_activity");
   if (!activityRows.length) {
@@ -229,7 +232,7 @@ router.post("/upload-preview", (req, res) => {
 
     try {
       const [summary, importedCount] = await Promise.all([
-        Promise.resolve(loadJellystatRows(req.file.path)),
+        Promise.resolve(loadJellystatRows(assertPathInside(UPLOAD_DIR, req.file.path))),
         db.query('SELECT count(*)::int AS "Count" FROM jf_playback_activity WHERE "Id" LIKE $1', ["jellystat:%"]),
       ]);
       res.json({

@@ -6,8 +6,10 @@ const { randomUUID } = require("crypto");
 const multer = require("multer");
 
 const db = require("../db");
+const { assertPathInside, fileRateLimit } = require("../utils/security");
 
 const router = express.Router();
+router.use(fileRateLimit);
 const DEFAULT_TAUTULLI_DIR = process.env.JS_TAUTULLI_BACKUP_DIR || "/mnt/Archive/Docker/Media/Tautulli";
 const UPLOAD_DIR = path.join(__dirname, "..", "backup-data", "tautulli-uploads");
 const PYTHON_CANDIDATES = [
@@ -84,12 +86,13 @@ const upload = multer({
 });
 
 function listTautulliBackups(sourceDir = DEFAULT_TAUTULLI_DIR) {
-  const resolvedDir = path.resolve(sourceDir);
+  const allowedRoot = path.resolve(DEFAULT_TAUTULLI_DIR);
+  const resolvedDir = assertPathInside(allowedRoot, path.resolve(sourceDir));
   const entries = fs.readdirSync(resolvedDir, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isFile() && isTautulliBackup(entry.name))
     .map((entry) => {
-      const filePath = path.join(resolvedDir, entry.name);
+      const filePath = assertPathInside(resolvedDir, path.join(resolvedDir, entry.name));
       const stat = fs.statSync(filePath);
       const timestamp = getBackupTimestamp(entry.name);
       return {
@@ -109,7 +112,19 @@ function resolveBackupPath(sourcePath) {
     throw new Error("No Tautulli backup files found.");
   }
 
+  const allowedRoots = [path.resolve(DEFAULT_TAUTULLI_DIR), path.resolve(UPLOAD_DIR)];
   const resolved = path.resolve(target);
+  const allowed = allowedRoots.some((root) => {
+    try {
+      assertPathInside(root, resolved);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (!allowed) {
+    throw new Error("Tautulli backup path is not allowed.");
+  }
   if (!fs.existsSync(resolved)) {
     throw new Error("Tautulli backup file not found.");
   }
@@ -131,7 +146,7 @@ function resolveUploadedBackup(uploadId) {
     throw new Error("Invalid uploaded Tautulli backup reference.");
   }
 
-  const filePath = path.join(UPLOAD_DIR, fileName);
+  const filePath = assertPathInside(UPLOAD_DIR, path.join(UPLOAD_DIR, fileName));
   if (!fs.existsSync(filePath)) {
     throw new Error("Uploaded Tautulli backup has expired or was removed.");
   }
@@ -147,8 +162,21 @@ function resolveImportSource(body = {}) {
 }
 
 function runTautulliExport(sourcePath, summary = false) {
+  const allowedRoots = [path.resolve(DEFAULT_TAUTULLI_DIR), path.resolve(UPLOAD_DIR)];
+  const resolvedSource = path.resolve(sourcePath);
+  const allowed = allowedRoots.some((root) => {
+    try {
+      assertPathInside(root, resolvedSource);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (!allowed) {
+    throw new Error("Tautulli backup path is not allowed.");
+  }
   const scriptPath = path.join(__dirname, "..", "scripts", "tautulli_history_export.py");
-  const scriptArgs = [scriptPath, sourcePath];
+  const scriptArgs = [scriptPath, resolvedSource];
   if (summary) scriptArgs.push("--summary");
 
   return new Promise((resolve, reject) => {
@@ -447,7 +475,7 @@ router.post("/upload-preview", (req, res) => {
         alreadyImportedRows: Number(importedCount.rows?.[0]?.Count || 0),
       });
     } catch (previewError) {
-      fs.rm(req.file.path, { force: true }, () => {});
+      fs.rm(assertPathInside(UPLOAD_DIR, req.file.path), { force: true }, () => {});
       res.status(503).json({ error: previewError.message || "Unable to preview uploaded Tautulli backup" });
     }
   });
@@ -465,7 +493,7 @@ router.post("/import", async (req, res) => {
       await Promise.all(db.materializedViews.map((view) => db.refreshMaterializedView(view)));
     }
     if (req.body?.uploadId) {
-      fs.rm(sourcePath, { force: true }, () => {});
+      fs.rm(assertPathInside(UPLOAD_DIR, sourcePath), { force: true }, () => {});
     }
 
     res.json({

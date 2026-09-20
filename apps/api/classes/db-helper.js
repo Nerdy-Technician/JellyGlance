@@ -1,35 +1,35 @@
 const { pool } = require("../db.js");
 const pgp = require("pg-promise")();
+const { isSafeSqlExpression, isSafeSqlIdentifier, toBoundedInt } = require("../utils/security");
+
+function quoteIdentPart(part) {
+  if (part === "*") {
+    return part;
+  }
+  if (!isSafeSqlIdentifier(part)) {
+    throw new Error("Invalid SQL identifier");
+  }
+  return `"${part}"`;
+}
 
 function wrapField(field) {
   if (field === "*") {
     return field;
   }
-  if (
-    field.includes("COALESCE") ||
-    field.includes("SUM") ||
-    field.includes("COUNT") ||
-    field.includes("MAX") ||
-    field.includes("MIN") ||
-    field.includes("AVG") ||
-    field.includes("DISTINCT") ||
-    field.includes("json_agg") ||
-    field.includes("CASE") ||
-    field.includes("REGEXP_REPLACE")
-  ) {
+  if (typeof field !== "string" || /;|--|\/\*|\*\//.test(field)) {
+    throw new Error("Invalid SQL field");
+  }
+  if (isSafeSqlExpression(field)) {
     return field;
   }
   if (field.includes(" as ")) {
     const [column, alias] = field.split(" as ");
-    return `${column
-      .split(".")
-      .map((part) => (part == "*" ? part : `"${part}"`))
-      .join(".")} as "${alias}"`;
+    if (!isSafeSqlIdentifier(alias) && !isSafeSqlExpression(column)) {
+      throw new Error("Invalid SQL alias");
+    }
+    return `${column.split(".").map(quoteIdentPart).join(".")} as "${alias.replace(/"/g, "")}"`;
   }
-  return field
-    .split(".")
-    .map((part) => (part == "*" ? part : `"${part}"`))
-    .join(".");
+  return field.split(".").map(quoteIdentPart).join(".");
 }
 
 function buildWhereClause(conditions) {
@@ -151,8 +151,11 @@ async function query({
     }
 
     // Add order by and pagination
-    query += ` ORDER BY ${wrapField(order_by)} ${sort_order}`;
-    query += ` LIMIT ${pageSize} OFFSET ${(pageNumber - 1) * pageSize}`;
+    const safeSort = String(sort_order || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const safePageSize = toBoundedInt(pageSize, 50, { min: 1, max: 500 });
+    const safePageNumber = toBoundedInt(pageNumber, 1, { min: 1, max: 100000 });
+    query += ` ORDER BY ${wrapField(order_by)} ${safeSort}`;
+    query += ` LIMIT ${safePageSize} OFFSET ${(safePageNumber - 1) * safePageSize}`;
 
     // Execute the query
     const result = await client.query(query, values);

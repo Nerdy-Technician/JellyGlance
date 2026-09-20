@@ -6,7 +6,6 @@ const path = require("path");
 const db = require("../db");
 const dbHelper = require("../classes/db-helper");
 
-const pgp = require("pg-promise")();
 const { randomUUID } = require("crypto");
 
 const configClass = require("../classes/config");
@@ -49,6 +48,20 @@ const {
   mergeRolePermissionMap,
 } = require("../classes/role-permissions");
 const { normalizeApiKeyScope } = require("../classes/api-key-scope");
+const {
+  assertSafeObjectKey,
+  hashPassword,
+  isHttpTorrentUrl,
+  isSafeObjectKey,
+  joinSafeHttpUrl,
+  safeAssign,
+  safeDelete,
+  sanitizeForLog,
+  sendSafeError,
+  stripTrailingSlashes,
+  toSafeHttpUrl,
+  verifyPassword,
+} = require("../utils/security");
 
 const router = express.Router();
 router.use(requestsExtrasRouter);
@@ -123,11 +136,21 @@ function queueFirstRunJellyfinTasks() {
 }
 
 function normalizeIssuerUrl(url) {
-  return url?.trim()?.replace(/\/+$/, "");
+  try {
+    const trimmed = stripTrailingSlashes(url);
+    return trimmed ? stripTrailingSlashes(toSafeHttpUrl(trimmed)) : "";
+  } catch {
+    return "";
+  }
 }
 
 function cleanIntegrationUrl(url = "") {
-  return String(url).trim().replace(/\/+$/, "");
+  try {
+    const trimmed = stripTrailingSlashes(url);
+    return trimmed ? stripTrailingSlashes(toSafeHttpUrl(trimmed)) : "";
+  } catch {
+    return "";
+  }
 }
 
 function getAxiosErrorMessage(error) {
@@ -316,7 +339,7 @@ async function testArrIntegration(integration) {
   for (const path of apiPaths) {
     try {
       const apiPath = path.replace(":apiKey", encodeURIComponent(apiKey));
-      const response = await axios.get(`${url}${apiPath}`, {
+      const response = await axios.get(joinSafeHttpUrl(url, apiPath), {
         timeout: 10000,
         headers: { "X-Api-Key": apiKey },
       });
@@ -407,7 +430,7 @@ async function testWizarrIntegration(integration) {
     return { ok: false, error: "URL and API key are required" };
   }
 
-  const response = await axios.get(`${url}/api/status`, {
+  const response = await axios.get(joinSafeHttpUrl(url, "/api/status"), {
     timeout: 10000,
     headers: getWizarrHeaders(integration),
   });
@@ -427,7 +450,7 @@ async function testTdarrIntegration(integration) {
   }
 
   const [statusResponse, statistics] = await Promise.all([
-    axios.get(`${url}/api/v2/status`, {
+    axios.get(joinSafeHttpUrl(url, "/api/v2/status"), {
       timeout: 10000,
       headers: getTdarrHeaders(integration),
     }),
@@ -462,7 +485,7 @@ async function testMaintainerrIntegration(integration) {
     return { ok: false, error: "URL is required" };
   }
 
-  const response = await axios.get(`${url}/api/health`, {
+  const response = await axios.get(joinSafeHttpUrl(url, "/api/health"), {
     timeout: 10000,
     headers: getMaintainerrHeaders(integration),
   });
@@ -1439,7 +1462,7 @@ async function getConnectedTdarrIntegration() {
 
 async function fetchTdarrCrudDb(integration, payload) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const response = await axios.post(`${url}/api/v2/cruddb`, payload, {
+  const response = await axios.post(joinSafeHttpUrl(url, "/api/v2/cruddb"), payload, {
     timeout: 12000,
     headers: {
       ...getTdarrHeaders(integration),
@@ -3172,8 +3195,8 @@ async function getRequestAvailability(request, options = {}) {
         .query(
           `SELECT COUNT(*)::int AS count
            FROM jf_library_episodes
-           WHERE archived=false AND "SeriesId" IN (${pgp.as.csv(seriesIds)}) AND (${conditions.join(" OR ")})`,
-          params
+           WHERE archived=false AND "SeriesId" = ANY($${params.length + 1}::text[]) AND (${conditions.join(" OR ")})`,
+          [...params, seriesIds]
         )
         .then((result) => Number(result.rows?.[0]?.count || 0))
         .catch(() => 0)
@@ -4336,7 +4359,7 @@ async function testOidcDiscovery(issuerUrl) {
   }
 
   try {
-    const response = await axios.get(`${normalizedIssuer}/.well-known/openid-configuration`, { timeout: 8000 });
+    const response = await axios.get(joinSafeHttpUrl(normalizedIssuer, "/.well-known/openid-configuration"), { timeout: 8000 });
     const discovery = response?.data || {};
     const hasRequiredEndpoints = discovery.authorization_endpoint && discovery.token_endpoint && discovery.issuer;
 
@@ -4395,7 +4418,7 @@ async function getArrItemByProvider(app, providerType, providerId) {
   const providerKey = providerType === "movie" ? "tmdbId" : "tvdbId";
 
   try {
-    const direct = await axios.get(`${url}${apiPath}`, {
+    const direct = await axios.get(joinSafeHttpUrl(url, apiPath), {
       timeout: 10000,
       headers: { "X-Api-Key": apiKey },
       params: { [providerKey]: providerId },
@@ -4409,7 +4432,7 @@ async function getArrItemByProvider(app, providerType, providerId) {
   }
 
   try {
-    const response = await axios.get(`${url}${apiPath}`, {
+    const response = await axios.get(joinSafeHttpUrl(url, apiPath), {
       timeout: 10000,
       headers: { "X-Api-Key": apiKey },
     });
@@ -4611,12 +4634,19 @@ async function purgeLibraryItems(id, withActivity, purgeAll = false) {
   await db.query(items_query, [id]);
 
   if (withActivity) {
-    const deleteQuery = {
-      text: `DELETE FROM jf_playback_activity WHERE${
-        episodeIds.length > 0 ? ` "EpisodeId" IN (${pgp.as.csv(episodeIds)})  OR` : ""
-      }${seasonIds.length > 0 ? ` "SeasonId" IN (${pgp.as.csv(seasonIds)}) OR` : ""} "NowPlayingItemId"='${id}'`,
-    };
-    await db.query(deleteQuery);
+    const params = [];
+    const clauses = [];
+    if (episodeIds.length > 0) {
+      params.push(episodeIds);
+      clauses.push(`"EpisodeId" = ANY($${params.length}::text[])`);
+    }
+    if (seasonIds.length > 0) {
+      params.push(seasonIds);
+      clauses.push(`"SeasonId" = ANY($${params.length}::text[])`);
+    }
+    params.push(id);
+    clauses.push(`"NowPlayingItemId" = $${params.length}`);
+    await db.query(`DELETE FROM jf_playback_activity WHERE ${clauses.join(" OR ")}`, params);
   }
   await db.flushMaterializedViewRefreshes();
 }
@@ -4981,7 +5011,7 @@ router.post("/notification-settings", async (req, res) => {
       [{ notifications: nextSettings }]
     );
     await addAuditEntry(req, "notifications.settings.updated", nextSettings);
-    res.send(nextSettings);
+    res.json(nextSettings);
   } catch (error) {
     console.error("Save notification settings failed:", error);
     res.status(503).send({ error: "Unable to save notification settings" });
@@ -4994,7 +5024,7 @@ router.get("/getLibraries", async (req, res) => {
     res.send(libraries);
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -5152,7 +5182,7 @@ router.get("/getRecentlyAdded", async (req, res) => {
     return;
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -5536,14 +5566,13 @@ router.post("/updateCredentials", async (req, res) => {
       return;
     }
 
-    if (config.APP_PASSWORD === current_password) {
-      if (config.APP_PASSWORD === new_password) {
+    if (verifyPassword(current_password, config.APP_PASSWORD)) {
+      if (verifyPassword(new_password, config.APP_PASSWORD)) {
         result.isValid = false;
         result.errorMessage = "New Password cannot be the same as Old Password";
       } else {
-        await db.query(`UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1 AND "APP_PASSWORD"=$2`, [
-          new_password,
-          current_password,
+        await db.query(`UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1`, [
+          hashPassword(new_password),
         ]);
       }
     } else {
@@ -5610,11 +5639,10 @@ router.post("/roles", async (req, res) => {
       return;
     }
 
+    assertSafeObjectKey(cleanRole);
     settings.roles = [...roles, cleanRole];
-    settings.rolePermissions = {
-      ...(settings.rolePermissions || {}),
-      [cleanRole]: { ...DEFAULT_ROLE_PERMISSIONS.Viewer },
-    };
+    settings.rolePermissions = { ...(settings.rolePermissions || {}) };
+    safeAssign(settings.rolePermissions, cleanRole, { ...DEFAULT_ROLE_PERMISSIONS.Viewer });
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.created", { role: cleanRole });
     res.status(201).json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
@@ -5638,7 +5666,9 @@ router.delete("/roles/:role", async (req, res) => {
     const roles = normalizeAccessRoles(settings);
     settings.roles = roles.filter((existingRole) => existingRole !== role);
     settings.rolePermissions = { ...(settings.rolePermissions || {}) };
-    delete settings.rolePermissions[role];
+    if (isSafeObjectKey(role)) {
+      safeDelete(settings.rolePermissions, role);
+    }
 
     settings.userRoles = Object.fromEntries(
       Object.entries(settings.userRoles || {}).map(([userid, assignedRole]) => [userid, assignedRole === role ? "Viewer" : assignedRole])
@@ -5687,11 +5717,14 @@ router.patch("/roles/:role/permissions", async (req, res) => {
       return;
     }
 
+    assertSafeObjectKey(role);
     settings.roles = roles;
-    settings.rolePermissions = {
-      ...(settings.rolePermissions || {}),
-      [role]: persistRolePermissions(role, permissions, (settings.rolePermissions || {})[role]),
-    };
+    settings.rolePermissions = { ...(settings.rolePermissions || {}) };
+    safeAssign(
+      settings.rolePermissions,
+      role,
+      persistRolePermissions(role, permissions, (settings.rolePermissions || {})[role])
+    );
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.permissions.updated", { role, permissions: settings.rolePermissions[role] });
@@ -5728,7 +5761,7 @@ router.post("/localUsers", async (req, res) => {
     const nextUser = {
       id: randomUUID(),
       username,
-      password,
+      password: hashPassword(password),
       role: cleanRole,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -5766,7 +5799,7 @@ router.patch("/localUsers/:id", async (req, res) => {
     localUsers[userIndex] = {
       ...localUsers[userIndex],
       role: role || localUsers[userIndex].role,
-      password: password || localUsers[userIndex].password,
+      password: password ? hashPassword(password) : localUsers[userIndex].password,
       updatedAt: new Date().toISOString(),
     };
 
@@ -5788,7 +5821,7 @@ router.patch("/primaryLocalPassword", async (req, res) => {
       return;
     }
 
-    await db.query('UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1', [password]);
+    await db.query('UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1', [hashPassword(password)]);
     await addAuditEntry(req, "local_user.primary_password_reset", {});
     res.json({ isValid: true });
   } catch (error) {
@@ -5832,10 +5865,9 @@ router.patch("/userRoles/:userid", async (req, res) => {
       return;
     }
 
-    settings.userRoles = {
-      ...(settings.userRoles || {}),
-      [userid]: role,
-    };
+    assertSafeObjectKey(userid);
+    settings.userRoles = { ...(settings.userRoles || {}) };
+    safeAssign(settings.userRoles, userid, role);
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "jellyfin_user.role.updated", { userid, role });
@@ -5852,19 +5884,15 @@ router.post("/updatePassword", async (req, res) => {
   let result = { isValid: true, errorMessage: "" };
 
   try {
-    const { rows } = await db.query(
-      `SELECT "JF_HOST","JF_API_KEY","APP_USER" FROM app_config where "ID"=1 AND "APP_PASSWORD"=$1 `,
-      [current_password],
-    );
+    const { rows } = await db.query(`SELECT "JF_HOST","JF_API_KEY","APP_USER","APP_PASSWORD" FROM app_config where "ID"=1`);
 
-    if (rows && rows.length > 0) {
-      if (current_password === new_password) {
+    if (rows && rows.length > 0 && verifyPassword(current_password, rows[0].APP_PASSWORD)) {
+      if (verifyPassword(new_password, rows[0].APP_PASSWORD)) {
         result.isValid = false;
         result.errorMessage = "New Password cannot be the same as Old Password";
       } else {
-        await db.query(`UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1 AND "APP_PASSWORD"=$2`, [
-          new_password,
-          current_password,
+        await db.query(`UPDATE app_config SET "APP_PASSWORD"=$1 where "ID"=1`, [
+          hashPassword(new_password),
         ]);
       }
     } else {
@@ -5996,7 +6024,7 @@ router.post("/setUntrackedUsers", async (req, res) => {
 
     await db.query(query, [settings]);
 
-    res.send(excludedUsers);
+    res.json(excludedUsers);
   } else {
     res.status(404);
     res.send("Settings not found");
@@ -6031,7 +6059,7 @@ router.delete("/keys", async (req, res) => {
     let query = 'UPDATE app_config SET api_keys=$1 where "ID"=1';
 
     await db.query(query, [JSON.stringify(new_keys_array)]);
-    return res.send("Key removed: " + key);
+    return res.json({ message: "Key removed" });
   } else {
     res.status(404);
     return res.send("API key does not exist");
@@ -6138,8 +6166,9 @@ router.post("/setTaskSettings", async (req, res) => {
       }
 
       let tasksettings = settings.Tasks;
+      assertSafeObjectKey(taskname);
       if (!tasksettings[taskname]) {
-        tasksettings[taskname] = {};
+        safeAssign(tasksettings, taskname, {});
       }
       tasksettings[taskname].Interval = Interval;
 
@@ -6295,7 +6324,7 @@ router.post("/getUserDetails", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6323,7 +6352,7 @@ router.post("/getLibrary", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6487,14 +6516,21 @@ router.delete("/item/purge", async (req, res) => {
         await db.query(`delete from jf_library_items where "Id"=$1`, [id]);
       }
       if (withActivity) {
-        const deleteQuery = {
-          text: `DELETE FROM jf_playback_activity WHERE${
-            episodes.length > 0 ? ` "EpisodeId" IN (${pgp.as.csv(episodes.map((item) => item.EpisodeId))})  OR` : ""
-          }${
-            seasons.length > 0 ? ` "SeasonId" IN (${pgp.as.csv(seasons.map((item) => item.SeasonId))}) OR` : ""
-          } "NowPlayingItemId"='${id}'`,
-        };
-        await db.query(deleteQuery);
+        const episodeIds = episodes.map((item) => item.EpisodeId).filter(Boolean);
+        const seasonIds = seasons.map((item) => item.SeasonId).filter(Boolean);
+        const params = [];
+        const clauses = [];
+        if (episodeIds.length > 0) {
+          params.push(episodeIds);
+          clauses.push(`"EpisodeId" = ANY($${params.length}::text[])`);
+        }
+        if (seasonIds.length > 0) {
+          params.push(seasonIds);
+          clauses.push(`"SeasonId" = ANY($${params.length}::text[])`);
+        }
+        params.push(id);
+        clauses.push(`"NowPlayingItemId" = $${params.length}`);
+        await db.query(`DELETE FROM jf_playback_activity WHERE ${clauses.join(" OR ")}`, params);
       }
     }
 
@@ -6510,7 +6546,7 @@ router.delete("/item/purge", async (req, res) => {
     sendUpdate("GeneralAlert", { type: "Error", message: `There was an error Purging the Data` });
 
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6538,7 +6574,7 @@ router.delete("/library/purge", async (req, res) => {
     sendUpdate("GeneralAlert", { type: "Error", message: `There was an error Purging the Data` });
 
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6563,7 +6599,7 @@ router.delete("/libraryItems/purge", async (req, res) => {
     sendUpdate("GeneralAlert", { type: "Error", message: `There was an error Purging the Data` });
 
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6583,7 +6619,7 @@ router.get("/getBackupTables", async (req, res) => {
     return;
   } catch (error) {
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -6968,7 +7004,7 @@ router.post("/getLibraryHistory", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7099,7 +7135,7 @@ router.post("/getItemHistory", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7226,7 +7262,7 @@ router.post("/getUserHistory", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7241,11 +7277,11 @@ router.post("/deletePlaybackActivity", async (req, res) => {
     }
 
     await db.query(`DELETE from jf_playback_activity where "Id" = ANY($1)`, [ids], true);
-    res.send(`${ids.length} Records Deleted`);
+    res.json({ deleted: ids.length });
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7256,7 +7292,7 @@ router.get("/getTimelineUsers", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7291,7 +7327,7 @@ router.post("/getActivityTimeLine", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(503);
-    res.send(error);
+    sendSafeError(res, error);
   }
 });
 
@@ -7314,7 +7350,7 @@ router.post("/integrations", async (req, res) => {
       clients: saved.clients?.length || 0,
       thirdParty: saved.thirdParty?.length || 0,
     });
-    res.send(saved);
+    res.json(saved);
   } catch (error) {
     console.error("Save integrations failed:", error);
     res.status(503).send({ error: "Unable to save integrations" });
@@ -7491,7 +7527,7 @@ router.post("/maintainerr/actions", async (req, res) => {
     });
     res.send(result);
   } catch (error) {
-    console.error("Maintainerr action failed:", error);
+    console.error("Maintainerr action failed:", sanitizeForLog(getAxiosErrorMessage(error)));
     res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Maintainerr action" });
   }
 });
@@ -7664,7 +7700,7 @@ router.post("/tdarr/actions", async (req, res) => {
     });
     res.send(result);
   } catch (error) {
-    console.error("Tdarr action failed:", getAxiosErrorMessage(error));
+    console.error("Tdarr action failed:", sanitizeForLog(getAxiosErrorMessage(error)));
     res.status(error.statusCode || error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to run Tdarr action" });
   }
 });
@@ -7702,7 +7738,7 @@ router.post("/downloads/add", async (req, res) => {
   }
 
   const isMagnet = typeof value === "string" && value.trim().startsWith("magnet:");
-  const isTorrentUrl = typeof value === "string" && /^https?:\/\/.+\.torrent(\?.*)?$/i.test(value.trim());
+  const isTorrentUrl = typeof value === "string" && isHttpTorrentUrl(value);
 
   if (!isMagnet && !isTorrentUrl) {
     return res.status(400).send({ error: "Use a magnet link or a .torrent URL. File upload is not sent to the client yet." });

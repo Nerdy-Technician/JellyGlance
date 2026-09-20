@@ -1,5 +1,4 @@
 const express = require("express");
-const CryptoJS = require("crypto-js");
 const { createHash, randomBytes, randomUUID } = require("crypto");
 const db = require("../db");
 const jwt = require("jsonwebtoken");
@@ -11,6 +10,21 @@ const TaskManager = require("../classes/task-manager-singleton");
 const triggertype = require("../logging/triggertype");
 
 const { getRolePermissions } = require("../classes/role-permissions");
+const {
+  authRateLimit,
+  hashPassword,
+  isEmptyPassword,
+  isQuickConnectSecret,
+  joinSafeHttpUrl,
+  sanitizeForLog,
+  stripTrailingSlashes,
+  timingSafeEqualString,
+  toSafeHttpUrl,
+  verifyPassword,
+} = require("../utils/security");
+
+const router = express.Router();
+router.use(authRateLimit);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JS_USER = process.env.JS_USER;
@@ -19,8 +33,6 @@ if (JWT_SECRET === undefined) {
   console.log("JWT Secret cannot be undefined");
   process.exit(1); // end the program with error status code
 }
-
-const router = express.Router();
 
 function signSetupToken(username) {
   return new Promise((resolve, reject) => {
@@ -94,7 +106,7 @@ function getJellyfinAuthHeaders(deviceId = "jellyglance-web") {
 }
 
 function normalizeJellyfinUrl(url) {
-  return url?.trim()?.replace(/\/+$/, "");
+  return stripTrailingSlashes(url);
 }
 
 function queueSetupJellyfinTasks() {
@@ -158,7 +170,7 @@ async function authenticateWithQuickConnect(host, secret) {
 
   for (const payload of payloads) {
     try {
-      return await axios.post(`${host}/Users/AuthenticateWithQuickConnect`, payload, {
+      return await axios.post(joinSafeHttpUrl(host, "/Users/AuthenticateWithQuickConnect"), payload, {
         headers,
         timeout: 12000,
       });
@@ -174,7 +186,7 @@ async function authenticateWithQuickConnect(host, secret) {
 }
 
 function normalizeIssuerUrl(url) {
-  return url?.trim()?.replace(/\/+$/, "");
+  return stripTrailingSlashes(url);
 }
 
 function getRequestOrigin(req) {
@@ -303,7 +315,8 @@ async function testOidcDiscovery(issuerUrl) {
   }
 
   try {
-    const response = await axios.get(`${normalizedIssuer}/.well-known/openid-configuration`, { timeout: 8000 });
+    const discoveryUrl = joinSafeHttpUrl(normalizedIssuer, "/.well-known/openid-configuration");
+    const response = await axios.get(discoveryUrl, { timeout: 8000 });
     const discovery = response?.data || {};
     const hasRequiredEndpoints = discovery.authorization_endpoint && discovery.token_endpoint && discovery.issuer;
 
@@ -338,7 +351,7 @@ router.post("/login", async (req, res) => {
     const { rows: login } = await db.query(query);
 
     const authMode = login[0]?.settings?.auth?.mode;
-    const isEmptyLogin = !username || !password || password === CryptoJS.SHA3("").toString();
+    const isEmptyLogin = !username || isEmptyPassword(password);
 
     if (isEmptyLogin && login.length > 0 && (login[0].REQUIRE_LOGIN == true || authMode === "quick-connect")) {
       res.sendStatus(401);
@@ -349,10 +362,11 @@ router.post("/login", async (req, res) => {
     const settings = configRow.settings || {};
     const localUsers = settings.localUsers || [];
     const localUser = localUsers.find(
-      (user) => user.role !== "Disabled" && user.username === username && user.password === password
+      (user) => user.role !== "Disabled" && user.username === username && verifyPassword(password, user.password)
     );
-    const isPrimaryLocalUser = configRow.APP_USER === username && configRow.APP_PASSWORD === password;
-    const isFallbackEnvUser = username === JS_USER && password === CryptoJS.SHA3(JS_PASSWORD).toString();
+    const isPrimaryLocalUser = configRow.APP_USER === username && verifyPassword(password, configRow.APP_PASSWORD);
+    const isFallbackEnvUser =
+      Boolean(JS_USER) && Boolean(JS_PASSWORD) && username === JS_USER && timingSafeEqualString(password, JS_PASSWORD);
     const loginUser = login.filter((user) => isPrimaryLocalUser || localUser || user.REQUIRE_LOGIN == false);
 
     if (loginUser.length > 0 || isFallbackEnvUser) {
@@ -390,7 +404,7 @@ router.post("/jellyfin-quick-connect/initiate", async (req, res) => {
       return;
     }
 
-    const response = await axios.post(`${config.host}/QuickConnect/Initiate`, null, {
+    const response = await axios.post(joinSafeHttpUrl(config.host, "/QuickConnect/Initiate"), null, {
       headers: getJellyfinAuthHeaders(),
       timeout: 12000,
     });
@@ -420,12 +434,12 @@ router.post("/jellyfin-quick-connect/initiate", async (req, res) => {
   }
 });
 
-router.get("/jellyfin-quick-connect/status", async (req, res) => {
+router.post("/jellyfin-quick-connect/status", async (req, res) => {
   try {
-    const { secret } = req.query;
+    const secret = req.body?.secret;
     const config = await getQuickConnectConfig();
 
-    if (!secret) {
+    if (!isQuickConnectSecret(secret)) {
       res.status(400).json({ errorMessage: "Quick Connect secret is required" });
       return;
     }
@@ -435,7 +449,7 @@ router.get("/jellyfin-quick-connect/status", async (req, res) => {
       return;
     }
 
-    const response = await axios.get(`${config.host}/QuickConnect/Connect`, {
+    const response = await axios.get(joinSafeHttpUrl(config.host, "/QuickConnect/Connect"), {
       headers: getJellyfinAuthHeaders(),
       params: { secret },
       timeout: 12000,
@@ -459,7 +473,7 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     const { secret } = req.body;
     const config = await getQuickConnectConfig();
 
-    if (!secret) {
+    if (!isQuickConnectSecret(secret)) {
       res.status(400).json({ errorMessage: "Quick Connect secret is required" });
       return;
     }
@@ -477,7 +491,7 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
     }
 
     const isFirstRunApproval = config.state < 2;
-    console.log(`[SETUP-AUTH] Quick Connect complete. firstRun=${isFirstRunApproval} user=${jellyfinUser.Name || jellyfinUser.Id}`);
+    console.log(`[SETUP-AUTH] Quick Connect complete. firstRun=${isFirstRunApproval} user=${sanitizeForLog(jellyfinUser.Name || jellyfinUser.Id)}`);
 
     if (isFirstRunApproval && !jellyfinUser?.Policy?.IsAdministrator) {
       res.status(403).json({ errorMessage: "Approve Quick Connect with a Jellyfin administrator account" });
@@ -592,20 +606,20 @@ router.get("/oidc/login", async (req, res) => {
 
 router.get("/oidc/callback", async (req, res) => {
   try {
-    const { code, state, error, error_description: errorDescription } = req.query;
-    if (error) {
-      res.status(400).send(renderOidcCallbackPage({ errorMessage: errorDescription || error }));
-      return;
-    }
-
-    if (!code || !state) {
-      res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC callback is missing code or state" }));
+    const { code, state, error } = req.query;
+    if (typeof state !== "string" || !state) {
+      res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC callback is missing state" }));
       return;
     }
 
     const statePayload = await verifyOidcState(state);
     if (statePayload.type !== "oidc" || !statePayload.verifier) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC state is invalid" }));
+      return;
+    }
+
+    if (error || typeof code !== "string" || !code) {
+      res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC login was denied or incomplete" }));
       return;
     }
 
@@ -635,7 +649,7 @@ router.get("/oidc/callback", async (req, res) => {
 
     let tokenResponse;
     try {
-      tokenResponse = await axios.post(auth.discovery.token_endpoint, tokenParams.toString(), {
+      tokenResponse = await axios.post(toSafeHttpUrl(auth.discovery.token_endpoint), tokenParams.toString(), {
         headers,
         timeout: 12000,
       });
@@ -646,7 +660,7 @@ router.get("/oidc/callback", async (req, res) => {
 
       tokenParams.set("client_secret", clientSecret);
       try {
-        tokenResponse = await axios.post(auth.discovery.token_endpoint, tokenParams.toString(), {
+        tokenResponse = await axios.post(toSafeHttpUrl(auth.discovery.token_endpoint), tokenParams.toString(), {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           timeout: 12000,
         });
@@ -656,7 +670,7 @@ router.get("/oidc/callback", async (req, res) => {
         }
 
         tokenParams.delete("client_secret");
-        tokenResponse = await axios.post(auth.discovery.token_endpoint, tokenParams.toString(), {
+        tokenResponse = await axios.post(toSafeHttpUrl(auth.discovery.token_endpoint), tokenParams.toString(), {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           timeout: 12000,
         });
@@ -667,7 +681,7 @@ router.get("/oidc/callback", async (req, res) => {
     let claims = tokenData.id_token ? jwt.decode(tokenData.id_token) || {} : {};
     if (auth.discovery.userinfo_endpoint && tokenData.access_token) {
       try {
-        const userInfoResponse = await axios.get(auth.discovery.userinfo_endpoint, {
+        const userInfoResponse = await axios.get(toSafeHttpUrl(auth.discovery.userinfo_endpoint), {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
           timeout: 12000,
         });
@@ -718,9 +732,8 @@ router.get("/oidc/callback", async (req, res) => {
 
     res.send(renderOidcCallbackPage({ token, appPath }));
   } catch (error) {
-    const errorMessage = getOidcErrorMessage(error);
-    console.log("[OIDC] callback failed", error?.response?.status || 500, errorMessage);
-    res.status(error?.response?.status || 500).send(renderOidcCallbackPage({ errorMessage }));
+    console.log("[OIDC] callback failed", error?.response?.status || 500, sanitizeForLog(error?.message));
+    res.status(error?.response?.status || 500).send(renderOidcCallbackPage({ errorMessage: "Unable to complete OIDC login" }));
   }
 });
 
@@ -784,7 +797,7 @@ router.get("/background-posters", async (req, res) => {
     const posterGroups = await Promise.all(
       itemTypes.map(async (type) => {
         try {
-          const response = await axios.get(`${config.JF_HOST}/Items`, {
+          const response = await axios.get(joinSafeHttpUrl(config.JF_HOST, "/Items"), {
             headers,
             params: {
               Recursive: true,
@@ -850,7 +863,7 @@ router.post("/createuser", async (req, res) => {
     const { username, password } = req.body;
     const config = await new configClass().getConfig();
 
-    if (!username || !password || password === CryptoJS.SHA3("").toString()) {
+    if (!username || isEmptyPassword(password)) {
       res.status(400).json({ errorMessage: "Username and password are required" });
       return;
     }
@@ -868,7 +881,7 @@ router.post("/createuser", async (req, res) => {
         query = 'UPDATE app_config SET  "APP_USER"=$1, "APP_PASSWORD"=$2 where "ID"=1';
       }
 
-      await db.query(query, [username, password]);
+      await db.query(query, [username, hashPassword(password)]);
 
       jwt.sign({ user }, JWT_SECRET, (err, token) => {
         if (err) {
@@ -891,7 +904,7 @@ router.post("/setup-auth", async (req, res) => {
   try {
     const { mode, username, password, issuerUrl, clientId, clientSecret, redirectUri } = req.body;
     const config = await new configClass().getConfig();
-    console.log(`[SETUP-AUTH] setup-auth requested mode=${mode} state=${config.state}`);
+    console.log(`[SETUP-AUTH] setup-auth requested mode=${sanitizeForLog(mode)} state=${sanitizeForLog(config.state)}`);
 
     if (config.state == null || config.state >= 2) {
       res.sendStatus(403);
@@ -916,7 +929,7 @@ router.post("/setup-auth", async (req, res) => {
       params = ["jellyfin-quick-connect", null, true, settings];
       tokenUsername = "jellyfin-quick-connect";
     } else if (mode === "local") {
-      if (!username || !password || password === CryptoJS.SHA3("").toString()) {
+      if (!username || isEmptyPassword(password)) {
         res.status(400).json({ errorMessage: "Username and password are required for local login" });
         return;
       }
@@ -931,7 +944,7 @@ router.post("/setup-auth", async (req, res) => {
         {
           id: randomUUID(),
           username,
-          password,
+          password: hashPassword(password),
           role: "Admin",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

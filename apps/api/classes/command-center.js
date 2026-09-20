@@ -11,12 +11,13 @@ const { getAuditLog, getWebhookDeliveryHistory, mergeSettings, getSettings } = r
 const { fetchSeerrIssueSnapshot } = require("./seerr-issues");
 const NewsletterCampaigns = require("./newsletter-campaigns");
 const { setDownloadPaused } = require("./download-client");
+const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl } = require("../utils/security");
 
 const jellyfinApi = new JellyfinAPI();
 let lastJellyfinSeenWrite = 0;
 
 function cleanUrl(url = "") {
-  return String(url).trim().replace(/\/+$/, "");
+  return stripTrailingSlashes(url);
 }
 
 function tokens(value = "") {
@@ -1277,7 +1278,7 @@ async function putS3CompatibleObject(dest, filename, body) {
   const kService = hmacSha256(kRegion, "s3");
   const kSigning = hmacSha256(kService, "aws4_request");
   const signature = crypto.createHmac("sha256", kSigning).update(stringToSign, "utf8").digest("hex");
-  const target = `${parsed.protocol}//${host}${canonicalUri}`;
+  const target = toSafeHttpUrl(`${parsed.protocol}//${host}${canonicalUri}`);
   await axios.put(target, body, {
     timeout: 120000,
     headers: {
@@ -1300,7 +1301,7 @@ async function uploadBackupRemote(filePath, refLog) {
   const filename = path.basename(filePath);
   try {
     if (kind === "webdav" || kind === "http") {
-      const target = `${cleanUrl(dest.url)}/${encodeURIComponent(filename)}`;
+      const target = joinSafeHttpUrl(cleanUrl(dest.url), encodeURIComponent(filename));
       await axios.put(target, body, {
         timeout: 120000,
         auth: dest.username ? { username: dest.username, password: dest.secret || "" } : undefined,
@@ -1332,7 +1333,7 @@ async function pingNotifiarr(integration) {
   let lastError = "Unable to reach Notifiarr";
   for (const apiPath of paths) {
     try {
-      const response = await axios.get(`${url}${apiPath}`, {
+      const response = await axios.get(joinSafeHttpUrl(url, apiPath), {
         timeout: 10000,
         headers: { "X-API-Key": secret, "X-Api-Key": secret },
         validateStatus: () => true,
@@ -1357,7 +1358,7 @@ async function pingRecyclarr(integration) {
   const url = cleanUrl(integration.values?.url);
   if (!url) return { ok: false, error: "URL required" };
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get(toSafeHttpUrl(url), {
       timeout: 10000,
       headers: integration.values?.secret
         ? { Authorization: `Bearer ${integration.values.secret}`, "X-Api-Key": integration.values.secret }
@@ -1379,7 +1380,7 @@ async function pingAutobrr(integration) {
   const secret = integration.values?.secret;
   if (!url || !secret) return { ok: false, error: "URL and API token required" };
   try {
-    const response = await axios.get(`${url}/api/healthz/liveness`, {
+    const response = await axios.get(joinSafeHttpUrl(url, "/api/healthz/liveness"), {
       timeout: 10000,
       headers: { "X-API-Token": secret },
       validateStatus: () => true,
@@ -1387,7 +1388,7 @@ async function pingAutobrr(integration) {
     if (response.status < 400) {
       return { ok: true, version: "autobrr", message: "autobrr is live" };
     }
-    const fallback = await axios.get(`${url}/api/config`, {
+    const fallback = await axios.get(joinSafeHttpUrl(url, "/api/config"), {
       timeout: 10000,
       headers: { "X-API-Token": secret },
       validateStatus: () => true,
@@ -1445,7 +1446,7 @@ async function pingThirdParty(integration) {
   const url = cleanUrl(integration.values?.url);
   if (!url) return { ok: false, error: "URL required" };
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get(toSafeHttpUrl(url), {
       timeout: 10000,
       headers: integration.values?.secret ? { "X-Api-Key": integration.values.secret, Authorization: `Bearer ${integration.values.secret}` } : {},
       validateStatus: () => true,
