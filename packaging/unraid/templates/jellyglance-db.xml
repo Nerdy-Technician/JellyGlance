@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>jellyglance-db</Name>
+  <Repository>postgres:16-alpine</Repository>
+  <Registry>https://hub.docker.com/_/postgres</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
+  <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
+  <Overview>PostgreSQL 16 for JellyGlance. Put jellyglance and jellyglance-db on the same custom Docker network, then set JellyGlance POSTGRES_IP to jellyglance-db.</Overview>
+  <Category>Other:</Category>
+  <WebUI></WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance-db.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <ExtraParams>--restart=unless-stopped --shm-size=1g</ExtraParams>
+  <Shell>sh</Shell>
+  <Config Name="Database Data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/jellyglance/postgres" Mode="rw" Description="Postgres data directory" Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_USER" Target="POSTGRES_USER" Default="postgres" Description="Postgres username" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_PASSWORD" Target="POSTGRES_PASSWORD" Default="" Description="Postgres password (must match JellyGlance)" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="POSTGRES_DB" Target="POSTGRES_DB" Default="jellyglance" Description="Database name" Type="Variable" Display="always" Required="true" Mask="false"/>
+</Container>

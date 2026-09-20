@@ -1,0 +1,12 @@
+{
+  "jellyglance": {
+    "name": "jellyglance",
+    "desc": "JellyGlance — modern Jellyfin dashboard",
+    "image": "ghcr.io/nerdy-technician/jellyglance:latest"
+  },
+  "jellyglance-db": {
+    "name": "jellyglance-db",
+    "desc": "PostgreSQL 16 for JellyGlance",
+    "image": "postgres:16-alpine"
+  }
+}

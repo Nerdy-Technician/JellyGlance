@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>jellyglance</Name>
+  <Repository>ghcr.io/nerdy-technician/jellyglance:latest</Repository>
+  <Registry>https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
+  <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
+  <Overview>JellyGlance is a modern Jellyfin dashboard for live sessions, user stats, recently added media, libraries, downloads, calendars, webhooks, and backups. It sits beside Jellyfin — not a Seerr/Sonarr/Jellyfin admin replacement. Requires PostgreSQL (install jellyglance-db from this template set, or point at an existing Postgres).</Overview>
+  <Category>MediaApp:Other ProductivityTools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <Shell>sh</Shell>
+  <Requires>PostgreSQL (use jellyglance-db template or your own). Jellyfin URL + API key configured on first run.</Requires>
+  <Config Name="WebUI" Target="3000" Default="3000" Mode="tcp" Description="JellyGlance web UI" Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Config" Target="/app/config" Default="/mnt/user/appdata/jellyglance/config" Mode="rw" Description="Persistent app config" Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Backups" Target="/app/backups" Default="/mnt/user/appdata/jellyglance/backups" Mode="rw" Description="Backup archive storage" Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_USER" Target="POSTGRES_USER" Default="postgres" Description="Postgres username" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_PASSWORD" Target="POSTGRES_PASSWORD" Default="" Description="Postgres password (must match jellyglance-db)" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="POSTGRES_IP" Target="POSTGRES_IP" Default="jellyglance-db" Description="Postgres hostname (container name or IP). Use jellyglance-db when both containers share a custom Docker network." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_PORT" Target="POSTGRES_PORT" Default="5432" Description="Postgres port" Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="POSTGRES_DB" Target="POSTGRES_DB" Default="jellyglance" Description="Postgres database name" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="JWT_SECRET" Target="JWT_SECRET" Default="" Description="Long random secret for session JWTs" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="TZ" Target="TZ" Default="Europe/London" Description="Timezone" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="CONFIG_DIR" Target="CONFIG_DIR" Default="/app/config" Description="In-container config path" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="BACKUP_DIR" Target="BACKUP_DIR" Default="/app/backups" Description="In-container backups path" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>
