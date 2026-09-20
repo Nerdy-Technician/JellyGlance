@@ -39,75 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: |
-          node <<'NODE'
-          const fs = require("fs");
-          const { execFileSync } = require("child_process");
-
-          const repo = process.env.REPO;
-          const repoData = JSON.parse(execFileSync("gh", ["api", `repos/${repo}`], { encoding: "utf8" }));
-          const current = Number(repoData.stargazers_count || 0);
-          const stateFile = ".discord-star-state/count.txt";
-          const hasState = fs.existsSync(stateFile);
-
-          let previous = current;
-          if (hasState) {
-            previous = Number(fs.readFileSync(stateFile, "utf8").trim() || current);
-          }
-
-          const gained = Math.max(0, current - previous);
-          let users = "";
-          let usersJson = "[]";
-          if (gained > 0) {
-            try {
-              const lastPage = Math.max(1, Math.ceil(current / 100));
-              // Pull enough recent pages so a burst of stars is not missed.
-              const pageCount = Math.min(lastPage, Math.max(1, Math.ceil(gained / 100) + 1));
-              const pages = [];
-              for (let page = lastPage; page > lastPage - pageCount && page >= 1; page -= 1) {
-                pages.push(page);
-              }
-              const stargazers = pages.flatMap((page) => JSON.parse(execFileSync("gh", [
-                  "api",
-                  `repos/${repo}/stargazers?per_page=100&page=${page}`,
-                  "-H",
-                  "Accept: application/vnd.github.star+json",
-                ], { encoding: "utf8" })));
-
-              const recent = stargazers
-                .filter((entry) => entry?.user?.login)
-                .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.user.login === entry.user.login) === index)
-                .sort((a, b) => new Date(b.starred_at || 0) - new Date(a.starred_at || 0))
-                .slice(0, gained);
-
-              users = recent
-                .map((entry) => `[@${entry.user.login}](${entry.user.html_url})`)
-                .join(", ");
-
-              usersJson = JSON.stringify(recent.map((entry) => ({
-                login: entry.user.login,
-                html_url: entry.user.html_url,
-                avatar_url: entry.user.avatar_url,
-              })));
-            } catch (error) {
-              console.log(`Unable to read stargazer users: ${error.message}`);
-            }
-          }
-
-          const appendOutput = (name, value) => {
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
-          };
-          const appendMultiline = (name, value) => {
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}<<EOF\n${value}\nEOF\n`);
-          };
-
-          appendOutput("current", current);
-          appendOutput("previous", previous);
-          appendOutput("changed", current > previous ? "true" : "false");
-          appendOutput("has_state", hasState ? "true" : "false");
-          appendOutput("users", users);
-          appendMultiline("users_json", usersJson);
-          NODE
+        run: node .github/scripts/read-star-state.mjs
 
       - name: Install roster image deps
         if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
@@ -120,8 +52,8 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ env.DISCORD_STARS_WEBHOOK }}
           STAR_COUNT: ${{ steps.stars.outputs.current }}
           PREVIOUS_STAR_COUNT: ${{ steps.stars.outputs.previous }}
+          STAR_USERS_FILE: ${{ steps.stars.outputs.users_file }}
           STAR_USERS: ${{ steps.stars.outputs.users }}
-          STAR_USERS_JSON: ${{ steps.stars.outputs.users_json }}
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: node .github/scripts/discord-notify.mjs
 

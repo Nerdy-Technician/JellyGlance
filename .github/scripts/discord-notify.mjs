@@ -395,27 +395,61 @@ async function sendSecrets() {
   });
 }
 
+function normalizeStarUser(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const nested =
+    (entry.user && typeof entry.user === "object" && entry.user) ||
+    (entry.node && typeof entry.node === "object" && entry.node) ||
+    null;
+  const user = nested || entry;
+  const login = user.login;
+  if (!login) return null;
+  return {
+    login: String(login),
+    html_url: user.html_url || user.url || `https://github.com/${login}`,
+    avatar_url: user.avatar_url || user.avatarUrl || `https://github.com/${login}.png`,
+  };
+}
+
+function usersFromUnknown(parsed, source) {
+  if (!Array.isArray(parsed)) {
+    console.log(`${source} was ${typeof parsed}, expected an array`);
+    return [];
+  }
+  const users = parsed.map(normalizeStarUser).filter(Boolean);
+  if (parsed.length && !users.length) {
+    const sample = parsed[0] && typeof parsed[0] === "object" ? Object.keys(parsed[0]).join(",") : typeof parsed[0];
+    console.log(`${source} had ${parsed.length} row(s) but none had a login (sample keys: ${sample})`);
+  }
+  return users;
+}
+
 function parseStarUsers() {
+  const usersFile = optionalEnv("STAR_USERS_FILE", "").trim();
+  if (usersFile) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(usersFile, "utf8"));
+      const users = usersFromUnknown(parsed, `STAR_USERS_FILE=${usersFile}`);
+      console.log(`Parsed ${users.length} stargazer(s) from STAR_USERS_FILE=${usersFile}`);
+      return users;
+    } catch (error) {
+      console.log(`Unable to read STAR_USERS_FILE (${usersFile}): ${error.message}`);
+    }
+  }
+
   const rawJson = optionalEnv("STAR_USERS_JSON", "").trim();
   if (rawJson) {
     try {
-      const parsed = JSON.parse(rawJson);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .filter((entry) => entry && entry.login)
-          .map((entry) => ({
-            login: String(entry.login),
-            html_url: entry.html_url || `https://github.com/${entry.login}`,
-            avatar_url: entry.avatar_url || "",
-          }));
-      }
+      const users = usersFromUnknown(JSON.parse(rawJson), "STAR_USERS_JSON");
+      console.log(`Parsed ${users.length} stargazer(s) from STAR_USERS_JSON`);
+      return users;
     } catch (error) {
       console.log(`Unable to parse STAR_USERS_JSON: ${error.message}`);
     }
   }
 
   const starUsers = optionalEnv("STAR_USERS", "");
-  return starUsers
+  const fromMarkdown = starUsers
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -429,6 +463,12 @@ function parseStarUsers() {
       };
     })
     .filter(Boolean);
+  if (starUsers.trim() && !fromMarkdown.length) {
+    console.log("STAR_USERS was non-empty but no [@login](url) entries parsed");
+  } else if (fromMarkdown.length) {
+    console.log(`Parsed ${fromMarkdown.length} stargazer(s) from STAR_USERS markdown`);
+  }
+  return fromMarkdown;
 }
 
 function buildRosterImage(users) {
@@ -451,12 +491,17 @@ function buildRosterImage(users) {
 }
 
 async function sendStars() {
-  const webhook = requireEnv("DISCORD_WEBHOOK_URL");
+  const dryRun = optionalEnv("DISCORD_DRY_RUN", "") === "1";
+  const webhook = dryRun ? optionalEnv("DISCORD_WEBHOOK_URL", "") : requireEnv("DISCORD_WEBHOOK_URL");
   const current = Number(requireEnv("STAR_COUNT"));
   const previous = Number(optionalEnv("PREVIOUS_STAR_COUNT", "0"));
   const gained = Math.max(0, current - previous);
   const repoUrl = optionalEnv("REPOSITORY_URL", "https://github.com/Nerdy-Technician/JellyGlance");
   const users = parseStarUsers();
+  console.log(`Star notify: ${previous} → ${current} (gained=${gained}), users=${users.length}`);
+  if (gained > 0 && users.length === 0) {
+    console.log("WARNING: posting star digest without resolved profiles");
+  }
   const title =
     gained > 1
       ? `⭐ ${gained} new GitHub stars`
@@ -485,6 +530,18 @@ async function sendStars() {
       tmpDir = roster.tmpDir;
       embed.image = { url: "attachment://roster.png" };
       files = [{ path: roster.pngPath, name: "roster.png", type: "image/png" }];
+    }
+
+    if (dryRun) {
+      const rosterOut = optionalEnv("STAR_ROSTER_OUT", "");
+      if (rosterOut && files[0]) {
+        fs.mkdirSync(path.dirname(rosterOut), { recursive: true });
+        fs.copyFileSync(files[0].path, rosterOut);
+        console.log(`DRY RUN roster=${rosterOut}`);
+      }
+      console.log(`DRY RUN title=${title}`);
+      console.log(`DRY RUN description=\n${embed.description}`);
+      return;
     }
 
     await postDiscord(
