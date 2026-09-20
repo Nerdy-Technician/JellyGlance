@@ -7,7 +7,10 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
   <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
-  <Overview>PostgreSQL 16 for JellyGlance. Put jellyglance and jellyglance-db on the same custom Docker network, then set JellyGlance POSTGRES_IP to jellyglance-db.</Overview>
+  <Overview>PostgreSQL 16 companion for JellyGlance. Install on the same custom Docker network as jellyglance, then set JellyGlance POSTGRES_IP to jellyglance-db with matching credentials.</Overview>
+  <Description>Official postgres:16-alpine image, packaged as a one-click companion for JellyGlance.
+
+Put both containers on one custom network. Match POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB with the jellyglance template. Skip this if you already run Postgres elsewhere.</Description>
   <Category>Other:</Category>
   <WebUI></WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance-db.xml</TemplateURL>

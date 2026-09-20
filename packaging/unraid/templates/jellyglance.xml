@@ -7,14 +7,26 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
   <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
-  <Overview>JellyGlance is a modern Jellyfin dashboard for live sessions, user stats, recently added media, libraries, downloads, calendars, webhooks, and backups. It sits beside Jellyfin — not a Seerr/Sonarr/Jellyfin admin replacement. Requires PostgreSQL (install jellyglance-db from this template set, or point at an existing Postgres).</Overview>
+  <Overview>JellyGlance — modern Jellyfin command center: live sessions, libraries, stats, calendars, requests, downloads, webhooks, and backups. Sits beside Jellyfin (not a Seerr/Sonarr replacement). Needs Postgres (use jellyglance-db or your own).</Overview>
+  <Description>JellyGlance is the dashboard that sits next to your Jellyfin server.
+
+**Highlights**
+- Live sessions and who is watching now
+- Recently added, libraries, activity, and statistics
+- Sonarr/Radarr/Lidarr calendar
+- Optional Jellyseerr/Overseerr, download clients, Tdarr
+- First-run wizard and backups
+
+**Requires** PostgreSQL (install the jellyglance-db template on the same custom Docker network, or point POSTGRES_IP at an existing DB), plus a Jellyfin URL and API key.
+
+WebUI on port 3000. Persist /app/config and /app/backups.</Description>
   <Category>MediaApp:Other ProductivityTools:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <Shell>sh</Shell>
-  <Requires>PostgreSQL (use jellyglance-db template or your own). Jellyfin URL + API key configured on first run.</Requires>
+  <Requires>PostgreSQL (use jellyglance-db template or your own). Jellyfin URL and API key configured on first run.</Requires>
   <Config Name="WebUI" Target="3000" Default="3000" Mode="tcp" Description="JellyGlance web UI" Type="Port" Display="always" Required="true" Mask="false"/>
   <Config Name="Config" Target="/app/config" Default="/mnt/user/appdata/jellyglance/config" Mode="rw" Description="Persistent app config" Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Backups" Target="/app/backups" Default="/mnt/user/appdata/jellyglance/backups" Mode="rw" Description="Backup archive storage" Type="Path" Display="always" Required="true" Mask="false"/>

@@ -1,18 +1,42 @@
 <CommunityApplications>
   <Profile>
-**JellyGlance** is a modern Jellyfin dashboard for live sessions, user stats, recently added media, libraries, downloads, calendars, webhooks, and backups. It sits **beside** Jellyfin — not a Seerr, Sonarr, or Jellyfin admin replacement.
+# JellyGlance
 
-This repository includes Unraid templates for:
-- **jellyglance** — `ghcr.io/nerdy-technician/jellyglance`
-- **jellyglance-db** — PostgreSQL 16 companion (`postgres:16-alpine`)
+**Your Jellyfin command center** — live sessions, libraries, stats, calendars, requests, downloads, webhooks, and backups in one sharp dashboard.
 
-**Install:** put both containers on the same custom Docker network (or point JellyGlance at your own Postgres). Set matching `POSTGRES_*` values and a strong `JWT_SECRET`. Open the WebUI and finish the first-run wizard with your Jellyfin URL + API key.
+Sits **beside** Jellyfin. Not a Seerr, Sonarr, or Jellyfin admin replacement.
 
-Homepage: https://jellyglance.com/  
-Project: https://github.com/Nerdy-Technician/JellyGlance  
-Support: https://github.com/Nerdy-Technician/JellyGlance/issues
+---
+
+### Why Unraid users install it
+- See who is watching and what is playing **right now**
+- Browse recently added, libraries, and activity without hopping apps
+- Calendar for Sonarr / Radarr / Lidarr releases
+- Optional Jellyseerr/Overseerr requests, download queues, Tdarr transcodes
+- First-run wizard: connect Jellyfin, sync, done
+
+### Templates in this repo
+| Template | What it is |
+| --- | --- |
+| **jellyglance** | The app — `ghcr.io/nerdy-technician/jellyglance` |
+| **jellyglance-db** | Postgres 16 companion (skip if you already have Postgres) |
+
+### Install in 3 steps
+1. Create a **custom Docker network**; install **jellyglance-db** (or point at existing Postgres).
+2. Install **jellyglance** on the same network — matching `POSTGRES_*` plus a strong `JWT_SECRET`.
+3. Open the WebUI, then finish the first-run wizard (Jellyfin URL and API key).
+
+**Site:** [jellyglance.com](https://jellyglance.com/) · **Project:** [GitHub](https://github.com/Nerdy-Technician/JellyGlance) · **Support:** [Issues](https://github.com/Nerdy-Technician/JellyGlance/issues)
   </Profile>
   <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
   <WebPage>https://jellyglance.com/</WebPage>
   <Forum>https://github.com/Nerdy-Technician/JellyGlance/issues</Forum>
+  <DonateLink>https://github.com/sponsors/Nerdy-Technician</DonateLink>
+  <DonateText>Support JellyGlance</DonateText>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/home.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/recently-added.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/libraries-grid.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/statistics.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/activity.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/requests.png</Photo>
 </CommunityApplications>
