@@ -16,6 +16,7 @@ const {
   isEmptyPassword,
   isQuickConnectSecret,
   joinSafeHttpUrl,
+  safeHttpGet,
   sanitizeForLog,
   stripTrailingSlashes,
   timingSafeEqualString,
@@ -319,8 +320,7 @@ async function testOidcDiscovery(issuerUrl) {
   }
 
   try {
-    const discoveryUrl = joinSafeHttpUrl(normalizedIssuer, "/.well-known/openid-configuration");
-    const response = await axios.get(discoveryUrl, { timeout: 8000 }); // codeql[js/request-forgery]
+    const response = await safeHttpGet(normalizedIssuer, "/.well-known/openid-configuration", { timeout: 8000 });
     const discovery = response?.data || {};
     const hasRequiredEndpoints = discovery.authorization_endpoint && discovery.token_endpoint && discovery.issuer;
 

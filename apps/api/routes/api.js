@@ -54,6 +54,8 @@ const {
   isHttpTorrentUrl,
   isSafeObjectKey,
   joinSafeHttpUrl,
+  safeHttpGet,
+  mutateSafeRecord,
   safeAssign,
   safeDelete,
   sanitizeForLog,
@@ -4363,7 +4365,7 @@ async function testOidcDiscovery(issuerUrl) {
   }
 
   try {
-    const response = await axios.get(joinSafeHttpUrl(normalizedIssuer, "/.well-known/openid-configuration"), { timeout: 8000 }); // codeql[js/request-forgery]
+    const response = await safeHttpGet(normalizedIssuer, "/.well-known/openid-configuration", { timeout: 8000 });
     const discovery = response?.data || {};
     const hasRequiredEndpoints = discovery.authorization_endpoint && discovery.token_endpoint && discovery.issuer;
 
@@ -5645,8 +5647,9 @@ router.post("/roles", async (req, res) => {
 
     assertSafeObjectKey(cleanRole);
     settings.roles = [...roles, cleanRole];
-    settings.rolePermissions = { ...(settings.rolePermissions || {}) };
-    safeAssign(settings.rolePermissions, cleanRole, { ...DEFAULT_ROLE_PERMISSIONS.Viewer });
+    settings.rolePermissions = mutateSafeRecord(settings.rolePermissions, (map) => {
+      safeAssign(map, cleanRole, { ...DEFAULT_ROLE_PERMISSIONS.Viewer });
+    });
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.created", { role: cleanRole });
     res.status(201).json({ roles: settings.roles, rolePermissions: mergeRolePermissionMap(settings.rolePermissions) });
@@ -5669,9 +5672,12 @@ router.delete("/roles/:role", async (req, res) => {
     const settings = config.settings || {};
     const roles = normalizeAccessRoles(settings);
     settings.roles = roles.filter((existingRole) => existingRole !== role);
-    settings.rolePermissions = { ...(settings.rolePermissions || {}) };
     if (isSafeObjectKey(role)) {
-      safeDelete(settings.rolePermissions, role);
+      settings.rolePermissions = mutateSafeRecord(settings.rolePermissions, (map) => {
+        safeDelete(map, role);
+      });
+    } else {
+      settings.rolePermissions = { ...(settings.rolePermissions || {}) };
     }
 
     settings.userRoles = Object.fromEntries(
@@ -5723,12 +5729,9 @@ router.patch("/roles/:role/permissions", async (req, res) => {
 
     assertSafeObjectKey(role);
     settings.roles = roles;
-    settings.rolePermissions = { ...(settings.rolePermissions || {}) };
-    safeAssign(
-      settings.rolePermissions,
-      role,
-      persistRolePermissions(role, permissions, (settings.rolePermissions || {})[role])
-    );
+    settings.rolePermissions = mutateSafeRecord(settings.rolePermissions, (map) => {
+      safeAssign(map, role, persistRolePermissions(role, permissions, map.get(role)));
+    });
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "role.permissions.updated", { role, permissions: settings.rolePermissions[role] });
@@ -5870,8 +5873,9 @@ router.patch("/userRoles/:userid", async (req, res) => {
     }
 
     assertSafeObjectKey(userid);
-    settings.userRoles = { ...(settings.userRoles || {}) };
-    safeAssign(settings.userRoles, userid, role);
+    settings.userRoles = mutateSafeRecord(settings.userRoles, (map) => {
+      safeAssign(map, userid, role);
+    });
 
     await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
     await addAuditEntry(req, "jellyfin_user.role.updated", { userid, role });
@@ -6169,14 +6173,12 @@ router.post("/setTaskSettings", async (req, res) => {
         settings.Tasks = {};
       }
 
-      let tasksettings = settings.Tasks;
       assertSafeObjectKey(taskname);
-      if (!tasksettings[taskname]) {
-        safeAssign(tasksettings, taskname, {});
-      }
-      tasksettings[taskname].Interval = Interval;
-
-      settings.Tasks = tasksettings;
+      settings.Tasks = mutateSafeRecord(settings.Tasks, (map) => {
+        const current = map.get(taskname) && typeof map.get(taskname) === "object" ? { ...map.get(taskname) } : {};
+        current.Interval = Interval;
+        safeAssign(map, taskname, current);
+      });
 
       let query = 'UPDATE app_config SET settings=$1 where "ID"=1';
 

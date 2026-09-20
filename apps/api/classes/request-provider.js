@@ -1,7 +1,7 @@
 const db = require("../db");
 const { axios } = require("./axios");
 const { getIntegrations } = require("./integration-store");
-const { isSafeObjectKey, joinSafeHttpUrl, safeAssign, safeDelete, sanitizeForLog, stripTrailingSlashes } = require("../utils/security");
+const { isSafeObjectKey, joinSafeHttpUrl, mutateSafeRecord, safeAssign, safeDelete, sanitizeForLog, stripTrailingSlashes } = require("../utils/security");
 
 const PROVIDER_SEERR = "seerr";
 const PROVIDER_MANUAL = "manual";
@@ -217,7 +217,6 @@ async function saveUserRequestFolders(userKey, nextFolders = {}) {
 
   const { rows } = await db.query('SELECT settings FROM app_config where "ID"=1');
   const settings = rows[0]?.settings || {};
-  const map = settings.UserRequestFolders && typeof settings.UserRequestFolders === "object" ? { ...settings.UserRequestFolders } : {};
   const normalized = normalizeUserFolders(nextFolders);
   const isEmpty = !normalized.movieRootFolder && !normalized.tvRootFolder;
   if (!isSafeObjectKey(key)) {
@@ -225,9 +224,10 @@ async function saveUserRequestFolders(userKey, nextFolders = {}) {
     error.statusCode = 400;
     throw error;
   }
-  if (isEmpty) safeDelete(map, key);
-  else safeAssign(map, key, normalized);
-  settings.UserRequestFolders = map;
+  settings.UserRequestFolders = mutateSafeRecord(settings.UserRequestFolders, (map) => {
+    if (isEmpty) safeDelete(map, key);
+    else safeAssign(map, key, normalized);
+  });
   await db.query('UPDATE app_config SET settings=$1 where "ID"=1', [settings]);
   return normalized;
 }

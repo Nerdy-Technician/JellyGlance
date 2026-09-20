@@ -42,15 +42,10 @@ function assertSafeObjectKey(key) {
 
 function safeAssign(target, key, value) {
   const safeKey = assertSafeObjectKey(key);
-  if (!SAFE_IDENT.test(safeKey) && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(safeKey)) {
-    throw new Error("Invalid object key");
+  if (!(target instanceof Map)) {
+    throw new Error("safeAssign requires a Map");
   }
-  if (target instanceof Map) {
-    target.set(safeKey, value);
-    return target;
-  }
-  // codeql[js/remote-property-injection]
-  target[safeKey] = value;
+  target.set(safeKey, value);
   return target;
 }
 
@@ -58,15 +53,34 @@ function safeDelete(target, key) {
   if (!isSafeObjectKey(key)) {
     return false;
   }
-  const safeKey = String(key);
-  if (target instanceof Map) {
-    return target.delete(safeKey);
+  if (!(target instanceof Map)) {
+    throw new Error("safeDelete requires a Map");
   }
-  if (!Object.prototype.hasOwnProperty.call(target, safeKey)) {
-    return false;
+  return target.delete(String(key));
+}
+
+/** Mutate a plain JSON record via Map so user-controlled keys never use [[Set]] on objects. */
+function mutateSafeRecord(record, mutator) {
+  const map = new Map();
+  for (const [entryKey, entryValue] of Object.entries(record && typeof record === "object" ? record : {})) {
+    if (isSafeObjectKey(entryKey)) {
+      map.set(entryKey, entryValue);
+    }
   }
-  // codeql[js/remote-property-injection]
-  return delete target[safeKey];
+  mutator(map);
+  return Object.fromEntries(map);
+}
+
+async function safeHttpGet(baseUrl, relativePath = "", axiosOptions = {}) {
+  const { axios } = require("../classes/axios");
+  const url = joinSafeHttpUrl(baseUrl, relativePath);
+  return axios.get(url, axiosOptions);
+}
+
+async function safeHttpPost(baseUrl, relativePath = "", data, axiosOptions = {}) {
+  const { axios } = require("../classes/axios");
+  const url = joinSafeHttpUrl(baseUrl, relativePath);
+  return axios.post(url, data, axiosOptions);
 }
 
 function assertPathInside(baseDir, candidatePath) {
@@ -314,6 +328,9 @@ module.exports = {
   assertSafeObjectKey,
   safeAssign,
   safeDelete,
+  mutateSafeRecord,
+  safeHttpGet,
+  safeHttpPost,
   assertPathInside,
   safeJoin,
   toSafeHttpUrl,
