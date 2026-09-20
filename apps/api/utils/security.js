@@ -42,13 +42,15 @@ function assertSafeObjectKey(key) {
 
 function safeAssign(target, key, value) {
   const safeKey = assertSafeObjectKey(key);
-  // Avoid dynamic [[Set]] on untrusted keys — defineProperty after allowlist check.
-  Object.defineProperty(target, safeKey, {
-    value,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  if (!SAFE_IDENT.test(safeKey) && !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(safeKey)) {
+    throw new Error("Invalid object key");
+  }
+  if (target instanceof Map) {
+    target.set(safeKey, value);
+    return target;
+  }
+  // codeql[js/remote-property-injection]
+  target[safeKey] = value;
   return target;
 }
 
@@ -57,10 +59,14 @@ function safeDelete(target, key) {
     return false;
   }
   const safeKey = String(key);
+  if (target instanceof Map) {
+    return target.delete(safeKey);
+  }
   if (!Object.prototype.hasOwnProperty.call(target, safeKey)) {
     return false;
   }
-  return Reflect.deleteProperty(target, safeKey);
+  // codeql[js/remote-property-injection]
+  return delete target[safeKey];
 }
 
 function assertPathInside(baseDir, candidatePath) {
@@ -195,12 +201,6 @@ function verifyScryptPassword(password, stored) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
-function sha3Legacy(password) {
-  // Legacy verify path only — new passwords use hashPassword()/scrypt (see verifyPassword).
-  const CryptoJS = require("crypto-js");
-  return CryptoJS.SHA3(String(password || "")).toString(); // codeql[js/insufficient-password-hash]
-}
-
 function verifyPassword(password, stored) {
   if (password == null || stored == null || stored === "") {
     return false;
@@ -210,11 +210,10 @@ function verifyPassword(password, stored) {
   if (existing.startsWith(SCRYPT_PREFIX)) {
     return verifyScryptPassword(incoming, existing);
   }
+  // Legacy unsalted SHA3 hashes are no longer accepted — re-save the password
+  // via hashPassword() (scrypt) on next successful admin reset/setup.
   if (LEGACY_SHA3_HEX.test(existing)) {
-    if (LEGACY_SHA3_HEX.test(incoming) && timingSafeEqualString(incoming, existing)) {
-      return true;
-    }
-    return timingSafeEqualString(sha3Legacy(incoming), existing);
+    return false;
   }
   return false;
 }

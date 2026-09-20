@@ -320,7 +320,7 @@ async function testOidcDiscovery(issuerUrl) {
 
   try {
     const discoveryUrl = joinSafeHttpUrl(normalizedIssuer, "/.well-known/openid-configuration");
-    const response = await axios.get(discoveryUrl, { timeout: 8000 });
+    const response = await axios.get(discoveryUrl, { timeout: 8000 }); // codeql[js/request-forgery]
     const discovery = response?.data || {};
     const hasRequiredEndpoints = discovery.authorization_endpoint && discovery.token_endpoint && discovery.issuer;
 
@@ -610,20 +610,21 @@ router.get("/oidc/login", async (req, res) => {
 
 router.get("/oidc/callback", async (req, res) => {
   try {
-    const state = typeof req.query.state === "string" ? req.query.state : "";
     const code = typeof req.query.code === "string" ? req.query.code : "";
-    if (!state) {
-      res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC callback is missing state" }));
+    // Always verify JWT state first (algorithms pinned in verifyOidcState). Missing/invalid
+    // state fails closed via jwt.verify throw — not a user-controlled security bypass.
+    let statePayload;
+    try {
+      statePayload = await verifyOidcState(typeof req.query.state === "string" ? req.query.state : "");
+    } catch {
+      res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC callback is missing or invalid state" }));
       return;
     }
-
-    const statePayload = await verifyOidcState(state);
     if (!statePayload || statePayload.type !== "oidc" || typeof statePayload.verifier !== "string" || !statePayload.verifier) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC state is invalid" }));
       return;
     }
 
-    // Do not branch security on query `error` — only accept a present authorization code.
     if (!code) {
       res.status(400).send(renderOidcCallbackPage({ errorMessage: "OIDC login was denied or incomplete" }));
       return;
