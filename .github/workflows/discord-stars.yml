@@ -23,11 +23,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Restore star state
         id: star-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .discord-star-state
           key: discord-stars-${{ github.run_id }}
@@ -135,7 +135,7 @@ jobs:
 
       - name: Save star state
         if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .discord-star-state
           key: discord-stars-${{ steps.stars.outputs.current }}
