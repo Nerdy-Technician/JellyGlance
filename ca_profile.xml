@@ -1,0 +1,18 @@
+<CommunityApplications>
+  <Profile>
+**JellyGlance** is a modern Jellyfin dashboard for live sessions, user stats, recently added media, libraries, downloads, calendars, webhooks, and backups. It sits **beside** Jellyfin — not a Seerr, Sonarr, or Jellyfin admin replacement.
+
+This repository includes Unraid templates for:
+- **jellyglance** — `ghcr.io/nerdy-technician/jellyglance`
+- **jellyglance-db** — PostgreSQL 16 companion (`postgres:16-alpine`)
+
+**Install:** put both containers on the same custom Docker network (or point JellyGlance at your own Postgres). Set matching `POSTGRES_*` values and a strong `JWT_SECRET`. Open the WebUI and finish the first-run wizard with your Jellyfin URL + API key.
+
+Homepage: https://jellyglance.com/  
+Project: https://github.com/Nerdy-Technician/JellyGlance  
+Support: https://github.com/Nerdy-Technician/JellyGlance/issues
+  </Profile>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <WebPage>https://jellyglance.com/</WebPage>
+  <Forum>https://github.com/Nerdy-Technician/JellyGlance/issues</Forum>
+</CommunityApplications>
