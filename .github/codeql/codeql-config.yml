@@ -2,7 +2,7 @@ name: "JellyGlance CodeQL"
 queries:
   - uses: security-extended
 query-filters:
-  # Sanitizer helpers live here; sinks are intentional and gated by Map / URL rebuild.
+  # Sanitizer / safe HTTP helpers — sinks are gated by URL rebuild + Map-only writes.
   - exclude:
       id: js/remote-property-injection
       paths:

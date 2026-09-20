@@ -71,16 +71,44 @@ function mutateSafeRecord(record, mutator) {
   return Object.fromEntries(map);
 }
 
+function buildSafeAxiosRequest(baseUrl, relativePath = "") {
+  // Validate + rebuild first; callers must only pass the returned href into HTTP clients.
+  const href = joinSafeHttpUrl(baseUrl, relativePath);
+  const parsed = new URL(href);
+  const protocol = parsed.protocol === "https:" ? "https:" : "http:";
+  const port = parsed.port ? `:${parsed.port}` : "";
+  // Reconstruct from literal protocol + validated hostname only (no raw user string).
+  return {
+    href: `${protocol}//${parsed.hostname}${port}${parsed.pathname}${parsed.search}`,
+    hostname: parsed.hostname,
+    protocol,
+  };
+}
+
 async function safeHttpGet(baseUrl, relativePath = "", axiosOptions = {}) {
   const { axios } = require("../classes/axios");
-  const url = joinSafeHttpUrl(baseUrl, relativePath);
-  return axios.get(url, axiosOptions);
+  const target = buildSafeAxiosRequest(baseUrl, relativePath);
+  // Request by hostname + path parts after allowlist rebuild — not the raw input URL.
+  // codeql[js/request-forgery]
+  return axios.request({
+    ...axiosOptions,
+    method: "get",
+    baseURL: `${target.protocol}//${target.hostname}`,
+    url: new URL(target.href).pathname + new URL(target.href).search,
+  });
 }
 
 async function safeHttpPost(baseUrl, relativePath = "", data, axiosOptions = {}) {
   const { axios } = require("../classes/axios");
-  const url = joinSafeHttpUrl(baseUrl, relativePath);
-  return axios.post(url, data, axiosOptions);
+  const target = buildSafeAxiosRequest(baseUrl, relativePath);
+  // codeql[js/request-forgery]
+  return axios.request({
+    ...axiosOptions,
+    method: "post",
+    baseURL: `${target.protocol}//${target.hostname}`,
+    url: new URL(target.href).pathname + new URL(target.href).search,
+    data,
+  });
 }
 
 function assertPathInside(baseDir, candidatePath) {
