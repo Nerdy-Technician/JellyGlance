@@ -2,8 +2,12 @@ name: Notify / Discord Stars
 
 on:
   workflow_dispatch:
+    inputs:
+      previous_override:
+        description: "Optional previous star count (e.g. 108) to re-digest after fixing auth. Leave blank normally."
+        required: false
+        type: string
   schedule:
-    # Once an hour: one Discord post listing everyone who starred since the last run.
     - cron: "0 * * * *"
 
 permissions:
@@ -37,16 +41,23 @@ jobs:
       - name: Read star state
         id: stars
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Actions GITHUB_TOKEN cannot list stargazers (403 since 2026-06).
+          # Needs a collaborator/admin user PAT as STARS_GITHUB_TOKEN.
+          GH_TOKEN: ${{ secrets.STARS_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: node .github/scripts/read-star-state.mjs
+          STAR_PREVIOUS_OVERRIDE: ${{ inputs.previous_override }}
+        run: |
+          if [ -z "${{ secrets.STARS_GITHUB_TOKEN }}" ]; then
+            echo "::warning::STARS_GITHUB_TOKEN is not set. GITHUB_TOKEN cannot list stargazers (403). Add a collaborator/admin PAT named STARS_GITHUB_TOKEN."
+          fi
+          node .github/scripts/read-star-state.mjs
 
       - name: Install roster image deps
-        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
+        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' && steps.stars.outputs.user_count != '0' }}
         run: python3 -m pip install --user pillow
 
       - name: Post Discord star update
-        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' }}
+        if: ${{ env.DISCORD_STARS_WEBHOOK != '' && steps.stars.outputs.changed == 'true' && steps.stars.outputs.user_count != '0' }}
         env:
           DISCORD_EVENT_TYPE: stars
           DISCORD_WEBHOOK_URL: ${{ env.DISCORD_STARS_WEBHOOK }}
@@ -57,8 +68,14 @@ jobs:
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: node .github/scripts/discord-notify.mjs
 
+      - name: Fail when profiles unresolved
+        if: ${{ steps.stars.outputs.changed == 'true' && steps.stars.outputs.user_count == '0' }}
+        run: |
+          echo "::error::Star count rose but no stargazer profiles resolved (usually missing STARS_GITHUB_TOKEN). Not posting and not advancing saved count."
+          exit 1
+
       - name: Write star state
-        if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
+        if: ${{ steps.stars.outputs.current != '' && ((steps.stars.outputs.changed == 'true' && steps.stars.outputs.user_count != '0') || (steps.stars.outputs.changed != 'true' && steps.stars.outputs.has_state != 'true')) }}
         env:
           STAR_COUNT: ${{ steps.stars.outputs.current }}
         run: |
@@ -66,7 +83,7 @@ jobs:
           printf "%s\n" "${STAR_COUNT}" > .discord-star-state/count.txt
 
       - name: Save star state
-        if: ${{ steps.stars.outputs.current != '' && (steps.stars.outputs.changed == 'true' || steps.stars.outputs.has_state != 'true') }}
+        if: ${{ steps.stars.outputs.current != '' && ((steps.stars.outputs.changed == 'true' && steps.stars.outputs.user_count != '0') || (steps.stars.outputs.changed != 'true' && steps.stars.outputs.has_state != 'true')) }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .discord-star-state
