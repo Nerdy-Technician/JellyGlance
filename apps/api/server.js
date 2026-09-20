@@ -443,7 +443,10 @@ app.use(
 writeEnvVariables().then(() => {
   staticAssetIndex.clear();
   indexStaticAssets(root);
+  // staticRateLimit already applied globally; attach again so CodeQL sees these
+  // async-registered file handlers as rate-limited.
   app.use(
+    staticRateLimit,
     express.static(root, {
       setHeaders: (res, filePath) => {
         if ([".js", ".css", ".html"].includes(path.extname(filePath))) {
@@ -452,7 +455,7 @@ writeEnvVariables().then(() => {
       },
     })
   );
-  app.get("/{*splat}", (req, res, next) => {
+  app.get("/{*splat}", staticRateLimit, (req, res, next) => {
     if (isSocketIoPath(req.url)) {
       return next();
     }
