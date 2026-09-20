@@ -54,15 +54,16 @@ const {
   isHttpTorrentUrl,
   isSafeObjectKey,
   joinSafeHttpUrl,
-  safeHttpGet,
   mutateSafeRecord,
   safeAssign,
   safeDelete,
+  safeHttpGet,
+  safeHttpPost,
   sanitizeForLog,
   sendSafeError,
   stripTrailingSlashes,
   toSafeHttpUrl,
-  verifyPassword,
+  verifyPassword
 } = require("../utils/security");
 
 const router = express.Router();
@@ -341,7 +342,7 @@ async function testArrIntegration(integration) {
   for (const path of apiPaths) {
     try {
       const apiPath = path.replace(":apiKey", encodeURIComponent(apiKey));
-      const response = await axios.get(joinSafeHttpUrl(url, apiPath), {
+      const response = await safeHttpGet(url, apiPath, {
         timeout: 10000,
         headers: { "X-Api-Key": apiKey },
       });
@@ -432,7 +433,7 @@ async function testWizarrIntegration(integration) {
     return { ok: false, error: "URL and API key are required" };
   }
 
-  const response = await axios.get(joinSafeHttpUrl(url, "/api/status"), {
+  const response = await safeHttpGet(url, "/api/status", {
     timeout: 10000,
     headers: getWizarrHeaders(integration),
   });
@@ -452,7 +453,7 @@ async function testTdarrIntegration(integration) {
   }
 
   const [statusResponse, statistics] = await Promise.all([
-    axios.get(joinSafeHttpUrl(url, "/api/v2/status"), {
+    safeHttpGet(url, "/api/v2/status", {
       timeout: 10000,
       headers: getTdarrHeaders(integration),
     }),
@@ -487,7 +488,7 @@ async function testMaintainerrIntegration(integration) {
     return { ok: false, error: "URL is required" };
   }
 
-  const response = await axios.get(joinSafeHttpUrl(url, "/api/health"), {
+  const response = await safeHttpGet(url, "/api/health", {
     timeout: 10000,
     headers: getMaintainerrHeaders(integration),
   });
@@ -1464,7 +1465,7 @@ async function getConnectedTdarrIntegration() {
 
 async function fetchTdarrCrudDb(integration, payload) {
   const url = cleanIntegrationUrl(integration.values?.url);
-  const response = await axios.post(joinSafeHttpUrl(url, "/api/v2/cruddb"), payload, {
+  const response = await safeHttpPost(url, "/api/v2/cruddb", payload, {
     timeout: 12000,
     headers: {
       ...getTdarrHeaders(integration),
@@ -4424,7 +4425,7 @@ async function getArrItemByProvider(app, providerType, providerId) {
   const providerKey = providerType === "movie" ? "tmdbId" : "tvdbId";
 
   try {
-    const direct = await axios.get(joinSafeHttpUrl(url, apiPath), { // codeql[js/request-forgery]
+    const direct = await safeHttpGet(url, apiPath, {
       timeout: 10000,
       headers: { "X-Api-Key": apiKey },
       params: { [providerKey]: providerId },
@@ -4438,7 +4439,7 @@ async function getArrItemByProvider(app, providerType, providerId) {
   }
 
   try {
-    const response = await axios.get(joinSafeHttpUrl(url, apiPath), { // codeql[js/request-forgery]
+    const response = await safeHttpGet(url, apiPath, { // codeql[js/request-forgery]
       timeout: 10000,
       headers: { "X-Api-Key": apiKey },
     });

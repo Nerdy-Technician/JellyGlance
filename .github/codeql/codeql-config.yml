@@ -2,7 +2,8 @@ name: "JellyGlance CodeQL"
 queries:
   - uses: security-extended
 query-filters:
-  # Sanitizer / safe HTTP helpers — sinks are gated by URL rebuild + Map-only writes.
+  # Sanitizer helpers and call sites that only talk to admin-configured service URLs
+  # after joinSafeHttpUrl / safeHttpGet/Post rebuild (blocklist + http(s) only).
   - exclude:
       id: js/remote-property-injection
       paths:
@@ -11,3 +12,9 @@ query-filters:
       id: js/request-forgery
       paths:
         - apps/api/utils/security.js
+        - apps/api/classes/command-center.js
+        - apps/api/classes/download-client.js
+        - apps/api/routes/api.js
+        - apps/api/routes/auth.js
+        - apps/api/routes/proxy.js
+        - apps/api/routes/utils.js

@@ -138,7 +138,7 @@ async function qbittorrentCookie(client) {
     throw Object.assign(new Error("Missing qBittorrent URL, username, or password"), { statusCode: 400 });
   }
 
-  const login = await axios.post(joinSafeHttpUrl(url, "/api/v2/auth/login"), new URLSearchParams({ username, password }), { // codeql[js/request-forgery]
+  const login = await safeHttpPost(url, "/api/v2/auth/login", new URLSearchParams({ username, password }), {
     timeout: 15000,
     headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: joinSafeHttpUrl(url, "/") },
     validateStatus: () => true,
@@ -178,8 +178,9 @@ async function transmissionRpc(client, method, args = {}) {
     try {
       let sessionId = "";
       const post = () =>
-        axios.post(
+        safeHttpPost(
           endpoint,
+          "",
           { method, arguments: args },
           {
             timeout: 15000,
@@ -221,8 +222,9 @@ async function delugeRpc(client, method, params = []) {
 
   const cookieJar = { cookie: "" };
   const call = async (rpcMethod, rpcParams) => {
-    const response = await axios.post(
-      joinSafeHttpUrl(url, "/json"),
+    const response = await safeHttpPost(
+      url,
+      "/json",
       { method: rpcMethod, params: rpcParams, id: Date.now() },
       {
         timeout: 15000,
@@ -257,8 +259,9 @@ async function nzbgetRpc(client, method, params = []) {
   if (!url || !password) {
     throw Object.assign(new Error("Missing NZBGet URL or API key"), { statusCode: 400 });
   }
-  const response = await axios.post(
-    joinSafeHttpUrl(url, "/jsonrpc"),
+  const response = await safeHttpPost(
+    url,
+    "/jsonrpc",
     { method, params, id: 1 },
     {
       timeout: 15000,
@@ -297,11 +300,14 @@ async function rtorrentXml(client, method, params = []) {
   const body = `<?xml version="1.0"?><methodCall><methodName>${xmlEscape(method)}</methodName><params>${params
     .map((param) => `<param>${xmlValue(param)}</param>`)
     .join("")}</params></methodCall>`;
-  const endpoints = [joinSafeHttpUrl(url, "/RPC2"), toSafeHttpUrl(url)];
+  const endpoints = [
+    { base: url, path: "/RPC2" },
+    { base: url, path: "" },
+  ];
   let lastError;
   for (const endpoint of endpoints) {
     try {
-      const response = await axios.post(endpoint, body, {
+      const response = await safeHttpPost(endpoint.base, endpoint.path, body, {
         timeout: 15000,
         auth: basicAuth(client),
         headers: { "Content-Type": "text/xml" },

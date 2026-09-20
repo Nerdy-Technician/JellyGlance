@@ -4,7 +4,7 @@ const { axios } = require("../classes/axios");
 const configClass = require("../classes/config");
 const API = require("../classes/api-loader");
 const { getIntegrations } = require("../classes/integration-store");
-const { joinSafeHttpUrl, sendSafeError, toSafeHttpUrl } = require("../utils/security");
+const { joinSafeHttpUrl, sendSafeError, toSafeHttpUrl, safeHttpGet} = require("../utils/security");
 
 const router = express.Router();
 const SAFE_DEVICE_NAME = /^[A-Za-z0-9._-]{1,64}$/;
@@ -331,7 +331,7 @@ router.get("/Plugins/Images/", async (req, res) => {
         continue;
       }
 
-      const response = await axios.get(toSafeHttpUrl(url), {
+      const response = await safeHttpGet(url, "", {
         responseType: "arraybuffer",
         headers: {
           ...(imageUrl ? {} : { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` }),

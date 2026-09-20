@@ -11,7 +11,7 @@ const { getAuditLog, getWebhookDeliveryHistory, mergeSettings, getSettings } = r
 const { fetchSeerrIssueSnapshot } = require("./seerr-issues");
 const NewsletterCampaigns = require("./newsletter-campaigns");
 const { setDownloadPaused } = require("./download-client");
-const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl } = require("../utils/security");
+const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl, safeHttpGet, safeHttpPost} = require("../utils/security");
 
 const jellyfinApi = new JellyfinAPI();
 let lastJellyfinSeenWrite = 0;
@@ -1333,7 +1333,7 @@ async function pingNotifiarr(integration) {
   let lastError = "Unable to reach Notifiarr";
   for (const apiPath of paths) {
     try {
-      const response = await axios.get(joinSafeHttpUrl(url, apiPath), {
+      const response = await safeHttpGet(url, apiPath, {
         timeout: 10000,
         headers: { "X-API-Key": secret, "X-Api-Key": secret },
         validateStatus: () => true,
@@ -1358,7 +1358,7 @@ async function pingRecyclarr(integration) {
   const url = cleanUrl(integration.values?.url);
   if (!url) return { ok: false, error: "URL required" };
   try {
-    const response = await axios.get(toSafeHttpUrl(url), {
+    const response = await safeHttpGet(url, "", {
       timeout: 10000,
       headers: integration.values?.secret
         ? { Authorization: `Bearer ${integration.values.secret}`, "X-Api-Key": integration.values.secret }
@@ -1380,7 +1380,7 @@ async function pingAutobrr(integration) {
   const secret = integration.values?.secret;
   if (!url || !secret) return { ok: false, error: "URL and API token required" };
   try {
-    const response = await axios.get(joinSafeHttpUrl(url, "/api/healthz/liveness"), {
+    const response = await safeHttpGet(url, "/api/healthz/liveness", {
       timeout: 10000,
       headers: { "X-API-Token": secret },
       validateStatus: () => true,
@@ -1388,7 +1388,7 @@ async function pingAutobrr(integration) {
     if (response.status < 400) {
       return { ok: true, version: "autobrr", message: "autobrr is live" };
     }
-    const fallback = await axios.get(joinSafeHttpUrl(url, "/api/config"), {
+    const fallback = await safeHttpGet(url, "/api/config", {
       timeout: 10000,
       headers: { "X-API-Token": secret },
       validateStatus: () => true,
@@ -1412,7 +1412,7 @@ async function fetchAutobrrHits() {
     const secret = app.values?.secret;
     if (!url || !secret) continue;
     try {
-      const response = await axios.get(`${url}/api/release`, {
+      const response = await safeHttpGet(url, "/api/release", {
         timeout: 12000,
         headers: { "X-API-Token": secret },
         params: { limit: 25, offset: 0 },
@@ -1446,7 +1446,7 @@ async function pingThirdParty(integration) {
   const url = cleanUrl(integration.values?.url);
   if (!url) return { ok: false, error: "URL required" };
   try {
-    const response = await axios.get(toSafeHttpUrl(url), {
+    const response = await safeHttpGet(url, "", {
       timeout: 10000,
       headers: integration.values?.secret ? { "X-Api-Key": integration.values.secret, Authorization: `Bearer ${integration.values.secret}` } : {},
       validateStatus: () => true,
