@@ -16,7 +16,7 @@
     "cors": "^2.8.5",
     "crypto-js": "^4.1.1",
     "dayjs": "^1.11.23",
-    "dotenv": "^18.0.0",
+    "dotenv": "^18.0.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "i18next": "^26.4.2",
