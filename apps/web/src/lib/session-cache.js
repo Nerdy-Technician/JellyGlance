@@ -53,7 +53,7 @@ function getVideoStream(row) {
 
   let transcodeType = "Direct Play";
   let transcodeVideoCodec = "";
-  let transcodeVideoResolution = "";
+  let transcodeVideoResolution;
   if (row.TranscodingInfo && !row.TranscodingInfo.IsVideoDirect) {
     transcodeType = "Transcode";
     transcodeVideoResolution = getVideoResolution(row.TranscodingInfo.Height);

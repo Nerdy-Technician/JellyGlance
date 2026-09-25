@@ -16,7 +16,7 @@ function formatTime(time) {
     seconds: [i18next.t("UNITS.SECOND"), i18next.t("UNITS.SECONDS")],
   };
 
-  let formattedTime = "";
+  let formattedTime;
 
   if (time.days) {
     formattedTime = `${time.days} ${units.days[time.days > 1 ? 1 : 0]}`;

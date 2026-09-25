@@ -1,0 +1,63 @@
+# Dependency updates via Renovate, authored by JellyGlance Security Bot.
+# Replaces Dependabot so update PRs are opened by our GitHub App: their
+# checks then get normal Actions secrets (Dependabot PRs only see the
+# empty Dependabot secret store).
+#
+# Needs SECURITY_BOT_APP_ID / SECURITY_BOT_PRIVATE_KEY, and the Security Bot
+# app installed on this repo with read & write on Contents, Pull requests,
+# Issues (dependency dashboard) and Workflows (to bump action versions).
+name: Renovate (Security Bot)
+
+on:
+  schedule:
+    # 09:00 Europe/London during BST (cron is UTC). Adjust to 09:00 UTC in winter if wanted.
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      log-level:
+        description: Renovate log level
+        required: false
+        default: info
+        type: choice
+        options: [info, debug]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Mint JellyGlance Security Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Security Bot
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_PRIVATE_KEY }}
+
+      # Never fall back to github-actions[bot]: PRs opened with GITHUB_TOKEN
+      # don't trigger other workflows, which defeats the point.
+      - name: Require Security Bot token
+        if: steps.bot.outputs.using-bot != 'true'
+        run: |
+          echo "::error::JellyGlance Security Bot credentials missing or invalid; refusing to run Renovate as github-actions[bot]."
+          exit 1
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@f3a31a786096ba6b40d0f0ffe11a494ef73bfa7c # v46.3.4
+        with:
+          token: ${{ steps.bot.outputs.token }}
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_PLATFORM_COMMIT: "enabled"
+          RENOVATE_ONBOARDING: "false"
+          LOG_LEVEL: ${{ inputs.log-level || 'info' }}

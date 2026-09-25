@@ -120,7 +120,7 @@ function formatMessageTime(value) {
   if (!value) return "the scheduled time";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  let twelveHour = false;
+  let twelveHour;
   try {
     twelveHour = JSON.parse(localStorage.getItem("12hr"));
   } catch {
