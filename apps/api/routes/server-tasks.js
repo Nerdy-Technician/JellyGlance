@@ -237,17 +237,18 @@ router.put("/active-times", async (req, res) => {
     return;
   }
   try {
-    const schedules = await readSchedules();
+    // Use a Map so the user-supplied key can never write onto an object prototype.
+    const schedules = new Map(Object.entries(await readSchedules()));
     if (req.body?.clear) {
-      delete schedules[key];
+      schedules.delete(key);
     } else if (key === GLOBAL_KEY) {
-      const next = normalizeSchedule(req.body, schedules[key]);
-      schedules[key] = { ...next, autoRun: false, useGlobal: false };
+      const next = normalizeSchedule(req.body, schedules.get(key));
+      schedules.set(key, { ...next, autoRun: false, useGlobal: false });
     } else {
-      schedules[key] = normalizeSchedule(req.body, schedules[key]);
+      schedules.set(key, normalizeSchedule(req.body, schedules.get(key)));
     }
-    await writeSchedules(schedules);
-    res.json({ key, schedule: scheduleView(key, schedules[key]) });
+    await writeSchedules(Object.fromEntries(schedules));
+    res.json({ key, schedule: scheduleView(key, schedules.get(key)) });
   } catch (error) {
     res.status(503).json({ error: error.message || "Unable to save active times" });
   }

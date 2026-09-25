@@ -62,6 +62,12 @@ function clamp(value, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function userRuleFor(rules, key) {
+  return Object.hasOwn(rules.users || {}, key) ? rules.users[key] : {};
+}
+
 function normalizeUserRule(rule = {}) {
   const mode = ["default", "unlimited", "custom"].includes(rule.mode) ? rule.mode : "default";
   return {
@@ -73,10 +79,12 @@ function normalizeUserRule(rule = {}) {
 }
 
 function normalizeRules(input = {}) {
-  const users = {};
-  Object.entries(input.users || {}).forEach(([key, rule]) => {
-    if (key) users[String(key)] = normalizeUserRule(rule);
-  });
+  // Build from entries so user-supplied keys can never write onto an object prototype.
+  const users = Object.fromEntries(
+    Object.entries(input.users || {})
+      .filter(([key]) => key && !UNSAFE_KEYS.has(key))
+      .map(([key, rule]) => [String(key), normalizeUserRule(rule)])
+  );
   return {
     enabled: Boolean(input.enabled ?? DEFAULT_RULES.enabled),
     movieLimit: clamp(input.movieLimit, DEFAULT_RULES.movieLimit, 0, 999),
@@ -105,7 +113,7 @@ async function saveRules(next = {}) {
 
 function effectiveLimits(rules, user) {
   const key = userKey(user);
-  const rule = normalizeUserRule(rules.users[key]);
+  const rule = normalizeUserRule(userRuleFor(rules, key));
   if (!rules.enabled || (rules.exemptAdmins && isAdmin(user)) || rule.mode === "unlimited") return { unlimited: true, rule };
   return {
     unlimited: false,
@@ -160,7 +168,7 @@ async function checkQuota(user, mediaType) {
 }
 
 function shouldAutoApprove(rules, user) {
-  const rule = normalizeUserRule(rules.users[userKey(user)]);
+  const rule = normalizeUserRule(userRuleFor(rules, userKey(user)));
   if (rule.autoApprove === "always") return true;
   if (rule.autoApprove === "never") return false;
   return rules.autoApproveAll || isAdmin(user);
