@@ -1,4 +1,36 @@
 {
+  "1.2.11": [
+    {
+      "icon": "shield",
+      "title": "Hardened API",
+      "body": "Every medium, high, and critical CodeQL finding is closed. Outbound requests go through one sanitised helper, and static routes are rate limited."
+    },
+    {
+      "icon": "shield",
+      "title": "Stronger Sign-In",
+      "body": "Passwords use scrypt only and sessions expire after 12 hours. Accounts still on the old SHA3 hash need a password reset."
+    },
+    {
+      "icon": "rocket",
+      "title": "Unraid And Proxmox",
+      "body": "Install from Unraid Community Apps templates or spin up a Proxmox LXC with the new packaging scripts."
+    },
+    {
+      "icon": "speed",
+      "title": "Nightly Builds",
+      "body": "A nightly GHCR image tracks main. Images run Node 25 on amd64 and arm64, and Node 22 on arm/v7."
+    },
+    {
+      "icon": "magic",
+      "title": "Docs Have A New Home",
+      "body": "Documentation now lives in its own repository and is published at jellyglance.com."
+    },
+    {
+      "icon": "palette",
+      "title": "Fresher Foundations",
+      "body": "MUI 9, Vite 8, and ESLint 10, with Renovate keeping dependencies current from here on."
+    }
+  ],
   "1.2.10": [
     {
       "icon": "rocket",
