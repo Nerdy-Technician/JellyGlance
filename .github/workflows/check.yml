@@ -49,9 +49,6 @@ jobs:
       - name: Bundle budget
         run: node scripts/check-bundle-budget.cjs
 
-      - name: Build docs
-        run: npm run build:docs
-
       - name: Quality summary
         if: always()
         run: |

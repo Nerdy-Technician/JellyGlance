@@ -83,8 +83,8 @@ def avatar_for(url: str, login: str) -> Image.Image:
 def logo() -> Image.Image | None:
     here = Path(__file__).resolve()
     for path in (
-        here.parents[2] / "docs/public/icon-b-192.png",
-        Path("docs/public/icon-b-192.png"),
+        here.parents[2] / ".github/assets/icon-b-192.png",
+        Path(".github/assets/icon-b-192.png"),
     ):
         if path.exists():
             try:
@@ -92,7 +92,7 @@ def logo() -> Image.Image | None:
             except Exception:
                 pass
     img = fetch(
-        "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
+        "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-192.png",
         LOGO,
     )
     return circle(img, LOGO) if img else None

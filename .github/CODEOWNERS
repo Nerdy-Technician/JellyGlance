@@ -5,6 +5,5 @@
 /.github/                 @Nerdy-Technician
 /apps/api/                @Nerdy-Technician
 /apps/web/                @Nerdy-Technician
-/docs/                    @Nerdy-Technician
 /Dockerfile*              @Nerdy-Technician
 /docker-compose*.yml      @Nerdy-Technician
