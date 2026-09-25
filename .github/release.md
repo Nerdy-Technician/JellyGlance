@@ -75,6 +75,57 @@ Dependency updates now come from Renovate running as the JellyGlance Security Bo
 
 <br>
 
+## 📝 Changes
+
+### 🔐 Security
+
+- chore(deps): replace Dependabot with Renovate via Security Bot, apply open dependency updates @Nerdy-Technician (#138)
+- chore(deps): bump actions/checkout from 4.4.0 to 7.0.1 @dependabot[bot] (#135)
+- chore(deps): bump github/codeql-action/upload-sarif from 3.38.1 to 4.38.1 @dependabot[bot] (#125)
+- ci: clear Scorecard pinned-deps flood and related hygiene @Nerdy-Technician (#117)
+- Harden API against CodeQL medium/high/critical findings @Nerdy-Technician (#116)
+- chore(deps): bump actions/upload-artifact from 4 to 7 @dependabot[bot] (#112)
+- chore(deps): bump google/osv-scanner-action from 2.0.1 to 2.6.0 @dependabot[bot] (#111)
+- ci: Discord digests, security automation, and repo triage bots @Nerdy-Technician (#106)
+
+### 🐳 Docker / Deploy
+
+- ci: clear Scorecard pinned-deps flood and related hygiene @Nerdy-Technician (#117)
+- chore(deps): bump node from 22-bookworm-slim to 25-bookworm-slim @dependabot[bot] (#110)
+
+### 🧰 Maintenance
+
+- chore(deps): replace Dependabot with Renovate via Security Bot, apply open dependency updates @Nerdy-Technician (#138)
+- chore(deps): bump the production-dependencies group with 3 updates @dependabot[bot] (#136)
+- chore(deps): bump actions/checkout from 4.4.0 to 7.0.1 @dependabot[bot] (#135)
+- chore(deps): bump @mui/material from 6.5.0 to 9.4.0 in the production-dependencies group @dependabot[bot] (#134)
+- chore(deps): bump actions/configure-pages from 5.0.0 to 6.0.0 @dependabot[bot] (#132)
+- chore(deps): bump actions/cache/save from 4.3.0 to 6.1.0 @dependabot[bot] (#131)
+- chore(deps): bump the production-dependencies group with 2 updates @dependabot[bot] (#129)
+- chore(deps): bump the production-dependencies group with 2 updates @dependabot[bot] (#124)
+- chore(deps): bump actions/github-script from 7.1.0 to 9.0.0 @dependabot[bot] (#128)
+- chore(deps): bump github/codeql-action/upload-sarif from 3.38.1 to 4.38.1 @dependabot[bot] (#125)
+- chore(deps): bump actions/cache/restore from 4.3.0 to 6.1.0 @dependabot[bot] (#126)
+- chore(deps): bump actions/setup-node from 4.4.0 to 7.0.0 @dependabot[bot] (#127)
+- chore(deps): bump docker/setup-qemu-action from 3.7.0 to 4.4.0 @dependabot[bot] (#119)
+- chore(deps): bump actions/stale from 9.1.0 to 11.0.0 @dependabot[bot] (#120)
+- chore(deps): bump docker/login-action from 3.7.0 to 4.6.0 @dependabot[bot] (#121)
+- chore(deps): bump the production-dependencies group with 4 updates @dependabot[bot] (#118)
+- chore(deps): bump docker/metadata-action from 5.10.0 to 6.2.0 @dependabot[bot] (#122)
+- ci: clear Scorecard pinned-deps flood and related hygiene @Nerdy-Technician (#117)
+- Harden API against CodeQL medium/high/critical findings @Nerdy-Technician (#116)
+- chore(deps): bump the production-dependencies group with 7 updates @dependabot[bot] (#114)
+- chore(deps): bump node from 22-bookworm-slim to 25-bookworm-slim @dependabot[bot] (#110)
+- chore(deps): bump release-drafter/release-drafter from 6 to 7 @dependabot[bot] (#113)
+- chore(deps): bump actions/upload-artifact from 4 to 7 @dependabot[bot] (#112)
+- chore(deps): bump google/osv-scanner-action from 2.0.1 to 2.6.0 @dependabot[bot] (#111)
+- chore(deps): bump actions/first-interaction from 1 to 3 @dependabot[bot] (#109)
+- chore(deps): bump actions/labeler from 5 to 7 @dependabot[bot] (#108)
+- ci: Discord digests, security automation, and repo triage bots @Nerdy-Technician (#106)
+- chore(deps): bump the production-dependencies group with 8 updates @dependabot[bot] (#104)
+
+<br>
+
 ---
 
 <div align="center">
