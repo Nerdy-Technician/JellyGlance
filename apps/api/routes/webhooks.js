@@ -4,7 +4,7 @@ const dbInstance = require('../db');
 const WebhookManager = require('../classes/webhook-manager');
 const WebhookScheduler = require('../classes/webhook-scheduler');
 const { addAuditEntry, getWebhookDeliveryHistory, mergeSettings, getSettings } = require('../classes/admin-history');
-const { getCardSettings, normalizeCardSettings, previewWebhookCard, CARD_THEMES } = require('../classes/discord-webhook-media');
+const { getCardSettings, normalizeCardSettings, previewWebhookCard, CARD_THEMES, CARD_TOGGLES } = require('../classes/discord-webhook-media');
 
 const webhookScheduler = new WebhookScheduler();
 const webhookManager = new WebhookManager();
@@ -27,7 +27,8 @@ const eventTypes = [
     'integration_health_warning',
     'device_authorized',
     'ops_digest',
-    'playback_digest'
+    'playback_digest',
+    'threshold_alert'
 ];
 
 function formatWebhookDeliveryError(errorDetail) {
@@ -120,10 +121,9 @@ router.get('/card-settings', async (req, res) => {
 
 router.post('/card-settings', async (req, res) => {
     try {
-        const next = normalizeCardSettings({
-            theme: req.body?.theme,
-            showClientIcon: req.body?.showClientIcon,
-        });
+        const input = { style: req.body?.style, theme: req.body?.theme, accentColor: req.body?.accentColor };
+        for (const key of CARD_TOGGLES) input[key] = req.body?.[key];
+        const next = normalizeCardSettings(input);
         await mergeSettings({ WebhookCardSettings: next });
         await addAuditEntry(req, 'webhook.card-settings', next);
         res.json(next);
@@ -136,7 +136,8 @@ router.get('/card-preview', async (req, res) => {
     try {
         const file = await previewWebhookCard({
             theme: CARD_THEMES.includes(req.query?.theme) ? req.query.theme : undefined,
-            showClientIcon: req.query?.showClientIcon === 'false' ? false : req.query?.showClientIcon === 'true' ? true : undefined,
+            ...Object.fromEntries(CARD_TOGGLES.map((key) => [key, req.query?.[key] === 'false' ? false : req.query?.[key] === 'true' ? true : undefined])),
+            accentColor: typeof req.query?.accentColor === 'string' ? req.query.accentColor : undefined,
             clientName: req.query?.clientName,
             deviceName: req.query?.deviceName,
             user: req.user,

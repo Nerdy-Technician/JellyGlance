@@ -16,6 +16,7 @@ import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
 import ErrorWarningLineIcon from "remixicon-react/ErrorWarningLineIcon";
 import Edit2LineIcon from "remixicon-react/Edit2LineIcon";
 import DeleteBinLineIcon from "remixicon-react/DeleteBinLineIcon";
+import AlarmWarningLineIcon from "remixicon-react/AlarmWarningLineIcon";
 import { Tooltip } from "@mui/material";
 import { Trans, useTranslation } from "react-i18next";
 import Loading from "../general/loading";
@@ -144,6 +145,12 @@ const eventCards = [
     Icon: HeartPulseLineIcon,
   },
   {
+    id: "threshold_alert",
+    title: "Threshold alert",
+    text: "Stuck downloads, low disk space, failed server jobs and new devices.",
+    Icon: AlarmWarningLineIcon,
+  },
+  {
     id: "device_authorized",
     title: "New Jellyfin client",
     text: "When a device appears on Jellyfin that Glance has not seen before.",
@@ -190,14 +197,14 @@ const webhookTemplates = [
     id: "discord-ops",
     name: "Discord Ops",
     type: "discord",
-    events: ["task_failed", "integration_health_warning", "download_failed"],
+    events: ["task_failed", "integration_health_warning", "download_failed", "threshold_alert"],
     taskFilters: [],
   },
   {
     id: "gotify-health",
     name: "Gotify Health",
     type: "gotify",
-    events: ["integration_health_warning", "task_failed"],
+    events: ["integration_health_warning", "task_failed", "threshold_alert"],
     taskFilters: [],
   },
   {
@@ -285,6 +292,64 @@ function groupWebhookRows(rows) {
   return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+const CARD_DETAIL_TOGGLES = ["showPlayMethod", "showMetaLine", "showGenres", "showProgress", "showOverview"];
+const CARD_ARTWORK_TOGGLES = ["showPoster", "showAvatar"];
+const CARD_TOGGLE_KEYS = ["showClientIcon", "showMediaDetails", ...CARD_DETAIL_TOGGLES, ...CARD_ARTWORK_TOGGLES];
+
+function normalizeCardState(data = {}) {
+  const next = {
+    style: data.style === "text" ? "text" : "card",
+    theme: data.theme || "glance",
+    accentColor: /^#[0-9a-f]{6}$/i.test(data.accentColor || "") ? data.accentColor : "",
+  };
+  for (const key of CARD_TOGGLE_KEYS) next[key] = data[key] !== false;
+  return next;
+}
+
+function TextWebhookPreview({ settings, t }) {
+  const details = settings.showMediaDetails !== false;
+  const fields = [
+    [t("FEATURES.OPS.PREVIEW_FIELD_CLIENT"), "Infuse · Apple TV"],
+  ];
+  if (settings.showPlayMethod !== false) fields.push([t("FEATURES.OPS.PREVIEW_FIELD_PLAYBACK"), "Direct Play"]);
+  if (details) {
+    fields.push([t("FEATURES.OPS.PREVIEW_FIELD_QUALITY"), "4K HDR10 · HEVC · EAC3 5.1"]);
+    if (settings.showProgress !== false) fields.push([t("FEATURES.OPS.PREVIEW_FIELD_PROGRESS"), "18:04 / 45:10 (40%)"]);
+    if (settings.showGenres !== false) fields.push([t("FEATURES.OPS.PREVIEW_FIELD_GENRES"), "Drama, Thriller, Mystery"]);
+  }
+  return (
+    <div
+      className="webhook-text-preview"
+      aria-label={t("FEATURES.OPS.CARD_STYLE_text")}
+      style={settings.accentColor ? { borderLeftColor: settings.accentColor } : undefined}
+    >
+      <div className="webhook-text-preview-body">
+        <div className="webhook-text-preview-author">
+          {settings.showAvatar !== false ? <span className="webhook-text-preview-avatar">N</span> : null}
+          <span>Nerdy · {t("FEATURES.OPS.PREVIEW_NOW_PLAYING")}</span>
+        </div>
+        <strong className="webhook-text-preview-title">Night Shift</strong>
+        <p className="webhook-text-preview-desc">
+          S01E04 · The Watcher
+          {details && settings.showMetaLine !== false ? <><br />2024 · TV-14 · 45m · ★ 8.2</> : null}
+        </p>
+        {details && settings.showOverview !== false ? (
+          <p className="webhook-text-preview-overview">A late shift at the station turns strange when an old case resurfaces.</p>
+        ) : null}
+        <div className="webhook-text-preview-fields">
+          {fields.map(([name, value]) => (
+            <div key={name}>
+              <span>{name}</span>
+              <b>{value}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+      {settings.showPoster !== false ? <div className="webhook-text-preview-poster" aria-hidden="true" /> : null}
+    </div>
+  );
+}
+
 export default function WebhooksSettings() {
   const { t } = useTranslation();
   const [webhooks, setWebhooks] = useState([]);
@@ -296,9 +361,15 @@ export default function WebhooksSettings() {
   const [currentWebhook, setCurrentWebhook] = useState(defaultWebhook);
   const [quietHours, setQuietHours] = useState({ enabled: false, start: "22:00", end: "08:00", digest: true });
   const [quietSaving, setQuietSaving] = useState(false);
-  const [cardSettings, setCardSettings] = useState({ theme: "glance", showClientIcon: true });
+  const [cardSettings, setCardSettings] = useState(() => normalizeCardState());
   const [cardSaving, setCardSaving] = useState(false);
   const [cardPreviewUrl, setCardPreviewUrl] = useState("");
+  const [accentDraft, setAccentDraft] = useState("");
+  const cardPreviewKey = JSON.stringify({ ...cardSettings, style: undefined });
+
+  useEffect(() => {
+    setAccentDraft(cardSettings.accentColor || "");
+  }, [cardSettings.accentColor]);
 
   const groupedWebhooks = useMemo(() => groupWebhookRows(webhooks), [webhooks]);
   const activeEventCount = groupedWebhooks.reduce(
@@ -327,10 +398,7 @@ export default function WebhooksSettings() {
       }
       const cardResponse = await axios.get("/webhooks/card-settings", { headers }).catch(() => null);
       if (cardResponse?.data) {
-        setCardSettings({
-          theme: cardResponse.data.theme || "glance",
-          showClientIcon: cardResponse.data.showClientIcon !== false,
-        });
+        setCardSettings(normalizeCardState(cardResponse.data));
       }
     } catch (err) {
       console.error("Error loading webhooks:", err);
@@ -352,7 +420,7 @@ export default function WebhooksSettings() {
     axios
       .get("/webhooks/card-preview", {
         headers,
-        params: { theme: cardSettings.theme, showClientIcon: cardSettings.showClientIcon },
+        params: { ...cardSettings, style: undefined },
         responseType: "blob",
       })
       .then((response) => {
@@ -370,17 +438,14 @@ export default function WebhooksSettings() {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [cardSettings.theme, cardSettings.showClientIcon]);
+  }, [cardPreviewKey]);
 
   async function saveCardSettings(nextCard) {
     try {
       setCardSaving(true);
       setError(null);
       const response = await axios.post("/webhooks/card-settings", nextCard, { headers });
-      setCardSettings({
-        theme: response.data.theme || "glance",
-        showClientIcon: response.data.showClientIcon !== false,
-      });
+      setCardSettings(normalizeCardState(response.data));
       setSuccess(t("FEATURES.OPS.CARD_SAVED"));
     } catch (err) {
       setError(err.response?.data?.error || t("FEATURES.OPS.CARD_SAVE_FAIL"));
@@ -665,6 +730,20 @@ export default function WebhooksSettings() {
           <p>{t("FEATURES.OPS.CARD_THEME_INTRO")}</p>
         </div>
         <div className="webhook-card-theme-options">
+          <div className="webhook-card-theme-group webhook-card-style-group" role="group" aria-label={t("FEATURES.OPS.CARD_STYLE")}>
+            {["card", "text"].map((style) => (
+              <button
+                type="button"
+                key={style}
+                className={cardSettings.style === style ? "is-active" : ""}
+                disabled={cardSaving}
+                title={t(`FEATURES.OPS.CARD_STYLE_${style}_HINT`)}
+                onClick={() => saveCardSettings({ ...cardSettings, style })}
+              >
+                {t(`FEATURES.OPS.CARD_STYLE_${style}`)}
+              </button>
+            ))}
+          </div>
           <div className="webhook-card-theme-group">
             <button
               type="button"
@@ -697,8 +776,72 @@ export default function WebhooksSettings() {
             />
             {t("FEATURES.OPS.SHOW_CLIENT_ICON")}
           </label>
+          <label className="webhook-quiet-toggle">
+            <input
+              type="checkbox"
+              checked={cardSettings.showMediaDetails !== false}
+              disabled={cardSaving}
+              onChange={(event) => saveCardSettings({ ...cardSettings, showMediaDetails: event.target.checked })}
+            />
+            {t("FEATURES.OPS.SHOW_MEDIA_DETAILS")}
+          </label>
         </div>
-        {cardPreviewUrl ? <img className="webhook-card-preview" src={cardPreviewUrl} alt={t("FEATURES.OPS.CARD_THEME")} /> : null}
+        <div className="webhook-card-customise">
+          <div className="webhook-card-accent">
+            <span>{t("FEATURES.OPS.CARD_ACCENT")}</span>
+            <input
+              type="color"
+              aria-label={t("FEATURES.OPS.CARD_ACCENT")}
+              value={accentDraft || "#7c3aed"}
+              disabled={cardSaving}
+              onChange={(event) => setAccentDraft(event.target.value)}
+              onBlur={() => {
+                if (accentDraft && accentDraft !== cardSettings.accentColor) saveCardSettings({ ...cardSettings, accentColor: accentDraft });
+              }}
+            />
+            <button
+              type="button"
+              className={!cardSettings.accentColor ? "is-active" : ""}
+              disabled={cardSaving || !cardSettings.accentColor}
+              onClick={() => saveCardSettings({ ...cardSettings, accentColor: "" })}
+            >
+              {t("FEATURES.OPS.CARD_ACCENT_EVENT")}
+            </button>
+          </div>
+          <fieldset className="webhook-card-toggle-group" disabled={cardSaving}>
+            <legend>{t("FEATURES.OPS.CARD_ARTWORK")}</legend>
+            {CARD_ARTWORK_TOGGLES.map((key) => (
+              <label className="webhook-quiet-toggle" key={key}>
+                <input
+                  type="checkbox"
+                  checked={cardSettings[key] !== false}
+                  onChange={(event) => saveCardSettings({ ...cardSettings, [key]: event.target.checked })}
+                />
+                {t(`FEATURES.OPS.CARD_TOGGLE_${key}`)}
+              </label>
+            ))}
+          </fieldset>
+          {cardSettings.showMediaDetails !== false ? (
+            <fieldset className="webhook-card-toggle-group" disabled={cardSaving}>
+              <legend>{t("FEATURES.OPS.CARD_DETAILS")}</legend>
+              {CARD_DETAIL_TOGGLES.map((key) => (
+                <label className="webhook-quiet-toggle" key={key}>
+                  <input
+                    type="checkbox"
+                    checked={cardSettings[key] !== false}
+                    onChange={(event) => saveCardSettings({ ...cardSettings, [key]: event.target.checked })}
+                  />
+                  {t(`FEATURES.OPS.CARD_TOGGLE_${key}`)}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+        </div>
+        {cardSettings.style === "text" ? (
+          <TextWebhookPreview settings={cardSettings} t={t} />
+        ) : cardPreviewUrl ? (
+          <img className="webhook-card-preview" src={cardPreviewUrl} alt={t("FEATURES.OPS.CARD_THEME")} />
+        ) : null}
       </section>
 
       <ErrorBoundary>

@@ -83,10 +83,17 @@ const downloadClientOptions = [
   { name: "Transmission", slug: "transmission", protocol: "Torrent", auth: "userpass" },
   { name: "Deluge", slug: "deluge", protocol: "Torrent", auth: "password" },
   { name: "SABnzbd", slug: "sabnzbd", protocol: "Usenet" },
-  { name: "NZBGet", slug: "nzbget", protocol: "Usenet" },
+  { name: "NZBGet", slug: "nzbget", protocol: "Usenet", auth: "userpass", authHint: "Use the Restricted username and password from NZBGet Settings > Security." },
   { name: "rTorrent", slug: "rtorrent", protocol: "Torrent", auth: "userpass" },
   { name: "BitTorrent", slug: null, protocol: "Torrent" },
 ];
+
+// Saved clients keep the fields they were created with, so look the auth style up from the catalog too.
+function downloadClientAuth(app = {}) {
+  const slug = String(app.slug || app.name || "").toLowerCase();
+  const option = downloadClientOptions.find((item) => item.slug && slug.includes(item.slug));
+  return { auth: option?.auth || app.auth, authHint: option?.authHint || app.authHint };
+}
 
 const thirdPartyOptions = [
   { name: "Tdarr", slug: "tdarr", purpose: "Active transcodes", accent: "var(--primary-light-color)", secretOptional: true },
@@ -249,8 +256,9 @@ function isLiveConnected(app) {
 }
 
 function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopySecret, removable = false }) {
-  const usesUserPass = type === "download" && app.auth === "userpass";
-  const usesPasswordOnly = type === "download" && app.auth === "password";
+  const { auth: clientAuth, authHint } = type === "download" ? downloadClientAuth(app) : {};
+  const usesUserPass = clientAuth === "userpass";
+  const usesPasswordOnly = clientAuth === "password";
   const secretOptional =
     Boolean(app.secretOptional) ||
     ["tdarr", "unpackerr", "kometa", "recyclarr"].some((slug) => String(app.name || app.slug || "").toLowerCase().includes(slug));
@@ -321,6 +329,7 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
             </button>
           </span>
         </label>
+        {authHint ? <small className="integration-auth-hint">{authHint}</small> : null}
       </div>
       {app.message ? <p className={`integration-message ${app.messageType === "error" ? "is-error" : ""}`}>{app.message}</p> : null}
       <div className="integration-actions">
@@ -706,7 +715,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
     }
 
     const values = selectedIntegration.values || {};
-    const needsUsername = listName === "clients" && selectedIntegration.auth === "userpass";
+    const needsUsername = listName === "clients" && downloadClientAuth(selectedIntegration).auth === "userpass";
     const missingUrl = !values.url?.trim();
     const missingUsername = needsUsername && !values.username?.trim();
     const secretOptional =

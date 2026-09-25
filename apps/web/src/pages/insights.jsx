@@ -1,0 +1,431 @@
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Spinner } from "react-bootstrap";
+import CalendarCheckLineIcon from "remixicon-react/CalendarCheckLineIcon";
+import HeartPulseLineIcon from "remixicon-react/HeartPulseLineIcon";
+import PulseLineIcon from "remixicon-react/PulseLineIcon";
+import PlayList2LineIcon from "remixicon-react/PlayList2LineIcon";
+import axios from "../lib/axios_instance";
+import "./css/insights.css";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function authHeader() {
+  return { Authorization: `Bearer ${localStorage.getItem("token")}` };
+}
+
+function hours(seconds) {
+  const value = Number(seconds || 0) / 3600;
+  return value >= 100 ? Math.round(value).toLocaleString() : value.toFixed(1);
+}
+
+function bytes(value) {
+  const n = Number(value || 0);
+  if (!n) return "–";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
+  return `${(n / 1024 ** i).toFixed(i >= 3 ? 1 : 0)} ${units[i]}`;
+}
+
+function dateText(value) {
+  if (!value) return "Never";
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function poster(id, width = 180) {
+  return id ? `/proxy/Items/Images/Primary?id=${id}&fillWidth=${width}&quality=80` : "";
+}
+
+function useInsight(path, params) {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+  const key = JSON.stringify(params);
+  useEffect(() => {
+    let active = true;
+    setState((current) => ({ ...current, loading: true, error: null }));
+    axios
+      .get(`/insights-data/${path}`, { headers: authHeader(), params })
+      .then((response) => active && setState({ loading: false, data: response.data, error: null }))
+      .catch((error) => {
+        if (!active) return;
+        const status = error.response?.status;
+        setState({
+          loading: false,
+          data: null,
+          error: status === 403 ? "Only server admins can see this." : error.response?.data?.error || "Unable to load this report.",
+        });
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, key]);
+  return state;
+}
+
+function Loading({ state, children }) {
+  if (state.loading && !state.data) {
+    return (
+      <div className="insights-loading">
+        <Spinner animation="border" size="sm" /> Loading…
+      </div>
+    );
+  }
+  if (state.error) return <div className="insights-error">{state.error}</div>;
+  return children;
+}
+
+function Stat({ label, value, note }) {
+  return (
+    <article className="insights-stat">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {note ? <small>{note}</small> : null}
+    </article>
+  );
+}
+
+function RankList({ title, rows, valueOf, showPoster = false }) {
+  if (!rows?.length) return null;
+  return (
+    <section className="insights-panel">
+      <h3>{title}</h3>
+      <ol className="insights-rank">
+        {rows.map((row, index) => (
+          <li key={`${row.name}-${index}`}>
+            <b>{index + 1}</b>
+            {showPoster && row.item_id ? <img src={poster(row.item_id, 80)} alt="" loading="lazy" /> : null}
+            <span>{row.name}</span>
+            <em>{valueOf(row)}</em>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function UserYearPicker({ years, users, year, setYear, userId, setUserId, scoped = false }) {
+  return (
+    <div className="insights-pickers">
+      <select value={year} onChange={(event) => setYear(Number(event.target.value))}>
+        {years.map((entry) => (
+          <option key={entry} value={entry}>
+            {entry}
+          </option>
+        ))}
+      </select>
+      <select value={userId} onChange={(event) => setUserId(event.target.value)} disabled={scoped}>
+        {scoped ? null : <option value="">Whole server</option>}
+        {users.map((user) => (
+          <option key={user.id} value={user.id}>
+            {user.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Wrapped() {
+  const meta = useInsight("wrapped/years", {});
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [userId, setUserId] = useState("");
+  const state = useInsight("wrapped", { year, userId: userId || undefined });
+  const data = state.data;
+  const peakHour = useMemo(() => (data?.hours || []).reduce((best, row) => (!best || Number(row.seconds) > Number(best.seconds) ? row : best), null), [data]);
+  const peakDay = useMemo(() => (data?.weekdays || []).reduce((best, row) => (!best || Number(row.seconds) > Number(best.seconds) ? row : best), null), [data]);
+  const months = useMemo(() => MONTHS.map((label, i) => ({ label, hours: Number(hours(data?.months?.find((m) => m.month === i + 1)?.seconds || 0).replace(/,/g, "")) })), [data]);
+  const scoped = Boolean(meta.data?.scoped);
+  const scopedId = scoped ? meta.data?.users?.[0]?.id || "" : "";
+  useEffect(() => {
+    if (scopedId) setUserId(scopedId);
+  }, [scopedId]);
+  const who = userId ? meta.data?.users?.find((user) => user.id === userId)?.name : scoped ? "You" : "The server";
+
+  return (
+    <>
+      <UserYearPicker years={meta.data?.years || [year]} users={meta.data?.users || []} year={year} setYear={setYear} userId={userId} setUserId={setUserId} scoped={scoped} />
+      <Loading state={state}>
+        {data && data.totals?.plays ? (
+          <div className="insights-wrapped">
+            <section className="insights-hero">
+              <span>{year} in review</span>
+              <h2>
+                {who} watched <strong>{hours(data.totals.seconds)} hours</strong> across {data.totals.plays.toLocaleString()} plays.
+              </h2>
+              <p>
+                That&apos;s {data.totals.titles.toLocaleString()} different titles over {data.totals.active_days} days
+                {peakDay ? `, with ${WEEKDAYS[peakDay.dow]} as the favourite day` : ""}
+                {peakHour ? ` and ${String(peakHour.hour).padStart(2, "0")}:00 as the busiest hour` : ""}.
+              </p>
+            </section>
+            <div className="insights-stats">
+              <Stat label="Top show" value={data.topShows[0]?.name || "–"} note={data.topShows[0] ? `${hours(data.topShows[0].seconds)} hours` : null} />
+              <Stat label="Top movie" value={data.topMovies[0]?.name || "–"} note={data.topMovies[0] ? `${data.topMovies[0].plays} plays` : null} />
+              <Stat
+                label="Longest binge"
+                value={data.longestBinge ? `${data.longestBinge.episodes} episodes` : "–"}
+                note={data.longestBinge ? `${data.longestBinge.name} on ${dateText(data.longestBinge.day)}` : null}
+              />
+              <Stat label="Biggest day" value={data.busiestDay ? `${hours(data.busiestDay.seconds)} hours` : "–"} note={data.busiestDay ? dateText(data.busiestDay.day) : null} />
+              <Stat label="Top genre" value={data.genres[0]?.name || "–"} note={data.genres[1] ? `then ${data.genres.slice(1, 3).map((g) => g.name).join(" and ")}` : null} />
+              <Stat label="Favourite app" value={data.topClients[0]?.name || "–"} note={data.topClients[0] ? `${data.topClients[0].plays} plays` : null} />
+            </div>
+            <section className="insights-panel">
+              <h3>Hours watched each month</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={months}>
+                  <XAxis dataKey="label" stroke="#8a97ad" fontSize={12} />
+                  <YAxis stroke="#8a97ad" fontSize={12} width={40} />
+                  <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={{ background: "#101624", border: "1px solid #2a3350" }} />
+                  <Bar dataKey="hours" fill="var(--primary-color, #8b5cf6)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </section>
+            <div className="insights-grid">
+              <RankList title="Top shows" rows={data.topShows} valueOf={(row) => `${hours(row.seconds)} h`} showPoster />
+              <RankList title="Top movies" rows={data.topMovies} valueOf={(row) => `${row.plays} plays`} showPoster />
+              {data.topUsers?.length ? <RankList title="Top watchers" rows={data.topUsers} valueOf={(row) => `${hours(row.seconds)} h`} /> : null}
+              <RankList title="Top genres" rows={data.genres} valueOf={(row) => `${hours(row.seconds)} h`} />
+            </div>
+          </div>
+        ) : (
+          <div className="insights-empty">No plays recorded for this year yet.</div>
+        )}
+      </Loading>
+    </>
+  );
+}
+
+function LibraryHealth() {
+  const [staleDays, setStaleDays] = useState(365);
+  const state = useInsight("library-health", { staleDays });
+  const data = state.data;
+  const [section, setSection] = useState("stale");
+  const sections = data
+    ? [
+        { id: "stale", label: "Not watched", count: data.stale.length },
+        { id: "transcoded", label: "Often transcoded", count: data.transcoded.length },
+        { id: "noSubs", label: "No subtitles", count: data.noSubs.length },
+        { id: "duplicates", label: "Duplicates", count: data.duplicates.length },
+        { id: "largest", label: "Largest files", count: data.largest.length },
+      ]
+    : [];
+  return (
+    <Loading state={state}>
+      {data ? (
+        <>
+          <div className="insights-stats">
+            <Stat label="Files" value={Number(data.summary.files).toLocaleString()} note={`${bytes(data.summary.total_size)} in total`} />
+            <Stat label="Not watched" value={data.stale.length === 100 ? "100+" : data.stale.length} note={`${bytes(data.summary.staleSize)} could be freed`} />
+            <Stat label="Often transcoded" value={data.transcoded.length} note="Transcoded twice or more in 6 months" />
+            <Stat label="Duplicate movies" value={data.duplicates.length} note="Same title and year" />
+          </div>
+          <div className="insights-subtabs">
+            {sections.map((entry) => (
+              <button key={entry.id} type="button" className={section === entry.id ? "is-active" : ""} onClick={() => setSection(entry.id)}>
+                {entry.label} <em>{entry.count}</em>
+              </button>
+            ))}
+            {section === "stale" ? (
+              <select value={staleDays} onChange={(event) => setStaleDays(Number(event.target.value))}>
+                <option value={180}>6 months</option>
+                <option value={365}>1 year</option>
+                <option value={730}>2 years</option>
+              </select>
+            ) : null}
+          </div>
+          <section className="insights-panel">
+            <table className="insights-table">
+              {section === "stale" ? (
+                <>
+                  <thead><tr><th>Title</th><th>Type</th><th>Added</th><th>Last watched</th><th>Size</th></tr></thead>
+                  <tbody>{data.stale.map((row) => <tr key={row.id}><td>{row.name}{row.year ? ` (${row.year})` : ""}</td><td>{row.type}</td><td>{dateText(row.added)}</td><td>{dateText(row.last_played)}</td><td>{bytes(row.size)}</td></tr>)}</tbody>
+                </>
+              ) : null}
+              {section === "transcoded" ? (
+                <>
+                  <thead><tr><th>Title</th><th>Transcodes</th><th>Direct plays</th><th>Main reason</th></tr></thead>
+                  <tbody>{data.transcoded.map((row) => <tr key={`${row.id}-${row.name}`}><td>{row.name}</td><td>{row.transcodes}</td><td>{row.direct}</td><td>{(row.reasons || "").replace(/[[\]"]/g, "").replace(/,/g, ", ") || "Unknown"}</td></tr>)}</tbody>
+                </>
+              ) : null}
+              {section === "noSubs" ? (
+                <>
+                  <thead><tr><th>Title</th><th>Type</th><th>Size</th></tr></thead>
+                  <tbody>{data.noSubs.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.type}</td><td>{bytes(row.size)}</td></tr>)}</tbody>
+                </>
+              ) : null}
+              {section === "duplicates" ? (
+                <>
+                  <thead><tr><th>Title</th><th>Copies</th><th>Files</th></tr></thead>
+                  <tbody>{data.duplicates.map((row) => <tr key={`${row.name}-${row.year}`}><td>{row.name}{row.year ? ` (${row.year})` : ""}</td><td>{row.copies}</td><td className="insights-paths">{row.items.map((item) => <div key={item.id}>{item.path || item.id} · {bytes(item.size)}</div>)}</td></tr>)}</tbody>
+                </>
+              ) : null}
+              {section === "largest" ? (
+                <>
+                  <thead><tr><th>Title</th><th>Type</th><th>Bitrate</th><th>Size</th></tr></thead>
+                  <tbody>{data.largest.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.type}</td><td>{row.bitrate ? `${(row.bitrate / 1e6).toFixed(1)} Mbps` : "–"}</td><td>{bytes(row.size)}</td></tr>)}</tbody>
+                </>
+              ) : null}
+            </table>
+          </section>
+        </>
+      ) : null}
+    </Loading>
+  );
+}
+
+const REASON_TEXT = {
+  ContainerBitrateExceedsLimit: "File bitrate is above the client or remote limit",
+  AudioChannelsNotSupported: "Too many audio channels for the device",
+  AudioCodecNotSupported: "Audio codec not supported by the device",
+  VideoCodecNotSupported: "Video codec not supported by the device",
+  VideoBitrateNotSupported: "Video bitrate too high for the device",
+  SubtitleCodecNotSupported: "Subtitles had to be burned in",
+  ContainerNotSupported: "File container not supported",
+  DirectPlayError: "Direct play failed",
+  VideoLevelNotSupported: "Video profile level not supported",
+  VideoRangeTypeNotSupported: "HDR type not supported",
+};
+
+function Streams() {
+  const [days, setDays] = useState(30);
+  const state = useInsight("streams", { days });
+  const data = state.data;
+  return (
+    <>
+      <div className="insights-pickers">
+        <select value={days} onChange={(event) => setDays(Number(event.target.value))}>
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={90}>Last 90 days</option>
+          <option value={365}>Last year</option>
+        </select>
+      </div>
+      <Loading state={state}>
+        {data ? (
+          <>
+            <div className="insights-stats">
+              <Stat label="Plays" value={data.summary.plays.toLocaleString()} note="Live plays only, imports excluded" />
+              <Stat label="Transcoded" value={`${Math.round(data.summary.transcodeRate * 100)}%`} note={`${data.summary.transcodes} plays`} />
+              <Stat label="Peak at once" value={data.summary.peak?.peak ?? 0} note={data.summary.peak ? dateText(data.summary.peak.at) : null} />
+              <Stat label="Top video codec" value={data.codecs[0]?.name?.toUpperCase() || "–"} note={data.codecs[1] ? `then ${data.codecs[1].name.toUpperCase()}` : null} />
+            </div>
+            <section className="insights-panel">
+              <h3>Plays and transcodes per day</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={data.daily.map((row) => ({ ...row, day: dateText(row.day) }))}>
+                  <XAxis dataKey="day" stroke="#8a97ad" fontSize={11} minTickGap={24} />
+                  <YAxis stroke="#8a97ad" fontSize={12} width={32} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "#101624", border: "1px solid #2a3350" }} />
+                  <Line type="monotone" dataKey="plays" name="Plays" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="transcodes" name="Transcodes" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </section>
+            <div className="insights-grid">
+              <RankList title="Why streams transcode" rows={data.reasons.map((row) => ({ ...row, name: REASON_TEXT[row.name] || row.name }))} valueOf={(row) => `${row.plays}`} />
+              <RankList title="Clients that transcode most" rows={data.clients} valueOf={(row) => `${row.transcodes} of ${row.plays}`} />
+              <RankList title="Video codecs played" rows={data.codecs.map((row) => ({ ...row, name: row.name.toUpperCase() }))} valueOf={(row) => `${row.plays}`} />
+              <RankList title="Play methods" rows={data.methods} valueOf={(row) => `${row.plays}`} />
+            </div>
+          </>
+        ) : null}
+      </Loading>
+    </>
+  );
+}
+
+function ShowCard({ row }) {
+  return (
+    <article className="insights-show">
+      <img src={poster(row.series_id, 160)} alt="" loading="lazy" />
+      <div>
+        <strong>{row.series_name}</strong>
+        <span>
+          Next: S{row.next_season}E{row.next_episode} · {row.next_name}
+        </span>
+        <div className="insights-progress">
+          <i style={{ width: `${Math.round(row.progress * 100)}%` }} />
+        </div>
+        <small>
+          {row.user_name} · {row.watched} of {row.total} watched · last {dateText(row.last_watched)}
+        </small>
+      </div>
+    </article>
+  );
+}
+
+function UpNext() {
+  const meta = useInsight("wrapped/years", {});
+  const [userId, setUserId] = useState("");
+  const state = useInsight("up-next", { userId: userId || undefined });
+  const data = state.data;
+  const scoped = Boolean(meta.data?.scoped);
+  return (
+    <>
+      <div className="insights-pickers">
+        <select value={userId} onChange={(event) => setUserId(event.target.value)} disabled={scoped}>
+          {scoped ? null : <option value="">Everyone</option>}
+          {(meta.data?.users || []).map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Loading state={state}>
+        {data ? (
+          <>
+            <section className="insights-panel">
+              <h3>Up next <em>{data.upNext.length}</em></h3>
+              {data.upNext.length ? <div className="insights-shows">{data.upNext.map((row) => <ShowCard key={`${row.user_id}-${row.series_id}`} row={row} />)}</div> : <div className="insights-empty">Nothing in progress.</div>}
+            </section>
+            <section className="insights-panel">
+              <h3>Dropped for over {data.abandonDays} days <em>{data.abandoned.length}</em></h3>
+              {data.abandoned.length ? <div className="insights-shows">{data.abandoned.map((row) => <ShowCard key={`${row.user_id}-${row.series_id}`} row={row} />)}</div> : <div className="insights-empty">No dropped shows.</div>}
+            </section>
+          </>
+        ) : null}
+      </Loading>
+    </>
+  );
+}
+
+export const INSIGHT_TABS = [
+  { id: "wrapped", label: "Year in review", icon: CalendarCheckLineIcon, Component: Wrapped },
+  { id: "upnext", label: "Up next", icon: PlayList2LineIcon, Component: UpNext },
+  { id: "health", label: "Library health", icon: HeartPulseLineIcon, Component: LibraryHealth },
+  { id: "streams", label: "Streams", icon: PulseLineIcon, Component: Streams },
+];
+
+const TABS = INSIGHT_TABS;
+
+export default function Insights() {
+  const [params, setParams] = useSearchParams();
+  const active = TABS.find((tab) => tab.id === params.get("tab")) || TABS[0];
+  const ActiveComponent = active.Component;
+  return (
+    <main className="insights-page">
+      <header className="insights-header">
+        <div>
+          <span>Insights</span>
+          <h1>{active.label}</h1>
+        </div>
+        <nav className="insights-tabs" role="tablist">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button key={tab.id} type="button" role="tab" aria-selected={tab.id === active.id} className={tab.id === active.id ? "is-active" : ""} onClick={() => setParams({ tab: tab.id })}>
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </header>
+      <ActiveComponent />
+    </main>
+  );
+}

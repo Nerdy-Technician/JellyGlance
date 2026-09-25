@@ -7,6 +7,7 @@ const db = require("../db");
 const { axios } = require("../classes/axios");
 const { addAuditEntry } = require("../classes/admin-history");
 const campaigns = require("../classes/newsletter-campaigns");
+const reportBuilder = require("../classes/newsletter-report-builder");
 const { encryptSecret, decryptSecret, getIntegrations } = require("../classes/integration-store");
 const { isValidEmail } = require("../utils/security");
 const { fetchJellyfinUserItems, normalizeJellyfinMediaItem } = require("../classes/watch-tonight");
@@ -592,18 +593,29 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
               repairSummary: { missingPosters: 0, missingLogos: 0, missingRuntime: 0, unmatchedImports: 0 },
             };
         if (campaign.name) data.subject = `${campaign.name} - ${formatDate(new Date())}`;
+        const built = reportEnabled(campaign)
+          ? await reportBuilder.renderReport(campaign.sections.report, {
+              campaignName: campaign.name,
+              logoSrc: "cid:jellyglance-logo",
+              personData: data,
+              perUser: true,
+            })
+          : null;
+        if (built) data.subject = built.subject;
         lastSubject = data.subject;
         const result = await transporter.sendMail({
           from,
           to: delivery.emails,
           subject: data.subject,
-          text: buildNewsletterText(data),
-          html: buildNewsletterHtml(data, {
-            logoSrc: "cid:jellyglance-logo",
-            campaignName: campaign.name,
-            sections,
-            perUser: true,
-          }),
+          text: built ? built.text : buildNewsletterText(data),
+          html: built
+            ? built.html
+            : buildNewsletterHtml(data, {
+                logoSrc: "cid:jellyglance-logo",
+                campaignName: campaign.name,
+                sections,
+                perUser: true,
+              }),
           attachments,
         });
         lastMessageId = result.messageId;
@@ -655,16 +667,22 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
     ...(campaign?.sections || {}),
     ...(campaign?.template?.blocks || {}),
   };
+  const built = reportEnabled(campaign)
+    ? await reportBuilder.renderReport(campaign.sections.report, { campaignName: campaign.name, logoSrc: "cid:jellyglance-logo" })
+    : null;
+  if (built) data.subject = built.subject;
   const result = await transporter.sendMail({
     from,
     to: targets,
     subject: data.subject,
-    text: buildNewsletterText(data),
-    html: buildNewsletterHtml(data, {
-      logoSrc: "cid:jellyglance-logo",
-      campaignName: campaign?.name,
-      sections,
-    }),
+    text: built ? built.text : buildNewsletterText(data),
+    html: built
+      ? built.html
+      : buildNewsletterHtml(data, {
+          logoSrc: "cid:jellyglance-logo",
+          campaignName: campaign?.name,
+          sections,
+        }),
     attachments,
   });
 
@@ -685,6 +703,16 @@ async function sendNewsletter(req, recipients, mode, options = {}) {
   });
 
   return { ok: true, messageId: result.messageId, recipientCount: targets.length, subject: data.subject, campaignId: campaign?.id || null };
+}
+
+function reportEnabled(campaign) {
+  return Boolean(campaign?.sections?.report?.enabled && campaign.sections.report.blocks?.length);
+}
+
+async function previewPersonData(campaign, userId) {
+  const people = await campaigns.resolvePerUserCampaignRecipients(campaign || { id: null });
+  const person = people.find((row) => String(row.userId) === String(userId || "")) || people[0] || { userId: "", name: "Viewer" };
+  return buildUserNewsletterData(person);
 }
 
 async function sendDueCampaigns(req = null) {
@@ -750,12 +778,47 @@ router.get("/preview", async (req, res) => {
           sections = { ...sections, ...(campaign.sections || {}), ...(campaign.template?.blocks || {}) };
         }
         data.subject = `${campaign.name} - ${formatDate(new Date())}`;
+        if (reportEnabled(campaign)) {
+          const built = await reportBuilder.renderReport(campaign.sections.report, {
+            campaignName: campaign.name,
+            logoSrc: getLogoDataUri(),
+            personData: campaign.type === "per-user" ? data : null,
+            perUser: campaign.type === "per-user",
+          });
+          return res.json({ ...built, report: true });
+        }
       }
     }
     res.json({ ...data, html: buildNewsletterHtml(data, { sections, campaignName, perUser: data.perUser }), text: buildNewsletterText(data) });
   } catch (error) {
     console.error("Newsletter preview failed:", error);
     res.status(503).json({ error: "Unable to generate newsletter preview" });
+  }
+});
+
+router.get("/report/libraries", async (_req, res) => {
+  try {
+    res.json({ libraries: await reportBuilder.listReportLibraries(), blockTypes: reportBuilder.REPORT_BLOCK_TYPES });
+  } catch (error) {
+    res.status(503).json({ error: "Unable to load report libraries" });
+  }
+});
+
+router.post("/report/preview", async (req, res) => {
+  try {
+    const type = req.body?.type === "per-user" ? "per-user" : "global";
+    const campaign = req.body?.campaignId ? await campaigns.getCampaign(req.body.campaignId) : null;
+    const personData = type === "per-user" ? await previewPersonData(campaign, req.body?.userId).catch(() => null) : null;
+    const built = await reportBuilder.renderReport(req.body?.report || {}, {
+      campaignName: String(req.body?.campaignName || campaign?.name || "JellyGlance report"),
+      logoSrc: getLogoDataUri(),
+      personData,
+      perUser: type === "per-user",
+    });
+    res.json({ ...built, report: true });
+  } catch (error) {
+    console.error("Newsletter report preview failed:", error);
+    res.status(503).json({ error: "Unable to build report preview" });
   }
 });
 

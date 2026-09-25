@@ -41,9 +41,6 @@ yarn-error.log*
 
 # local deployment
 /apps/web/dist
-/docs/.vitepress/dist
-/docs/.vitepress/cache
-/docs/.vitepress/.temp
 
 __pycache__/
 *.pyc

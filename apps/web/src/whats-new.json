@@ -1,4 +1,81 @@
 {
+  "1.2.11": [
+    {
+      "icon": "magic",
+      "title": "Statistics, Users And Server Hubs",
+      "body": "The side menu is tidier. Related pages now sit as tabs under Statistics, Users and Server, and old links still take you to the right place."
+    },
+    {
+      "icon": "movie",
+      "title": "Year In Review And Insights",
+      "body": "See your year in review, a library health report, stream and transcode insights, and shows you have started but not finished."
+    },
+    {
+      "icon": "rocket",
+      "title": "Achievements And Watch Goals",
+      "body": "My Glance now has 13 badges with Bronze to Platinum tiers, a yearly watch goal, and “Because you watched” suggestions."
+    },
+    {
+      "icon": "speed",
+      "title": "Public Status Page",
+      "body": "Build a public status page from blocks in Settings, with a live preview and regular Jellyfin uptime checks. Threshold alerts warn you when things go wrong."
+    },
+    {
+      "icon": "users",
+      "title": "Request Rules And Quotas",
+      "body": "Set per-user request quotas and auto-approve rules. The Requests page adds summary tiles, Approve all pending, and a Movies/TV filter."
+    },
+    {
+      "icon": "upload",
+      "title": "Jellyfin And Trakt Imports",
+      "body": "Pull watch history in from Jellyfin or Trakt. All imports now run in the background with a progress bar."
+    },
+    {
+      "icon": "chat",
+      "title": "Notifications, Webhooks And Newsletters",
+      "body": "Notifications arrive in-app, on desktop or on mobile with per-type toggles. Webhooks get richer Discord and Gotify cards, and newsletters have a block-based builder."
+    },
+    {
+      "icon": "palette",
+      "title": "Install JellyGlance As An App",
+      "body": "Add JellyGlance to your phone or desktop as an app (needs HTTPS). Settings also has a search box to find any option fast."
+    },
+    {
+      "icon": "shield",
+      "title": "Fixes And Privacy",
+      "body": "NZBGet now signs in with a username and password. Year in review and Up next only show people their own data unless they are an admin."
+    },
+    {
+      "icon": "shield",
+      "title": "Hardened API",
+      "body": "Every medium, high, and critical CodeQL finding is closed. Outbound requests go through one sanitised helper, and static routes are rate limited."
+    },
+    {
+      "icon": "shield",
+      "title": "Stronger Sign-In",
+      "body": "Passwords use scrypt only and sessions expire after 12 hours. Accounts still on the old SHA3 hash need a password reset."
+    },
+    {
+      "icon": "rocket",
+      "title": "Unraid And Proxmox",
+      "body": "Install from Unraid Community Apps templates or spin up a Proxmox LXC with the new packaging scripts."
+    },
+    {
+      "icon": "speed",
+      "title": "Nightly Builds",
+      "body": "A nightly GHCR image tracks main. Images run Node 25 on amd64 and arm64, and Node 22 on arm/v7."
+    },
+    {
+      "icon": "magic",
+      "title": "Docs Have A New Home",
+      "body": "Documentation now lives in its own repository and is published at jellyglance.com."
+    },
+    {
+      "icon": "palette",
+      "title": "Fresher Foundations",
+      "body": "MUI 9, Vite 8, and ESLint 10, with Renovate keeping dependencies current from here on."
+    }
+  ],
   "1.2.10": [
     {
       "icon": "rocket",

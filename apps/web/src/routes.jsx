@@ -3,7 +3,6 @@ import { Navigate } from "react-router-dom";
 
 const Home = lazy(() => import("./pages/home"));
 const Settings = lazy(() => import("./pages/settings"));
-const Users = lazy(() => import("./pages/users"));
 const UserProfilePage = lazy(() => import("./pages/user-profile"));
 const MyGlance = lazy(() => import("./pages/my-glance"));
 const Libraries = lazy(() => import("./pages/libraries"));
@@ -12,7 +11,9 @@ const ItemInfo = lazy(() => import("./pages/components/item-info"));
 const About = lazy(() => import("./pages/about"));
 const TestingRoutes = lazy(() => import("./pages/testing"));
 const Activity = lazy(() => import("./pages/activity"));
-const Statistics = lazy(() => import("./pages/statistics"));
+const StatisticsHub = lazy(() => import("./pages/statistics-hub"));
+const UsersHub = lazy(() => import("./pages/users-hub"));
+const ServerHub = lazy(() => import("./pages/server-hub"));
 const ActivityTimeline = lazy(() => import("./pages/activity_time_line"));
 const RecentlyAddedPage = lazy(() => import("./pages/recently-added"));
 const Integrations = lazy(() => import("./pages/integrations"));
@@ -20,10 +21,11 @@ const Calendar = lazy(() => import("./pages/calendar"));
 const Requests = lazy(() => import("./pages/requests"));
 const Downloads = lazy(() => import("./pages/downloads"));
 const ActiveTranscodes = lazy(() => import("./pages/active-transcodes"));
-const AutomationHealth = lazy(() => import("./pages/automation-health"));
-const ServerManagement = lazy(() => import("./pages/server-management"));
-const Wizarr = lazy(() => import("./pages/wizarr"));
-const Maintainerr = lazy(() => import("./pages/maintainerr"));
+
+function InsightsRedirect() {
+  const tab = new URLSearchParams(window.location.search).get("tab") || "wrapped";
+  return <Navigate to={`/statistics?tab=${encodeURIComponent(tab)}`} replace />;
+}
 
 const routes = [
   { path: "/", element: <Home />, exact: true },
@@ -31,7 +33,7 @@ const routes = [
   { path: "/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/home/kiosk", element: <Home kioskMode />, exact: true },
   { path: "/settings/*", element: <Settings />, exact: true },
-  { path: "/users", element: <Users />, exact: true },
+  { path: "/users", element: <UsersHub />, exact: true },
   { path: "/users/:UserId", element: <UserProfilePage />, exact: true },
   { path: "/libraries", element: <Libraries />, exact: true },
   { path: "/libraries/:LibraryId", element: <LibraryInfo />, exact: true },
@@ -42,12 +44,14 @@ const routes = [
   { path: "/requests", element: <Requests />, exact: true },
   { path: "/downloads", element: <Downloads />, exact: true },
   { path: "/active-transcodes", element: <ActiveTranscodes />, exact: true },
-  { path: "/automation-health", element: <AutomationHealth />, exact: true },
-  { path: "/wizarr", element: <Wizarr />, exact: true },
-  { path: "/maintainerr", element: <Maintainerr />, exact: true },
-  { path: "/server-management", element: <ServerManagement />, exact: true },
+  { path: "/automation-health", element: <Navigate to="/server-management?tab=automation" replace />, exact: true },
+  { path: "/wizarr", element: <Navigate to="/users?tab=invites" replace />, exact: true },
+  { path: "/maintainerr", element: <Navigate to="/server-management?tab=maintainerr" replace />, exact: true },
+  { path: "/server-management", element: <ServerHub />, exact: true },
+  { path: "/server", element: <Navigate to="/server-management" replace />, exact: true },
+  { path: "/insights", element: <InsightsRedirect />, exact: true },
   { path: "/repair", element: <Navigate to="/settings/repair" replace />, exact: true },
-  { path: "/statistics", element: <Statistics />, exact: true },
+  { path: "/statistics", element: <StatisticsHub />, exact: true },
   { path: "/activity", element: <Activity />, exact: true },
   { path: "/timeline", element: <ActivityTimeline />, exact: true },
   { path: "/about", element: <About />, exact: true },

@@ -8,6 +8,7 @@ import { slugifyUserName } from "../lib/userProfile";
 import { getCurrentRequestOwnerCandidates, isOwnRequest, PIPELINE_FILTERS } from "./requests/helpers";
 import { useTranslation } from "react-i18next";
 import Loading from "./components/general/loading";
+import AchievementsPanel from "./components/my-glance/AchievementsPanel";
 import "./css/home-user-wrap.css";
 import "./css/my-glance.css";
 
@@ -294,6 +295,19 @@ export default function MyGlance() {
     };
   }, [config, jellyfinUserId]);
 
+  const [forYou, setForYou] = useState(null);
+  useEffect(() => {
+    if (!jellyfinUserId) return undefined;
+    let active = true;
+    axios
+      .get("/insights-data/for-you", { headers: authHeaders(), params: { userId: jellyfinUserId } })
+      .then((response) => active && setForYou(response.data))
+      .catch(() => active && setForYou(null));
+    return () => {
+      active = false;
+    };
+  }, [jellyfinUserId]);
+
   useEffect(() => {
     if (!config) return undefined;
     let active = true;
@@ -532,6 +546,8 @@ export default function MyGlance() {
         ))}
       </div>
 
+      {jellyfinUserId ? <AchievementsPanel userId={jellyfinUserId} /> : null}
+
       {digests.length ? (
         <section className="my-glance-digest">
           <p>{t("FEATURES.MY_GLANCE.DIGEST")}</p>
@@ -601,6 +617,12 @@ export default function MyGlance() {
         onAction={runAction}
         actions={[{ label: t("FEATURES.MY_GLANCE.WATCHED"), action: "markWatched" }]}
       />
+      {forYou?.picks?.length ? (
+        <Rail title="Picked for you" subtitle="Unwatched titles from your library that match what you watch most" items={forYou.picks} empty="" />
+      ) : null}
+      {(forYou?.because || []).map((row) => (
+        <Rail key={row.seed.id} title={`Because you watched ${row.seed.name}`} subtitle="Similar genres you haven't played yet" items={row.items} empty="" />
+      ))}
       {calendarReleases ? (
         <Rail title={t("FEATURES.MY_GLANCE.COMING_UP")} subtitle={t("FEATURES.MY_GLANCE.COMING_UP_SUB")} items={filtered.comingUp} empty={t("FEATURES.MY_GLANCE.EMPTY_COMING")} />
       ) : null}

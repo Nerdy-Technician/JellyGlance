@@ -1,3 +1,4 @@
+import { ImportSourceLogo } from "../../../lib/import-source-logos";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "react-bootstrap";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
@@ -233,7 +234,7 @@ export default function TautulliImport({ compact = false }) {
 
       <section className="legacy-import-panel">
         <div className="legacy-import-upload">
-          <Database2LineIcon />
+          <ImportSourceLogo source="tautulli" size={38} className="legacy-import-logo" />
           <div>
             <span>Tautulli backup file</span>
             <strong>{uploadedBackup?.originalName || (result?.sourceFile ? String(result.sourceFile).split("/").pop() : "") || "No backup uploaded"}</strong>

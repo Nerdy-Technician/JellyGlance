@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ChatCheckFillIcon from "remixicon-react/ChatCheckFillIcon";
 import CheckboxCircleLineIcon from "remixicon-react/CheckboxCircleLineIcon";
 import CloseCircleLineIcon from "remixicon-react/CloseCircleLineIcon";
@@ -10,12 +10,24 @@ import GridLineIcon from "remixicon-react/GridLineIcon";
 import AccountCircleFillIcon from "remixicon-react/AccountCircleFillIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SearchLineIcon from "remixicon-react/SearchLineIcon";
+import MovieLineIcon from "remixicon-react/MovieLineIcon";
+import Tv2LineIcon from "remixicon-react/Tv2LineIcon";
+import TimeLineIcon from "remixicon-react/TimeLineIcon";
+import DownloadCloud2LineIcon from "remixicon-react/DownloadCloud2LineIcon";
+import CheckDoubleLineIcon from "remixicon-react/CheckDoubleLineIcon";
+import AlertLineIcon from "remixicon-react/AlertLineIcon";
+import FilterOffLineIcon from "remixicon-react/FilterOffLineIcon";
+import InboxLineIcon from "remixicon-react/InboxLineIcon";
+import BugLineIcon from "remixicon-react/BugLineIcon";
+import StackLineIcon from "remixicon-react/StackLineIcon";
 import { Modal } from "react-bootstrap";
 import axios from "../lib/axios_instance";
 import { cachedGet, clearApiCache } from "../lib/api-cache";
 import "./css/integrations.css";
 import RequestTimeline from "./requests/RequestTimeline";
 import RequestSkeleton from "./requests/RequestSkeleton";
+import RequestRulesModal from "./requests/RequestRulesModal";
+import ScalesLineIcon from "remixicon-react/Scales3LineIcon";
 import { useTranslation } from "react-i18next";
 import {
   formatDate,
@@ -35,6 +47,36 @@ import {
 function brandIconUrl(slug, color = "FFFFFF") {
   return `https://cdn.simpleicons.org/${slug}/${color}`;
 }
+
+function requestMediaKind(request) {
+  const type = String(request?.mediaType || "").toLowerCase();
+  if (type.startsWith("tv") || type.includes("show") || type.includes("series")) return "tv";
+  if (type.startsWith("movie") || type.includes("film")) return "movie";
+  return "other";
+}
+
+function isAttentionStatus(request) {
+  const status = String(request?.status || "").toLowerCase();
+  return status === "failed" || status === "error";
+}
+
+function formatSyncedAgo(value) {
+  if (!value) return "";
+  const minutes = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
+  if (!Number.isFinite(minutes) || minutes < 0) return "";
+  if (minutes < 1) return "Synced just now";
+  if (minutes < 60) return `Synced ${minutes} min ago`;
+  return `Synced ${Math.floor(minutes / 60)} h ago`;
+}
+
+const PIPELINE_ICONS = {
+  all: StackLineIcon,
+  requested: TimeLineIcon,
+  approved: CheckboxCircleLineIcon,
+  grabbed: DownloadCloud2LineIcon,
+  available: CheckDoubleLineIcon,
+  declined: CloseCircleLineIcon,
+};
 
 function RequestFilterOptionAvatar({ option }) {
   if (!option?.avatarUrl && !option?.initials) return null;
@@ -175,6 +217,8 @@ export default function Requests() {
   const [data, setData] = useState({ sources: [], requests: [], syncedAt: null });
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
+  const [showRules, setShowRules] = useState(false);
+  const [quota, setQuota] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [mediaSearch, setMediaSearch] = useState("");
   const [mediaSourceId, setMediaSourceId] = useState("all");
@@ -187,6 +231,9 @@ export default function Requests() {
   const [requestOptionForms, setRequestOptionForms] = useState({});
   const [requestOptionsLoading, setRequestOptionsLoading] = useState({});
   const [statusFilter, setStatusFilter] = useState("All");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const searchInputRef = useRef(null);
   const [pipelineFilter, setPipelineFilter] = useState("all");
   const [requesterFilter, setRequesterFilter] = useState("all");
   const [sortMode, setSortMode] = useState("newest");
@@ -212,6 +259,17 @@ export default function Requests() {
   }, []);
   const currentRole = currentConfig?.settings?.auth?.role || "Viewer";
   const canManageRequests = currentRole === "Owner" || currentRole === "Admin";
+
+  function loadQuota() {
+    axios
+      .get("/api/requests/quota", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } })
+      .then((response) => setQuota(response.data))
+      .catch(() => setQuota(null));
+  }
+
+  useEffect(() => {
+    loadQuota();
+  }, []);
   const currentOwnerCandidates = useMemo(() => getCurrentRequestOwnerCandidates(currentConfig), [currentConfig]);
 
   const visibleRequests = useMemo(() => {
@@ -222,6 +280,8 @@ export default function Requests() {
       const statusMatches = statusFilter === "All" || String(request.status).toLowerCase() === statusFilter.toLowerCase();
       if (!statusMatches) return false;
       if (!matchesPipelineFilter(request, pipelineFilter)) return false;
+      if (mediaTypeFilter !== "all" && requestMediaKind(request) !== mediaTypeFilter) return false;
+      if (attentionOnly && !isAttentionStatus(request)) return false;
       if (!normalizedSearch) return true;
 
       return [request.title, request.requestedBy, request.source, request.mediaType, request.status, request.pipelineLabel, request.availability?.status]
@@ -241,7 +301,74 @@ export default function Requests() {
       return new Date(second.createdAt || 0).getTime() - new Date(first.createdAt || 0).getTime();
     });
     return sorted;
-  }, [canManageRequests, currentOwnerCandidates, data.requests, mediaSearch, pipelineFilter, requesterFilter, sortMode, statusFilter]);
+  }, [attentionOnly, canManageRequests, currentOwnerCandidates, data.requests, mediaSearch, mediaTypeFilter, pipelineFilter, requesterFilter, sortMode, statusFilter]);
+
+  const scopedRequests = useMemo(
+    () => (data.requests || []).filter((request) => canManageRequests || isOwnRequest(request, currentOwnerCandidates)),
+    [canManageRequests, currentOwnerCandidates, data.requests]
+  );
+  const overview = useMemo(() => {
+    const pending = scopedRequests.filter((request) => String(request.status).toLowerCase() === "pending");
+    const oldestPending = pending.reduce((oldest, request) => {
+      const time = new Date(request.createdAt || 0).getTime();
+      return time && (!oldest || time < oldest) ? time : oldest;
+    }, 0);
+    return {
+      pending,
+      inProgress: scopedRequests.filter((request) => ["approved", "grabbed"].includes(String(request.pipelineStatus || "").toLowerCase())).length,
+      available: scopedRequests.filter((request) => String(request.pipelineStatus || "").toLowerCase() === "available").length,
+      attention: scopedRequests.filter(isAttentionStatus).length,
+      oldestPending: oldestPending ? getRequestAge(new Date(oldestPending).toISOString()) : null,
+      movies: scopedRequests.filter((request) => requestMediaKind(request) === "movie").length,
+      tv: scopedRequests.filter((request) => requestMediaKind(request) === "tv").length,
+    };
+  }, [scopedRequests]);
+  const filtersActive =
+    statusFilter !== "All" || pipelineFilter !== "all" || requesterFilter !== "all" || mediaTypeFilter !== "all" || attentionOnly || Boolean(mediaSearch.trim());
+
+  function clearFilters() {
+    setStatusFilter("All");
+    setPipelineFilter("all");
+    setRequesterFilter("all");
+    setMediaTypeFilter("all");
+    setAttentionOnly(false);
+    setMediaSearch("");
+  }
+
+  function focusTile(tile) {
+    clearFilters();
+    if (tile === "pending") setStatusFilter("Pending");
+    if (tile === "progress") setPipelineFilter("grabbed");
+    if (tile === "available") setPipelineFilter("available");
+    if (tile === "attention") setAttentionOnly(true);
+  }
+
+  async function approveAllPending() {
+    const targets = overview.pending.filter((request) => request.requestId && request.sourceId);
+    if (!targets.length) return;
+    if (!window.confirm(`Approve all ${targets.length} pending request${targets.length === 1 ? "" : "s"}?`)) return;
+    setBusyAction("approve-all");
+    setActionMessage("");
+    let approved = 0;
+    const failed = [];
+    for (const request of targets) {
+      try {
+        await axios.post(
+          `/api/requests/${encodeURIComponent(request.requestId)}/actions`,
+          { sourceId: request.sourceId, action: "approve" },
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        );
+        approved += 1;
+      } catch {
+        failed.push(request.title);
+      }
+    }
+    setActionMessage(
+      failed.length ? `Approved ${approved} of ${targets.length}. Could not approve: ${failed.join(", ")}.` : `Approved ${approved} pending request${approved === 1 ? "" : "s"}.`
+    );
+    setBusyAction("");
+    await loadRequests(true);
+  }
 
   const statuses = useMemo(() => ["All", ...new Set((data.requests || []).map((request) => request.status).filter(Boolean))], [data.requests]);
   const sortOptions = useMemo(
@@ -656,7 +783,8 @@ export default function Requests() {
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       );
-      setActionMessage(`${result.title} sent to ${response.data?.source || result.source}.`);
+      setActionMessage(`${result.title} sent to ${response.data?.source || result.source}${response.data?.autoApproved ? " and approved" : ""}.`);
+      loadQuota();
       if (result.isSearchResult) {
         setSelectedRequest(null);
       }
@@ -814,6 +942,18 @@ export default function Requests() {
   }, [pageSection, canManageRequests]);
 
   useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const tag = String(event.target?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || event.target?.isContentEditable) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
     if (pageSection !== "queue") return;
     const searchTimer = setTimeout(runMediaSearch, 450);
     return () => clearTimeout(searchTimer);
@@ -840,14 +980,38 @@ export default function Requests() {
             {canManageRequests ? (
               <div className="requests-section-tabs" role="tablist" aria-label={t("FEATURES.REQUESTS.SECTIONS")}>
                 <button type="button" role="tab" aria-selected={pageSection === "queue"} className={pageSection === "queue" ? "is-active" : ""} onClick={() => setPageSection("queue")}>
+                  <InboxLineIcon size={16} />
                   {t("FEATURES.REQUESTS.QUEUE")}
                 </button>
                 <button type="button" role="tab" aria-selected={pageSection === "issues"} className={pageSection === "issues" ? "is-active" : ""} onClick={() => setPageSection("issues")}>
+                  <BugLineIcon size={16} />
                   {t("FEATURES.REQUESTS.ISSUES")}
                   {issues.filter((issue) => issue.status === "Open").length ? <em>{issues.filter((issue) => issue.status === "Open").length}</em> : null}
                 </button>
               </div>
             ) : null}
+            {quota?.enabled && quota.usage && !quota.usage.unlimited ? (
+              <span className="requests-quota-chip" title="Your request allowance">
+                <MovieLineIcon size={14} /> {quota.usage.movie.used}/{quota.usage.movie.limit}
+                <Tv2LineIcon size={14} /> {quota.usage.tv.used}/{quota.usage.tv.limit}
+              </span>
+            ) : null}
+            {canManageRequests ? (
+              <button type="button" className="requests-refresh-button" onClick={() => setShowRules(true)} title="Request quotas and auto-approve rules">
+                <ScalesLineIcon size={16} />
+                <span>Rules</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="requests-refresh-button"
+              onClick={() => (pageSection === "issues" ? loadIssues() : loadRequests(true))}
+              disabled={loading || issuesLoading}
+              title={formatSyncedAgo(data.syncedAt) || "Refresh"}
+            >
+              <RefreshLineIcon size={16} className={loading || issuesLoading ? "is-spinning" : ""} />
+              <span>{pageSection === "queue" && data.syncedAt ? formatSyncedAgo(data.syncedAt) : "Refresh"}</span>
+            </button>
             {pageSection === "queue" ? (
               <div className="requests-view-toggle" role="group" aria-label={t("FEATURES.REQUESTS.QUEUE_VIEW")}>
                 <button type="button" className={queueView === "cards" ? "is-active" : ""} aria-pressed={queueView === "cards"} onClick={() => setQueueView("cards")} title={t("FEATURES.REQUESTS.CARD_VIEW")} aria-label={t("FEATURES.REQUESTS.CARD_VIEW")}>
@@ -862,9 +1026,43 @@ export default function Requests() {
         </div>
         {pageSection === "queue" ? (
           <>
+        <div className="requests-overview" aria-label="Request summary">
+          <button type="button" className={`requests-overview-tile is-pending ${statusFilter === "Pending" ? "is-active" : ""}`} onClick={() => focusTile("pending")}>
+            <TimeLineIcon size={20} />
+            <strong>{overview.pending.length}</strong>
+            <span>Pending approval</span>
+            {overview.oldestPending ? <small>Oldest waiting {overview.oldestPending.label}</small> : <small>Nothing waiting</small>}
+          </button>
+          <button type="button" className={`requests-overview-tile is-progress ${pipelineFilter === "grabbed" ? "is-active" : ""}`} onClick={() => focusTile("progress")}>
+            <DownloadCloud2LineIcon size={20} />
+            <strong>{overview.inProgress}</strong>
+            <span>In progress</span>
+            <small>Approved or downloading</small>
+          </button>
+          <button type="button" className={`requests-overview-tile is-available ${pipelineFilter === "available" ? "is-active" : ""}`} onClick={() => focusTile("available")}>
+            <CheckDoubleLineIcon size={20} />
+            <strong>{overview.available}</strong>
+            <span>Available</span>
+            <small>Ready to watch</small>
+          </button>
+          <button type="button" className={`requests-overview-tile is-attention ${attentionOnly ? "is-active" : ""}`} onClick={() => focusTile("attention")}>
+            <AlertLineIcon size={20} />
+            <strong>{overview.attention}</strong>
+            <span>Needs attention</span>
+            <small>Failed or errored</small>
+          </button>
+          {canManageRequests && overview.pending.length ? (
+            <button type="button" className="requests-approve-all" onClick={approveAllPending} disabled={Boolean(busyAction)}>
+              <CheckboxCircleLineIcon size={18} />
+              {busyAction === "approve-all" ? "Approving..." : `Approve all pending (${overview.pending.length})`}
+            </button>
+          ) : null}
+        </div>
         <label className="requests-media-search">
           <SearchLineIcon size={18} />
           <input
+            ref={searchInputRef}
+            title="Press / to search"
             type="search"
             value={mediaSearch}
             onChange={(event) => setMediaSearch(event.target.value)}
@@ -879,7 +1077,31 @@ export default function Requests() {
           {canManageRequests ? (
             <RequestFilterDropdown label={t("USER")} value={requesterFilter} options={requesterOptions} onChange={setRequesterFilter} />
           ) : null}
-          <strong>{t("FEATURES.REQUESTS.SHOWN", { shown: visibleRequests.length, total: data.requests?.length || 0 })}</strong>
+          <div className="requests-type-toggle" role="group" aria-label="Media type">
+            {[
+              { id: "all", label: "All", icon: StackLineIcon, count: scopedRequests.length },
+              { id: "movie", label: "Movies", icon: MovieLineIcon, count: overview.movies },
+              { id: "tv", label: "TV", icon: Tv2LineIcon, count: overview.tv },
+            ].map((option) => {
+              const Icon = option.icon;
+              return (
+                <button type="button" key={option.id} className={mediaTypeFilter === option.id ? "is-active" : ""} aria-pressed={mediaTypeFilter === option.id} onClick={() => setMediaTypeFilter(option.id)}>
+                  <Icon size={15} />
+                  {option.label}
+                  <em>{option.count}</em>
+                </button>
+              );
+            })}
+          </div>
+          <strong>
+            {t("FEATURES.REQUESTS.SHOWN", { shown: visibleRequests.length, total: scopedRequests.length })}
+            {filtersActive ? (
+              <button type="button" className="requests-clear-filters" onClick={clearFilters}>
+                <FilterOffLineIcon size={14} />
+                Clear filters
+              </button>
+            ) : null}
+          </strong>
         </section>
         <nav className="requests-filter-strip" aria-label={t("FEATURES.REQUESTS.STATUS_FILTERS")}>
           {statuses.map((status) => (
@@ -896,6 +1118,10 @@ export default function Requests() {
               className={pipelineFilter === filter.id ? "is-active" : ""}
               onClick={() => setPipelineFilter(filter.id)}
             >
+              {(() => {
+                const Icon = PIPELINE_ICONS[filter.id];
+                return Icon ? <Icon size={14} /> : null;
+              })()}
               {t(`FEATURES.REQUESTS.PIPELINE_${filter.id}`)}
               <em>{pipelineCounts[filter.id] || 0}</em>
             </button>
@@ -1158,6 +1384,7 @@ export default function Requests() {
       </section>
       )}
 
+      {canManageRequests ? <RequestRulesModal show={showRules} onHide={() => { setShowRules(false); loadQuota(); }} /> : null}
       <Modal show={Boolean(selectedRequest)} onHide={() => { setSelectedRequest(null); setEditingRequestId(""); }} centered size="xl" contentClassName="requests-modal">
         {selectedRequest ? (
           <>

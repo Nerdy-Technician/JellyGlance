@@ -10,6 +10,7 @@ import { FIRST_RUN_EXTRAS_KEY } from "../lib/first-run";
 import Integrations from "./integrations";
 import JellystatImport from "./components/settings/JellystatImport";
 import TautulliImport from "./components/settings/TautulliImport";
+import { ImportSourceLabel } from "../lib/import-source-logos";
 import SetupShell from "./components/setup/SetupShell";
 import "./css/settings/settings.css";
 
@@ -136,14 +137,14 @@ export default function FirstRunExtras() {
                   className={activeImportSource === "jellystat" ? "is-active" : ""}
                   onClick={() => setActiveImportSource("jellystat")}
                 >
-                  Jellystat
+                  <ImportSourceLabel source="jellystat" label="Jellystat" />
                 </button>
                 <button
                   type="button"
                   className={activeImportSource === "tautulli" ? "is-active" : ""}
                   onClick={() => setActiveImportSource("tautulli")}
                 >
-                  Tautulli
+                  <ImportSourceLabel source="tautulli" label="Tautulli" />
                 </button>
               </div>
               {activeImportSource === "jellystat" ? <JellystatImport compact /> : <TautulliImport compact />}

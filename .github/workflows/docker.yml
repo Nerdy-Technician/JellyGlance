@@ -1,16 +1,9 @@
 name: JellyGlance Publish Bot
 
 on:
-  push:
-    branches:
-      - main
-      - BETA
-    paths:
-      - ".github/RELEASE"
-      - ".github/RELEASE.beta"
-      - ".github/RELEASE.BETA"
-      - ".github/release.md"
-      - ".github/release-beta.md"
+  # Manual rebuild of the rolling main/latest (or beta) image from the selected
+  # branch. Versioned release images are built by the Release Bot when a
+  # release is published.
   workflow_dispatch:
 
 permissions:

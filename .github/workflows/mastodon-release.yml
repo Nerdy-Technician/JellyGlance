@@ -1,11 +1,8 @@
 name: Notify / Mastodon Release
 
 on:
-  workflow_run:
-    workflows:
-      - JellyGlance Release Bot
-    types:
-      - completed
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,7 +15,7 @@ permissions:
 jobs:
   post:
     name: Publish Mastodon release post
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +26,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REPO: ${{ github.repository }}
           WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
         run: |
           node <<'NODE'
           const fs = require("fs");

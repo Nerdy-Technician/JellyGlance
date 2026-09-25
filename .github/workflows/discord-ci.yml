@@ -90,7 +90,7 @@ jobs:
 
           payload = {
             "username": "JellyGlance CI",
-            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-192.png",
+            "avatar_url": "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-192.png",
             "embeds": [
               {
                 "title": f"{workflow_name} · {status_label}",

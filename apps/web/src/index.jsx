@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App.jsx";
+import PublicStatusPage from "./pages/public-status.jsx";
 
 import "./pages/css/variables.css";
 import "./index.css";
@@ -20,6 +21,12 @@ import baseUrl from "./lib/baseurl.jsx";
 import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
 import { languages } from "./lib/languages.jsx";
 import { DEFAULT_THEME, applyTheme } from "./lib/theme";
+import { initPwaInstall } from "./lib/pwa-install";
+
+initPwaInstall();
+
+// The public status page works without logging in, so it skips the app shell entirely.
+const isPublicStatusPath = window.location.pathname.replace(/\/+$/, "") === `${baseUrl}/status`;
 
 const setupFlowNeedsDefaultTheme = !localStorage.getItem("token") || localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true";
 applyTheme(setupFlowNeedsDefaultTheme ? DEFAULT_THEME : undefined);
@@ -51,9 +58,13 @@ i18n
     createRoot(document.getElementById("root")).render(
       <React.StrictMode>
         <Suspense fallback={<Loading />}>
-          <BrowserRouter basename={baseUrl}>
-            <App />
-          </BrowserRouter>
+          {isPublicStatusPath ? (
+            <PublicStatusPage />
+          ) : (
+            <BrowserRouter basename={baseUrl}>
+              <App />
+            </BrowserRouter>
+          )}
         </Suspense>
       </React.StrictMode>
     );

@@ -1,5 +1,6 @@
 const { randomUUID } = require("crypto");
 const db = require("../db");
+const { normalizeReport } = require("./newsletter-report-builder");
 
 const CAMPAIGN_TYPES = ["global", "role", "personal", "per-user"];
 
@@ -23,15 +24,17 @@ function isCampaignType(type) {
 }
 
 function sectionsForType(type, sections = {}) {
+  const report = sections.report ? { report: normalizeReport(sections.report) } : {};
   if (type === "per-user") {
     return {
       continueWatching: sections.continueWatching !== false,
       myRequests: sections.myRequests !== false,
       recentlyAdded: sections.recentlyAdded !== false,
       customHtml: sections.customHtml || "",
+      ...report,
     };
   }
-  return { ...DEFAULT_SECTIONS, ...sections };
+  return { ...DEFAULT_SECTIONS, ...sections, ...report };
 }
 
 let campaignSchemaReady = null;

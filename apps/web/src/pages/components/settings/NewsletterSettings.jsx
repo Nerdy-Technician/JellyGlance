@@ -7,6 +7,7 @@ import MailSettingsLineIcon from "remixicon-react/MailSettingsLineIcon";
 import RefreshLineIcon from "remixicon-react/RefreshLineIcon";
 import SendPlaneLineIcon from "remixicon-react/SendPlaneLineIcon";
 import axios from "../../../lib/axios_instance";
+import NewsletterReportBuilder from "./NewsletterReportBuilder";
 import { useTranslation } from "react-i18next";
 import "../../css/settings/settings.css";
 
@@ -434,7 +435,10 @@ export default function NewsletterSettings() {
                         setCampaignDraft((current) => ({
                           ...current,
                           type,
-                          sections: sectionsForType(type, { customHtml: current.sections?.customHtml || "" }),
+                          sections: sectionsForType(type, {
+                            customHtml: current.sections?.customHtml || "",
+                            ...(current.sections?.report ? { report: current.sections.report } : {}),
+                          }),
                         }));
                       }}
                     >
@@ -521,6 +525,34 @@ export default function NewsletterSettings() {
               </section>
             </Form>
           </div>
+        </Tab>
+
+        <Tab eventKey="builder" title="Report builder" className="newsletter-tab-pane">
+          <div className="report-builder-campaign">
+            <Form.Select value={selectedCampaignId} onChange={(event) => selectCampaign(event.target.value)} aria-label="Campaign">
+              {!selectedCampaignId ? <option value="">{campaignDraft.name || "New campaign"} (unsaved)</option> : null}
+              {campaignList.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name} · {campaign.type}
+                </option>
+              ))}
+            </Form.Select>
+            <Button type="button" onClick={saveCampaign} disabled={Boolean(busyAction)}>
+              {busyAction === "campaign-save" ? <Spinner size="sm" animation="border" /> : <MailCheckLineIcon size={17} />}
+              {t("FEATURES.NEWSLETTER.SAVE_CAMPAIGN")}
+            </Button>
+            <Button type="button" variant="outline-primary" onClick={sendTest} disabled={!testRecipient || !selectedCampaignId || Boolean(busyAction)} title={testRecipient ? "" : "Set a test recipient on the Campaigns tab"}>
+              {busyAction === "test" ? <Spinner size="sm" animation="border" /> : <SendPlaneLineIcon size={17} />}
+              {t("FEATURES.NEWSLETTER.SEND_TEST")}
+            </Button>
+          </div>
+          <NewsletterReportBuilder
+            report={campaignDraft.sections?.report}
+            campaignType={campaignDraft.type}
+            campaignName={campaignDraft.name}
+            campaignId={selectedCampaignId}
+            onChange={(report) => setCampaignDraft((current) => ({ ...current, sections: { ...current.sections, report } }))}
+          />
         </Tab>
 
         <Tab eventKey="settings" title={t("FEATURES.NEWSLETTER.TAB_SMTP")} className="newsletter-tab-pane">
