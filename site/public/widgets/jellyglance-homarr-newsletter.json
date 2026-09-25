@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance newsletter",
+  "description": "Newsletter last send and next digest.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/newsletter",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Newsletter</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.nextName}</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color={data.lastOk ? \"teal\" : \"red\"}>{data.lastOk ? \"Sent\" : \"Failed\"}</Badge>\n  </Group>\n  <Grid gutter=\"xs\">\n    <Grid.Col span={12}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"teal\">Last</Text><Text fw={800} size=\"lg\">{data.lastAt}</Text></Card></Grid.Col>\n    <Grid.Col span={12}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"blue\">Next</Text><Text fw={800} size=\"lg\">{data.nextAt}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"violet\">Campaigns</Text><Text fw={800} size=\"lg\">{data.campaigns}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"orange\">Frequency</Text><Text fw={800} size=\"lg\">{data.frequency}</Text></Card></Grid.Col>\n  </Grid>\n</Stack>"
+  }
+}

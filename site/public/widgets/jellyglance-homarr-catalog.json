@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance catalog",
+  "description": "Library catalog totals from JellyGlance.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/catalog",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">Catalog</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.libraries} libraries</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color=\"violet\">Glance</Badge>\n  </Group>\n  <Grid gutter=\"xs\">\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"violet\">Movies</Text><Text fw={800} size=\"lg\">{data.movies}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"blue\">Shows</Text><Text fw={800} size=\"lg\">{data.shows}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"teal\">Episodes</Text><Text fw={800} size=\"lg\">{data.episodes}</Text></Card></Grid.Col>\n    <Grid.Col span={6}><Card withBorder radius=\"md\" p=\"xs\"><Text size=\"xs\" c=\"orange\">This week</Text><Text fw={800} size=\"lg\">{data.addedWeek}</Text></Card></Grid.Col>\n  </Grid>\n</Stack>"
+  }
+}

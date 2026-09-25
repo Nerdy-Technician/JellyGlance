@@ -1,0 +1,15 @@
+{
+  "$schema": "homarr-custom-widget-v2",
+  "name": "JellyGlance health",
+  "description": "Glance heartbeat and ops digest status.",
+  "iconUrl": "https://jellyglance.com/project-logo.png",
+  "url": "http://jellyglance:3000/api/widgets/health",
+  "authType": "apiKeyHeader",
+  "headerName": "x-api-token",
+  "method": "GET",
+  "displayType": "customJsx",
+  "displayConfig": {
+    "type": "customJsx",
+    "template": "<Stack gap=\"sm\" p=\"xs\">\n  <Group justify=\"space-between\" align=\"center\">\n    <Group gap=\"xs\">\n      <Avatar src=\"https://jellyglance.com/project-logo.png\" size={24} radius=\"xl\" />\n      <Stack gap={0}>\n        <Text fw={800} size=\"sm\">JellyGlance</Text>\n        <Text size=\"xs\" c=\"dimmed\">{data.jellyfinName} {data.jellyfinVersion}</Text>\n      </Stack>\n    </Group>\n    <Badge variant=\"light\" color={data.jellyglance ? \"teal\" : \"red\"}>{data.jellyglance ? \"Online\" : \"Down\"}</Badge>\n  </Group>\n  <Card withBorder radius=\"md\" p=\"sm\">\n    <Group justify=\"space-between\">\n      <Text size=\"sm\">Ops digest</Text>\n      <Badge variant=\"light\" color={data.digestOk ? \"teal\" : \"orange\"}>\n        {data.digestOk ? \"Clear\" : String(data.digest) + \" items\"}\n      </Badge>\n    </Group>\n  </Card>\n</Stack>"
+  }
+}
