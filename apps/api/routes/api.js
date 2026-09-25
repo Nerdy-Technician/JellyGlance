@@ -77,11 +77,26 @@ const tdarrTranscodeCache = new Map();
 function roleExists(settings = {}, role) {
   return normalizeAccessRoles(settings).includes(role);
 }
+const NOTIFICATION_CATEGORY_DEFAULTS = {
+  librarySync: true,
+  playbackSync: true,
+  backups: true,
+  tasks: true,
+  downloads: true,
+  errors: true,
+  playback: false,
+};
+
 const DEFAULT_NOTIFICATION_SETTINGS = {
   mode: "all",
   manualTaskToasts: true,
   position: "bottom-right",
   durationSeconds: 8,
+  inApp: true,
+  desktop: false,
+  mobile: false,
+  systemOnlyWhenHidden: true,
+  categories: NOTIFICATION_CATEGORY_DEFAULTS,
 };
 
 function normalizeNotificationSettings(value = {}) {
@@ -95,6 +110,14 @@ function normalizeNotificationSettings(value = {}) {
   const durationSeconds = Number(settings.durationSeconds);
   settings.durationSeconds = Number.isFinite(durationSeconds) ? Math.min(Math.max(durationSeconds, 3), 30) : DEFAULT_NOTIFICATION_SETTINGS.durationSeconds;
   settings.manualTaskToasts = settings.manualTaskToasts !== false;
+  settings.inApp = settings.inApp !== false;
+  settings.desktop = settings.desktop === true;
+  settings.mobile = settings.mobile === true;
+  settings.systemOnlyWhenHidden = settings.systemOnlyWhenHidden !== false;
+  const categories = value?.categories && typeof value.categories === "object" ? value.categories : {};
+  settings.categories = Object.fromEntries(
+    Object.entries(NOTIFICATION_CATEGORY_DEFAULTS).map(([key, fallback]) => [key, typeof categories[key] === "boolean" ? categories[key] : fallback])
+  );
   return settings;
 }
 
@@ -3037,7 +3060,30 @@ async function fetchSeerrRequestOptions({ sourceId, mediaType }) {
   }
 }
 
-async function createSeerrMediaRequest({ sourceId, mediaType, mediaId, seasons, serverId, profileId, rootFolder, languageProfileId, tags, is4k }) {
+const seerrUserCache = new Map();
+// Finds the Seerr user linked to this JellyGlance user's Jellyfin account (cached for 10 minutes).
+async function findSeerrUserId(sourceId, user) {
+  const jellyfinId = String(user?.jellyfinUser?.id || user?.jellyfinUser?.Id || (user?.authMode === "quick-connect" ? user?.id : "") || "").replace(/-/g, "");
+  if (!jellyfinId) return null;
+  const seerrApps = await getConnectedSeerrApps();
+  const app = getSeerrAppById(seerrApps, sourceId);
+  if (!app) return null;
+  const cacheKey = app.instanceId || sourceId || "default";
+  let cached = seerrUserCache.get(cacheKey);
+  if (!cached || Date.now() - cached.at > 10 * 60 * 1000) {
+    const response = await axios.get(`${cleanIntegrationUrl(app.values?.url)}/api/v1/user`, {
+      timeout: 10000,
+      params: { take: 1000 },
+      headers: { "X-Api-Key": app.values?.secret },
+    });
+    cached = { at: Date.now(), users: response.data?.results || [] };
+    seerrUserCache.set(cacheKey, cached);
+  }
+  const match = cached.users.find((entry) => String(entry.jellyfinUserId || "").replace(/-/g, "") === jellyfinId);
+  return match?.id ?? null;
+}
+
+async function createSeerrMediaRequest({ sourceId, mediaType, mediaId, seasons, serverId, profileId, rootFolder, languageProfileId, tags, is4k, userId }) {
   const seerrApps = await getConnectedSeerrApps();
   const app = getSeerrAppById(seerrApps, sourceId);
   if (!app) {
@@ -3067,6 +3113,7 @@ async function createSeerrMediaRequest({ sourceId, mediaType, mediaId, seasons, 
   if (languageProfileId !== undefined && languageProfileId !== "") payload.languageProfileId = Number(languageProfileId);
   if (Array.isArray(tags) && tags.length) payload.tags = tags.map(Number).filter((tag) => Number.isFinite(tag));
   if (is4k !== undefined) payload.is4k = Boolean(is4k);
+  if (userId != null) payload.userId = Number(userId);
 
   if (normalizedType === "tv") {
     const requestedSeasons = Array.isArray(seasons) ? seasons.map(Number).filter((season) => Number.isFinite(season) && season > 0) : [];
@@ -4847,8 +4894,22 @@ router.post("/requests/media", async (req, res) => {
       serverId: req.body?.serverId ?? preferences.defaultServerId,
       rootFolder: req.body?.rootFolder ?? preferences.defaultRootFolder,
     });
-    res.send(
-      await createSeerrMediaRequest({
+    const requestRules = require("../classes/request-rules");
+    const mediaType = String(req.body?.mediaType || "").toLowerCase();
+    const quota = await requestRules.checkQuota(req.user, mediaType);
+    if (!quota.allowed) {
+      res.status(429).send({ error: quota.message, quota: quota.usage });
+      return;
+    }
+    let seerrUserId = null;
+    if (quota.rules.requestAsSeerrUser && !requestRules.isAdmin(req.user)) {
+      seerrUserId = await findSeerrUserId(override.sourceId, req.user).catch((error) => {
+        console.log("[REQUESTS] Seerr user lookup failed:", error.message);
+        return null;
+      });
+    }
+    const created = await createSeerrMediaRequest({
+        userId: seerrUserId,
         sourceId: override.sourceId,
         mediaType: req.body?.mediaType,
         mediaId: req.body?.mediaId,
@@ -4859,8 +4920,22 @@ router.post("/requests/media", async (req, res) => {
         languageProfileId: req.body?.languageProfileId ?? preferences.defaultLanguageProfileId,
         tags: req.body?.tags ?? preferences.defaultTags,
         is4k: req.body?.is4k ?? preferences.is4k,
-      })
-    );
+      });
+    const seerrRequest = created?.request || {};
+    let status = seerrRequest.status === 1 ? "pending" : seerrRequest.status === 2 ? "approved" : null;
+    if (status === "pending" && requestRules.shouldAutoApprove(quota.rules, req.user) && seerrRequest.id) {
+      try {
+        await runSeerrRequestAction({ requestId: seerrRequest.id, sourceId: override.sourceId, action: "approve" });
+        status = "approved";
+        created.autoApproved = true;
+      } catch (error) {
+        console.log("[REQUESTS] Auto-approve failed:", error.message);
+      }
+    }
+    await requestRules.logRequest(req.user, mediaType, req.body?.mediaId, { seerrRequestId: seerrRequest.id, status }).catch((error) => {
+      console.log("[REQUESTS] Could not log request for quotas:", error.message);
+    });
+    res.send({ ...created, quota: await requestRules.usage(req.user, quota.rules).catch(() => null) });
   } catch (error) {
     console.error("Seerr media request failed:", error);
     res.status(error.statusCode || 503).send({ error: error.message || "Unable to request media" });

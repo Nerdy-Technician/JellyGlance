@@ -19,6 +19,26 @@ const NEW_WATCH_EVENT_THRESHOLD_HOURS = process.env.NEW_WATCH_EVENT_THRESHOLD_HO
 
 const webhookManager = new WebhookManager();
 
+function playbackStreamDetails(session, item) {
+  const streams = Array.isArray(item?.MediaStreams) && item.MediaStreams.length
+    ? item.MediaStreams
+    : Array.isArray(session.MediaStreams)
+      ? session.MediaStreams
+      : [];
+  const video = streams.find((stream) => stream?.Type === "Video") || null;
+  const audio = streams.find((stream) => stream?.Type === "Audio" && stream?.IsDefault) || streams.find((stream) => stream?.Type === "Audio") || null;
+  const transcode = session.TranscodingInfo || null;
+  return {
+    videoHeight: Number(video?.Height) || null,
+    videoCodec: video?.Codec || null,
+    videoRange: video?.VideoRangeType || video?.VideoRange || null,
+    audioCodec: audio?.Codec || null,
+    audioChannels: Number(audio?.Channels) || null,
+    transcodeReasons: Array.isArray(transcode?.TranscodeReasons) ? transcode.TranscodeReasons.slice(0, 3) : [],
+    transcodeVideoCodec: transcode?.VideoCodec || null,
+  };
+}
+
 function playbackWebhookData(session, ended = false) {
   const item = session.NowPlayingItem;
   const posterItemId = item?.SeriesId || item?.Id || session.NowPlayingItemId;
@@ -52,6 +72,14 @@ function playbackWebhookData(session, ended = false) {
       mediaName: session.NowPlayingItemName || item?.Name,
       seriesName: session.SeriesName || item?.SeriesName,
       playMethod: session.PlayMethod || session.PlayState?.PlayMethod,
+      productionYear: item?.ProductionYear || null,
+      officialRating: item?.OfficialRating || null,
+      communityRating: Number(item?.CommunityRating) || null,
+      genres: Array.isArray(item?.Genres) ? item.Genres.slice(0, 3) : [],
+      overview: item?.Overview ? String(item.Overview).slice(0, 400) : null,
+      runTimeTicks: Number(item?.RunTimeTicks || session.RunTimeTicks) || null,
+      positionTicks: Number(session.PlayState?.PositionTicks) || null,
+      ...playbackStreamDetails(session, item),
     },
   };
 }

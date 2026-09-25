@@ -1847,3 +1847,61 @@
     font-size: 13px;
   }
 }
+
+/* Sidebar: menu links scroll, account + version card stay pinned at the bottom */
+.navbar-links-scroll {
+  display: contents;
+}
+
+@media (min-width: 901px) and (hover: hover) {
+  .navbar > .sticky-top {
+    overflow: hidden;
+  }
+
+  .navbar-links-scroll {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--primary-light-rgb), 0.25) transparent;
+  }
+
+  .navbar-links-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .navbar-links-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(var(--primary-light-rgb), 0.25);
+  }
+
+  .desktop-navigation.is-collapsed .navbar-links-scroll {
+    align-items: center;
+    gap: 7px;
+  }
+
+  .navbar-inline-footer {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+}
+
+.navbar-version-row {
+  min-width: 0;
+}
+
+.navbar-version-row .version .card-body {
+  padding: 7px 8px 8px;
+}
+
+/* Install app button */
+.install-app { padding: 0 12px 8px; }
+.install-app.is-mobile { padding: 4px 0 8px; }
+.install-app-button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 8px 12px; border: 1px solid rgba(var(--primary-light-rgb, 139, 92, 246), 0.3); border-radius: 10px; background: rgba(var(--primary-rgb, 139, 92, 246), 0.14); color: #e6edf7; font-size: 13px; font-weight: 600; cursor: pointer; }
+.install-app-button:hover { background: rgba(var(--primary-rgb, 139, 92, 246), 0.26); }
+.install-app-hint { margin: 6px 2px 0; color: rgba(199, 211, 230, 0.75); font-size: 12px; line-height: 1.4; }

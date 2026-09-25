@@ -375,3 +375,48 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Achievements and goals */
+.achievements { display: grid; gap: 14px; margin: 18px 0; padding: 18px; border: 1px solid rgba(var(--primary-light-rgb, 167, 139, 250), 0.18); border-radius: 18px; background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.12), rgba(12, 15, 22, 0.75)); }
+.achievements-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.achievements-head p { margin: 0 0 2px; font-size: 18px; font-weight: 800; color: #f8fafc; }
+.achievements-head span, .achievements-muted { font-size: 13px; color: rgba(199, 211, 230, 0.7); }
+.achievements-wrapped-link { padding: 7px 14px; border-radius: 10px; background: rgba(var(--primary-rgb), 0.3); border: 1px solid rgba(var(--primary-rgb), 0.5); color: #fff; font-size: 13px; font-weight: 700; text-decoration: none; }
+.achievements-goals { display: grid; gap: 10px; padding: 14px; border-radius: 14px; background: rgba(8, 12, 20, 0.5); }
+.achievements-goals-head { display: flex; justify-content: space-between; align-items: center; }
+.achievements-goals-head strong { font-size: 14px; color: #f8fafc; }
+.achievements button { padding: 6px 12px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px; background: rgba(255, 255, 255, 0.04); color: #e6edf7; font-size: 12px; font-weight: 700; cursor: pointer; }
+.achievements button.is-primary { background: rgba(var(--primary-rgb), 0.45); border-color: rgba(var(--primary-rgb), 0.6); }
+.achievements-goal-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.achievements-goal { display: grid; gap: 6px; }
+.achievements-goal-head { display: flex; justify-content: space-between; font-size: 13px; }
+.achievements-goal-head span { color: rgba(199, 211, 230, 0.75); }
+.achievements-goal-bar { position: relative; height: 10px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); }
+.achievements-goal-bar span { display: block; height: 100%; border-radius: 99px; background: var(--primary-color, #8b5cf6); }
+.achievements-goal.is-complete .achievements-goal-bar span { background: #22c55e; }
+.achievements-goal.is-behind .achievements-goal-bar span { background: #f59e0b; }
+.achievements-goal-bar i { position: absolute; top: -3px; width: 2px; height: 16px; background: rgba(255, 255, 255, 0.7); border-radius: 2px; }
+.achievements-goal small { font-size: 12px; color: rgba(199, 211, 230, 0.6); }
+.achievements-goal.is-complete small { color: #86efac; }
+.achievements-goal.is-behind small { color: #fcd34d; }
+.achievements-goal-editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
+.achievements-goal-editor label { display: grid; gap: 4px; font-size: 12px; color: rgba(199, 211, 230, 0.75); }
+.achievements-goal-editor input { width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(8, 12, 20, 0.85); color: #e6edf7; }
+.achievements-goal-actions { display: flex; gap: 6px; }
+.achievements-goal-editor small, .achievements-goal-editor em { grid-column: 1 / -1; font-size: 12px; color: rgba(199, 211, 230, 0.55); }
+.achievements-goal-editor em { color: #fca5a5; font-style: normal; }
+.achievements-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.achievements-badge { --medal: #6b7280; display: flex; gap: 12px; padding: 12px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.07); background: rgba(8, 12, 20, 0.5); }
+.achievements-badge.tier-bronze { --medal: #cd7f32; }
+.achievements-badge.tier-silver { --medal: #c0c7d2; }
+.achievements-badge.tier-gold { --medal: #f5c542; }
+.achievements-badge.tier-platinum { --medal: #7dd3fc; }
+.achievements-badge.is-locked { opacity: 0.6; }
+.achievements-badge-medal { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 50%; color: var(--medal); background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)); border: 2px solid var(--medal); }
+.achievements-badge > div { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.achievements-badge strong { font-size: 14px; color: #f8fafc; }
+.achievements-badge small { font-size: 12px; color: rgba(199, 211, 230, 0.6); }
+.achievements-badge em { font-style: normal; font-size: 11px; color: rgba(199, 211, 230, 0.7); }
+.achievements-badge-progress { height: 5px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.achievements-badge-progress span { display: block; height: 100%; background: var(--medal); }
+.achievements-more { justify-self: center; }

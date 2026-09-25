@@ -104,11 +104,49 @@ const { renderClientIconBadge } = require("./client-icons");
 const { DEFAULT_THEME, resolveCardUiTheme } = require("./user-preferences");
 
 const CARD_THEMES = ["match", "glance", "jellyfin", "midnight", "compact"];
+const CARD_STYLES = ["card", "text"];
+const CARD_TOGGLES = [
+  "showClientIcon",
+  "showMediaDetails",
+  "showPlayMethod",
+  "showMetaLine",
+  "showGenres",
+  "showProgress",
+  "showOverview",
+  "showPoster",
+  "showAvatar",
+];
+
+function normalizeAccentColor(value) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : "";
+}
 
 function normalizeCardSettings(value = {}) {
-  return {
+  const next = {
+    style: CARD_STYLES.includes(value.style) ? value.style : "card",
     theme: CARD_THEMES.includes(value.theme) ? value.theme : "glance",
-    showClientIcon: value.showClientIcon !== false,
+    accentColor: normalizeAccentColor(value.accentColor),
+  };
+  for (const key of CARD_TOGGLES) next[key] = value[key] !== false;
+  return next;
+}
+
+function cardAccent(data, cardSettings, fallback) {
+  if (cardSettings?.accentColor) return parseInt(cardSettings.accentColor.slice(1), 16);
+  return EVENT_COLORS[data?.event] || fallback || 3447003;
+}
+
+function mediaForSettings(media, cardSettings) {
+  if (!media || !cardSettings?.showMediaDetails) return null;
+  return {
+    ...media,
+    playMethod: cardSettings.showPlayMethod ? media.playMethod : null,
+    showMetaLine: cardSettings.showMetaLine,
+    genres: cardSettings.showGenres ? media.genres || [] : [],
+    progress: cardSettings.showProgress ? media.progress : null,
+    position: cardSettings.showProgress ? media.position : null,
+    overview: cardSettings.showOverview ? media.overview : null,
   };
 }
 
@@ -244,6 +282,7 @@ const OPERATIONAL_EVENTS = new Set([
   "integration_health_warning",
   "ops_digest",
   "playback_digest",
+  "threshold_alert",
 ]);
 const EVENT_COLORS = {
   playback_started: 5763719,
@@ -263,6 +302,7 @@ const EVENT_COLORS = {
   invite_created: 3514227,
   invite_deleted: 14037546,
   integration_health_warning: 14922250,
+  threshold_alert: 15105570,
 };
 
 function jellyfinHeaders(config) {
@@ -447,8 +487,14 @@ async function roundedImage(buffer, size) {
     .toBuffer();
 }
 
-async function composeLandscapeCard({ poster, avatar, accent, kicker, username, title, subtitle, details, theme = "glance", clientIcon = null, uiTheme = null }) {
+async function composeLandscapeCard({ poster, avatar, accent, kicker, username, title, subtitle, details, theme = "glance", clientIcon = null, uiTheme = null, media = null, showMediaDetails = false, detailsWithMedia = null }) {
   const palette = themePalette(theme, accent, uiTheme);
+  const withMedia = Boolean(showMediaDetails && media);
+  if (withMedia) palette.height += theme === "compact" ? 14 : 24;
+  if (!poster?.buffer) {
+    palette.width = Math.max(420, palette.width - palette.posterWidth + 12);
+    palette.posterWidth = 0;
+  }
   const { width, height, posterWidth, iconSize } = palette;
   const panelWidth = width - posterWidth;
   const textLeft = posterWidth + 22;
@@ -475,7 +521,53 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
     })
     .join("");
   const detailY = height - 18;
-  const detailMax = hasIcon ? 34 : 42;
+  const detailMax = hasIcon && !(theme === "jellyfin" || theme === "compact") ? 40 : 50;
+  const iconTopRight = hasIcon && (theme === "jellyfin" || compact);
+  const iconBottomRight = hasIcon && !iconTopRight;
+  const accentCss = `rgb(${palette.accent.r},${palette.accent.g},${palette.accent.b})`;
+  const extras = [];
+  let usernameMax = 22;
+  if (withMedia) {
+    if (media.playMethod) {
+      const label = media.playMethod.toUpperCase();
+      const color = playMethodColor(media.playMethod);
+      const pillWidth = Math.round(label.length * 7.4 + 22);
+      const pillRight = width - 16 - (iconTopRight ? iconSize + 10 : 0);
+      const pillTop = compact ? 14 : 18;
+      extras.push(`<rect x="${pillRight - pillWidth}" y="${pillTop}" width="${pillWidth}" height="22" rx="11" fill="${color}" fill-opacity="0.16" stroke="${color}" stroke-opacity="0.7"/>`);
+      extras.push(`<text x="${pillRight - pillWidth / 2}" y="${pillTop + 15}" text-anchor="middle" fill="${color}" font-size="11" font-family="${CARD_FONT}" font-weight="700">${escapeXml(label)}</text>`);
+      usernameMax = 16;
+    }
+    const lastSubtitleY = subtitleLines.length ? cursor + (subtitleLines.length - 1) * (compact ? 18 : 20) : cursor - (compact ? 18 : 20);
+    let metaCursor = lastSubtitleY + (compact ? 20 : 22);
+    const meta = media.showMetaLine === false ? null : playbackMetaLine(media);
+    if (meta && metaCursor < detailY - (compact ? 34 : 38)) {
+      extras.push(`<text x="${textLeft}" y="${metaCursor}" fill="${palette.details}" font-size="${compact ? 12 : 13}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(meta, compact ? 50 : 46))}</text>`);
+      metaCursor += 10;
+    } else {
+      metaCursor -= 12;
+    }
+    if (!compact && media.genres.length && metaCursor + 20 < detailY - 36) {
+      let chipX = textLeft;
+      for (const genre of media.genres) {
+        const label = truncate(genre, 14);
+        const chipWidth = Math.round(label.length * 6.6 + 18);
+        if (chipX + chipWidth > width - 18) break;
+        extras.push(`<rect x="${chipX}" y="${metaCursor}" width="${chipWidth}" height="20" rx="10" fill="${accentCss}" fill-opacity="0.2"/>`);
+        extras.push(`<text x="${chipX + chipWidth / 2}" y="${metaCursor + 14}" text-anchor="middle" fill="${palette.subtitle}" font-size="11" font-family="${CARD_FONT}" font-weight="700">${escapeXml(label)}</text>`);
+        chipX += chipWidth + 6;
+      }
+    }
+    if (media.progress != null) {
+      const barY = detailY - (compact ? 24 : 26);
+      const barRight = width - 22 - (iconBottomRight ? iconSize + 12 : 0);
+      const barWidth = Math.max(40, barRight - textLeft);
+      const fill = Math.max(4, Math.round(barWidth * media.progress));
+      extras.push(`<rect x="${textLeft}" y="${barY}" width="${barWidth}" height="5" rx="2.5" fill="${palette.details}" fill-opacity="0.25"/>`);
+      extras.push(`<rect x="${textLeft}" y="${barY}" width="${fill}" height="5" rx="2.5" fill="${accentCss}"/>`);
+    }
+  }
+  const detailText = withMedia && detailsWithMedia != null ? detailsWithMedia : details;
   const panelOpacity = palette.panelOpacity != null ? ` fill-opacity="${palette.panelOpacity}"` : "";
 
   const layers = [];
@@ -499,10 +591,11 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
     <rect x="${posterWidth}" y="0" width="${panelWidth}" height="${height}" fill="${palette.panel}"${panelOpacity}/>
     <rect x="${posterWidth}" y="0" width="5" height="${height}" fill="rgb(${palette.accent.r},${palette.accent.g},${palette.accent.b})"/>
     <text x="${nameLeft}" y="${compact ? 28 : 32}" fill="${palette.kicker}" font-size="12" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(kicker, 28).toUpperCase())}</text>
-    <text x="${nameLeft}" y="${compact ? 48 : 54}" fill="${palette.name}" font-size="${compact ? 14 : 16}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(username, 22))}</text>
+    <text x="${nameLeft}" y="${compact ? 48 : 54}" fill="${palette.name}" font-size="${compact ? 14 : 16}" font-family="${CARD_FONT}" font-weight="700">${escapeXml(truncate(username, usernameMax))}</text>
     ${titleSvg}
     ${subtitleSvg}
-    <text x="${textLeft}" y="${detailY}" fill="${palette.details}" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(details, detailMax))}</text>
+    ${extras.join("\n    ")}
+    <text x="${textLeft}" y="${detailY}" fill="${palette.details}" font-size="13" font-family="${CARD_FONT}" font-weight="400">${escapeXml(truncate(detailText, detailMax))}</text>
   </svg>`);
 
   layers.push({ input: svg, left: 0, top: 0 });
@@ -532,6 +625,95 @@ async function composeLandscapeCard({ poster, avatar, accent, kicker, username, 
   return { name: "card.jpg", buffer, contentType: "image/jpeg" };
 }
 
+function ticksToClock(ticks) {
+  const total = Math.floor(Number(ticks) / 10000000);
+  if (!Number.isFinite(total) || total <= 0) return null;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (value) => String(value).padStart(2, "0");
+  return hours ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+function ticksToRuntime(ticks) {
+  const minutes = Math.round(Number(ticks) / 600000000);
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+function resolutionLabel(height) {
+  const value = Number(height);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (value >= 2000) return "4K";
+  if (value >= 1400) return "1440p";
+  if (value >= 1000) return "1080p";
+  if (value >= 700) return "720p";
+  if (value >= 560) return "576p";
+  return `${value}p`;
+}
+
+function playMethodLabel(value) {
+  const method = String(value || "").toLowerCase();
+  if (!method) return null;
+  if (method.includes("transcode")) return "Transcode";
+  if (method.includes("stream")) return "Direct Stream";
+  if (method.includes("direct")) return "Direct Play";
+  return String(value);
+}
+
+function playMethodColor(label) {
+  if (label === "Transcode") return "#f59e0b";
+  if (label === "Direct Stream") return "#38bdf8";
+  return "#22c55e";
+}
+
+function humanizeReason(reason) {
+  return String(reason || "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\bNot Supported\b/i, "unsupported")
+    .trim();
+}
+
+function playbackMedia(data = {}) {
+  const info = data.mediaInfo || {};
+  const session = data.sessionInfo || {};
+  const playMethod = playMethodLabel(info.playMethod || session.playMethod || data.PlayMethod);
+  const runTimeTicks = Number(info.runTimeTicks || data.RunTimeTicks) || null;
+  const positionTicks = Number(info.positionTicks || data.PlaybackPositionTicks) || null;
+  const progress = runTimeTicks && positionTicks ? Math.max(0, Math.min(1, positionTicks / runTimeTicks)) : null;
+  const hdr = info.videoRange && !/^sdr$/i.test(info.videoRange) ? String(info.videoRange).replace(/^hdr10plus$/i, "HDR10+") : null;
+  const resolution = resolutionLabel(info.videoHeight);
+  const videoCodec = info.videoCodec ? String(info.videoCodec).toUpperCase() : null;
+  const audio = info.audioCodec
+    ? `${String(info.audioCodec).toUpperCase()}${info.audioChannels ? ` ${info.audioChannels >= 6 ? `${info.audioChannels - 1}.1` : info.audioChannels === 2 ? "Stereo" : `${info.audioChannels}ch`}` : ""}`
+    : null;
+  const rating = Number(info.communityRating) ? `★ ${Number(info.communityRating).toFixed(1)}` : null;
+  return {
+    playMethod,
+    year: info.productionYear ? String(info.productionYear) : null,
+    officialRating: info.officialRating || null,
+    rating,
+    runtime: ticksToRuntime(runTimeTicks),
+    resolution,
+    videoCodec,
+    hdr,
+    audio,
+    quality: [resolution, videoCodec, hdr].filter(Boolean).join(" "),
+    genres: Array.isArray(info.genres) ? info.genres.filter(Boolean).slice(0, 3) : [],
+    overview: info.overview || null,
+    progress,
+    position: ticksToClock(positionTicks),
+    duration: ticksToClock(runTimeTicks),
+    transcodeReasons: Array.isArray(info.transcodeReasons) ? info.transcodeReasons.map(humanizeReason).filter(Boolean) : [],
+  };
+}
+
+function playbackMetaLine(media) {
+  if (!media) return "";
+  return [media.year, media.officialRating, media.runtime, [media.resolution, media.hdr].filter(Boolean).join(" "), media.rating].filter(Boolean).join("  ·  ");
+}
+
 function playbackCopy(data) {
   const started = data.event === "playback_started";
   const username = data.UserName || data.userData?.username || "A user";
@@ -541,6 +723,7 @@ function playbackCopy(data) {
   const details = [data.ClientName || data.sessionInfo?.clientName, data.DeviceName || data.sessionInfo?.deviceName, data.PlayMethod || data.sessionInfo?.playMethod]
     .filter(Boolean)
     .join("  ·  ");
+  const media = playbackMedia(data);
   return {
     started,
     username,
@@ -548,6 +731,9 @@ function playbackCopy(data) {
     subtitle: seriesName ? subtitle : started ? "Started watching" : "Stopped watching",
     details,
     kicker: started ? "Now playing" : "Stopped",
+    client: data.ClientName || data.sessionInfo?.clientName || null,
+    device: data.DeviceName || data.sessionInfo?.deviceName || null,
+    media,
   };
 }
 
@@ -591,9 +777,11 @@ function operationalCopy(data) {
   if ((hasQueue && hasCalendar) || (hasQueue && hasInvites) || (hasCalendar && hasInvites)) kicker = "Integrations";
   if (event === "media_recently_added") kicker = "Library";
   if (event === "integration_health_warning") kicker = "Health";
+  if (event === "threshold_alert") kicker = "Alert";
   if (event === "invite_created" || event === "invite_deleted") kicker = "Invites";
 
   const title =
+    (event === "threshold_alert" ? data.title || "Alert" : null) ||
     data.taskName ||
     (hasQueue ? "Download queue" : null) ||
     (hasCalendar ? "Calendar" : null) ||
@@ -628,6 +816,9 @@ function operationalCopy(data) {
   } else if (event === "integration_health_warning") {
     subtitle = data.message || "A connected client failed its health check";
     railLabel = "WARN";
+  } else if (event === "threshold_alert") {
+    subtitle = data.message || "A threshold was crossed";
+    railLabel = data.severity === "critical" ? "CRIT" : data.severity === "info" ? "INFO" : "WARN";
   }
 
   const details = [
@@ -751,6 +942,98 @@ function operationalEmbed(data, files) {
   };
 }
 
+function embedField(name, value, inline = true) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  return { name, value: truncate(text, 1000), inline };
+}
+
+function playbackTextEmbed(data, files, cardSettings) {
+  const copy = playbackCopy(data);
+  const media = mediaForSettings(copy.media, cardSettings);
+  const poster = files.find((file) => file.name === "poster.jpg");
+  const avatar = files.find((file) => file.name === "user.jpg");
+  const description = [
+    copy.subtitle,
+    media && media.showMetaLine !== false ? playbackMetaLine(media) : null,
+    media?.overview ? `\n${truncate(media.overview, 220)}` : null,
+  ].filter(Boolean).join("\n");
+  const progressText = media?.position && media?.duration
+    ? `${media.position} / ${media.duration}${media.progress != null ? ` (${Math.round(media.progress * 100)}%)` : ""}`
+    : null;
+  const methodText = media?.playMethod
+    ? `${media.playMethod}${media.playMethod === "Transcode" && media.transcodeReasons.length ? ` · ${media.transcodeReasons.join(", ")}` : ""}`
+    : media || cardSettings.showPlayMethod === false ? null : copy.media?.playMethod;
+  const fields = [
+    embedField("Client", copy.client),
+    embedField("Device", copy.device),
+    embedField("Playback", methodText),
+    media ? embedField("Quality", [media.quality, media.audio].filter(Boolean).join(" · ")) : null,
+    media ? embedField("Progress", progressText) : null,
+    media?.genres?.length ? embedField("Genres", media.genres.join(", ")) : null,
+  ].filter(Boolean);
+  return {
+    color: cardAccent(data, cardSettings),
+    author: {
+      name: `${copy.username} · ${copy.kicker}`,
+      ...(avatar ? { icon_url: "attachment://user.jpg" } : {}),
+    },
+    title: truncate(copy.title, 250),
+    ...(description ? { description: truncate(description, 1500) } : {}),
+    ...(poster ? { thumbnail: { url: "attachment://poster.jpg" } } : {}),
+    ...(fields.length ? { fields } : {}),
+    footer: { text: "JellyGlance" },
+    timestamp: data.triggeredAt || new Date().toISOString(),
+  };
+}
+
+function downloadTextEmbed(data, files) {
+  const copy = downloadCopy(data);
+  const poster = files.find((file) => file.name === "poster.jpg");
+  const fields = [
+    embedField("Client", copy.username),
+    embedField("State", data.item?.state),
+    embedField("Progress", data.item?.progress != null ? `${data.item.progress}%` : null),
+    embedField("Size", data.item?.size),
+  ].filter(Boolean);
+  return {
+    color: EVENT_COLORS[data.event] || 3447003,
+    author: { name: copy.kicker },
+    title: truncate(copy.title, 250),
+    ...(copy.subtitle ? { description: truncate(copy.subtitle, 1500) } : {}),
+    ...(poster ? { thumbnail: { url: "attachment://poster.jpg" } } : {}),
+    ...(fields.length ? { fields } : {}),
+    footer: { text: "JellyGlance" },
+    timestamp: data.triggeredAt || new Date().toISOString(),
+  };
+}
+
+function operationalTextEmbed(data) {
+  const copy = operationalCopy(data);
+  return {
+    color: copy.color,
+    author: { name: copy.kicker },
+    title: truncate(copy.title, 250),
+    description: [copy.subtitle, copy.details].filter(Boolean).join("\n"),
+    footer: { text: "JellyGlance" },
+    timestamp: data.triggeredAt || new Date().toISOString(),
+  };
+}
+
+function textModeLines(copy, cardSettings, isPlayback) {
+  const media = isPlayback ? mediaForSettings(copy.media, cardSettings) : null;
+  const progress = media?.position && media?.duration ? `${media.position} / ${media.duration}` : null;
+  return [
+    copy.subtitle,
+    media && media.showMetaLine !== false ? playbackMetaLine(media) : null,
+    media?.overview ? truncate(media.overview, 220) : null,
+    isPlayback ? [copy.client, copy.device, copy.media?.playMethod].filter(Boolean).join(" · ") : copy.details,
+    media ? [media.quality, media.audio].filter(Boolean).join(" · ") : null,
+    progress,
+    media?.genres?.length ? media.genres.join(", ") : null,
+  ].filter(Boolean);
+}
+
 function shouldAttachMedia(data = {}) {
   return PLAYBACK_EVENTS.has(data.event) || DOWNLOAD_EVENTS.has(data.event) || OPERATIONAL_EVENTS.has(data.event);
 }
@@ -824,20 +1107,31 @@ async function renderEventCard(data = {}, overrides = {}) {
         user: overrides.user,
       })
     : null;
-  const palette = themePalette(cardSettings.theme, EVENT_COLORS[data.event] || copy.color || 3447003, uiTheme);
+  const accentColor = cardSettings.accentColor ? cardAccent(data, cardSettings) : EVENT_COLORS[data.event] || copy.color || 3447003;
+  const palette = themePalette(cardSettings.theme, accentColor, uiTheme);
   let file = null;
+  let artwork = [];
   try {
-    const clientIcon = await resolveCardIcon(data, cardSettings, palette.iconBg);
     if (isPlayback || isDownloadItem) {
-      const files = Array.isArray(data.previewArtwork)
+      artwork = Array.isArray(data.previewArtwork)
         ? data.previewArtwork
         : isPlayback
           ? await fetchPlaybackArtwork(data)
           : await fetchDownloadArtwork(data);
+      artwork = artwork.filter((item) => (item?.name !== "poster.jpg" || cardSettings.showPoster) && (item?.name !== "user.jpg" || cardSettings.showAvatar));
+    }
+    if (cardSettings.style === "text") {
+      return { copy, file: null, artwork, cardSettings, isPlayback, isDownloadItem, isOperational };
+    }
+    const clientIcon = await resolveCardIcon(data, cardSettings, palette.iconBg);
+    if (isPlayback || isDownloadItem) {
+      const files = artwork;
+      const media = isPlayback ? mediaForSettings(copy.media, cardSettings) : null;
+      const progressClock = media?.position && media?.duration ? `${media.position} / ${media.duration}` : null;
       file = await composeLandscapeCard({
         poster: files.find((item) => item.name === "poster.jpg"),
         avatar: files.find((item) => item.name === "user.jpg"),
-        accent: EVENT_COLORS[data.event] || 3447003,
+        accent: cardAccent(data, cardSettings),
         kicker: copy.kicker,
         username: copy.username || copy.kicker,
         title: copy.title,
@@ -846,14 +1140,17 @@ async function renderEventCard(data = {}, overrides = {}) {
         theme: cardSettings.theme,
         clientIcon,
         uiTheme,
+        media,
+        showMediaDetails: cardSettings.showMediaDetails,
+        detailsWithMedia: media ? [copy.client, copy.device, progressClock].filter(Boolean).join("  ·  ") : null,
       });
     } else {
-      file = await composeStatusCard({ ...copy, theme: cardSettings.theme, clientIcon, uiTheme });
+      file = await composeStatusCard({ ...copy, ...(cardSettings.accentColor ? { color: cardAccent(data, cardSettings) } : {}), theme: cardSettings.theme, clientIcon, uiTheme });
     }
   } catch (error) {
     console.warn("[WEBHOOK] Unable to render notification card:", error.message);
   }
-  return { copy, file, isPlayback, isDownloadItem, isOperational };
+  return { copy, file, artwork, cardSettings, isPlayback, isDownloadItem, isOperational };
 }
 
 async function samplePoster() {
@@ -884,15 +1181,32 @@ async function previewWebhookCard(overrides = {}) {
     ClientName: overrides.clientName || "Infuse",
     DeviceName: overrides.deviceName || "Apple TV",
     PlayMethod: "DirectPlay",
-    mediaInfo: { seasonNumber: 1, episodeNumber: 4, mediaName: "The Watcher", seriesName: "Night Shift" },
+    mediaInfo: {
+      seasonNumber: 1,
+      episodeNumber: 4,
+      mediaName: "The Watcher",
+      seriesName: "Night Shift",
+      playMethod: "DirectPlay",
+      productionYear: 2024,
+      officialRating: "TV-14",
+      communityRating: 8.2,
+      genres: ["Drama", "Thriller", "Mystery"],
+      runTimeTicks: 2710000000 * 10,
+      positionTicks: 1084000000 * 10,
+      videoHeight: 2160,
+      videoCodec: "hevc",
+      videoRange: "HDR10",
+      audioCodec: "eac3",
+      audioChannels: 6,
+    },
     previewArtwork: [{ name: "poster.jpg", buffer: poster, contentType: "image/jpeg" }],
   };
-  const { file } = await renderEventCard(sample, {
-    theme: overrides.theme,
-    showClientIcon: overrides.showClientIcon,
-    user: overrides.user,
-    uiTheme: overrides.uiTheme,
-  });
+  const cardOverrides = { style: "card", theme: overrides.theme, user: overrides.user, uiTheme: overrides.uiTheme };
+  if (overrides.accentColor !== undefined) cardOverrides.accentColor = overrides.accentColor;
+  for (const key of CARD_TOGGLES) {
+    if (overrides[key] !== undefined) cardOverrides[key] = overrides[key];
+  }
+  const { file } = await renderEventCard(sample, cardOverrides);
   return file;
 }
 
@@ -903,8 +1217,36 @@ function gotifyPriority(event) {
   return 3;
 }
 
+async function gotifyImageUrl(buffer, maxWidth) {
+  const id = putWebhookCard(buffer);
+  const url = publicCardUrl(id);
+  if (url) return url;
+  const compact = await sharp(buffer).resize({ width: maxWidth, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
+  return compact.length <= 28 * 1024 ? `data:image/jpeg;base64,${compact.toString("base64")}` : null;
+}
+
 async function enrichGotifyPayload(templatePayload = {}, data = {}) {
-  const { copy, file } = await renderEventCard(data);
+  const { copy, file, artwork = [], cardSettings, isPlayback } = await renderEventCard(data);
+  if (cardSettings?.style === "text") {
+    const poster = artwork.find((item) => item.name === "poster.jpg");
+    const posterUrl = poster?.buffer ? await gotifyImageUrl(poster.buffer, 240).catch(() => null) : null;
+    const lines = textModeLines(copy, cardSettings, isPlayback);
+    const message = [
+      posterUrl ? `![](${posterUrl})` : null,
+      `**${String(copy.title || copy.kicker || "JellyGlance").replace(/\*/g, "")}**`,
+      ...lines,
+    ].filter(Boolean).join("\n\n");
+    return {
+      title: truncate([copy.username, copy.kicker].filter(Boolean).join(" · ") || "JellyGlance", 80),
+      message,
+      priority: templatePayload.priority ?? gotifyPriority(data.event),
+      extras: {
+        ...(templatePayload.extras || {}),
+        "client::display": { contentType: "text/markdown" },
+        ...(posterUrl && !posterUrl.startsWith("data:") ? { "client::notification": { bigImageUrl: posterUrl } } : {}),
+      },
+    };
+  }
   let imageUrl = null;
   if (file?.buffer) {
     const id = putWebhookCard(file.buffer);
@@ -947,7 +1289,26 @@ function sanitizeDiscordPayload(payload = {}) {
 }
 
 async function enrichDiscordPayload(templatePayload, data) {
-  const { file, isPlayback, isDownloadItem, isOperational } = await renderEventCard(data);
+  const { file, artwork = [], cardSettings, isPlayback, isDownloadItem, isOperational } = await renderEventCard(data);
+
+  if (cardSettings?.style === "text" && (isPlayback || isDownloadItem || isOperational)) {
+    const files = artwork.filter((item) => item?.buffer && (item.name === "poster.jpg" || item.name === "user.jpg"));
+    const embed = isPlayback
+      ? playbackTextEmbed(data, files, cardSettings)
+      : isDownloadItem
+        ? downloadTextEmbed(data, files)
+        : operationalTextEmbed(data);
+    if (cardSettings.accentColor) embed.color = cardAccent(data, cardSettings);
+    const payload = sanitizeDiscordPayload({ ...templatePayload });
+    if (!Array.isArray(payload.embeds) || payload.embeds.length === 0) {
+      payload.embeds = [embed];
+      if (!payload.content) delete payload.content;
+    } else {
+      const first = { ...embed, ...payload.embeds[0] };
+      payload.embeds = [first, ...payload.embeds.slice(1)];
+    }
+    return { payload, files };
+  }
 
   if (!isPlayback && !isDownloadItem && !isOperational) {
     const payload = sanitizeDiscordPayload({ ...templatePayload });
@@ -959,6 +1320,7 @@ async function enrichDiscordPayload(templatePayload, data) {
 
   const files = file ? [file] : [];
   const embed = isPlayback ? playbackEmbed(data, files) : isDownloadItem ? downloadEmbed(data, files) : operationalEmbed(data, files);
+  if (cardSettings?.accentColor) embed.color = cardAccent(data, cardSettings);
   const payload = sanitizeDiscordPayload({ ...templatePayload });
 
   if (!Array.isArray(payload.embeds) || payload.embeds.length === 0) {
@@ -1034,6 +1396,8 @@ module.exports = {
   getWebhookCard,
   getCardSettings,
   normalizeCardSettings,
+  CARD_TOGGLES,
   previewWebhookCard,
   CARD_THEMES,
+  CARD_STYLES,
 };

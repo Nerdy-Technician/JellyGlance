@@ -27,6 +27,7 @@ import { FONT_WEIGHT_OPTIONS, getStoredFontWeight, saveFontWeightPreference } fr
 import { DEFAULT_THEME, THEME_GROUPS, filterThemePresets, findMatchingThemePreset, getStoredTheme, resetTheme, saveTheme, themeColorFields } from "../../../lib/theme";
 import { applyNavOrder, getStoredHiddenNavLinks, getStoredNavOrder, LOCKED_NAV_LINKS } from "../../../lib/nav-order";
 import { applyPwaStartUrl, pwaStartPath } from "../../../lib/pwa-manifest";
+import InstallAppButton from "./InstallAppButton";
 import {
   getStoredWorkspaceMode,
   saveWorkspaceMode,
@@ -329,7 +330,7 @@ export default function Navbar() {
           if (isJellyfinAdmin && workspaceMode === "user" && !USER_WORKSPACE_NAV_LINKS.has(item.link)) return false;
           if (item.link === "") return canOpenHome;
           if (item.link === "settings") return canOpenSettings;
-          if (item.link === "users") return Boolean(permissions.users);
+          if (item.link === "users") return Boolean(permissions.users) || showWizarrNav;
           if (item.link === "me") return permissions.myGlance !== false;
           if (item.link === "requests") return showRequestsNav && permissions.requests !== false;
           if (item.link === "downloads") return showDownloadsNav && Boolean(permissions.downloads || permissions.settings);
@@ -338,7 +339,7 @@ export default function Navbar() {
           if (item.link === "maintainerr") return showMaintainerrNav;
           if (item.link === "automation-health") return showAutomationHealthNav;
           if (item.link === "wizarr") return showWizarrNav;
-          if (item.link === "server-management") return showServerManagementNav;
+          if (item.link === "server-management") return showServerManagementNav || showMaintainerrNav || showAutomationHealthNav;
           return true;
         }),
         navOrder,
@@ -1045,6 +1046,7 @@ export default function Navbar() {
                 <small>{accountRole}</small>
               </span>
             </button>
+            <InstallAppButton className="is-mobile" />
             <button className="mobile-app-menu-logout" type="button" onClick={handleLogout}>
               <LogoutBoxLineIcon size={22} />
               <span>
@@ -1068,6 +1070,7 @@ export default function Navbar() {
         </div>
 
         <Nav className="flex-row flex-md-column w-100">
+          <div className="navbar-links-scroll">
           {visibleNavData.map((item) => {
             const isActive = isNavItemActive(item, location);
             const badgeCount =
@@ -1128,6 +1131,7 @@ export default function Navbar() {
           >
             {isNavCollapsed ? <ArrowRightSLineIcon size={16} /> : <ArrowLeftSLineIcon size={16} />}
           </button>
+          </div>
           <div className="navbar-inline-footer">
             <div className="navbar-footer-account-row">
               <button className="navitem account-navitem p-2" type="button" onClick={() => setShowAccount(true)}>
@@ -1144,6 +1148,7 @@ export default function Navbar() {
                 </span>
               </button>
             </div>
+            <InstallAppButton className="is-desktop" />
             <div className="navbar-version-row">
               {jellyfinStatus && jellyfinStatus.ok === false ? (
                 <Link to="/settings/health" className="navbar-jellyfin-down" title={jellyfinStatus.error || t("FEATURES.OPS.JELLYFIN_DOWN")}>

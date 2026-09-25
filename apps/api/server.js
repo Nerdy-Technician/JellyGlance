@@ -34,11 +34,17 @@ const statsRouter = require("./routes/stats");
 const backupRouter = require("./routes/backup");
 const { firstRunRestoreHandler, getFirstRunRestoreStatusHandler } = require("./routes/backup");
 const tautulliRouter = require("./routes/tautulli");
+const externalImportsRouter = require("./routes/external-imports");
+const serverTasksRouter = require("./routes/server-tasks");
 const jellystatRouter = require("./routes/jellystat");
 const logRouter = require("./routes/logging");
 const utilsRouter = require("./routes/utils");
 const webhooksRouter = require("./routes/webhooks");
 const newsletterRouter = require("./routes/newsletter");
+const insightsRouter = require("./routes/insights");
+const alertsRouter = require("./routes/alerts");
+const { publicRouter: publicStatusRouter, adminRouter: publicStatusAdminRouter } = require("./routes/public-status");
+const thresholdAlerts = require("./classes/threshold-alerts");
 
 // tasks
 const ActivityMonitor = require("./tasks/ActivityMonitor");
@@ -76,6 +82,35 @@ const PORT = Number(process.env.PORT || process.env.JS_PORT || 3000);
 const LISTEN_IP = process.env.JS_LISTEN_IP || "0.0.0.0";
 const JWT_SECRET = process.env.JWT_SECRET;
 const BASE_NAME = process.env.JS_BASE_URL ? ensureSlashes(process.env.JS_BASE_URL) : "";
+
+// Installable-app manifest, served from the real origin (Android won't install from a blob: manifest).
+function buildAppManifest(start) {
+  const base = BASE_NAME || "";
+  const startUrl = `${base}${start}`;
+  return {
+    short_name: "JellyGlance",
+    name: "JellyGlance",
+    id: startUrl,
+    description: "Jellyfin command center for sessions, requests, downloads, and ops.",
+    icons: [
+      { src: `${base}/icon-b-192.png`, type: "image/png", sizes: "192x192", purpose: "any" },
+      { src: `${base}/icon-b-512.png`, type: "image/png", sizes: "512x512", purpose: "any" },
+      { src: `${base}/icon-b-512.png`, type: "image/png", sizes: "512x512", purpose: "maskable" },
+    ],
+    start_url: startUrl,
+    scope: `${base}/`,
+    display: "standalone",
+    display_override: ["standalone", "minimal-ui"],
+    orientation: "any",
+    theme_color: "#0b1117",
+    background_color: "#0b1117",
+    shortcuts: [
+      { name: "My Glance", url: `${base}/me` },
+      { name: "Requests", url: `${base}/requests` },
+      { name: "Activity", url: `${base}/activity` },
+    ],
+  };
+}
 const DEFAULT_ALLOWED_ORIGINS = [
   `http://localhost:${PORT}`,
   `http://127.0.0.1:${PORT}`,
@@ -306,6 +341,11 @@ app.use((req, res, next) => {
     res.set("Cache-Control", "no-store");
     return res.type("application/javascript").send(buildEnvContent());
   }
+  if (pathname === "/app.webmanifest" || (BASE_NAME && pathname === `${BASE_NAME}/app.webmanifest`)) {
+    const requested = new URL(req.url, "http://localhost").searchParams.get("start");
+    res.set("Cache-Control", "no-store");
+    return res.type("application/manifest+json").send(JSON.stringify(buildAppManifest(requested === "/me" ? "/me" : "/")));
+  }
 
   const translationFilePath = getTranslationFilePath(req);
   if (translationFilePath) {
@@ -360,6 +400,12 @@ app.use("/api", apiRateLimit, authenticate, restrictApiKeyScope, authorizeApiRou
 app.use("/sync", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), syncRouter, () => {
   /*  #swagger.tags = ['Sync']*/
 }); // mount the API router at /sync, with JWT middleware
+app.use("/insights-data/library-health", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"));
+app.use("/insights-data/streams", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"));
+app.use("/insights-data", apiRateLimit, authenticate, restrictApiKeyScope, insightsRouter);
+app.use("/alerts-data", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), alertsRouter);
+app.use("/status-data/admin", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), publicStatusAdminRouter);
+app.use("/status-data", apiRateLimit, publicStatusRouter);
 app.use("/stats", apiRateLimit, authenticate, restrictApiKeyScope, statsRouter, () => {
   /*  #swagger.tags = ['Stats']*/
 }); // mount the API router at /stats, with JWT middleware
@@ -372,6 +418,12 @@ app.use("/tautulli", fileRateLimit, authenticate, restrictApiKeyScope, requirePe
 app.use("/jellystat", fileRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), jellystatRouter, () => {
   /*  #swagger.tags = ['Jellystat']*/
 }); // mount the Jellystat import router with settings permission
+app.use("/external-imports", fileRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), externalImportsRouter, () => {
+  /*  #swagger.tags = ['Imports']*/
+}); // mount the Jellyfin watch sync and Trakt import router with settings permission
+app.use("/server-tasks", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), serverTasksRouter, () => {
+  /*  #swagger.tags = ['Server tasks']*/
+}); // mount ARR task running and task active times with settings permission
 app.use("/logs", apiRateLimit, authenticate, restrictApiKeyScope, requirePermission("settings"), logRouter, () => {
   /*  #swagger.tags = ['Logs']*/
 }); // mount the API router at /logs, with JWT middleware
@@ -812,6 +864,8 @@ function authorizeApiRoute(req, res, next) {
       ActivityMonitor.ActivityMonitor(1000);
       new TaskManager();
       new TaskScheduler();
+      thresholdAlerts.start();
+      require("./classes/status-page").startStatusChecks();
       try {
         await bootstrapFromEnv({ afterTaskManager: true });
       } catch (error) {

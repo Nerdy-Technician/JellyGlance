@@ -255,9 +255,11 @@ async function delugeRpc(client, method, params = []) {
 
 async function nzbgetRpc(client, method, params = []) {
   const url = cleanUrl(client.values?.url);
+  // NZBGet's default control user is "nzbget"; older setups saved only a password.
+  const username = client.values?.username || "nzbget";
   const password = client.values?.secret;
   if (!url || !password) {
-    throw Object.assign(new Error("Missing NZBGet URL or API key"), { statusCode: 400 });
+    throw Object.assign(new Error("Missing NZBGet URL or password"), { statusCode: 400 });
   }
   const response = await safeHttpPost(
     url,
@@ -265,13 +267,14 @@ async function nzbgetRpc(client, method, params = []) {
     { method, params, id: 1 },
     {
       timeout: 15000,
-      auth: { username: client.values?.username || "nzbget", password },
+      auth: { username, password },
       headers: { "Content-Type": "application/json" },
       validateStatus: () => true,
     }
   );
   if (response.status >= 400) {
-    throw Object.assign(new Error(`NZBGet request failed (${response.status})`), { statusCode: 502 });
+    const hint = response.status === 401 ? ": check the username and password" : "";
+    throw Object.assign(new Error(`NZBGet request failed (${response.status})${hint}`), { statusCode: 502 });
   }
   if (response.data?.error) {
     throw Object.assign(new Error(response.data.error.message || "NZBGet RPC failed"), { statusCode: 502 });

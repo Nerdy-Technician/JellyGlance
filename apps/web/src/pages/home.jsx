@@ -1588,7 +1588,7 @@ export default function Home({ kioskMode = false }) {
           />
           <HomeOpsCard
             icon={ServerFillIcon}
-            label="Jellyfin jobs"
+            label="Server jobs"
             value={runningJobs.length ? `${runningJobs.length} running` : "Idle"}
             detail={runningJobs[0]?.name || "No library scans in progress"}
             to="/server-management"

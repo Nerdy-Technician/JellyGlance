@@ -77,7 +77,7 @@ export default function VersionCard() {
                 target="_blank"
                 rel="noreferrer"
               >
-                <span>New version available</span>
+                <span>Update available</span>
                 <strong>{data.latest_version}</strong>
               </a>
             ) : null}
