@@ -9,7 +9,7 @@
     "preview": "vitepress preview . --host 0.0.0.0"
   },
   "devDependencies": {
-    "vite": "6.4.3",
+    "vite": "8.3.0",
     "vitepress": "^1.6.3"
   }
 }

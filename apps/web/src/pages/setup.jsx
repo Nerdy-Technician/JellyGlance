@@ -186,7 +186,7 @@ function Setup() {
         return;
       })
       .catch((error) => {
-        let errorMessage = "";
+        let errorMessage;
         if (error.code === "ERR_NETWORK") {
           errorMessage = i18next.t("ERROR_MESSAGES.NETWORK_ERROR");
         } else if (error.response.status === 401) {

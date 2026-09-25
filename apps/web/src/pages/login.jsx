@@ -64,7 +64,7 @@ function Login() {
     textarea.select();
     textarea.setSelectionRange(0, code.length);
 
-    let copied = false;
+    let copied;
     try {
       copied = document.execCommand("copy");
     } finally {

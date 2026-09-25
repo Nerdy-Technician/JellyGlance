@@ -39,7 +39,10 @@ export default [
       "react-refresh": reactRefresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // eslint-plugin-react-hooks v7 "recommended" adds React Compiler rules
+      // (set-state-in-effect, refs, immutability, ...). Keep the v4 behaviour
+      // until those are adopted deliberately.
+      "react-hooks/rules-of-hooks": "error",
       "no-extra-semi": "off",
       "no-undef": "off",
       "no-unused-vars": "off",
