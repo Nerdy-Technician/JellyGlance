@@ -15,7 +15,8 @@ import { prewarmActiveSessions } from "./lib/session-cache";
 import { applyPwaStartUrl, isOpsRole, pwaStartPath } from "./lib/pwa-manifest";
 import { getStoredWorkspaceMode, WORKSPACE_MODE_UPDATED_EVENT } from "./lib/workspace-mode";
 import { DEFAULT_THEME, applyTheme, hydrateThemeFromPreferences } from "./lib/theme";
-import { getStoredNotificationSettings, normalizeNotificationSettings, storeNotificationSettings } from "./lib/notification-settings";
+import { getStoredNotificationSettings, normalizeNotificationSettings, notificationCategory, storeNotificationSettings } from "./lib/notification-settings";
+import { shouldSendSystemNotification, showSystemNotification } from "./lib/system-notifications";
 
 import Loading from "./pages/components/general/loading";
 import ErrorPage from "./pages/components/general/error";
@@ -68,6 +69,37 @@ function shouldShowNotification(message, settings) {
   if (settings.mode === "important") return kind === "warning" || kind === "error";
   if (settings.mode === "errors") return kind === "error";
   return false;
+}
+
+const SYSTEM_NOTIFICATION_TITLES = {
+  librarySync: "Library sync",
+  playbackSync: "Playback sync",
+  backups: "Backup",
+  tasks: "JellyGlance task",
+  downloads: "Download queued",
+  errors: "Task error",
+  playback: "Now playing",
+};
+
+function sendSystemNotification(settings, category, message) {
+  const type = String(message?.type || "").toLowerCase();
+  if (type === "update") return;
+  if (!shouldSendSystemNotification(settings)) return;
+  const text = message?.message || message;
+  if (!text || typeof text !== "string") return;
+  const prefix = type === "error" ? "Failed: " : type === "warning" || type === "warn" ? "Warning: " : "";
+  showSystemNotification(`${prefix}${SYSTEM_NOTIFICATION_TITLES[category] || "JellyGlance"}`, text, { tag: `jellyglance-${category}` });
+}
+
+function sessionPlaybackKey(session) {
+  return session?.Id && session?.NowPlayingItem?.Id ? `${session.Id}:${session.NowPlayingItem.Id}` : null;
+}
+
+function sessionPlaybackText(session) {
+  const item = session.NowPlayingItem || {};
+  const title = item.SeriesName ? `${item.SeriesName} · ${item.Name}` : item.Name || "something";
+  const where = [session.Client, session.DeviceName].filter(Boolean).join(" on ");
+  return `${session.UserName || "Someone"} started ${title}${where ? ` (${where})` : ""}`;
 }
 
 function toastOptions(settings, autoCloseOverride) {
@@ -137,10 +169,18 @@ function App() {
   useEffect(() => {
     wsListeners.forEach((listener) => {
       socket.on(listener.task, (message) => {
+        const category = notificationCategory(listener.task, message);
+        if (notificationSettings.categories?.[category] === false) {
+          return;
+        }
         if (!shouldShowNotification(message, notificationSettings)) {
           return;
         }
         if (isDuplicateTaskNotification(listener.task, message)) {
+          return;
+        }
+        sendSystemNotification(notificationSettings, category, message);
+        if (!notificationSettings.inApp) {
           return;
         }
         const toastId = taskToastId(listener.task);
@@ -198,10 +238,48 @@ function App() {
       });
     });
 
+    let knownPlayback = null;
+    function handlePlaybackSessions(sessions) {
+      if (!Array.isArray(sessions)) return;
+      const active = sessions.filter((session) => sessionPlaybackKey(session));
+      const nextKeys = new Set(active.map(sessionPlaybackKey));
+      if (knownPlayback && notificationSettings.categories?.playback && notificationSettings.mode === "all") {
+        active
+          .filter((session) => !knownPlayback.has(sessionPlaybackKey(session)))
+          .forEach((session) => {
+            const text = sessionPlaybackText(session);
+            sendSystemNotification(notificationSettings, "playback", { type: "Info", message: text });
+            if (notificationSettings.inApp) toast.info(text, toastOptions(notificationSettings));
+          });
+      }
+      knownPlayback = nextKeys;
+    }
+    socket.on("sessions", handlePlaybackSessions);
+
+    function handleThresholdAlert(alert) {
+      let role = "Viewer";
+      try {
+        role = JSON.parse(localStorage.getItem("config") || "{}")?.settings?.auth?.role || "Viewer";
+      } catch {
+        /* ignore */
+      }
+      if (!isOpsRole(role) || !alert?.message) return;
+      if (shouldSendSystemNotification(notificationSettings)) {
+        showSystemNotification(alert.title || "JellyGlance alert", alert.message, { tag: `jellyglance-alert-${alert.alertType || "general"}` });
+      }
+      if (notificationSettings.inApp) {
+        const show = alert.type === "Error" ? toast.error : toast.warn;
+        show(`${alert.title}: ${alert.message}`, { autoClose: 12000 });
+      }
+    }
+    socket.on("ThresholdAlert", handleThresholdAlert);
+
     return () => {
+      socket.off("ThresholdAlert", handleThresholdAlert);
       wsListeners.forEach((listener) => {
         socket.off(listener.task);
       });
+      socket.off("sessions", handlePlaybackSessions);
     };
   }, [notificationSettings]);
 

@@ -7,6 +7,7 @@ export const USER_WORKSPACE_NAV_LINKS = new Set([
   "libraries",
   "calendar",
   "requests",
+  "statistics",
   "downloads",
   "settings",
   "about",

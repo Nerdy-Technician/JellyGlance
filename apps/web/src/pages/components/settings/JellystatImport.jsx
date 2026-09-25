@@ -1,3 +1,4 @@
+import { ImportSourceLogo } from "../../../lib/import-source-logos";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Spinner } from "react-bootstrap";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
@@ -165,7 +166,7 @@ export default function JellystatImport({ compact = false }) {
 
       <section className="legacy-import-panel">
         <div className="legacy-import-upload">
-          <Database2LineIcon />
+          <ImportSourceLogo source="jellystat" size={38} className="legacy-import-logo" />
           <div>
             <span>Jellystat backup file</span>
             <strong>{uploadedBackup?.originalName || (result?.sourceFile ? String(result.sourceFile).split("/").pop() : "") || "No backup uploaded"}</strong>

@@ -80,7 +80,8 @@ class WebhookManager {
             'integration_health_warning',
             'device_authorized',
             'ops_digest',
-            'playback_digest'
+            'playback_digest',
+            'threshold_alert'
         ].forEach((eventType) => {
             this.eventEmitter.on(eventType, async (data) => {
                 await this.triggerEventWebhooks(eventType, data);

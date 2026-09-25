@@ -1,0 +1,55 @@
+.spb { display: grid; gap: 16px; }
+.spb-loading { padding: 24px; color: rgba(199, 211, 230, 0.7); }
+.spb-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding: 18px 20px; border: 1px solid rgba(var(--primary-light-rgb), 0.18); border-radius: 16px; background: rgba(12, 15, 22, 0.72); }
+.spb-hero h2 { margin: 0 0 4px; font-size: 22px; font-weight: 800; color: #f8fafc; }
+.spb-hero p { margin: 0; max-width: 620px; font-size: 13px; color: rgba(199, 211, 230, 0.72); }
+.spb-hero-actions { display: flex; align-items: center; gap: 10px; }
+.spb input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary-color, #8b5cf6); flex: 0 0 auto; }
+.spb-switch { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); font-weight: 700; font-size: 13px; cursor: pointer; }
+.spb-switch.is-on { border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.12); color: #bbf7d0; }
+.spb-primary { padding: 9px 18px; border: 1px solid rgba(var(--primary-light-rgb), 0.45); border-radius: 10px; background: rgba(var(--primary-rgb), 0.45); color: #fff; font-weight: 700; font-size: 13px; }
+.spb-primary:disabled { opacity: 0.55; }
+.spb-message { padding: 10px 14px; border-radius: 10px; background: rgba(var(--primary-rgb), 0.14); font-size: 13px; }
+.spb-layout { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.spb-editor { display: grid; gap: 14px; min-width: 0; }
+.spb-card { display: grid; gap: 12px; padding: 16px; border: 1px solid rgba(var(--primary-light-rgb), 0.16); border-radius: 16px; background: rgba(12, 15, 22, 0.72); }
+.spb-card h3 { margin: 0; font-size: 15px; font-weight: 800; color: #f8fafc; }
+.spb-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.spb-field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: rgba(199, 211, 230, 0.78); min-width: 0; }
+.spb-field small, .spb-note { font-weight: 400; font-size: 12px; color: rgba(199, 211, 230, 0.55); }
+.spb input[type="text"], .spb input[type="url"], .spb input[type="number"], .spb select, .spb textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid rgba(var(--primary-light-rgb), 0.22); border-radius: 9px; background: rgba(8, 12, 20, 0.85); color: #e6edf7; font-size: 14px; }
+.spb textarea { resize: vertical; }
+.spb-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.spb-check { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+.spb-checks { display: grid; gap: 8px; }
+.spb-colour { display: flex; gap: 6px; }
+.spb-colour input[type="color"] { width: 40px; height: 36px; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; background: transparent; flex: 0 0 auto; }
+.spb-link { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.spb-link code { padding: 6px 10px; border-radius: 8px; background: rgba(8, 12, 20, 0.7); color: #c4b5fd; font-size: 12px; overflow-wrap: anywhere; }
+.spb-link a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; }
+.spb-maintenance.is-on { border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.08); }
+.spb-presets { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: rgba(199, 211, 230, 0.6); }
+.spb-presets button, .spb-add button, .spb-small-button { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid rgba(var(--primary-light-rgb), 0.25); border-radius: 8px; background: rgba(255, 255, 255, 0.03); color: #e6edf7; font-size: 12px; font-weight: 600; }
+.spb-presets button:hover, .spb-add button:hover, .spb-small-button:hover { background: rgba(var(--primary-rgb), 0.2); }
+.spb-small-button { justify-self: start; }
+.spb-blocks { display: grid; gap: 8px; }
+.spb-block { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; background: rgba(8, 12, 20, 0.5); }
+.spb-block.is-open { border-color: rgba(var(--primary-light-rgb), 0.4); }
+.spb-block.is-hidden { opacity: 0.55; }
+.spb-block-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 0; }
+.spb-block-title { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 6px 12px; border: 0; background: transparent; color: #e6edf7; text-align: left; }
+.spb-block-title strong { font-size: 14px; }
+.spb-block-title small { font-size: 12px; color: rgba(199, 211, 230, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spb-block-tools { display: flex; gap: 2px; }
+.spb-block-tools button, .spb-link-row button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: rgba(199, 211, 230, 0.75); }
+.spb-block-tools button:hover:not(:disabled), .spb-link-row button:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.spb-block-tools button:disabled { opacity: 0.3; }
+.spb-block-body { display: grid; gap: 10px; padding: 4px 12px 14px; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 12px; }
+.spb-link-row { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 6px; align-items: center; }
+.spb-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: rgba(199, 211, 230, 0.6); }
+.spb-preview { position: sticky; top: 18px; display: grid; gap: 8px; min-width: 0; }
+.spb-preview-bar { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.spb-preview-bar small { font-weight: 400; color: rgba(199, 211, 230, 0.6); }
+.spb-preview-frame { max-height: calc(100vh - 120px); overflow-y: auto; border: 1px solid rgba(var(--primary-light-rgb), 0.2); border-radius: 16px; background: #0b1117; }
+.spb-preview-frame .public-status { padding: 22px 16px 28px; }
+@media (max-width: 1100px) { .spb-layout { grid-template-columns: 1fr; } .spb-preview { position: static; } .spb-preview-frame { max-height: 70vh; } }

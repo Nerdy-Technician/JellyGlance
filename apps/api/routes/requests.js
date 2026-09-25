@@ -41,6 +41,44 @@ router.put("/requests/preferences", async (req, res) => {
   }
 });
 
+router.get("/requests/quota", async (req, res) => {
+  try {
+    const requestRules = require("../classes/request-rules");
+    const rules = await requestRules.getRules();
+    res.send({ enabled: rules.enabled, usage: await requestRules.usage(req.user, rules) });
+  } catch (error) {
+    res.status(503).send({ error: error.message || "Unable to load your request allowance" });
+  }
+});
+
+router.get("/requests/rules", async (req, res) => {
+  const requestRules = require("../classes/request-rules");
+  if (!requestRules.isAdmin(req.user)) {
+    res.status(403).send({ error: "Only server admins can change request rules" });
+    return;
+  }
+  try {
+    const rules = await requestRules.getRules();
+    res.send({ rules, usage: await requestRules.allUsage(rules) });
+  } catch (error) {
+    res.status(503).send({ error: error.message || "Unable to load request rules" });
+  }
+});
+
+router.put("/requests/rules", async (req, res) => {
+  const requestRules = require("../classes/request-rules");
+  if (!requestRules.isAdmin(req.user)) {
+    res.status(403).send({ error: "Only server admins can change request rules" });
+    return;
+  }
+  try {
+    const rules = await requestRules.saveRules(req.body || {});
+    res.send({ rules, usage: await requestRules.allUsage(rules) });
+  } catch (error) {
+    res.status(503).send({ error: error.message || "Unable to save request rules" });
+  }
+});
+
 router.get("/requests/providers", async (_req, res) => {
   try {
     res.send({ providers: listProviders() });
