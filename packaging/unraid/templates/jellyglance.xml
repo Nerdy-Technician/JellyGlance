@@ -23,7 +23,7 @@ WebUI on port 3000. Persist /app/config and /app/backups.</Description>
   <Category>MediaApp:Other ProductivityTools:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-512.png</Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <Shell>sh</Shell>
   <Requires>PostgreSQL (use jellyglance-db template or your own). Jellyfin URL and API key configured on first run.</Requires>

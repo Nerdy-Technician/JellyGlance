@@ -14,7 +14,7 @@ Put both containers on one custom network. Match POSTGRES_USER / POSTGRES_PASSWO
   <Category>Other:</Category>
   <WebUI></WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance-db.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-512.png</Icon>
   <ExtraParams>--restart=unless-stopped --shm-size=1g</ExtraParams>
   <Shell>sh</Shell>
   <Config Name="Database Data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/jellyglance/postgres" Mode="rw" Description="Postgres data directory" Type="Path" Display="always" Required="true" Mask="false"/>

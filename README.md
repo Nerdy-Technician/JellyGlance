@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/public/full-logo-transparent.png">
-    <img src="docs/public/full-logo-transparent.png" alt="JellyGlance" width="280">
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/full-logo-transparent.png">
+    <img src=".github/assets/full-logo-transparent.png" alt="JellyGlance" width="280">
   </picture>
 </p>
 
@@ -113,7 +113,7 @@ It is built around three jobs:
 <table>
   <tr>
     <td align="center" width="20%">
-      <img src="docs/public/icons/selfhst/jellyfin.svg" alt="Jellyfin" width="42"><br>
+      <img src=".github/assets/icons/selfhst/jellyfin.svg" alt="Jellyfin" width="42"><br>
       <strong>Jellyfin</strong>
     </td>
     <td align="center" width="20%">
@@ -135,19 +135,19 @@ It is built around three jobs:
   </tr>
   <tr>
     <td align="center">
-      <img src="docs/public/icons/selfhst/sonarr.svg" alt="Sonarr" width="42"><br>
+      <img src=".github/assets/icons/selfhst/sonarr.svg" alt="Sonarr" width="42"><br>
       <strong>Sonarr</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/radarr.svg" alt="Radarr" width="42"><br>
+      <img src=".github/assets/icons/selfhst/radarr.svg" alt="Radarr" width="42"><br>
       <strong>Radarr</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/lidarr.svg" alt="Lidarr" width="42"><br>
+      <img src=".github/assets/icons/selfhst/lidarr.svg" alt="Lidarr" width="42"><br>
       <strong>Lidarr</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/bazarr.svg" alt="Bazarr" width="42"><br>
+      <img src=".github/assets/icons/selfhst/bazarr.svg" alt="Bazarr" width="42"><br>
       <strong>Bazarr</strong>
     </td>
     <td align="center">
@@ -165,33 +165,33 @@ It is built around three jobs:
       <strong>Overseerr</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/qbittorrent.svg" alt="qBittorrent" width="42"><br>
+      <img src=".github/assets/icons/selfhst/qbittorrent.svg" alt="qBittorrent" width="42"><br>
       <strong>qBittorrent</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/transmission.svg" alt="Transmission" width="42"><br>
+      <img src=".github/assets/icons/selfhst/transmission.svg" alt="Transmission" width="42"><br>
       <strong>Transmission</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/deluge.svg" alt="Deluge" width="42"><br>
+      <img src=".github/assets/icons/selfhst/deluge.svg" alt="Deluge" width="42"><br>
       <strong>Deluge</strong>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="docs/public/icons/selfhst/sabnzbd.svg" alt="SABnzbd" width="42"><br>
+      <img src=".github/assets/icons/selfhst/sabnzbd.svg" alt="SABnzbd" width="42"><br>
       <strong>SABnzbd</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/nzbget.svg" alt="NZBGet" width="42"><br>
+      <img src=".github/assets/icons/selfhst/nzbget.svg" alt="NZBGet" width="42"><br>
       <strong>NZBGet</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/discord.svg" alt="Discord" width="42"><br>
+      <img src=".github/assets/icons/selfhst/discord.svg" alt="Discord" width="42"><br>
       <strong>Discord</strong>
     </td>
     <td align="center">
-      <img src="docs/public/icons/selfhst/gotify.svg" alt="Gotify" width="42"><br>
+      <img src=".github/assets/icons/selfhst/gotify.svg" alt="Gotify" width="42"><br>
       <strong>Gotify</strong>
     </td>
   </tr>

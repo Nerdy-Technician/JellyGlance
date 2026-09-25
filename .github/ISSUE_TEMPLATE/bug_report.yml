@@ -8,7 +8,7 @@ body:
     attributes:
       value: |
         <p align="center">
-          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/full-logo-transparent.png" alt="JellyGlance" width="220">
+          <img src="https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/full-logo-transparent.png" alt="JellyGlance" width="220">
         </p>
 
         ## JellyGlance Bug Intake

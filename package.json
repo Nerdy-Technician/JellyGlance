@@ -31,16 +31,13 @@
   "license": "GPL-3.0",
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "docs"
+    "apps/*"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w @jellyglance/api\" \"npm run dev -w @jellyglance/web\"",
     "dev:web": "npm run dev -w @jellyglance/web",
     "dev:api": "npm run dev -w @jellyglance/api",
     "build": "npm run build -w @jellyglance/web",
-    "build:docs": "npm run build -w @jellyglance/docs",
-    "docs:dev": "npm run dev -w @jellyglance/docs",
     "i18n:check": "node scripts/i18n-sync.mjs --check",
     "i18n:sync": "node scripts/i18n-sync.mjs",
     "lint": "npm run lint -w @jellyglance/web",
@@ -66,10 +63,6 @@
     "fast-uri": "3.1.6",
     "js-yaml": "4.3.2",
     "qs": "6.16.0",
-    "vitepress": {
-      "vite": "6.4.3",
-      "esbuild": "0.25.12"
-    },
     "vite@5.4.21": "6.4.3",
     "esbuild@0.21.5": "0.25.12",
     "npm": {

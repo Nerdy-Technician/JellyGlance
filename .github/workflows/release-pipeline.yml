@@ -145,7 +145,6 @@ jobs:
             "package.json",
             "apps/api/package.json",
             "apps/web/package.json",
-            "docs/package.json",
           ];
 
           for (const file of packageFiles) {
@@ -161,7 +160,6 @@ jobs:
             "package-lock packages root": lock.packages?.[""],
             "package-lock apps/api": lock.packages?.["apps/api"],
             "package-lock apps/web": lock.packages?.["apps/web"],
-            "package-lock docs": lock.packages?.["docs"],
           };
 
           for (const [name, pkg] of Object.entries(lockPackages)) {
@@ -185,12 +183,9 @@ jobs:
       - name: Build web app
         run: npm run build
 
-      - name: Build docs
-        run: npm run build:docs
-
       - name: Report build-local package version changes
         run: |
-          git add package.json package-lock.json apps/*/package.json docs/package.json
+          git add package.json package-lock.json apps/*/package.json
           if git diff --cached --quiet; then
             echo "Package files already match ${{ steps.release.outputs.version }}"
           else

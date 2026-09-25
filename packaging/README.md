@@ -23,7 +23,7 @@ Files in `unraid/templates/` are Community Applications XML templates.
 
 ### Submit to Community Apps
 
-Point Squid’s CA maintainers at this folder (or a fork under `templates/*.xml` at repo root). Icons: `docs/public/icon-b-512.png`.
+Point Squid’s CA maintainers at this folder (or a fork under `templates/*.xml` at repo root). Icons: `.github/assets/icon-b-512.png`.
 
 ## Proxmox LXC
 

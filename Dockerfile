@@ -11,7 +11,6 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/api/package.json apps/api/package.json
-COPY docs/package.json docs/package.json
 RUN npm ci
 
 FROM deps AS web-builder

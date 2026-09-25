@@ -28,15 +28,15 @@ Sits **beside** Jellyfin. Not a Seerr, Sonarr, or Jellyfin admin replacement.
 
 **Site:** [jellyglance.com](https://jellyglance.com/) · **Project:** [GitHub](https://github.com/Nerdy-Technician/JellyGlance) · **Support:** [Issues](https://github.com/Nerdy-Technician/JellyGlance/issues)
   </Profile>
-  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/icon-b-512.png</Icon>
+  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-512.png</Icon>
   <WebPage>https://jellyglance.com/</WebPage>
   <Forum>https://github.com/Nerdy-Technician/JellyGlance/issues</Forum>
   <DonateLink>https://github.com/sponsors/Nerdy-Technician</DonateLink>
   <DonateText>Support JellyGlance</DonateText>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/home.png</Photo>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/recently-added.png</Photo>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/libraries-grid.png</Photo>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/statistics.png</Photo>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/activity.png</Photo>
-  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/docs/public/screenshots/requests.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/home.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/recently-added.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/libraries-grid.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/statistics.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/activity.png</Photo>
+  <Photo>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/screenshots/requests.png</Photo>
 </CommunityApplications>
