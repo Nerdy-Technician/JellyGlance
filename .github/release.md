@@ -8,19 +8,78 @@ title: JellyGlance v1.2.11
 ### v1.2.11
 
 ![Version](https://img.shields.io/badge/version-1.2.11-6366f1?style=flat-square)
-![Fixes](https://img.shields.io/badge/fixes-3-22c55e?style=flat-square)
-![New](https://img.shields.io/badge/new%20features-4-f59e0b?style=flat-square)
+![Fixes](https://img.shields.io/badge/fixes-5-22c55e?style=flat-square)
+![New](https://img.shields.io/badge/new%20features-25-f59e0b?style=flat-square)
 
-**A hardening release: tighter security, easier installs, and docs with a home of their own.**
+**A big one: new insights and personal stats, a public status page, request rules, Jellyfin and Trakt imports, and an installable app, on top of tighter security and easier installs.**
 
 </div>
 
 <br>
 
-> **Note:** This release is mostly under the hood. The API has been hardened against every medium, high, and critical CodeQL finding, sign-in tokens now expire, and JellyGlance ships ready-made Unraid and Proxmox installs.
+> **Note:** The side menu has been reorganised into Statistics, Users and Server hubs. Old links and bookmarks redirect to the right tab. Under the hood, the API has been hardened against every medium, high, and critical CodeQL finding, sign-in tokens now expire, and JellyGlance ships ready-made Unraid and Proxmox installs.
 > **Before you upgrade:** local accounts still using the old unsalted SHA3 password hash can no longer sign in. Reset those passwords (or re-run setup) so they are saved with scrypt.
 
 <br>
+
+## ✨ New features
+
+### 📊 Statistics and insights
+
+| | |
+|---|---|
+| **Hubs** | Related pages are now tabs under Statistics, Users and Server, so the side menu is much shorter |
+| **Year in review** | A yearly recap of what was watched, who watched most, and top titles |
+| **Library health** | Find titles nobody has watched in a long time, files that keep transcoding, items without subtitles, duplicate movies, and your largest files |
+| **Stream insights** | Direct play versus transcode breakdowns, with the reasons for transcoding |
+| **Up next** | Shows people have started but not finished, and shows that look abandoned |
+
+### 🏆 My Glance
+
+| | |
+|---|---|
+| **Achievements** | 13 badges with Bronze, Silver, Gold and Platinum tiers, earned from real watch history |
+| **Watch goals** | Set a yearly goal and track progress towards it |
+| **Because you watched** | Suggestions from your library based on what you have watched recently |
+
+### 🟢 Status and alerts
+
+| | |
+|---|---|
+| **Public status page** | An optional public `/status` page with regular Jellyfin uptime checks |
+| **Status page builder** | Build the page from blocks in Settings, with a live preview |
+| **Threshold alerts** | Get warned about stuck downloads, low disk space, failed jobs and new devices, in the app or through webhooks |
+
+### 🎟️ Requests
+
+| | |
+|---|---|
+| **Rules and quotas** | Per-user movie and TV quotas, plus auto-approve rules |
+| **Requests page** | Summary tiles, Approve all pending, and a Movies/TV filter |
+
+### 📥 Imports
+
+| | |
+|---|---|
+| **Jellyfin watch sync** | Pull historical plays straight from Jellyfin |
+| **Trakt import** | Bring in your watch history from Trakt |
+| **Background imports** | Every import now runs in the background with a progress bar, and the import screens show Jellystat and Tautulli logos |
+
+### 🔔 Notifications
+
+| | |
+|---|---|
+| **Delivery** | In-app, desktop and mobile notifications with per-type toggles (desktop and mobile need HTTPS) |
+| **Webhook cards** | A "Card or Text with image" mode for Discord and Gotify, with accent colour and per-detail toggles |
+| **Newsletter builder** | Build newsletter reports from blocks, or start from a preset |
+
+### 📱 App and settings
+
+| | |
+|---|---|
+| **Installable app** | Add JellyGlance to your phone or desktop as an app (needs HTTPS) |
+| **Settings search** | A search box that jumps straight to any setting |
+| **Server Jobs active times** | Set global active hours for scheduled server jobs |
 
 ## 🔐 Security
 
@@ -53,29 +112,37 @@ Dependency updates now come from Renovate running as the JellyGlance Security Bo
 <br>
 
 <details>
-<summary><b>🐛 Fixed</b> (3)</summary>
+<summary><b>🐛 Fixed</b> (5)</summary>
 <br>
 
 - Discord star digests resolve stargazers through GraphQL and use a dedicated token
 - The welcome bot uses the correct first-interaction inputs
 - `npm ci` works again on npm 10 after the ESLint 10 upgrade
+- NZBGet now signs in with a username and password, and a rejected login says to check them (#139)
+- Year in review and Up next only show non-admin users their own data
 
 </details>
 
 <details>
-<summary><b>🔧 Changed</b> (4)</summary>
+<summary><b>🔧 Changed</b> (6)</summary>
 <br>
 
 - Legacy SHA3 password hashes are no longer accepted
 - Sign-in sessions expire after 12 hours
 - Documentation moved to a separate repository
 - Dependabot replaced by Renovate
+- Side menu merged into Statistics, Users and Server hubs, with old URLs redirecting
+- The account and version card is pinned to the bottom of the sidebar
 
 </details>
 
 <br>
 
 ## 📝 Changes
+
+### 🚀 Features
+
+- feat: insights hubs, status page builder, achievements, imports and notifications overhaul @Nerdy-Technician (#144)
 
 ### 🔐 Security
 
