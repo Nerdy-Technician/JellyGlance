@@ -1,22 +1,26 @@
 name: JellyGlance Release Bot
 
+# Releases are published by hand from the GitHub Releases page (using the
+# Release Drafter draft). Publishing a release triggers this workflow, which
+# stamps the release version into the package files, builds the app and pushes
+# the Docker images. Discord and Mastodon announcements run from their own
+# workflows on the same "release published" event.
+#
+# What's New (apps/web/src/whats-new.json) is bundled into the image, so merge
+# it into main before publishing the release.
+
 on:
+  release:
+    types: [published]
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - BETA
-    paths:
-      - ".github/RELEASE"
-      - ".github/release.md"
-      - ".github/RELEASE.beta"
-      - ".github/RELEASE.BETA"
-      - ".github/release-beta.md"
+    inputs:
+      tag:
+        description: Existing release tag to (re)build images for, for example v1.2.11
+        required: true
 
 permissions:
-  contents: write
+  contents: read
   packages: write
-  pull-requests: write
 
 concurrency:
   group: file-release
@@ -26,105 +30,50 @@ jobs:
   release:
     name: "JellyGlance Release Bot · Pipeline"
     runs-on: ubuntu-latest
-    env:
-      DISCORD_RELEASES_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-
-      - name: Mint JellyGlance Release Bot token
-        id: bot
-        uses: ./.github/actions/mint-bot-token
-        with:
-          bot-name: JellyGlance Release Bot
-          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
-          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-
-      - name: Read release file
+      - name: Resolve release
         id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           node <<'NODE'
           const fs = require("fs");
+          const { execFileSync } = require("child_process");
 
-          const isBeta = process.env.GITHUB_REF_NAME === "BETA";
-          const releaseCandidates = isBeta
-            ? [
-                ".github/release-beta.md",
-                ".github/RELEASE.beta",
-                ".github/RELEASE.BETA",
-                ".github/RELEASE",
-              ]
-            : [
-                ".github/release.md",
-                ".github/RELEASE",
-              ];
-
-          const releaseFile = releaseCandidates.find((candidate) => fs.existsSync(candidate));
-          if (!releaseFile) {
-            throw new Error("Could not find a release metadata file. Expected .github/release.md or .github/RELEASE for stable, and .github/release-beta.md or .github/RELEASE.beta for beta.");
+          const tag = String(process.env.RELEASE_TAG || "").trim();
+          if (!tag) {
+            throw new Error("No release tag was provided.");
           }
 
-          if (!releaseFile.startsWith(".github/release")) {
-            const preferred = isBeta
-              ? ".github/release-beta.md"
-              : ".github/release.md";
-            console.log(`::notice::Using legacy release metadata file ${releaseFile}; migrate to ${preferred} for naming consistency.`);
+          const release = JSON.parse(
+            execFileSync("gh", ["api", `repos/${process.env.REPO}/releases/tags/${tag}`], { encoding: "utf8" })
+          );
+          if (release.draft) {
+            throw new Error(`Release ${tag} is still a draft. Publish it first.`);
           }
 
-          const raw = fs.readFileSync(releaseFile, "utf8").replace(/\r\n/g, "\n");
+          const version = tag.replace(/^v/i, "");
           const semver = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-          const parts = raw.split(/^---\s*$/m);
-          const maybeHeader = parts[0] || "";
-          const hasFrontmatter =
-            parts.length > 1 &&
-            maybeHeader.split("\n").some((line) => /^(version|title)\s*:/i.test(line));
-          const header = hasFrontmatter ? maybeHeader : "";
-          const notes = (hasFrontmatter ? parts.slice(1).join("---") : raw).trim();
-          const meta = {};
-
-          for (const line of header.split("\n")) {
-            const match = line.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.+)$/);
-            if (match) {
-              meta[match[1].toLowerCase()] = match[2].trim();
-            }
-          }
-
-          const heading = raw.match(/^#{1,6}\s*v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\s*$/m);
-          const badge = raw.match(/badge\/version-(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/i);
-          const version = (meta.version || heading?.[1] || badge?.[1] || "").replace(/^v/i, "");
           if (!semver.test(version)) {
-            throw new Error(`${releaseFile} needs a valid semver version, for example: version: 0.1.1 or ### v0.1.1`);
+            throw new Error(`Release tag ${tag} is not a valid semver tag, for example v1.2.11`);
           }
-
-          const tag = `v${version}`;
-          const title = meta.title || `JellyGlance ${tag}`;
-          const releaseNotes = notes || `Release ${tag}`;
-
-          fs.writeFileSync("RELEASE_NOTES.md", `${releaseNotes}\n`);
 
           const output = fs.createWriteStream(process.env.GITHUB_OUTPUT, { flags: "a" });
           output.write(`version=${version}\n`);
           output.write(`tag=${tag}\n`);
-          output.write(`title=${title}\n`);
-          output.write(`is_beta=${isBeta ? "true" : "false"}\n`);
-          output.write("notes_file=RELEASE_NOTES.md\n");
+          output.write(`is_beta=${release.prerelease ? "true" : "false"}\n`);
+          output.end();
+          console.log(`Building ${tag}${release.prerelease ? " (pre-release)" : ""}`);
           NODE
 
-      - name: Resolve git tag
-        id: tag
-        run: |
-          git fetch --tags --force
-          TAG="${{ steps.release.outputs.tag }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists; reusing it."
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Tag $TAG does not exist yet."
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -230,63 +179,3 @@ jobs:
           sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Configure git identity for release tag
-        if: steps.tag.outputs.exists != 'true'
-        run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-
-      - name: Create and push git tag
-        if: steps.tag.outputs.exists != 'true'
-        run: |
-          git tag -a "${{ steps.release.outputs.tag }}" -m "${{ steps.release.outputs.title }}"
-          git push origin "${{ steps.release.outputs.tag }}"
-
-      - name: Create GitHub release
-        id: github_release
-        env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
-        run: |
-          TAG="${{ steps.release.outputs.tag }}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "GitHub release $TAG already exists; leaving it in place."
-            echo "created=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          prerelease_flag=""
-          if [ "${{ steps.release.outputs.is_beta }}" = "true" ]; then
-            prerelease_flag="--prerelease"
-          fi
-
-          gh release create "$TAG" \
-            --title "${{ steps.release.outputs.title }}" \
-            --notes-file "${{ steps.release.outputs.notes_file }}" \
-            ${prerelease_flag}
-          echo "created=true" >> "$GITHUB_OUTPUT"
-
-      - name: Post Discord release update
-        if: steps.github_release.outputs.created == 'true'
-        env:
-          DISCORD_EVENT_TYPE: release
-          DISCORD_BETA_WEBHOOK_URL: ${{ secrets.DISCORD_BETA_RELEASES_WEBHOOK }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
-          IS_BETA_RELEASE: ${{ steps.release.outputs.is_beta }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          RELEASE_TITLE: ${{ steps.release.outputs.title }}
-          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.release.outputs.tag }}
-          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
-        run: |
-          if [ "${IS_BETA_RELEASE}" = "true" ] && [ -n "${DISCORD_BETA_WEBHOOK_URL}" ]; then
-            DISCORD_CHANNEL="beta" DISCORD_WEBHOOK_URL="${DISCORD_BETA_WEBHOOK_URL}" \
-              RELEASE_NOTES="$(cat "${NOTES_FILE}")" node .github/scripts/discord-notify.mjs
-            exit 0
-          fi
-
-          if [ "${IS_BETA_RELEASE}" != "true" ] && [ -n "${DISCORD_WEBHOOK_URL}" ]; then
-            DISCORD_CHANNEL="stable" \
-              RELEASE_NOTES="$(cat "${NOTES_FILE}")" node .github/scripts/discord-notify.mjs
-          elif [ "${IS_BETA_RELEASE}" = "true" ] || [ -z "${DISCORD_WEBHOOK_URL}" ] && [ -z "${DISCORD_BETA_WEBHOOK_URL}" ]; then
-            echo "No Discord release webhook configured for ${IS_BETA_RELEASE} release.";
-          fi
