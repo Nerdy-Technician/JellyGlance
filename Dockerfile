@@ -1,9 +1,9 @@
-# amd64 + arm64 use Node 25; linux/arm/v7 (TARGETARCH=arm) uses Node 22
-# because node:25-bookworm-slim has no arm/v7 variant.
+# amd64 + arm64 use Node 24 LTS; linux/arm/v7 (TARGETARCH=arm) uses Node 22
+# because node:24-bookworm-slim has no arm/v7 variant.
 ARG TARGETARCH
 
-FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS node-amd64
-FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS node-arm64
+FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS node-amd64
+FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS node-arm64
 FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS node-arm
 
 FROM node-${TARGETARCH} AS deps
