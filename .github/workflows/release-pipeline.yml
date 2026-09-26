@@ -20,7 +20,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: file-release
@@ -30,6 +29,9 @@ jobs:
   release:
     name: "JellyGlance Release Bot · Pipeline"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # read the release via gh api and check out the tag
+      packages: write # push images to ghcr.io/nerdy-technician/jellyglance
 
     steps:
       - name: Resolve release
