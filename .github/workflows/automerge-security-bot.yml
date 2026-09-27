@@ -15,8 +15,8 @@
 # pending means no merge; a later event re-evaluates.
 #
 # The merge is done as Nerdy-Technician with the AUTOMERGE_TOKEN secret:
-# a fine-grained PAT for this repo with Contents: read & write and
-# Pull requests: read & write. There is deliberately no GITHUB_TOKEN fallback.
+# a classic PAT with the repo scope (plus workflow, so bot PRs that touch
+# workflow files can merge). There is deliberately no GITHUB_TOKEN fallback.
 #
 # Security: runs on pull_request_target but never checks out or executes
 # PR code; PR titles are only read through the API.
@@ -118,7 +118,7 @@ jobs:
 
             if (!process.env.AUTOMERGE_TOKEN) {
               core.setFailed(
-                'AUTOMERGE_TOKEN secret is not set. Add a fine-grained PAT (Contents + Pull requests: read & write on this repo) ' +
+                'AUTOMERGE_TOKEN secret is not set. Add a classic PAT with the repo and workflow scopes ' +
                 'as the AUTOMERGE_TOKEN repository secret. Not falling back to GITHUB_TOKEN.'
               );
               return;
