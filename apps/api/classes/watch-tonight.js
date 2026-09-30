@@ -2,6 +2,7 @@ const db = require("../db");
 const configClass = require("./config");
 const { axios } = require("./axios");
 const API = require("./api-loader");
+const { version: APP_VERSION } = require("../package.json");
 
 const WATCH_TONIGHT_TTL_MS = 3 * 60 * 1000;
 let watchTonightCache = { at: 0, key: "", items: [] };
@@ -36,7 +37,7 @@ async function fetchJellyfinUserItems(userId, params = {}) {
     timeout: 12000,
     headers: {
       Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
-      "User-Agent": "JellyGlance/1.2.8",
+      "User-Agent": `JellyGlance/${APP_VERSION}`,
     },
     params: {
       Recursive: true,

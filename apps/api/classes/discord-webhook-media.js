@@ -1056,10 +1056,31 @@ function pruneWebhookCards() {
   }
 }
 
-function putWebhookCard(buffer) {
+const WEBHOOK_CARD_MAX_INPUT_BYTES = 8 * 1024 * 1024;
+const WEBHOOK_CARD_MAX_PIXELS = 40 * 1000 * 1000;
+const WEBHOOK_CARD_MAX_DIMENSION = 2000;
+
+// Cards are served publicly as image/jpeg, and some inputs (text-mode posters)
+// are raw bytes fetched from Jellyfin/Arr/TMDB. Decode and re-encode everything
+// through sharp so only a bounded, valid JPEG ever reaches disk.
+async function putWebhookCard(buffer) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > WEBHOOK_CARD_MAX_INPUT_BYTES) {
+    throw new Error("Webhook card image is empty or too large");
+  }
+  const jpeg = await sharp(buffer, { limitInputPixels: WEBHOOK_CARD_MAX_PIXELS, failOn: "error" })
+    .rotate()
+    .resize({
+      width: WEBHOOK_CARD_MAX_DIMENSION,
+      height: WEBHOOK_CARD_MAX_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 85 })
+    .toBuffer();
   pruneWebhookCards();
+  const dir = webhookCardDir();
   const id = randomUUID().replace(/-/g, "");
-  fs.writeFileSync(path.join(webhookCardDir(), `${id}.jpg`), buffer);
+  fs.writeFileSync(assertPathInside(dir, path.join(dir, `${id}.jpg`)), jpeg, { mode: 0o640 });
   return id;
 }
 
@@ -1218,7 +1239,7 @@ function gotifyPriority(event) {
 }
 
 async function gotifyImageUrl(buffer, maxWidth) {
-  const id = putWebhookCard(buffer);
+  const id = await putWebhookCard(buffer);
   const url = publicCardUrl(id);
   if (url) return url;
   const compact = await sharp(buffer).resize({ width: maxWidth, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
@@ -1249,8 +1270,8 @@ async function enrichGotifyPayload(templatePayload = {}, data = {}) {
   }
   let imageUrl = null;
   if (file?.buffer) {
-    const id = putWebhookCard(file.buffer);
-    imageUrl = publicCardUrl(id);
+    const id = await putWebhookCard(file.buffer).catch(() => null);
+    imageUrl = id ? publicCardUrl(id) : null;
     if (!imageUrl && file.buffer.length <= 40 * 1024) {
       imageUrl = `data:image/jpeg;base64,${file.buffer.toString("base64")}`;
     }
