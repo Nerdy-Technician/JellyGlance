@@ -1,0 +1,200 @@
+# Auto-merge JellyGlance Security Bot "chore:" PRs once every check is green.
+#
+# Scope: only PRs opened by jellyglance-security-bot[bot] whose title matches
+# ^chore(\(.+\))?!?: , that are not drafts and that target the default branch.
+# Every other PR is left alone.
+#
+# A PR is merged (merge commit, the repo's convention) only when, for its
+# current head SHA:
+#   - every check run concluded success / neutral / skipped,
+#   - the combined commit status (if any statuses exist) is success,
+#   - every Actions workflow run concluded success / neutral / skipped, and the
+#     core PR workflows (see REQUIRED_WORKFLOWS) have actually run,
+#   - this workflow's own runs are ignored so it never waits on itself.
+# Anything failed, cancelled, timed out, action_required, stale or still
+# pending means no merge; a later event re-evaluates.
+#
+# The merge is done as Nerdy-Technician with the AUTOMERGE_TOKEN secret:
+# a classic PAT with the repo scope (plus workflow, so bot PRs that touch
+# workflow files can merge). There is deliberately no GITHUB_TOKEN fallback.
+#
+# Security: runs on pull_request_target but never checks out or executes
+# PR code; PR titles are only read through the API.
+name: Auto-merge Security Bot PRs
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_run:
+    workflows:
+      - CI
+      - JellyGlance Check Bot
+      - JellyGlance Build Bot
+      - Security
+      - PR Labeler
+      - Release Drafter
+      - Welcome
+      - Notify / Discord Pull Requests
+    types: [completed]
+  check_suite:
+    types: [completed]
+  status:
+  schedule:
+    # Safety net in case an event is missed.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automerge-security-bot
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    name: Auto-merge Security Bot PRs
+    # Cheap pre-filter for PR events; other events evaluate all open candidates.
+    if: >-
+      github.event_name != 'pull_request_target' || (
+        github.event.pull_request.user.login == 'jellyglance-security-bot[bot]' &&
+        startsWith(github.event.pull_request.title, 'chore') &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.base.ref == github.event.repository.default_branch
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      statuses: read
+      actions: read
+    steps:
+      - name: Evaluate and merge
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          AUTOMERGE_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+          BOT_LOGIN: jellyglance-security-bot[bot]
+          SELF_JOB_NAME: Auto-merge Security Bot PRs
+          SELF_WORKFLOW_PATH: .github/workflows/automerge-security-bot.yml
+          REQUIRED_WORKFLOWS: CI,JellyGlance Check Bot
+          MERGE_METHOD: merge
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const botLogin = process.env.BOT_LOGIN;
+            const selfJob = process.env.SELF_JOB_NAME;
+            const selfPath = process.env.SELF_WORKFLOW_PATH;
+            const requiredWorkflows = process.env.REQUIRED_WORKFLOWS.split(',').map((s) => s.trim()).filter(Boolean);
+            const titleRe = /^chore(\(.+\))?!?:/;
+            const okConclusions = new Set(['success', 'neutral', 'skipped']);
+
+            const { data: repoInfo } = await github.rest.repos.get({ owner, repo });
+            const defaultBranch = repoInfo.default_branch;
+
+            const isCandidate = (pr) =>
+              pr.state === 'open' &&
+              !pr.draft &&
+              pr.user?.login === botLogin &&
+              pr.user?.type === 'Bot' &&
+              titleRe.test(pr.title) &&
+              pr.base.ref === defaultBranch &&
+              pr.head.repo?.full_name === `${owner}/${repo}`;
+
+            // Collect candidate PRs.
+            let prs;
+            if (context.eventName === 'pull_request_target') {
+              const { data } = await github.rest.pulls.get({ owner, repo, pull_number: context.payload.pull_request.number });
+              prs = [data];
+            } else {
+              prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', base: defaultBranch, per_page: 100 });
+            }
+            prs = prs.filter(isCandidate);
+            if (prs.length === 0) {
+              core.info('No candidate Security Bot chore PRs.');
+              return;
+            }
+
+            if (!process.env.AUTOMERGE_TOKEN) {
+              core.setFailed(
+                'AUTOMERGE_TOKEN secret is not set. Add a classic PAT with the repo and workflow scopes ' +
+                'as the AUTOMERGE_TOKEN repository secret. Not falling back to GITHUB_TOKEN.'
+              );
+              return;
+            }
+            const userOctokit = getOctokit(process.env.AUTOMERGE_TOKEN);
+
+            async function evaluate(sha) {
+              const problems = [];
+              let counted = 0;
+
+              // 1. Check runs (latest per name).
+              const runs = await github.paginate(github.rest.checks.listForRef, { owner, repo, ref: sha, filter: 'latest', per_page: 100 });
+              for (const run of runs) {
+                if (run.name === selfJob && run.app?.slug === 'github-actions') continue;
+                counted++;
+                if (run.status !== 'completed') problems.push(`check "${run.name}" is ${run.status}`);
+                else if (!okConclusions.has(run.conclusion)) problems.push(`check "${run.name}" concluded ${run.conclusion}`);
+              }
+
+              // 2. Commit statuses (only if any exist; an empty combined status reports "pending").
+              const { data: combined } = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: sha, per_page: 100 });
+              if (combined.total_count > 0) {
+                counted += combined.total_count;
+                for (const s of combined.statuses) {
+                  if (s.state !== 'success') problems.push(`status "${s.context}" is ${s.state}`);
+                }
+              }
+
+              // 3. Actions workflow runs for this SHA (latest per workflow + event), excluding this workflow.
+              const wfRuns = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, { owner, repo, head_sha: sha, per_page: 100 });
+              const latest = new Map();
+              for (const r of wfRuns) {
+                if (r.path === selfPath || (r.path || '').startsWith(`${selfPath}@`)) continue;
+                const key = `${r.workflow_id}:${r.event}`;
+                const prev = latest.get(key);
+                if (!prev || r.id > prev.id) latest.set(key, r);
+              }
+              const seen = new Set();
+              for (const r of latest.values()) {
+                seen.add(r.name);
+                if (r.status !== 'completed') problems.push(`workflow "${r.name}" is ${r.status}`);
+                else if (!okConclusions.has(r.conclusion)) problems.push(`workflow "${r.name}" concluded ${r.conclusion}`);
+              }
+              for (const name of requiredWorkflows) {
+                if (!seen.has(name)) problems.push(`workflow "${name}" has not run yet`);
+              }
+
+              if (counted === 0) problems.push('no checks found');
+              return problems;
+            }
+
+            for (const listed of prs) {
+              // Re-fetch so title/draft/head are current.
+              const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: listed.number });
+              const label = `#${pr.number} "${pr.title}"`;
+              if (!isCandidate(pr)) {
+                core.info(`${label}: no longer a candidate, skipping.`);
+                continue;
+              }
+              const sha = pr.head.sha;
+              const problems = await evaluate(sha);
+              if (problems.length > 0) {
+                core.info(`${label} @ ${sha.slice(0, 7)}: not merging:\n  - ${problems.join('\n  - ')}`);
+                continue;
+              }
+              try {
+                const { data: res } = await userOctokit.rest.pulls.merge({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  sha, // refuse if the head moved since evaluation
+                  merge_method: process.env.MERGE_METHOD,
+                  commit_title: `${pr.title} (#${pr.number})`,
+                });
+                core.notice(`Merged ${label} @ ${sha.slice(0, 7)} (${res.sha.slice(0, 7)}).`);
+              } catch (error) {
+                core.warning(`${label}: merge failed (${error.status}): ${error.message}`);
+              }
+            }

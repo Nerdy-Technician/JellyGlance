@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-site:
+    name: Docs site build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install site dependencies
+        working-directory: site
+        run: npm ci
+      - name: Build VitePress site
+        working-directory: site
+        run: npm run build
+
+  api-syntax:
+    name: API syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: node --check apps/api
+        run: |
+          failed=0
+          while IFS= read -r -d '' file; do
+            node --check "$file" || failed=1
+          done < <(git ls-files -z 'apps/api/*.js' 'apps/api/*.cjs' 'apps/api/*.mjs')
+          exit "$failed"
+
+  packaging-compose:
+    name: Packaging compose files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: docker compose config (Proxmox / Unraid)
+        env:
+          JWT_SECRET: ci-placeholder
+          POSTGRES_PASSWORD: ci-placeholder
+        run: |
+          docker compose -f packaging/proxmox/docker-compose.yml config --quiet
+          docker compose -f packaging/unraid/docker-compose.yml config --quiet
