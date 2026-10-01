@@ -1,5 +1,8 @@
 // api.js
 const express = require("express");
+const { mediaServerAuthHeaders, chooseServerType, withServerType, saveServerType, envServerType } = require("../classes/server-type");
+const { clientSettings } = require("../classes/client-config");
+const audiobookshelf = require("../classes/audiobookshelf");
 const fs = require("fs");
 const path = require("path");
 
@@ -501,6 +504,9 @@ async function testThirdPartyIntegration(integration) {
   }
   if (isMaintainerrIntegration(integration)) {
     return testMaintainerrIntegration(integration);
+  }
+  if (audiobookshelf.isAudiobookshelfIntegration(integration)) {
+    return audiobookshelf.testAudiobookshelf(integration);
   }
   return pingThirdParty(integration);
 }
@@ -3856,7 +3862,7 @@ async function fetchJellyfinUserItems(userId, params = {}) {
   const response = await axios.get(`${cleanIntegrationUrl(config.JF_HOST)}/Users/${encodeURIComponent(userId)}/Items`, {
     timeout: 12000,
     headers: {
-      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      ...mediaServerAuthHeaders(config.JF_API_KEY),
       "User-Agent": "JellyGlance/1.0.6",
     },
     params: {
@@ -3886,7 +3892,7 @@ async function jellyfinRequest(path, options = {}) {
     method: options.method || "get",
     url: joinSafeHttpUrl(jellyfinBase, path),
     headers: {
-      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      ...mediaServerAuthHeaders(config.JF_API_KEY),
       "User-Agent": "JellyGlance/1.0.6",
       ...(options.headers || {}),
     },
@@ -5029,8 +5035,8 @@ router.get("/getconfig", async (req, res) => {
       return;
     }
 
-    const settings = { ...(config.settings || {}) };
-    delete settings.UserPreferences;
+    // getconfig goes to every signed-in user, so server-only settings and secrets are removed.
+    const settings = clientSettings(config.settings);
     const auth = { ...(settings.auth || {}) };
     if (req.user?.authMode === "quick-connect" && req.user?.jellyfinUser) {
       auth.mode = "quick-connect";
@@ -5051,8 +5057,8 @@ router.get("/getconfig", async (req, res) => {
       auth.mode = req.user.authMode;
       auth.role = req.user.role;
       auth.permissions = req.user.permissions;
-      settings.auth = auth;
     }
+    if (settings.auth) settings.auth = auth;
 
     const preferences = await getUserPreferences(req.user).catch(() => ({ theme: null }));
     settings.preferences = preferences;
@@ -5063,6 +5069,8 @@ router.get("/getconfig", async (req, res) => {
       settings,
       REQUIRE_LOGIN: config.REQUIRE_LOGIN,
       IS_JELLYFIN: config.IS_JELLYFIN,
+      SERVER_TYPE: config.SERVER_TYPE,
+      SERVER_TYPE_LOCKED: Boolean(envServerType()),
     };
 
     res.send(payload);
@@ -5375,7 +5383,7 @@ router.get("/getRecentlyAddedShelves", async (req, res) => {
 
 router.post("/setconfig", async (req, res) => {
   try {
-    const { JF_HOST, JF_API_KEY } = req.body;
+    const { JF_HOST, JF_API_KEY, SERVER_TYPE } = req.body;
 
     if (JF_HOST === undefined && JF_API_KEY === undefined) {
       res.status(400);
@@ -5385,7 +5393,8 @@ router.post("/setconfig", async (req, res) => {
 
     var url = JF_HOST;
 
-    const validation = await API.validateSettings(url, JF_API_KEY);
+    const serverType = await chooseServerType(SERVER_TYPE, url);
+    const validation = await withServerType(serverType, () => API.validateSettings(url, JF_API_KEY));
     if (validation.isValid === false) {
       res.status(validation.status);
       res.send(validation);
@@ -5400,6 +5409,7 @@ router.post("/setconfig", async (req, res) => {
     }
 
     const { rows } = await db.query(query, [validation.cleanedUrl, JF_API_KEY]);
+    await saveServerType(serverType);
 
     const systemInfo = await API.systemInfo();
 
@@ -5584,12 +5594,14 @@ router.post("/setAuthMode", async (req, res) => {
         return;
       }
 
+      // The saved secret is never sent to the browser, so a blank field means "keep it".
+      const keptSecret = settings.auth?.mode === "oidc" && settings.auth?.clientId === clientId ? settings.auth.clientSecret : null;
       settings.auth = {
         mode: "oidc",
         label: "OIDC / Authentik",
         issuerUrl: oidcTest.issuerUrl,
         clientId,
-        clientSecret: clientSecret || null,
+        clientSecret: clientSecret || keptSecret || null,
         redirectUri: redirectUri || null,
         discovery: oidcTest.discovery,
       };
@@ -6263,7 +6275,8 @@ router.post("/setTaskSettings", async (req, res) => {
       await taskScheduler.updateIntervalsFromDB();
       await taskScheduler.getTaskHistory();
       res.status(200);
-      res.send(tasksettings);
+      // Same shape as /getTaskSettings: the Tasks page replaces its whole list with this.
+      res.send(settings.Tasks);
     } else {
       res.status(404);
       res.send({ error: "Task Settings Not Found" });
@@ -7573,6 +7586,19 @@ router.post("/integrations/test", async (req, res) => {
       ok: false,
       error: getAxiosErrorMessage(error),
     });
+  }
+});
+
+router.get("/audiobookshelf", async (req, res) => {
+  try {
+    const integration = await audiobookshelf.getConnectedAudiobookshelf();
+    if (!integration) {
+      return res.status(404).send({ error: "Connect Audiobookshelf in Settings > Integrations > 3rd party apps first." });
+    }
+    res.send(await audiobookshelf.fetchAudiobookshelfBundle(integration));
+  } catch (error) {
+    console.error("Audiobookshelf summary failed:", getAxiosErrorMessage(error));
+    res.status(error.response?.status || 503).send({ error: getAxiosErrorMessage(error) || "Unable to load Audiobookshelf data" });
   }
 });
 

@@ -1,4 +1,5 @@
 const db = require("../db");
+const { resolveServerType, setActiveServerType } = require("./server-type");
 
 let cachedConfig = null;
 let cachedConfigAt = 0;
@@ -24,6 +25,8 @@ class Config {
       }
 
       const _config = config[0];
+      const serverType = resolveServerType(_config.settings);
+      setActiveServerType(serverType);
 
       const result = {
         JF_HOST: process.env.JF_HOST ?? _config.JF_HOST,
@@ -35,7 +38,8 @@ class Config {
         settings: _config.settings,
         api_keys: _config.api_keys,
         state: state,
-        IS_JELLYFIN: (process.env.IS_EMBY_API || "false").toLowerCase() === "false",
+        SERVER_TYPE: serverType,
+        IS_JELLYFIN: serverType === "jellyfin",
       };
       cachedConfig = result;
       cachedConfigAt = Date.now();

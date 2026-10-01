@@ -1,4 +1,5 @@
 const express = require("express");
+const { mediaServerAuthHeaders, chooseServerType, withServerType } = require("../classes/server-type");
 
 const { axios } = require("../classes/axios");
 const configClass = require("../classes/config");
@@ -334,7 +335,7 @@ router.get("/Plugins/Images/", async (req, res) => {
       const response = await safeHttpGet(url, "", {
         responseType: "arraybuffer",
         headers: {
-          ...(imageUrl ? {} : { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` }),
+          ...(imageUrl ? {} : mediaServerAuthHeaders(config.JF_API_KEY)),
           "User-Agent": "JellyGlance/1.0.6",
         },
       });
@@ -388,8 +389,23 @@ router.get("/getRecentlyAdded", async (req, res) => {
 
 //API related functions
 
+// Audiobookshelf covers, public like the other poster routes above. The token stays server-side.
+router.get("/Audiobookshelf/Images/:itemId", async (req, res) => {
+  try {
+    const audiobookshelf = require("../classes/audiobookshelf");
+    const integration = await audiobookshelf.getConnectedAudiobookshelf();
+    if (!integration) return res.status(404).end();
+    const cover = await audiobookshelf.fetchAudiobookshelfCover(integration, req.params.itemId, req.query.width);
+    res.set("Content-Type", cover.contentType.startsWith("image/") ? cover.contentType : "image/webp");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(Buffer.from(cover.data));
+  } catch (error) {
+    res.status(error.statusCode || error.response?.status || 502).end();
+  }
+});
+
 router.post("/validateSettings", async (req, res) => {
-  const { url, apikey } = req.body;
+  const { url, apikey, serverType: requestedType } = req.body;
 
   if (url === undefined || apikey === undefined) {
     res.status(400);
@@ -397,12 +413,13 @@ router.post("/validateSettings", async (req, res) => {
     return;
   }
 
-  const validation = await API.validateSettings(url, apikey);
+  const serverType = await chooseServerType(requestedType, url);
+  const validation = await withServerType(serverType, () => API.validateSettings(url, apikey));
   if (validation.isValid === false) {
     res.status(validation.status);
     res.send(validation.errorMessage);
   } else {
-    res.send(validation);
+    res.send({ ...validation, serverType });
   }
 });
 

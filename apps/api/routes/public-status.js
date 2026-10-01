@@ -1,5 +1,6 @@
 // Public, read-only status page. Off by default; an admin builds and enables it in Settings > Status Page.
 const express = require("express");
+const { mediaServerAuthHeaders } = require("../classes/server-type");
 const axios = require("axios");
 const configClass = require("../classes/config");
 const statusPage = require("../classes/status-page");
@@ -48,7 +49,7 @@ publicRouter.get("/poster/:id", async (req, res) => {
     const response = await axios.get(`${config.JF_HOST}/Items/${encodeURIComponent(id)}/Images/Primary?fillWidth=300&quality=90`, {
       responseType: "arraybuffer",
       timeout: 8000,
-      headers: { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`, "User-Agent": "JellyGlance" },
+      headers: { ...mediaServerAuthHeaders(config.JF_API_KEY), "User-Agent": "JellyGlance" },
     });
     if (!String(response.headers["content-type"] || "").startsWith("image/")) return res.status(404).end();
     res.set("Content-Type", response.headers["content-type"]);

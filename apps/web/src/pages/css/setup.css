@@ -1022,6 +1022,31 @@
   line-height: 1.35;
 }
 
+.setup-server-type {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 13px;
+  background: rgba(15, 23, 42, 0.74);
+}
+
+.setup-server-type button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #9fb0c8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.setup-server-type button.is-active {
+  background: rgba(var(--primary-rgb), 0.35);
+  color: #fff;
+}
+
 .setup-connection-status {
   padding: 10px 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);

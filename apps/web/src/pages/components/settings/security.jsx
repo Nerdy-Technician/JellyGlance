@@ -261,6 +261,7 @@ export default function SecuritySettings() {
                     name="clientSecret"
                     value={oidcValues.clientSecret || ""}
                     onChange={handleOidcChange}
+                    placeholder="Leave blank to keep the saved secret"
                     type={showOidcSecret ? "text" : "password"}
                     autoComplete="off"
                   />

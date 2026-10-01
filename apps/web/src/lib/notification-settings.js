@@ -1,13 +1,15 @@
+import { mediaServerName } from "./media-server";
+
 export const NOTIFICATION_SETTINGS_KEY = "JellyGlanceNotificationSettings";
 
 export const NOTIFICATION_CATEGORIES = [
-  { key: "librarySync", title: "Library syncs", text: "Full and partial Jellyfin library syncs.", defaultOn: true },
+  { key: "librarySync", title: "Library syncs", text: `Full and partial ${mediaServerName()} library syncs.`, defaultOn: true },
   { key: "playbackSync", title: "Playback history sync", text: "Playback reporting imports and history syncs.", defaultOn: true },
   { key: "backups", title: "Backups", text: "Scheduled and manual backups.", defaultOn: true },
-  { key: "tasks", title: "Tasks and maintenance", text: "Scheduled jobs, Jellyfin tasks, purges and repairs.", defaultOn: true },
+  { key: "tasks", title: "Tasks and maintenance", text: `Scheduled jobs, ${mediaServerName()} tasks, purges and repairs.`, defaultOn: true },
   { key: "downloads", title: "Downloads", text: "Items queued to your download clients.", defaultOn: true },
   { key: "errors", title: "Task errors", text: "Failures reported by any background task.", defaultOn: true },
-  { key: "playback", title: "Playback started", text: "Someone starts watching something on Jellyfin.", defaultOn: false },
+  { key: "playback", title: "Playback started", text: `Someone starts watching something on ${mediaServerName()}.`, defaultOn: false },
 ];
 
 export const defaultNotificationSettings = {

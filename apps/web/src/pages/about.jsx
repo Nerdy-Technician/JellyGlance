@@ -21,6 +21,7 @@ import CodeSSlashLineIcon from "remixicon-react/CodeSSlashLineIcon";
 import ShieldCheckLineIcon from "remixicon-react/ShieldCheckLineIcon";
 import TaskLineIcon from "remixicon-react/TaskLineIcon";
 import TimerFlashLineIcon from "remixicon-react/TimerFlashLineIcon";
+import { mediaServerName } from "../lib/media-server";
 
 function stripMarkdown(value) {
   return String(value || "")
@@ -197,7 +198,7 @@ export default function SettingsAbout() {
       <header className="about-header">
         <p>About</p>
         <h1>JellyGlance</h1>
-        <span>Local Jellyfin visibility for sessions, libraries, requests, downloads, transcodes, automation health, and scheduled jobs.</span>
+        <span>Local {mediaServerName()} visibility for sessions, libraries, requests, downloads, transcodes, automation health, and scheduled jobs.</span>
       </header>
 
       <main className="about-layout">
@@ -277,7 +278,7 @@ export default function SettingsAbout() {
               <section className="about-note">
                 <h2>What to configure</h2>
                 <ul>
-                  <li>Jellyfin connection and authentication mode for the main dashboard.</li>
+                  <li>{mediaServerName()} connection and authentication mode for the main dashboard.</li>
                   <li>Optional Jellyseerr or Overseerr instances for request management, approvals, user queues, issue reports, and request trends.</li>
                   <li>Optional qBittorrent, Transmission, Deluge, SABnzbd, NZBGet, or similar clients for download monitoring.</li>
                   <li>Optional Tdarr for active transcodes, queue, history, conversion detail, thumbnails, and live progress.</li>
@@ -422,7 +423,7 @@ export default function SettingsAbout() {
                   <FilmLineIcon />
                   Media source
                 </dt>
-                <dd>Jellyfin</dd>
+                <dd>{mediaServerName()}</dd>
               </div>
               <div>
                 <dt>

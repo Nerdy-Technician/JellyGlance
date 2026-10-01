@@ -25,6 +25,11 @@ const { jf_library_episodes_columns, jf_library_episodes_mapping } = require("..
 const { jf_item_info_columns, jf_item_info_mapping } = require("../models/jf_item_info");
 const { columnsPlaybackReporting, mappingPlaybackReporting } = require("../models/jf_playback_reporting_plugin_data");
 
+function isPlaybackReportingPlugin(plugin) {
+  const file = String(plugin?.ConfigurationFileName || "");
+  return ["playback_reporting.xml", "Jellyfin.Plugin.PlaybackReporting.xml"].includes(file) || /playback\s*reporting/i.test(String(plugin?.Name || ""));
+}
+
 const { jf_users_columns, jf_users_mapping } = require("../models/jf_users");
 const taskstate = require("../logging/taskstate");
 
@@ -526,19 +531,14 @@ async function syncPlaybackPluginData() {
     //Playback Reporting Plugin Check
     const installed_plugins = await API.getInstalledPlugins();
 
-    const hasPlaybackReportingPlugin = installed_plugins.filter(
-      (plugins) => ["playback_reporting.xml", "Jellyfin.Plugin.PlaybackReporting.xml"].includes(plugins?.ConfigurationFileName) //TO-DO Change this to the correct plugin name
-    );
+    // Jellyfin and Emby both ship a "Playback Reporting" plugin with the same query API.
+    const hasPlaybackReportingPlugin = (Array.isArray(installed_plugins) ? installed_plugins : []).filter(isPlaybackReportingPlugin);
 
-    if (!hasPlaybackReportingPlugin || hasPlaybackReportingPlugin.length === 0) {
-      if (!hasPlaybackReportingPlugin || hasPlaybackReportingPlugin.length === 0) {
-        PlaybacksyncTask.loggedData.push({ color: "dodgerblue", Message: `No new data to insert.` });
-      } else {
-        PlaybacksyncTask.loggedData.push({
-          color: "lawngreen",
-          Message: "Playback Reporting Plugin not detected. Skipping step.",
-        });
-      }
+    if (hasPlaybackReportingPlugin.length === 0) {
+      PlaybacksyncTask.loggedData.push({
+        color: "dodgerblue",
+        Message: "Playback Reporting Plugin not detected. Skipping step.",
+      });
     } else {
       //
 

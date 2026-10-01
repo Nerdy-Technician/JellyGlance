@@ -17,6 +17,8 @@ function asConfigPayload(data) {
       requireLogin: data.requireLogin ?? data.REQUIRE_LOGIN,
       settings: data.settings,
       IS_JELLYFIN: data.IS_JELLYFIN,
+      SERVER_TYPE: data.SERVER_TYPE || (data.IS_JELLYFIN === false ? "emby" : "jellyfin"),
+      SERVER_TYPE_LOCKED: Boolean(data.SERVER_TYPE_LOCKED),
     };
   }
   return null;

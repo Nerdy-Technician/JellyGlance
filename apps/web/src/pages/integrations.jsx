@@ -104,6 +104,7 @@ const thirdPartyOptions = [
   { name: "Notifiarr", slug: "notifiarr", purpose: "Arr notify status", accent: "#f97316" },
   { name: "Recyclarr", slug: "recyclarr", purpose: "Arr config health", accent: "#22d3ee", secretOptional: true },
   { name: "autobrr", slug: "autobrr", purpose: "Filter hits", accent: "#fb7185" },
+  { name: "Audiobookshelf", slug: "audiobookshelf", purpose: "Audiobook listening", accent: "#e0b865", secretLabel: "API token" },
 ];
 const firstRunIntegrationPickerOptions = [
   ...automationApps.map((app) => ({ ...app, key: `arr:${app.slug}`, label: app.name, description: app.purpose, kind: "Arr Apps" })),
@@ -262,7 +263,10 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
   const secretOptional =
     Boolean(app.secretOptional) ||
     ["tdarr", "unpackerr", "kometa", "recyclarr"].some((slug) => String(app.name || app.slug || "").toLowerCase().includes(slug));
-  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : secretOptional ? "API key (optional)" : "API key";
+  // Saved apps keep only the fields they were created with, so read the label from the catalog too.
+  const secretLabel =
+    app.secretLabel || thirdPartyOptions.find((option) => String(app.slug || app.name || "").toLowerCase().includes(option.slug))?.secretLabel || "API key";
+  const authLabel = usesUserPass || usesPasswordOnly ? "Password" : secretOptional ? `${secretLabel} (optional)` : secretLabel;
   const connected = isLiveConnected(app);
   const values = app.values || {};
   const hasStoredSecret = Boolean(values.secret) || connected;
@@ -272,7 +276,7 @@ function IntegrationCard({ app, type, onChange, onRemove, onSave, onTest, onCopy
       ? "Paste API key if auth is enabled"
       : hasStoredSecret && !values.secret
         ? "Saved on server — paste to replace"
-        : "Paste API key";
+        : `Paste ${secretLabel}`;
   const [showSecret, setShowSecret] = useState(false);
 
   return (
@@ -1241,7 +1245,7 @@ export default function Integrations({ embedded = false, firstRun = false, activ
           <div className="integration-section-title">
             <div>
               <h2>3rd party apps</h2>
-              <span>Wizarr, Tdarr, Maintainerr, Unpackerr, and Kometa</span>
+              <span>Wizarr, Tdarr, Maintainerr, Audiobookshelf, Unpackerr, and Kometa</span>
             </div>
             <UserAddLineIcon />
           </div>

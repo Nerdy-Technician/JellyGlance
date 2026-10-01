@@ -1,5 +1,5 @@
 const express = require("express");
-const JellyfinAPI = require("../classes/jellyfin-api");
+const API = require("../classes/api-loader");
 const { getAuditLog, mergeSettings, addAuditEntry } = require("../classes/admin-history");
 const { getUserPreferences, saveUserTheme } = require("../classes/user-preferences");
 const Config = require("../classes/config");
@@ -58,7 +58,6 @@ function canUseWidgetWrite(req) {
 }
 
 const router = express.Router();
-const API = new JellyfinAPI();
 
 router.get("/item-glance/:id", async (req, res) => {
   /* #swagger.tags = ['Widgets'] #swagger.summary = 'Item glance' */

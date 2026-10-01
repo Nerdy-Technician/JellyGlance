@@ -105,52 +105,150 @@ function RankList({ title, rows, valueOf, showPoster = false }) {
   );
 }
 
-function UserYearPicker({ years, users, year, setYear, userId, setUserId, scoped = false }) {
-  return (
-    <div className="insights-pickers">
-      <select value={year} onChange={(event) => setYear(Number(event.target.value))}>
-        {years.map((entry) => (
-          <option key={entry} value={entry}>
-            {entry}
-          </option>
-        ))}
-      </select>
-      <select value={userId} onChange={(event) => setUserId(event.target.value)} disabled={scoped}>
-        {scoped ? null : <option value="">Whole server</option>}
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {user.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
+function isoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
+
+function shiftAnchor(anchor, period, step) {
+  const [y, m, d] = anchor.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  if (period === "week") date.setDate(date.getDate() + 7 * step);
+  else if (period === "month") date.setMonth(date.getMonth() + step, 1);
+  else date.setFullYear(date.getFullYear() + step, 0, 1);
+  return isoDate(date);
+}
+
+function nextDay(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return isoDate(new Date(y, m - 1, d + 1));
+}
+
+function shortDay(iso) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]}${y !== new Date().getFullYear() ? ` ${y}` : ""}`;
+}
+
+function recapTitle(data) {
+  if (!data) return "";
+  if (data.period === "week") return `Week of ${shortDay(data.start)}`;
+  if (data.period === "month") return `${MONTHS[Number(data.start.slice(5, 7)) - 1]} ${data.start.slice(0, 4)}`;
+  return `${data.year} in review`;
+}
+
+const PERIODS = [
+  { id: "week", label: "Week" },
+  { id: "month", label: "Month" },
+  { id: "year", label: "Year" },
+];
 
 function Wrapped() {
   const meta = useInsight("wrapped/years", {});
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [period, setPeriod] = useState("year");
+  const [anchor, setAnchor] = useState(isoDate(new Date()));
   const [userId, setUserId] = useState("");
-  const state = useInsight("wrapped", { year, userId: userId || undefined });
+  const [sharing, setSharing] = useState(false);
+  const params = { period, date: anchor, userId: userId || undefined };
+  const state = useInsight("wrapped", params);
   const data = state.data;
   const peakHour = useMemo(() => (data?.hours || []).reduce((best, row) => (!best || Number(row.seconds) > Number(best.seconds) ? row : best), null), [data]);
   const peakDay = useMemo(() => (data?.weekdays || []).reduce((best, row) => (!best || Number(row.seconds) > Number(best.seconds) ? row : best), null), [data]);
-  const months = useMemo(() => MONTHS.map((label, i) => ({ label, hours: Number(hours(data?.months?.find((m) => m.month === i + 1)?.seconds || 0).replace(/,/g, "")) })), [data]);
+  const chart = useMemo(() => {
+    if (!data) return [];
+    const toHours = (seconds) => Math.round((Number(seconds || 0) / 3600) * 10) / 10;
+    if (data.period === "year") return MONTHS.map((label, i) => ({ label, hours: toHours(data.months?.find((m) => m.month === i + 1)?.seconds) }));
+    const byDay = new Map((data.days || []).map((row) => [row.day, row.seconds]));
+    const rows = [];
+    for (let day = data.start; day <= data.end; day = nextDay(day)) {
+      const date = new Date(`${day}T12:00:00`);
+      rows.push({ label: data.period === "week" ? WEEKDAYS[((date.getDay() + 6) % 7) + 1].slice(0, 3) : String(date.getDate()), hours: toHours(byDay.get(day)) });
+    }
+    return rows;
+  }, [data]);
   const scoped = Boolean(meta.data?.scoped);
   const scopedId = scoped ? meta.data?.users?.[0]?.id || "" : "";
   useEffect(() => {
     if (scopedId) setUserId(scopedId);
   }, [scopedId]);
   const who = userId ? meta.data?.users?.find((user) => user.id === userId)?.name : scoped ? "You" : "The server";
+  const atLatest = shiftAnchor(anchor, period, 1) > isoDate(new Date());
+  const years = meta.data?.years || [new Date().getFullYear()];
+
+  const share = async () => {
+    setSharing(true);
+    try {
+      const response = await axios.get("/insights-data/wrapped/card", { headers: authHeader(), params, responseType: "blob" });
+      const file = new File([response.data], `jellyglance-${data?.period || period}-${data?.start || anchor}.png`, { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: recapTitle(data) }).catch(() => {});
+      } else {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <>
-      <UserYearPicker years={meta.data?.years || [year]} users={meta.data?.users || []} year={year} setYear={setYear} userId={userId} setUserId={setUserId} scoped={scoped} />
+      <div className="insights-pickers">
+        <div className="insights-period" role="tablist" aria-label="Recap period">
+          {PERIODS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={period === entry.id}
+              className={period === entry.id ? "active" : ""}
+              onClick={() => {
+                setPeriod(entry.id);
+                setAnchor(isoDate(new Date()));
+              }}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        {period === "year" ? (
+          <select value={Number(anchor.slice(0, 4))} onChange={(event) => setAnchor(Number(event.target.value) === new Date().getFullYear() ? isoDate(new Date()) : `${event.target.value}-01-01`)}>
+            {years.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="insights-step">
+            <button type="button" aria-label="Previous" onClick={() => setAnchor(shiftAnchor(anchor, period, -1))}>
+              ‹
+            </button>
+            <span>{data && data.period === period ? `${shortDay(data.start)} – ${shortDay(data.end)}` : "…"}</span>
+            <button type="button" aria-label="Next" disabled={atLatest} onClick={() => setAnchor(shiftAnchor(anchor, period, 1))}>
+              ›
+            </button>
+          </div>
+        )}
+        <select value={userId} onChange={(event) => setUserId(event.target.value)} disabled={scoped}>
+          {scoped ? null : <option value="">Whole server</option>}
+          {(meta.data?.users || []).map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="insights-share" onClick={share} disabled={sharing || !data?.totals?.plays}>
+          {sharing ? "Rendering…" : "Share card"}
+        </button>
+      </div>
       <Loading state={state}>
         {data && data.totals?.plays ? (
           <div className="insights-wrapped">
             <section className="insights-hero">
-              <span>{year} in review</span>
+              <span>{recapTitle(data)}</span>
               <h2>
                 {who} watched <strong>{hours(data.totals.seconds)} hours</strong> across {data.totals.plays.toLocaleString()} plays.
               </h2>
@@ -173,10 +271,10 @@ function Wrapped() {
               <Stat label="Favourite app" value={data.topClients[0]?.name || "–"} note={data.topClients[0] ? `${data.topClients[0].plays} plays` : null} />
             </div>
             <section className="insights-panel">
-              <h3>Hours watched each month</h3>
+              <h3>{data.period === "year" ? "Hours watched each month" : "Hours watched each day"}</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={months}>
-                  <XAxis dataKey="label" stroke="#8a97ad" fontSize={12} />
+                <BarChart data={chart}>
+                  <XAxis dataKey="label" stroke="#8a97ad" fontSize={12} interval={data.period === "month" ? 4 : 0} />
                   <YAxis stroke="#8a97ad" fontSize={12} width={40} />
                   <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={{ background: "#101624", border: "1px solid #2a3350" }} />
                   <Bar dataKey="hours" fill="var(--primary-color, #8b5cf6)" radius={[6, 6, 0, 0]} />
@@ -191,7 +289,7 @@ function Wrapped() {
             </div>
           </div>
         ) : (
-          <div className="insights-empty">No plays recorded for this year yet.</div>
+          <div className="insights-empty">No plays recorded for this {period} yet.</div>
         )}
       </Loading>
     </>
@@ -394,7 +492,7 @@ function UpNext() {
 }
 
 export const INSIGHT_TABS = [
-  { id: "wrapped", label: "Year in review", icon: CalendarCheckLineIcon, Component: Wrapped },
+  { id: "wrapped", label: "Recap", icon: CalendarCheckLineIcon, Component: Wrapped },
   { id: "upnext", label: "Up next", icon: PlayList2LineIcon, Component: UpNext },
   { id: "health", label: "Library health", icon: HeartPulseLineIcon, Component: LibraryHealth },
   { id: "streams", label: "Streams", icon: PulseLineIcon, Component: Streams },

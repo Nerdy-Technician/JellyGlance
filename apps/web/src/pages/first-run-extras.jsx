@@ -13,6 +13,7 @@ import TautulliImport from "./components/settings/TautulliImport";
 import { ImportSourceLabel } from "../lib/import-source-logos";
 import SetupShell from "./components/setup/SetupShell";
 import "./css/settings/settings.css";
+import { mediaServerName } from "../lib/media-server";
 
 export default function FirstRunExtras() {
   const [activePanel, setActivePanel] = useState("integrations");
@@ -102,8 +103,8 @@ export default function FirstRunExtras() {
         activePanel === "integrations"
           ? ""
           : activePanel === "imports"
-            ? "Import Jellystat or Tautulli history and match legacy users before the initial Jellyfin sync fills the rest of the dashboard."
-            : "JellyGlance will run the first full Jellyfin sync, recently added sync, Playback Reporting import, and dashboard stat refresh."
+            ? `Import Jellystat or Tautulli history and match legacy users before the initial ${mediaServerName()} sync fills the rest of the dashboard.`
+            : `JellyGlance will run the first full ${mediaServerName()} sync, recently added sync, Playback Reporting import, and dashboard stat refresh.`
       }
       minimal
     >
@@ -160,7 +161,7 @@ export default function FirstRunExtras() {
                   from Settings.
                 </p>
                 <ul>
-                  <li>Complete Jellyfin library and user sync</li>
+                  <li>Complete {mediaServerName()} library and user sync</li>
                   <li>Recently added media sync</li>
                   <li>Playback Reporting Plugin import when available</li>
                   <li>Dashboard statistics refresh</li>

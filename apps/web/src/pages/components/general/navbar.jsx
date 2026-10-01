@@ -35,6 +35,7 @@ import {
   WORKSPACE_MODE_UPDATED_EVENT,
   workspaceHomePath,
 } from "../../../lib/workspace-mode";
+import { isEmby, mediaServerName } from "../../../lib/media-server";
 
 function getTokenPayload() {
   const token = localStorage.getItem("token");
@@ -211,6 +212,15 @@ function getMaintainerrAvailabilityFromIntegrations(integrations) {
   return Array.isArray(integrations?.thirdParty) && integrations.thirdParty.some(isConfiguredMaintainerrApp);
 }
 
+function getAudiobookshelfAvailabilityFromIntegrations(integrations) {
+  return (
+    Array.isArray(integrations?.thirdParty) &&
+    integrations.thirdParty.some(
+      (app) => String(app?.name || app?.slug || "").toLowerCase().includes("audiobookshelf") && Boolean(app?.connected) && Boolean(String(app?.values?.url || "").trim())
+    )
+  );
+}
+
 function isConfiguredAutomationHealthApp(app) {
   const name = String(app?.name || app?.slug || "").toLowerCase();
   const values = app?.values || {};
@@ -235,6 +245,7 @@ function applyNavbarIntegrations(integrations, setters) {
   localStorage.setItem(WIZARR_NAV_AVAILABLE_KEY, String(wizarr));
   localStorage.setItem(TDARR_NAV_AVAILABLE_KEY, String(tdarr));
   localStorage.setItem(MAINTAINERR_NAV_AVAILABLE_KEY, String(maintainerr));
+  localStorage.setItem("jellyglance_audiobookshelf_nav_available", String(getAudiobookshelfAvailabilityFromIntegrations(integrations)));
   localStorage.setItem(AUTOMATION_HEALTH_NAV_AVAILABLE_KEY, String(automation));
   setters.setShowCalendarNav(calendar);
   setters.setShowDownloadsNav(downloads);
@@ -300,13 +311,13 @@ export default function Navbar() {
   const authMode = config?.settings?.auth?.mode || (config?.requireLogin === false ? "quick-connect" : "local");
   const authLabel =
     config?.settings?.auth?.label ||
-    (authMode === "quick-connect" ? "Jellyfin Quick Connect" : authMode === "oidc" ? "OIDC / Authentik" : "Local login");
+    (authMode === "quick-connect" ? (isEmby() ? "Emby login" : "Jellyfin Quick Connect") : authMode === "oidc" ? "OIDC / Authentik" : "Local login");
   const jellyfinUser = config?.settings?.auth?.jellyfinUser;
   const canUploadAvatar = authMode === "local" || authMode === "oidc";
   const accountName = jellyfinUser?.name || config?.username || authLabel;
   const currentRole = config?.settings?.auth?.role || "Viewer";
   const isJellyfinAdmin = currentRole === "Owner" || currentRole === "Admin";
-  const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? "Jellyfin Admin" : "Jellyfin User") : authMode === "oidc" ? "OIDC User" : "Local User";
+  const accountRole = authMode === "quick-connect" ? (isJellyfinAdmin ? `${mediaServerName()} Admin` : `${mediaServerName()} User`) : authMode === "oidc" ? "OIDC User" : "Local User";
   const showServerManagementNav = isJellyfinAdmin;
   const permissions = config?.settings?.auth?.permissions || {};
   const canOpenHome = permissions.home !== false;
@@ -398,7 +409,7 @@ export default function Navbar() {
         });
         if (!cancelled) setJellyfinStatus(response.data || null);
       } catch {
-        if (!cancelled) setJellyfinStatus({ ok: false, error: "Jellyfin unreachable" });
+        if (!cancelled) setJellyfinStatus({ ok: false, error: `${mediaServerName()} unreachable` });
       }
     }
     loadJellyfinStatus();

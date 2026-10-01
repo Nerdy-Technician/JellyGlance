@@ -8,17 +8,15 @@ import DashboardLineIcon from "remixicon-react/DashboardLineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import Key2LineIcon from "remixicon-react/Key2LineIcon";
 import logo from "../../images/icon-b-512.png";
-import jellyfinLogo from "../../images/jellyfin.svg";
 import projectText from "../../images/project-text.png";
 import AuthArtworkBackground from "../AuthArtworkBackground";
 
 const steps = [
   {
     id: 1,
-    title: "Jellyfin server",
-    hint: "Connect analytics",
+    title: "Media server",
+    hint: "Jellyfin or Emby",
     icon: ServerLineIcon,
-    logo: jellyfinLogo,
   },
   {
     id: 2,

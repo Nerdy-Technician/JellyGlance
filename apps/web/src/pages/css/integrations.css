@@ -1372,8 +1372,19 @@
 }
 
 @media (max-width: 1180px) {
+  /* Stacked: let each part take its natural height so the action buttons are not
+     squeezed to nothing underneath the configured-integrations card. */
+  .integrations-page.is-first-run.is-embedded,
+  .first-run-integrations-shell {
+    height: auto;
+  }
+
   .first-run-integrations-shell {
     grid-template-columns: 1fr;
+  }
+
+  .first-run-integrations-left {
+    grid-template-rows: auto;
   }
 
   .first-run-integrations-toolbar {

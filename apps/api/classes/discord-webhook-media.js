@@ -1421,4 +1421,7 @@ module.exports = {
   previewWebhookCard,
   CARD_THEMES,
   CARD_STYLES,
+  CARD_FONT,
+  CARD_FONT_FACE,
+  escapeXml,
 };

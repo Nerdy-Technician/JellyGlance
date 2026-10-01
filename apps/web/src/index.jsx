@@ -22,6 +22,7 @@ import { FIRST_RUN_EXTRAS_KEY } from "./lib/first-run";
 import { languages } from "./lib/languages.jsx";
 import { DEFAULT_THEME, applyTheme } from "./lib/theme";
 import { initPwaInstall } from "./lib/pwa-install";
+import { isEmby } from "./lib/media-server";
 
 initPwaInstall();
 
@@ -31,11 +32,20 @@ const isPublicStatusPath = window.location.pathname.replace(/\/+$/, "") === `${b
 const setupFlowNeedsDefaultTheme = !localStorage.getItem("token") || localStorage.getItem(FIRST_RUN_EXTRAS_KEY) === "true";
 applyTheme(setupFlowNeedsDefaultTheme ? DEFAULT_THEME : undefined);
 
+// Translations name the media server as Jellyfin; on Emby installs show Emby instead.
+const mediaServerNamePostProcessor = {
+  type: "postProcessor",
+  name: "mediaServerName",
+  process: (value) => (typeof value === "string" && isEmby() ? value.replace(/Jellyfin/g, "Emby") : value),
+};
+
 i18n
   .use(Backend)
   .use(LanguageDetector)
   .use(initReactI18next)
+  .use(mediaServerNamePostProcessor)
   .init({
+    postProcess: ["mediaServerName"],
     fallbackLng: "en-GB",
     supportedLngs: languages.map((language) => language.id),
     load: "currentOnly",

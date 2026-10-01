@@ -7,6 +7,7 @@ import Loading from "./components/general/loading";
 import UserInfo from "./components/user-info";
 import { AccountDashboard, QuickConnectUserWrap } from "./components/home/UserWrapUpDashboard";
 import "./css/home-user-wrap.css";
+import { mediaServerName } from "../lib/media-server";
 
 const token = localStorage.getItem("token");
 const PROFILE_SECTIONS = [
@@ -226,7 +227,7 @@ export default function UserProfilePage() {
         { action },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMediaMessage("Updated Jellyfin media state.");
+      setMediaMessage(`Updated ${mediaServerName()} media state.`);
       await reloadMediaLists();
     } catch (error) {
       setMediaMessage(error.response?.data?.error || error.message || "Unable to update item.");
@@ -318,7 +319,7 @@ export default function UserProfilePage() {
             <>
               <UserMediaRail
                 title="Continue Watching"
-                subtitle="In-progress Jellyfin media for this user."
+                subtitle={`In-progress ${mediaServerName()} media for this user.`}
                 items={filterMedia(mediaLists.continueWatching || [])}
                 onAction={runMediaAction}
                 actions={[{ label: "Watched", action: "markWatched" }]}
@@ -326,14 +327,14 @@ export default function UserProfilePage() {
               <UserMediaRail title="Recently Watched" subtitle="Last 10 synced plays for this user." items={filterMedia(mediaLists.recentlyWatched || [])} />
               <UserMediaRail
                 title="Favourites"
-                subtitle="Jellyfin favourites for this user."
+                subtitle={`${mediaServerName()} favourites for this user.`}
                 items={filterMedia(mediaLists.favourites || [])}
                 onAction={runMediaAction}
                 actions={[{ label: "Unfavourite", action: "unfavourite" }, { label: "Watched", action: "markWatched" }]}
               />
               <UserMediaRail
                 title="Watchlist Movies"
-                subtitle="Movies pulled from Jellyfin Watchlist."
+                subtitle={`Movies pulled from ${mediaServerName()} Watchlist.`}
                 items={filterMedia(mediaLists.watchlistByType?.movies || [])}
                 onAction={runMediaAction}
                 actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }, { label: "Watched", action: "markWatched" }]}
@@ -341,7 +342,7 @@ export default function UserProfilePage() {
               />
               <UserMediaRail
                 title="Watchlist Shows"
-                subtitle="Shows pulled from Jellyfin Watchlist."
+                subtitle={`Shows pulled from ${mediaServerName()} Watchlist.`}
                 items={filterMedia(mediaLists.watchlistByType?.shows || [])}
                 onAction={runMediaAction}
                 actions={[{ label: "Remove", action: "removeWatchlist" }, { label: "Favourite", action: "favourite" }]}

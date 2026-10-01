@@ -17,6 +17,7 @@ import {
 } from "../../../lib/jellyfin-job-triggers";
 
 import "../../css/settings/settings.css";
+import { mediaServerName } from "../../../lib/media-server";
 
 function errorText(error, fallback) {
   const data = error?.response?.data;
@@ -134,7 +135,7 @@ export default function JellyfinJobSchedules() {
       const response = await axios.get("/api/server-management/status");
       setStatus(response.data);
     } catch (error) {
-      setMessage({ type: "danger", text: errorText(error, "Unable to load Jellyfin jobs") });
+      setMessage({ type: "danger", text: errorText(error, `Unable to load ${mediaServerName()} jobs`) });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -166,7 +167,7 @@ export default function JellyfinJobSchedules() {
       setMessage({ type: "success", text: `${task.name} started.` });
       await loadStatus({ silent: true });
     } catch (error) {
-      setMessage({ type: "danger", text: errorText(error, "Jellyfin job failed to start") });
+      setMessage({ type: "danger", text: errorText(error, `${mediaServerName()} job failed to start`) });
     } finally {
       setBusyAction("");
     }
@@ -185,7 +186,7 @@ export default function JellyfinJobSchedules() {
       stopEditing();
       await loadStatus({ silent: true });
     } catch (error) {
-      setMessage({ type: "danger", text: errorText(error, "Jellyfin job schedule failed to save") });
+      setMessage({ type: "danger", text: errorText(error, `${mediaServerName()} job schedule failed to save`) });
     } finally {
       setBusyAction("");
     }
@@ -199,9 +200,9 @@ export default function JellyfinJobSchedules() {
     <div className="jellyfin-admin-settings jellyfin-job-schedules">
       <div className="jellyfin-admin-header">
         <div>
-          <p>Jellyfin jobs</p>
-          <h1>Jellyfin Jobs</h1>
-          <span>Set the times Jellyfin runs library scans, metadata refreshes, subtitle jobs, and other scheduled tasks. These are Jellyfin server jobs, not JellyGlance sync tasks.</span>
+          <p>{mediaServerName()} jobs</p>
+          <h1>{mediaServerName()} Jobs</h1>
+          <span>Set the times {mediaServerName()} runs library scans, metadata refreshes, subtitle jobs, and other scheduled tasks. These are {mediaServerName()} server jobs, not JellyGlance sync tasks.</span>
         </div>
         <Button type="button" variant="outline-light" onClick={() => loadStatus()} disabled={loading}>
           <RefreshLineIcon size={17} />
@@ -224,7 +225,7 @@ export default function JellyfinJobSchedules() {
               <p>
                 {status?.jellyfin?.ok
                   ? `${jellyfinTasks.length} jobs on ${status.jellyfin.name}${status.jellyfin.version ? ` ${status.jellyfin.version}` : ""}.`
-                  : status?.jellyfin?.error || "Jellyfin status unavailable."}
+                  : status?.jellyfin?.error || `${mediaServerName()} status unavailable.`}
               </p>
             </div>
           </div>

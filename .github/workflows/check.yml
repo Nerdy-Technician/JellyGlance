@@ -40,6 +40,9 @@ jobs:
       - name: Check i18n locale sync
         run: npm run i18n:check
 
+      - name: Check downloadable widget files
+        run: npm run widgets:check
+
       - name: Lint web
         run: npm run lint
 
@@ -54,7 +57,7 @@ jobs:
         run: |
           {
             echo "## Quality"
-            echo "- i18n check, lint, web build, docs build"
+            echo "- i18n check, widget files, lint, web build, docs build"
             echo "- Result: **${{ job.status }}**"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -224,6 +227,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: API tests
+        run: npm test
+
       - name: Build web
         run: npm run build
 
@@ -237,7 +243,7 @@ jobs:
         run: |
           {
             echo "## Compatibility · Node ${{ matrix.node-version }}"
-            echo "- engines check, npm ci, web build, compose config"
+            echo "- engines check, npm ci, API tests, web build, compose config"
             echo "- Result: **${{ job.status }}**"
           } >> "$GITHUB_STEP_SUMMARY"
 
