@@ -1043,9 +1043,20 @@ router.post("/setup-auth", async (req, res) => {
   }
 });
 
+async function setupComplete() {
+  const config = await new configClass().getConfig();
+  return config.state != null && config.state >= 2;
+}
+
 router.post("/test-jellyfin", async (req, res) => {
   try {
     const { JF_HOST, JF_API_KEY, SERVER_TYPE } = req.body;
+    // Setup only: once JellyGlance is configured this would let anyone make the server
+    // connect to an address of their choosing.
+    if (await setupComplete()) {
+      res.sendStatus(403);
+      return;
+    }
 
     if (!JF_HOST || !JF_API_KEY) {
       res.status(400).json({ isValid: false, errorMessage: "Server URL and API key are required" });
@@ -1070,6 +1081,10 @@ router.post("/configSetup", async (req, res) => {
   try {
     const { JF_HOST, JF_API_KEY, SERVER_TYPE } = req.body;
     const config = await new configClass().getConfig();
+    if (config.state != null && config.state >= 2) {
+      res.sendStatus(403);
+      return;
+    }
 
     if (!JF_HOST || !JF_API_KEY) {
       res.status(400).json({ isValid: false, errorMessage: "JF_HOST and JF_API_KEY are required for configuration" });

@@ -46,3 +46,23 @@ test("GET /auth/isConfigured never returns secrets", async () => {
     server.close();
   }
 });
+
+test("setup-only server checks are refused once JellyGlance is configured", async () => {
+  const app = express();
+  app.use(express.json());
+  app.use("/auth", authRouter);
+  const server = app.listen(0);
+  try {
+    const { port } = server.address();
+    for (const route of ["test-jellyfin", "configSetup"]) {
+      const response = await fetch(`http://127.0.0.1:${port}/auth/${route}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ JF_HOST: "http://127.0.0.1:9", JF_API_KEY: "x" }),
+      });
+      assert.equal(response.status, 403, route);
+    }
+  } finally {
+    server.close();
+  }
+});

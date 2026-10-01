@@ -35,7 +35,9 @@ function serverLabel(type = active) {
 async function detectServerType(url) {
   const { axios } = require("./axios");
   const { stripTrailingSlashes, toSafeHttpUrl } = require("../utils/security");
-  let base = stripTrailingSlashes(String(url || "").replace(/\/web\/index\.html.*$/, ""));
+  const raw = String(url || "");
+  const webIndex = raw.indexOf("/web/index.html");
+  let base = stripTrailingSlashes(webIndex === -1 ? raw : raw.slice(0, webIndex));
   if (!base) return null;
   if (!/^https?:\/\//i.test(base)) base = `http://${base}`;
   for (const path of ["/System/Info/Public", "/emby/System/Info/Public"]) {

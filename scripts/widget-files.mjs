@@ -18,7 +18,12 @@ const stale = [];
 for (const widget of WIDGET_PACK) {
   const file = path.join(dir, widget.filename);
   const expected = prettyJson(homarrFromPack(DEFAULT_WIDGET_HOST, widget));
-  const current = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null;
+  let current = null;
+  try {
+    current = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   if (current === expected) continue;
   stale.push(widget.filename);
   if (!check) fs.writeFileSync(file, expected);
