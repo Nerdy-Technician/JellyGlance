@@ -1,11 +1,12 @@
 const crypto = require("crypto");
+const { mediaServerAuthHeaders } = require("./server-type");
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");
 const { axios } = require("./axios");
 const { getIntegrations, getIntegrationData, getIntegrationHealthHistory } = require("./integration-store");
 const configClass = require("./config");
-const JellyfinAPI = require("./jellyfin-api");
+const jellyfinApi = require("./api-loader");
 const WebhookManager = require("./webhook-manager");
 const { getAuditLog, getWebhookDeliveryHistory, mergeSettings, getSettings } = require("./admin-history");
 const { fetchSeerrIssueSnapshot } = require("./seerr-issues");
@@ -13,7 +14,6 @@ const NewsletterCampaigns = require("./newsletter-campaigns");
 const { setDownloadPaused } = require("./download-client");
 const { joinSafeHttpUrl, stripTrailingSlashes, toSafeHttpUrl, safeHttpGet, safeHttpPost} = require("../utils/security");
 
-const jellyfinApi = new JellyfinAPI();
 let lastJellyfinSeenWrite = 0;
 
 function cleanUrl(url = "") {
@@ -1167,7 +1167,7 @@ async function buildJellyfinJobWidgets() {
   try {
     const response = await axios.get(`${cleanUrl(config.JF_HOST)}/ScheduledTasks`, {
       timeout: 12000,
-      headers: { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"` },
+      headers: { ...mediaServerAuthHeaders(config.JF_API_KEY) },
     });
     const tasks = Array.isArray(response.data) ? response.data : [];
     const running = tasks.filter((task) => String(task.State || "").toLowerCase().includes("run"));
@@ -1217,7 +1217,8 @@ async function getJellyfinStatus() {
     const info = await jellyfinApi.systemInfo();
     const ok = Boolean(info && (info.Id || info.Version));
     if (!ok) {
-      return { ok: false, error: "Jellyfin did not return system info", lastSeen, checkedAt };
+      // Keep the last known name/version so status widgets still identify the server while it is down.
+      return { ok: false, error: "Jellyfin did not return system info", name: lastSeen.name || "Jellyfin", version: lastSeen.version || "", lastSeen, checkedAt };
     }
     const seen = {
       name: info.ServerName || "Jellyfin",
@@ -1230,7 +1231,7 @@ async function getJellyfinStatus() {
     }
     return { ok: true, name: seen.name, version: seen.version, lastSeen: seen, checkedAt };
   } catch (error) {
-    return { ok: false, error: error.message || "Jellyfin unreachable", lastSeen, checkedAt };
+    return { ok: false, error: error.message || "Jellyfin unreachable", name: lastSeen.name || "Jellyfin", version: lastSeen.version || "", lastSeen, checkedAt };
   }
 }
 

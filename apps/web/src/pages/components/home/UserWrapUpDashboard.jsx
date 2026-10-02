@@ -17,6 +17,11 @@ import TimeLineIcon from "remixicon-react/TimeLineIcon";
 import TrophyLineIcon from "remixicon-react/TrophyLineIcon";
 import UserSettingsLineIcon from "remixicon-react/UserSettingsLineIcon";
 import "../../css/home-user-wrap.css";
+import { isEmby, mediaServerName } from "../../../lib/media-server";
+
+function quickConnectLabel() {
+  return isEmby() ? "Emby login" : "Jellyfin Quick Connect";
+}
 
 const token = localStorage.getItem("token");
 
@@ -402,7 +407,7 @@ export function QuickConnectUserWrap({ user, rank }) {
         <div>
           <p>{greeting()}</p>
           <h2>{user.UserName}</h2>
-          <span>{user.IsAdministrator ? "Server admin" : "Jellyfin Quick Connect user"}</span>
+          <span>{user.IsAdministrator ? "Server admin" : `${quickConnectLabel()} user`}</span>
         </div>
       </div>
 
@@ -438,12 +443,12 @@ export function AccountDashboard({ access }) {
       <div>
         <p>Account center</p>
         <h2>OIDC & Local Users</h2>
-        <span>Manage non-Jellyfin accounts separately from Jellyfin Quick Connect watch history.</span>
+        <span>Manage non-{mediaServerName()} accounts separately from {quickConnectLabel()} watch history.</span>
       </div>
 
       <div className="account-dashboard-grid">
         <div>
-          <strong>{access?.authMode === "oidc" ? "OIDC / Authentik" : access?.authMode === "local" ? "Local login" : "Jellyfin Quick Connect"}</strong>
+          <strong>{access?.authMode === "oidc" ? "OIDC / Authentik" : access?.authMode === "local" ? "Local login" : quickConnectLabel()}</strong>
           <span>Active sign-in mode</span>
         </div>
         <div>
@@ -510,9 +515,9 @@ export default function UserWrapUpDashboard() {
         <div>
           <p>Personal dashboards</p>
           <h1>User Wrap-Ups</h1>
-          <span>Jellyfin Quick Connect users get playback insight. OIDC and local accounts get account controls.</span>
+          <span>{quickConnectLabel()} users get playback insight. OIDC and local accounts get account controls.</span>
         </div>
-        <strong>{authMode === "quick-connect" ? "Jellyfin Quick Connect" : authMode === "oidc" ? "OIDC / Authentik" : "Local login"}</strong>
+        <strong>{authMode === "quick-connect" ? quickConnectLabel() : authMode === "oidc" ? "OIDC / Authentik" : "Local login"}</strong>
       </div>
 
       <div className="home-user-wrap-list">

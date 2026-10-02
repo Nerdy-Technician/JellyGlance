@@ -14,6 +14,7 @@ import TimeLineIcon from "remixicon-react/TimeLineIcon";
 import { formatJellyfinSchedule } from "../../../lib/jellyfin-job-triggers";
 
 import "../../css/settings/settings.css";
+import { mediaServerName } from "../../../lib/media-server";
 
 function errorText(error, fallback) {
   const data = error?.response?.data;
@@ -226,12 +227,12 @@ export default function ServerManagement() {
         action,
         ...payload,
       });
-      setMessage({ type: "success", text: "Jellyfin job started." });
+      setMessage({ type: "success", text: `${mediaServerName()} job started.` });
       await loadStatus();
     } catch (error) {
       setMessage({
         type: "danger",
-        text: errorText(error, "Jellyfin job failed to start"),
+        text: errorText(error, `${mediaServerName()} job failed to start`),
       });
     } finally {
       setBusyAction("");
@@ -376,7 +377,7 @@ export default function ServerManagement() {
           title={
             <TabLabel
               kind="jellyfin"
-              label="Jellyfin"
+              label={mediaServerName()}
               count={runningCount ? `${runningCount} running` : ""}
             />
           }
@@ -386,7 +387,7 @@ export default function ServerManagement() {
               <div className="server-management-panel-heading">
                 <AppLogo kind="jellyfin" size={22} />
                 <div>
-                  <h2>{status?.jellyfin?.name || "Jellyfin"}</h2>
+                  <h2>{status?.jellyfin?.name || mediaServerName()}</h2>
                   <p>
                     {status?.jellyfin?.ok
                       ? "Connected media server"
@@ -397,7 +398,7 @@ export default function ServerManagement() {
               <div className="server-management-facts">
                 <span>Version</span>
                 <strong>{status?.jellyfin?.version || "Unknown"}</strong>
-                <span>Jellyfin jobs</span>
+                <span>{mediaServerName()} jobs</span>
                 <strong>{status?.jellyfinTasks?.length || 0} available</strong>
                 <span>Running</span>
                 <strong>{runningCount}</strong>
@@ -420,7 +421,7 @@ export default function ServerManagement() {
             {categories.length > 2 ? (
               <div
                 className="server-job-filters"
-                aria-label="Filter Jellyfin jobs"
+                aria-label={`Filter ${mediaServerName()} jobs`}
               >
                 {categories.map((category) => (
                   <button

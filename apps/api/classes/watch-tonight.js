@@ -1,4 +1,5 @@
 const db = require("../db");
+const { mediaServerAuthHeaders } = require("./server-type");
 const configClass = require("./config");
 const { axios } = require("./axios");
 const API = require("./api-loader");
@@ -36,7 +37,7 @@ async function fetchJellyfinUserItems(userId, params = {}) {
   const response = await axios.get(`${cleanUrl(config.JF_HOST)}/Users/${encodeURIComponent(userId)}/Items`, {
     timeout: 12000,
     headers: {
-      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      ...mediaServerAuthHeaders(config.JF_API_KEY),
       "User-Agent": `JellyGlance/${APP_VERSION}`,
     },
     params: {

@@ -22,6 +22,7 @@ import "./css/users/users.css";
 
 import Loading from "./components/general/loading";
 import i18next from "i18next";
+import { mediaServerName } from "../lib/media-server";
 
 const token = localStorage.getItem("token");
 const PERMISSION_DEFINITIONS = [
@@ -188,7 +189,7 @@ export default function Users() {
         AccountId: user.UserId,
         Role: role,
         Source: "Jellyfin",
-        SourceLabel: serverAdmin ? "Jellyfin admin" : "Jellyfin user",
+        SourceLabel: serverAdmin ? `${mediaServerName()} admin` : `${mediaServerName()} user`,
         IsRunning: activeUserIds.has(user.UserId),
         SortWatchTime: Number(user.TotalWatchTime || 0),
       };
@@ -731,7 +732,7 @@ export default function Users() {
           <div>
             <p className="users-eyebrow">Access control</p>
             <h1>Users</h1>
-            <p>Manage Jellyfin role metadata, tracking, and local JellyGlance accounts.</p>
+            <p>Manage {mediaServerName()} role metadata, tracking, and local JellyGlance accounts.</p>
           </div>
         </div>
         <div className="users-header-actions">
@@ -755,7 +756,7 @@ export default function Users() {
       <section className="users-stat-grid">
         <div className="users-stat-card">
           <ShieldUserLineIcon />
-          <span>Jellyfin</span>
+          <span>{mediaServerName()}</span>
           <strong>{jellyfinRows.length}</strong>
         </div>
         <div className="users-stat-card">
@@ -805,7 +806,7 @@ export default function Users() {
               </FormSelect>
               <FormSelect value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
                 <option value="All">All accounts</option>
-                <option value="Jellyfin">Jellyfin</option>
+                <option value="Jellyfin">{mediaServerName()}</option>
                 <option value="OIDC">OIDC</option>
                 <option value="Local">Local</option>
               </FormSelect>

@@ -243,6 +243,11 @@ async function query(text, params, refreshViews = false) {
       scheduleMaterializedViewRefreshes();
     }
 
+    // A multi-statement string (e.g. CREATE TABLE ...; CREATE INDEX ...) resolves to an array of results.
+    if (Array.isArray(result)) {
+      return result;
+    }
+
     const skippedColumns = [
       "Name",
       "NowPlayingItemName",

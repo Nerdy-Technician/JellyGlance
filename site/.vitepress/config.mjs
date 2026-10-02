@@ -46,6 +46,7 @@ export default defineConfig({
       { text: "Roadmap", link: "/roadmap" },
       { text: "Releases", link: "/releases" },
       { text: "Press", link: "/press" },
+      { text: "Demo", link: "https://demo.jellyglance.com/" },
       { text: "Docs", link: "https://docs.jellyglance.com/" }
     ],
     sidebar: false,

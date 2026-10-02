@@ -1,11 +1,12 @@
 const express = require("express");
 const alerts = require("../classes/threshold-alerts");
+const { CATALOG } = require("../classes/alert-rules");
 
 const router = express.Router();
 
 router.get("/settings", async (req, res) => {
   try {
-    res.json({ settings: await alerts.getAlertSettings(), log: (await alerts.getAlertLog()).slice(0, 25) });
+    res.json({ settings: await alerts.getAlertSettings(), log: (await alerts.getAlertLog()).slice(0, 25), catalog: CATALOG });
   } catch (error) {
     res.status(503).json({ error: error.message || "Unable to load alert settings" });
   }

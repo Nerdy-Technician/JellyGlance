@@ -11,6 +11,7 @@ import EyeOffFillIcon from "remixicon-react/EyeOffFillIcon";
 import UploadCloud2LineIcon from "remixicon-react/UploadCloud2LineIcon";
 import Database2LineIcon from "remixicon-react/Database2LineIcon";
 import jellyfinLogo from "./images/jellyfin.svg";
+import embyLogo from "./images/emby.svg";
 
 import "./css/setup.css";
 import i18next from "i18next";
@@ -18,6 +19,16 @@ import { Trans } from "react-i18next";
 import SetupShell from "./components/setup/SetupShell";
 
 const RESTORE_WAIT_TIMEOUT_MS = 60 * 60 * 1000;
+
+const SERVER_TYPES = [
+  { id: "auto", label: "Auto-detect" },
+  { id: "jellyfin", label: "Jellyfin" },
+  { id: "emby", label: "Emby" },
+];
+
+function serverName(type) {
+  return type === "emby" ? "Emby" : type === "jellyfin" ? "Jellyfin" : "media server";
+}
 
 function waitForFirstRunRestoreComplete() {
   return new Promise((resolve, reject) => {
@@ -68,7 +79,7 @@ function waitForFirstRunRestoreComplete() {
 }
 
 function Setup() {
-  const [formValues, setFormValues] = useState({});
+  const [formValues, setFormValues] = useState({ SERVER_TYPE: "auto" });
   const [processing, setProcessing] = useState(false);
   const [submitButtonText, setsubmitButtonText] = useState(i18next.t("SAVE_JELLYFIN_DETAILS"));
   const [showPassword, setShowPassword] = useState(false);
@@ -127,28 +138,41 @@ function Setup() {
     setsubmitButtonText(i18next.t("SAVE_JELLYFIN_DETAILS"));
   }
 
+  function chooseServerType(type) {
+    setFormValues((current) => ({ ...current, SERVER_TYPE: type }));
+    setConnectionTest({ status: "idle", message: "" });
+  }
+
+  function serverPayload(values) {
+    const { SERVER_TYPE, ...rest } = values;
+    return SERVER_TYPE && SERVER_TYPE !== "auto" ? { ...rest, SERVER_TYPE } : rest;
+  }
+
   async function testConnection() {
     setProcessing(true);
-    setConnectionTest({ status: "testing", message: "Testing Jellyfin connection..." });
+    setConnectionTest({ status: "testing", message: `Testing ${serverName(formValues.SERVER_TYPE)} connection...` });
 
     try {
-      const response = await axios.post("/auth/test-jellyfin", formValues, {
+      const response = await axios.post("/auth/test-jellyfin", serverPayload(formValues), {
         headers: {
           "Content-Type": "application/json",
         },
       });
 
+      const detected = response.data.serverType || formValues.SERVER_TYPE;
       setFormValues((current) => ({
         ...current,
         JF_HOST: response.data.cleanedUrl || current.JF_HOST,
+        SERVER_TYPE: detected,
       }));
       setConnectionTest({
         status: "success",
         testedHost: response.data.cleanedUrl || formValues.JF_HOST,
         testedKey: formValues.JF_API_KEY,
-        message: `Connected to ${response.data.cleanedUrl || formValues.JF_HOST}`,
+        testedType: detected,
+        message: `Connected to ${serverName(detected)} at ${response.data.cleanedUrl || formValues.JF_HOST}`,
       });
-      setsubmitButtonText("Save Jellyfin Details");
+      setsubmitButtonText(`Save ${serverName(detected)} Details`);
     } catch (error) {
       const errorMessage =
         error.response?.data?.errorMessage ||
@@ -169,15 +193,20 @@ function Setup() {
     const currentHost = formValues.JF_HOST?.trim()?.replace(/\/+$/, "");
     const testedKey = connectionTest.testedKey;
 
-    if (connectionTest.status !== "success" || testedHost !== currentHost || testedKey !== formValues.JF_API_KEY) {
-      setConnectionTest({ status: "error", message: "Test the Jellyfin connection before saving." });
+    if (
+      connectionTest.status !== "success" ||
+      testedHost !== currentHost ||
+      testedKey !== formValues.JF_API_KEY ||
+      connectionTest.testedType !== formValues.SERVER_TYPE
+    ) {
+      setConnectionTest({ status: "error", message: `Test the ${serverName(formValues.SERVER_TYPE)} connection before saving.` });
       setsubmitButtonText("Test connection first");
       setProcessing(false);
       return;
     }
 
     axios
-      .post("/auth/configSetup/", formValues)
+      .post("/auth/configSetup/", serverPayload(formValues))
       .then(async () => {
         setsubmitButtonText(i18next.t("SETTINGS_SAVED"));
         setProcessing(false);
@@ -269,22 +298,36 @@ function Setup() {
     <SetupShell
       step={1}
       eyebrow="Media server connection"
-      title="Connect Jellyfin"
-      description="Add your Jellyfin URL and API key, or restore a previous JellyGlance backup to bring an old install back."
+      title="Connect your media server"
+      description="Add your Jellyfin or Emby URL and API key, or restore a previous JellyGlance backup to bring an old install back."
       minimal
     >
       <section className="setup-stage-shell">
         <section className="setup-stage-form-card">
           <div className="setup-jellyfin-form-header">
             <div className="setup-jellyfin-logo" aria-hidden="true">
-              <img src={jellyfinLogo} alt="" />
+              <img src={formValues.SERVER_TYPE === "emby" ? embyLogo : jellyfinLogo} alt="" />
             </div>
             <div className="setup-form-heading-block">
-              <strong>Jellyfin connection</strong>
+              <strong>{formValues.SERVER_TYPE === "auto" ? "Server connection" : `${serverName(formValues.SERVER_TYPE)} connection`}</strong>
               <span>Enter the server you want JellyGlance to index and monitor.</span>
             </div>
           </div>
           <Form onSubmit={handleFormSubmit} className="setup-form">
+            <div className="setup-server-type" role="radiogroup" aria-label="Media server type">
+              {SERVER_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={formValues.SERVER_TYPE === type.id}
+                  className={formValues.SERVER_TYPE === type.id ? "is-active" : ""}
+                  onClick={() => chooseServerType(type.id)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
             <Form.Group className="inputbox">
               <Form.Label>URL</Form.Label>
               <Form.Control
@@ -292,7 +335,7 @@ function Setup() {
                 name="JF_HOST"
                 value={formValues.JF_HOST || ""}
                 onChange={handleFormChange}
-                placeholder="https://jellyfin.example.com"
+                placeholder={formValues.SERVER_TYPE === "emby" ? "https://emby.example.com" : "https://jellyfin.example.com"}
               />
             </Form.Group>
 
@@ -308,7 +351,7 @@ function Setup() {
                   value={formValues.JF_API_KEY || ""}
                   onChange={handleFormChange}
                   type={showPassword ? "text" : "password"}
-                  placeholder="Paste Jellyfin API key"
+                  placeholder={`Paste ${serverName(formValues.SERVER_TYPE)} API key`}
                   autoComplete="off"
                 />
                 <Button className="login-show-password" type="button" onClick={() => setShowPassword(!showPassword)}>

@@ -139,15 +139,17 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
 <div class="integration-service-card featured">
   <img src="/icons/selfhst/jellyfin.svg" alt="">
   <div>
-    <h3>Jellyfin</h3>
-    <p>The required media server connection. Configure it during first setup or later from <strong>Settings &gt; Integrations &gt; Media Server</strong>.</p>
+    <h3>Jellyfin or Emby</h3>
+    <p>The required media server connection. Pick Jellyfin or Emby during first setup (or let JellyGlance detect it from the URL), and change it later from <strong>Settings &gt; Integrations &gt; Media Server</strong>.</p>
     <ul>
-      <li>Validate the Jellyfin URL and API key.</li>
+      <li>Validate the server URL and API key.</li>
       <li>Sync libraries, users, items, seasons, episodes, and playback data.</li>
       <li>Proxy posters, backdrops, avatars, and login artwork.</li>
       <li>Read active sessions for Activity views and nav badges.</li>
-      <li>Support Jellyfin Quick Connect login.</li>
+      <li>Support Jellyfin Quick Connect login, or Emby username and password sign-in on Emby.</li>
+      <li>Import history from the Playback Reporting plugin on Jellyfin or Emby.</li>
     </ul>
+    <p>Setting <code>IS_EMBY_API=true</code> or <code>false</code> in the environment locks the server type. Without it, the choice made in setup is used. When skipping the setup wizard with <code>JF_HOST</code> and <code>JF_API_KEY</code>, set <code>JF_SERVER_TYPE=emby</code> or leave it out to auto-detect.</p>
   </div>
 </div>
 
@@ -170,6 +172,11 @@ JellyGlance uses Jellyfin as the source of truth for media, users, artwork, sess
     <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/maintainerr.png" alt="">
     <h3>Maintainerr</h3>
     <p>Monitor cleanup collections, scheduled actions, recent activity, storage state, health, and reclaimable space.</p>
+  </article>
+  <article>
+    <img src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/audiobookshelf.png" alt="">
+    <h3>Audiobookshelf</h3>
+    <p>See who is listening, recent sessions, library totals and newly added books under <strong>Server &gt; Audiobooks</strong>. Use an admin API token to include listening activity.</p>
   </article>
   <article>
     <span class="integration-text-icon" aria-hidden="true">Un</span>

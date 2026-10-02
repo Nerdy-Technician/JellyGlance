@@ -1,4 +1,5 @@
 const express = require("express");
+const { mediaServerAuthHeaders } = require("../classes/server-type");
 const axios = require("axios");
 
 const db = require("../db");
@@ -128,7 +129,7 @@ async function jellyfinRequest(path, method = "get") {
     method,
     url: `${String(config.JF_HOST).replace(/\/+$/, "")}${path}`,
     timeout: 30000,
-    headers: { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`, "User-Agent": USER_AGENT },
+    headers: { ...mediaServerAuthHeaders(config.JF_API_KEY), "User-Agent": USER_AGENT },
   });
   return response.data;
 }

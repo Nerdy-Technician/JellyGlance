@@ -49,6 +49,7 @@ import {
   normalizeHomeOrder,
   normalizeHomeSettings,
 } from "../lib/home-settings";
+import { mediaServerName } from "../lib/media-server";
 
 const numberFormat = new Intl.NumberFormat();
 const HOME_DASHBOARD_CACHE_KEY = "jellyglance_home_dashboard_cache";
@@ -758,7 +759,7 @@ export default function Home({ kioskMode = false }) {
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}` };
     const actions = {
-      sync: { label: "Jellyfin sync", request: () => axios.get("/sync/beginSync", { headers }) },
+      sync: { label: `${mediaServerName()} sync`, request: () => axios.get("/sync/beginSync", { headers }) },
       backup: { label: "Backup", request: () => axios.get("/backup/beginBackup", { headers }) },
       integrations: { label: "Integration test", request: () => axios.post("/api/integrations/test-all", {}, { headers }) },
     };
@@ -1547,7 +1548,7 @@ export default function Home({ kioskMode = false }) {
             <h2>Quick Actions</h2>
           </div>
           <div className="home-quick-action-grid">
-            <button type="button" disabled={Boolean(busyAction)} onClick={() => runQuickAction("sync")}>Sync Jellyfin</button>
+            <button type="button" disabled={Boolean(busyAction)} onClick={() => runQuickAction("sync")}>Sync {mediaServerName()}</button>
             <button type="button" disabled={Boolean(busyAction)} onClick={() => runQuickAction("integrations")}>Test integrations</button>
             <button type="button" disabled={Boolean(busyAction)} onClick={() => runQuickAction("backup")}>Run backup</button>
             <Link to="/requests">Open Requests</Link>

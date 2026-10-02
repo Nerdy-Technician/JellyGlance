@@ -13,6 +13,9 @@ hero:
       text: Documentation
       link: https://docs.jellyglance.com/
     - theme: alt
+      text: Live Demo
+      link: https://demo.jellyglance.com/
+    - theme: alt
       text: Features
       link: /features
 

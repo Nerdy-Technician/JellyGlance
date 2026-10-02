@@ -65,34 +65,13 @@ export default defineConfig(({ mode }) => {
 
     build: {
       target: "es2015",
+      // Vite 8 bundles with rolldown's automatic code splitting. Named vendor groups
+      // (the old rollupOptions.manualChunks) pull every group into the first load and
+      // roughly triple it, so heavy libraries stay in the lazy route chunks instead.
+      chunkSizeWarningLimit: 900,
       rolldownOptions: {
         output: {
           codeSplitting: true,
-        },
-      },
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes("node_modules")) return;
-            // MUI icons is enormous — keep it separate
-            if (id.includes("/@mui/icons-material")) return "vendor-mui-icons";
-            // MUI X (data grid, date pickers) separate from core MUI
-            if (id.includes("/@mui/x-")) return "vendor-mui-x";
-            if (id.includes("/@mui/") || id.includes("/@emotion/")) return "vendor-mui";
-            if (id.includes("/material-react-table/") || id.includes("/@tanstack/")) return "vendor-table";
-            if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-")) return "vendor-charts";
-            if (id.includes("/i18next") || id.includes("/react-i18next")) return "vendor-i18n";
-            if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/react/")) return "vendor-react";
-            if (
-              id.includes("/axios/") ||
-              id.includes("/dayjs/") ||
-              id.includes("/react-toastify/") ||
-              id.includes("/socket.io-client/") ||
-              id.includes("/bootstrap/") ||
-              id.includes("/react-bootstrap/") ||
-              id.includes("/remixicon-react/")
-            ) return "vendor-misc";
-          },
         },
       },
     },

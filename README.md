@@ -61,6 +61,8 @@
 <p align="center">
   <a href="https://jellyglance.com/"><strong>Website</strong></a>
   ·
+  <a href="https://demo.jellyglance.com/"><strong>Live Demo</strong></a>
+  ·
   <a href="http://docs.jellyglance.com/"><strong>Documentation</strong></a>
   ·
   <a href="https://discord.gg/dMGhv8j2kx"><strong>Discord</strong></a>
@@ -69,6 +71,10 @@
   ·
   <a href="#integrations"><strong>Integrations</strong></a>
 </p>
+
+## Live Demo
+
+Try JellyGlance without installing anything at **[demo.jellyglance.com](https://demo.jellyglance.com/)**. It's read-only, filled with real film and TV data from TMDB and simulated viewers, downloads and requests, and resets every few hours. The demo's source is in **[JellyGlance/Demo](https://github.com/JellyGlance/Demo)**.
 
 ## Documentation
 

@@ -321,7 +321,19 @@ function getTranslationFilePath(req) {
 
 //hacky middleware to handle basename changes for UI
 
-app.use(staticRateLimit);
+// Built JS/CSS chunks have content-hashed names and a full app load pulls ~200 of them,
+// so counting them against the static limit blanks the page after a couple of reloads.
+// Only files that exist in the build index are exempt; everything else is still limited.
+const HASHED_ASSET_REGEX = /\/assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(js|css)$/;
+function isBuiltAsset(req) {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+  const pathname = getRequestPathname(req);
+  if (!HASHED_ASSET_REGEX.test(pathname)) return false;
+  const filePath = getStaticAssetPath(req);
+  return Boolean(filePath && filePath.startsWith(path.join(root, "assets") + path.sep));
+}
+
+app.use((req, res, next) => (isBuiltAsset(req) ? next() : staticRateLimit(req, res, next)));
 app.use((req, res, next) => {
   if (BASE_NAME && BASE_NAME != "" && (req.url == "/" || req.url == "")) {
     return res.redirect(BASE_NAME);
@@ -631,6 +643,7 @@ function isPublicProxyAssetRequest(req) {
     pathName.startsWith("/items/images/") ||
     pathName.startsWith("/users/images/") ||
     pathName.startsWith("/plugins/images/") ||
+    pathName.startsWith("/audiobookshelf/images/") ||
     pathName.startsWith("/web/assets/img/devices/")
   );
 }
@@ -753,6 +766,11 @@ function authorizeApiRoute(req, res, next) {
     }
     next();
     return;
+  }
+
+  // Read-only server status is used by the Homarr/Homepage widget kit, so widget keys can read it.
+  if (pathName === "/jellyfin/status" && (req.method === "GET" || req.method === "HEAD")) {
+    return requirePermission("dashboard")(req, res, next);
   }
 
   if (pathName.startsWith("/jellyfin/refresh")) {

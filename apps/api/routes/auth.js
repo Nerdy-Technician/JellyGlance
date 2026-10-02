@@ -1,4 +1,6 @@
 const express = require("express");
+const { mediaServerAuthHeaders, chooseServerType, withServerType, saveServerType, serverLabel } = require("../classes/server-type");
+const { publicAuth } = require("../classes/client-config");
 const { createHash, randomBytes, randomUUID } = require("crypto");
 const db = require("../db");
 const jwt = require("jsonwebtoken");
@@ -160,6 +162,7 @@ async function getQuickConnectConfig() {
     host: normalizeJellyfinUrl(config.JF_HOST),
     settings: config.settings || {},
     state: config.state,
+    serverType: config.SERVER_TYPE || "jellyfin",
   };
 }
 
@@ -472,6 +475,67 @@ router.post("/jellyfin-quick-connect/status", async (req, res) => {
   }
 });
 
+// Shared by Quick Connect and username/password sign-in: checks the media server
+// account against JellyGlance roles, records first-run auth and issues a token.
+async function completeMediaServerLogin(res, config, jellyfinUser, method) {
+  const serverName = serverLabel(config.serverType);
+  const isFirstRunApproval = config.state < 2;
+  console.log(`[SETUP-AUTH] ${method} complete. firstRun=${isFirstRunApproval} user=${sanitizeForLog(jellyfinUser.Name || jellyfinUser.Id)}`);
+
+  if (isFirstRunApproval && !jellyfinUser?.Policy?.IsAdministrator) {
+    res.status(403).json({ errorMessage: `Sign in with a ${serverName} administrator account` });
+    return;
+  }
+
+  const settings = config.settings || {};
+  const assignedRole = settings.userRoles?.[jellyfinUser.Id] || (jellyfinUser?.Policy?.IsAdministrator ? "Admin" : "Viewer");
+  const permissions = getRolePermissions(settings, assignedRole);
+
+  if (assignedRole === "Disabled" || !permissions.dashboard) {
+    res.status(403).json({ errorMessage: `This ${serverName} account is disabled in JellyGlance` });
+    return;
+  }
+
+  const defaultLabel = config.serverType === "emby" ? "Emby login" : "Jellyfin Quick Connect";
+  settings.auth = {
+    ...(settings.auth || {}),
+    mode: isFirstRunApproval ? "quick-connect" : settings.auth?.mode || "quick-connect",
+    label: isFirstRunApproval ? defaultLabel : settings.auth?.label || defaultLabel,
+  };
+
+  if (isFirstRunApproval) {
+    settings.firstRunExtrasPending = true;
+    await db.query('UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1', [
+      "jellyfin-quick-connect",
+      null,
+      true,
+      settings,
+    ]);
+    console.log(`[SETUP-AUTH] ${method} saved first-run admin auth`);
+  }
+
+  const mediaUser = {
+    id: jellyfinUser.Id,
+    name: jellyfinUser.Name,
+    primaryImageTag: jellyfinUser.PrimaryImageTag || null,
+    isAdministrator: Boolean(jellyfinUser?.Policy?.IsAdministrator),
+  };
+  const token = await signAuthToken({
+    id: jellyfinUser.Id,
+    username: jellyfinUser.Name || "jellyfin-quick-connect",
+    authMode: "quick-connect",
+    role: assignedRole,
+    permissions,
+    jellyfinUser: mediaUser,
+  });
+  res.json({
+    token,
+    mode: "quick-connect",
+    auth: { ...publicAuth(settings.auth), jellyfinUser: mediaUser },
+    user: { id: mediaUser.id, name: mediaUser.name, primaryImageTag: mediaUser.primaryImageTag, role: assignedRole, permissions },
+  });
+}
+
 router.post("/jellyfin-quick-connect/complete", async (req, res) => {
   try {
     const { secret } = req.body;
@@ -494,79 +558,54 @@ router.post("/jellyfin-quick-connect/complete", async (req, res) => {
       return;
     }
 
-    const isFirstRunApproval = config.state < 2;
-    console.log(`[SETUP-AUTH] Quick Connect complete. firstRun=${isFirstRunApproval} user=${sanitizeForLog(jellyfinUser.Name || jellyfinUser.Id)}`);
-
-    if (isFirstRunApproval && !jellyfinUser?.Policy?.IsAdministrator) {
-      res.status(403).json({ errorMessage: "Approve Quick Connect with a Jellyfin administrator account" });
-      return;
-    }
-
-    const settings = config.settings || {};
-    const assignedRole = settings.userRoles?.[jellyfinUser.Id] || (jellyfinUser?.Policy?.IsAdministrator ? "Admin" : "Viewer");
-    const permissions = getRolePermissions(settings, assignedRole);
-
-    if (assignedRole === "Disabled" || !permissions.dashboard) {
-      res.status(403).json({ errorMessage: "This Jellyfin account is disabled in JellyGlance" });
-      return;
-    }
-
-    settings.auth = {
-      ...(settings.auth || {}),
-      mode: isFirstRunApproval ? "quick-connect" : settings.auth?.mode || "quick-connect",
-      label: isFirstRunApproval ? "Jellyfin Quick Connect" : settings.auth?.label || "Jellyfin Quick Connect",
-    };
-
-    if (isFirstRunApproval) {
-      settings.firstRunExtrasPending = true;
-      await db.query('UPDATE app_config SET "APP_USER"=$1, "APP_PASSWORD"=$2, "REQUIRE_LOGIN"=$3, settings=$4 where "ID"=1', [
-        "jellyfin-quick-connect",
-        null,
-        true,
-        settings,
-      ]);
-      console.log("[SETUP-AUTH] Quick Connect saved first-run admin auth");
-    }
-
-    const token = await signAuthToken({
-      id: jellyfinUser.Id,
-      username: jellyfinUser.Name || "jellyfin-quick-connect",
-      authMode: "quick-connect",
-      role: assignedRole,
-      permissions,
-      jellyfinUser: {
-        id: jellyfinUser.Id,
-        name: jellyfinUser.Name,
-        primaryImageTag: jellyfinUser.PrimaryImageTag || null,
-        isAdministrator: Boolean(jellyfinUser?.Policy?.IsAdministrator),
-      },
-    });
-    res.json({
-      token,
-      mode: "quick-connect",
-      auth: {
-        ...settings.auth,
-        jellyfinUser: {
-          id: jellyfinUser.Id,
-          name: jellyfinUser.Name,
-          primaryImageTag: jellyfinUser.PrimaryImageTag || null,
-          isAdministrator: Boolean(jellyfinUser?.Policy?.IsAdministrator),
-        },
-      },
-      user: {
-        id: jellyfinUser.Id,
-        name: jellyfinUser.Name,
-        primaryImageTag: jellyfinUser.PrimaryImageTag || null,
-        role: assignedRole,
-        permissions,
-      },
-    });
+    await completeMediaServerLogin(res, config, jellyfinUser, "Quick Connect");
   } catch (error) {
     const status = error?.response?.status || 502;
     console.log("[QUICK-CONNECT] complete failed", error?.response?.status || error.message);
     res.status(status).json({
       errorMessage: `Unable to complete Jellyfin Quick Connect: ${error?.response?.status || error.message}`,
     });
+  }
+});
+
+// Username/password sign-in against the media server. Emby has no Quick Connect, so this
+// is how Emby installs sign in; it also works for Jellyfin. The password goes only to the
+// media server and is never stored.
+router.post("/media-server-login", async (req, res) => {
+  try {
+    const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const config = await getQuickConnectConfig();
+
+    if (!username || username.length > 128 || password.length > 1024) {
+      res.status(400).json({ errorMessage: "Username and password are required" });
+      return;
+    }
+    if (config.errorMessage) {
+      res.status(400).json({ errorMessage: config.errorMessage });
+      return;
+    }
+
+    const response = await axios.post(
+      joinSafeHttpUrl(config.host, "/Users/AuthenticateByName"),
+      { Username: username, Pw: password },
+      { headers: { ...getJellyfinAuthHeaders(), "Content-Type": "application/json" }, timeout: 12000 }
+    );
+    const mediaUser = response?.data?.User;
+    if (!mediaUser?.Id) {
+      res.status(502).json({ errorMessage: `${serverLabel(config.serverType)} did not return an authenticated user` });
+      return;
+    }
+
+    await completeMediaServerLogin(res, config, mediaUser, "Password sign-in");
+  } catch (error) {
+    const status = error?.response?.status;
+    if (status === 401 || status === 403) {
+      res.status(401).json({ errorMessage: "Wrong username or password" });
+      return;
+    }
+    console.log("[MEDIA-LOGIN] sign-in failed", status || error.message);
+    res.status(502).json({ errorMessage: "Unable to reach the media server to sign in" });
   }
 });
 
@@ -773,7 +812,8 @@ router.get("/isConfigured", async (req, res) => {
     res.json({
       state: config.state,
       version: packageJson.version,
-      auth: resolveAuthSummary(config),
+      auth: publicAuth(resolveAuthSummary(config)),
+      serverType: config.SERVER_TYPE || "jellyfin",
       requireLogin: config.REQUIRE_LOGIN,
     });
   } catch (error) {
@@ -795,7 +835,7 @@ router.get("/background-posters", async (req, res) => {
     }
 
     const headers = {
-      Authorization: 'MediaBrowser Token="' + config.JF_API_KEY + '"',
+      ...mediaServerAuthHeaders(config.JF_API_KEY),
       "User-Agent": "JellyGlance/" + packageJson.version,
     };
     const itemTypes = ["Movie", "Series", "BoxSet"];
@@ -1003,32 +1043,48 @@ router.post("/setup-auth", async (req, res) => {
   }
 });
 
+async function setupComplete() {
+  const config = await new configClass().getConfig();
+  return config.state != null && config.state >= 2;
+}
+
 router.post("/test-jellyfin", async (req, res) => {
   try {
-    const { JF_HOST, JF_API_KEY } = req.body;
+    const { JF_HOST, JF_API_KEY, SERVER_TYPE } = req.body;
+    // Setup only: once JellyGlance is configured this would let anyone make the server
+    // connect to an address of their choosing.
+    if (await setupComplete()) {
+      res.sendStatus(403);
+      return;
+    }
 
     if (!JF_HOST || !JF_API_KEY) {
-      res.status(400).json({ isValid: false, errorMessage: "Jellyfin URL and API key are required" });
+      res.status(400).json({ isValid: false, errorMessage: "Server URL and API key are required" });
       return;
     }
 
-    const validation = await API.validateSettings(JF_HOST, JF_API_KEY);
+    const serverType = await chooseServerType(SERVER_TYPE, JF_HOST);
+    const validation = await withServerType(serverType, () => API.validateSettings(JF_HOST, JF_API_KEY));
     if (validation.isValid === false) {
-      res.status(validation.status || 400).json(validation);
+      res.status(validation.status || 400).json({ ...validation, serverType });
       return;
     }
 
-    res.json(validation);
+    res.json({ ...validation, serverType, serverLabel: serverLabel(serverType) });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ isValid: false, errorMessage: "Unable to test Jellyfin connection" });
+    res.status(500).json({ isValid: false, errorMessage: "Unable to test the media server connection" });
   }
 });
 
 router.post("/configSetup", async (req, res) => {
   try {
-    const { JF_HOST, JF_API_KEY } = req.body;
+    const { JF_HOST, JF_API_KEY, SERVER_TYPE } = req.body;
     const config = await new configClass().getConfig();
+    if (config.state != null && config.state >= 2) {
+      res.sendStatus(403);
+      return;
+    }
 
     if (!JF_HOST || !JF_API_KEY) {
       res.status(400).json({ isValid: false, errorMessage: "JF_HOST and JF_API_KEY are required for configuration" });
@@ -1037,7 +1093,8 @@ router.post("/configSetup", async (req, res) => {
 
     var url = JF_HOST;
 
-    const validation = await API.validateSettings(url, JF_API_KEY);
+    const serverType = await chooseServerType(SERVER_TYPE, url);
+    const validation = await withServerType(serverType, () => API.validateSettings(url, JF_API_KEY));
     if (validation.isValid === false) {
       res.status(validation.status);
       res.send(validation);
@@ -1053,6 +1110,7 @@ router.post("/configSetup", async (req, res) => {
       }
 
       const { rows } = await db.query(query, [validation.cleanedUrl, JF_API_KEY]);
+      await saveServerType(serverType);
 
       const systemInfo = await API.systemInfo();
 
@@ -1076,7 +1134,7 @@ router.post("/configSetup", async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    res.status(500).json({ isValid: false, errorMessage: "Unable to save Jellyfin configuration" });
+    res.status(500).json({ isValid: false, errorMessage: "Unable to save the media server configuration" });
   }
 });
 

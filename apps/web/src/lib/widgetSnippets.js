@@ -6,21 +6,24 @@ const LOGO = WIDGET_ICON;
 export const WIDGET_GROUPS = ["Overview", "Playback", "Library", "Queue", "Calendar", "Integrations", "Ops"];
 
 function jsxClose(body) {
-  return `${body}\n</Stack>`;
+  return `${body}\n  </Stack>\n</Stack>`;
 }
 
+// Fills the Homarr tile: the header keeps clear of Homarr's own menu button (top right),
+// and the body takes the remaining height, scrolling when a list is longer than the tile.
 function jsxFrame(title, subtitle, badge, body) {
-  return jsxClose(`<Stack gap="sm" p="xs">
-  <Group justify="space-between" align="center">
-    <Group gap="xs">
+  return jsxClose(`<Stack gap="xs" p="xs" h="100%">
+  <Group justify="space-between" align="center" wrap="nowrap" gap="xs" pr={36}>
+    <Group gap="xs" wrap="nowrap" miw={0}>
       <Avatar src="${LOGO}" size={24} radius="xl" />
-      <Stack gap={0}>
-        <Text fw={800} size="sm">${title}</Text>
-        ${subtitle ? `<Text size="xs" c="dimmed">${subtitle}</Text>` : ""}
+      <Stack gap={0} miw={0}>
+        <Text fw={800} size="sm" truncate>${title}</Text>
+        ${subtitle ? `<Text size="xs" c="dimmed" truncate>${subtitle}</Text>` : ""}
       </Stack>
     </Group>
-    ${badge || `<Badge variant="light" color="violet">Glance</Badge>`}
+    <Box style={{ flexShrink: 0 }}>${badge || `<Badge variant="light" color="violet">Glance</Badge>`}</Box>
   </Group>
+  <Stack gap="sm" flex={1} mih={0} style={{ overflowY: "auto" }}>
   ${body}`);
 }
 
@@ -32,10 +35,12 @@ function jsxStats(cells) {
   const cols = cells
     .map(
       (cell) =>
-        `<Grid.Col span={${cell.span || 6}}><Card withBorder radius="md" p="xs"><Text size="xs" c="${cell.color}">${cell.label}</Text><Text fw={800} size="lg">{data.${cell.field}}</Text></Card></Grid.Col>`
+        `<Card withBorder radius="md" miw={0} style={{ justifyContent: "center", padding: "6px 10px" }}><Text size="xs" c="${cell.color}" truncate>${cell.label}</Text><Text fw={800} size="xl" truncate>{data.${cell.field}}</Text></Card>`
     )
     .join("\n    ");
-  return `<Grid gutter="xs">\n    ${cols}\n  </Grid>`;
+  // A plain CSS grid (at most 3 columns): columns re-flow on narrow tiles and the rows share the tile height,
+  // so the cards fill the widget instead of leaving empty space below them.
+  return `<Box flex={1} mih={0} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(max(96px, calc((100% - 12px) / 3)), 1fr))", gridAutoRows: "minmax(44px, 1fr)", gap: 6 }}>\n    ${cols}\n  </Box>`;
 }
 
 function jsxRows(titleField, metaField) {

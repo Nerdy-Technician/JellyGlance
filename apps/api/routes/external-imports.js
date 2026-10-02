@@ -1,4 +1,5 @@
 const express = require("express");
+const { mediaServerAuthHeaders } = require("../classes/server-type");
 const multer = require("multer");
 const { randomUUID } = require("crypto");
 const axios = require("axios");
@@ -183,7 +184,7 @@ async function jellyfinRequest(path, params = {}) {
     params,
     timeout: 120000,
     headers: {
-      Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`,
+      ...mediaServerAuthHeaders(config.JF_API_KEY),
       "User-Agent": USER_AGENT,
     },
   });

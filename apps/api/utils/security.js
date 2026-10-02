@@ -81,6 +81,7 @@ function buildSafeAxiosRequest(baseUrl, relativePath = "") {
   return {
     href: `${protocol}//${parsed.hostname}${port}${parsed.pathname}${parsed.search}`,
     hostname: parsed.hostname,
+    port,
     protocol,
   };
 }
@@ -93,7 +94,8 @@ async function safeHttpGet(baseUrl, relativePath = "", axiosOptions = {}) {
   return axios.request({
     ...axiosOptions,
     method: "get",
-    baseURL: `${target.protocol}//${target.hostname}`,
+    // Keep the port: integrations commonly run on non-default ports (Sonarr :8989 etc).
+    baseURL: `${target.protocol}//${target.hostname}${target.port}`,
     url: new URL(target.href).pathname + new URL(target.href).search,
   });
 }
@@ -105,7 +107,8 @@ async function safeHttpPost(baseUrl, relativePath = "", data, axiosOptions = {})
   return axios.request({
     ...axiosOptions,
     method: "post",
-    baseURL: `${target.protocol}//${target.hostname}`,
+    // Keep the port: integrations commonly run on non-default ports (Sonarr :8989 etc).
+    baseURL: `${target.protocol}//${target.hostname}${target.port}`,
     url: new URL(target.href).pathname + new URL(target.href).search,
     data,
   });

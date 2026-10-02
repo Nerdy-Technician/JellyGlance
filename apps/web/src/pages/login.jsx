@@ -28,7 +28,10 @@ function Login() {
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
   const [oidcStatus, setOidcStatus] = useState("");
-  const canQuickConnect = setupInfo?.auth?.mode === "quick-connect";
+  // Emby has no Quick Connect, so its "quick-connect" mode signs in with the Emby username and password.
+  const embyServer = setupInfo?.serverType === "emby";
+  const canQuickConnect = setupInfo?.auth?.mode === "quick-connect" && !embyServer;
+  const canMediaPassword = setupInfo?.auth?.mode === "quick-connect" && embyServer;
   const canOidc = setupInfo?.auth?.mode === "oidc";
   const canUseQuickConnect = canQuickConnect || canOidc;
 
@@ -88,6 +91,11 @@ function Login() {
       return;
     }
 
+    if (canMediaPassword) {
+      mediaServerLogin(formValues.JS_USERNAME, formValues.JS_PASSWORD);
+      return;
+    }
+
     beginLogin(formValues.JS_USERNAME, formValues.JS_PASSWORD);
   }
 
@@ -102,6 +110,21 @@ function Login() {
     setProcessing(true);
     setOidcStatus("");
     window.location.href = `${baseUrl}/auth/oidc/login`.replace(/\/{2,}/g, "/");
+  }
+
+  async function mediaServerLogin(username, password) {
+    try {
+      setProcessing(true);
+      setsubmitButtonText(i18next.t("LOGIN"));
+      const response = await axios.post("/auth/media-server-login", { username, password }, { headers: { "Content-Type": "application/json" } });
+      localStorage.setItem("token", response.data.token);
+      localStorage.removeItem("jellyglance_logged_out");
+      const nextConfig = await Config.setConfig();
+      redirectAfterLogin(nextConfig);
+    } catch (error) {
+      setsubmitButtonText(error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`);
+      setProcessing(false);
+    }
   }
 
   async function finishQuickConnect(secret) {
@@ -300,7 +323,7 @@ function Login() {
               <strong>{setupInfo?.auth?.label || "OIDC / Authentik"}</strong>
               <small>Continue with your configured identity provider.</small>
               {oidcStatus && <small className="quick-connect-status">{oidcStatus}</small>}
-              {!quickConnect?.code && (
+              {!quickConnect?.code && !embyServer && (
                 <Button
                   type="button"
                   className="quick-connect-refresh-button"
@@ -313,6 +336,12 @@ function Login() {
             </div>
           ) : (
             <>
+              {canMediaPassword ? (
+                <div className="setup-auth-summary quick-connect-intro">
+                  <strong>{setupInfo?.auth?.label || "Emby login"}</strong>
+                  <small>Sign in with your Emby username and password. JellyGlance checks it with your Emby server and does not store it.</small>
+                </div>
+              ) : null}
               <Form.Group className="inputbox">
                 <Form.Label>
                   <Trans i18nKey={"USERNAME"} />

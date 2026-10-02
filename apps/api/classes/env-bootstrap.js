@@ -1,7 +1,8 @@
 const { randomUUID } = require("crypto");
 const db = require("../db");
 const { hashPassword, isEmptyPassword } = require("../utils/security");
-const JellyfinAPI = require("./jellyfin-api");
+const API = require("./api-loader");
+const { chooseServerType, withServerType, saveServerType } = require("./server-type");
 const TaskManager = require("./task-manager-singleton");
 const triggertype = require("../logging/triggertype");
 
@@ -37,8 +38,9 @@ async function bootstrapJellyfinFromEnv(row) {
     return { applied: false, reason: "JF_HOST and JF_API_KEY are required to skip Jellyfin setup" };
   }
 
-  const API = new JellyfinAPI();
-  const validation = await API.validateSettings(host, apiKey);
+  // JF_SERVER_TYPE=emby|jellyfin picks the server; otherwise it is detected from the URL.
+  const serverType = await chooseServerType(process.env.JF_SERVER_TYPE, host);
+  const validation = await withServerType(serverType, () => API.validateSettings(host, apiKey));
   if (!validation?.isValid) {
     throw new Error(validation?.errorMessage || "Unable to validate Jellyfin connection from env");
   }
@@ -52,6 +54,7 @@ async function bootstrapJellyfinFromEnv(row) {
   } else {
     await db.query('UPDATE app_config SET "JF_HOST"=$1, "JF_API_KEY"=$2 where "ID"=1', [cleanedUrl, apiKey]);
   }
+  await saveServerType(serverType);
 
   try {
     const systemInfo = await API.systemInfo();

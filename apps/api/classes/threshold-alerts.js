@@ -1,10 +1,13 @@
-// Threshold alerts: stuck downloads, low disk space, failed Jellyfin scheduled tasks and new playback devices.
+// Threshold alerts: stuck downloads, low disk space, failed Jellyfin scheduled tasks, new playback devices
+// and user-defined rules (see alert-rules.js).
 // Alerts go out as the "threshold_alert" webhook event and as an admin-only in-app notification.
 const axios = require("axios");
+const { mediaServerAuthHeaders } = require("./server-type");
 const db = require("../db");
 const configClass = require("./config");
 const { getIntegrations, getIntegrationData } = require("./integration-store");
 const { sendUpdate } = require("../ws");
+const alertRules = require("./alert-rules");
 
 const USER_AGENT = "JellyGlance";
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
@@ -17,6 +20,7 @@ const DEFAULTS = {
   lowDiskPercent: 10,
   failedJobs: true,
   newDevices: true,
+  customRules: [],
 };
 
 let timer = null;
@@ -43,6 +47,7 @@ function normalize(rules = {}) {
     lowDiskPercent: Math.min(50, Math.max(1, Number(merged.lowDiskPercent) || DEFAULTS.lowDiskPercent)),
     failedJobs: merged.failedJobs !== false,
     newDevices: merged.newDevices !== false,
+    customRules: alertRules.normalizeRules(merged.customRules),
   };
 }
 
@@ -116,7 +121,7 @@ async function arrApps() {
     .map((app) => ({ name: app.name || app.slug, url: String(app.values.url).replace(/\/+$/, ""), secret: app.values.secret, lidarr: /lidarr|readarr/i.test(String(app.slug || app.name)) }));
 }
 
-async function checkLowDisk(rules) {
+async function fetchDisks() {
   const seen = new Map();
   for (const app of await arrApps()) {
     const path = app.lidarr ? "/api/v1/diskspace" : "/api/v3/diskspace";
@@ -132,8 +137,12 @@ async function checkLowDisk(rules) {
       if (!seen.has(key)) seen.set(key, { ...disk, source: app.name });
     }
   }
+  return [...seen.values()];
+}
+
+async function checkLowDisk(rules) {
   const alerts = [];
-  for (const disk of seen.values()) {
+  for (const disk of await fetchDisks()) {
     const percent = (Number(disk.freeSpace) / Number(disk.totalSpace)) * 100;
     if (percent > rules.lowDiskPercent) continue;
     alerts.push({
@@ -153,7 +162,7 @@ async function checkFailedJobs() {
   const tasks = await axios
     .get(`${String(config.JF_HOST).replace(/\/+$/, "")}/ScheduledTasks`, {
       timeout: 20000,
-      headers: { Authorization: `MediaBrowser Token="${config.JF_API_KEY}"`, "User-Agent": USER_AGENT },
+      headers: { ...mediaServerAuthHeaders(config.JF_API_KEY), "User-Agent": USER_AGENT },
     })
     .then((response) => (Array.isArray(response.data) ? response.data : []))
     .catch(() => []);
@@ -193,6 +202,18 @@ async function checkNewDevices(state) {
   }));
 }
 
+async function checkCustomRules(rules) {
+  const needs = alertRules.neededInputs(rules.customRules);
+  if (!needs.size) return [];
+  const API = require("./api-loader");
+  const [sessions, disks, downloads] = await Promise.all([
+    needs.has("sessions") ? API.getSessions().catch(() => undefined) : undefined,
+    needs.has("disks") ? fetchDisks().catch(() => undefined) : undefined,
+    needs.has("downloads") ? getIntegrationData().then((data) => data.downloads?.items).catch(() => undefined) : undefined,
+  ]);
+  return alertRules.evaluateRules(rules.customRules, alertRules.collectMetrics({ sessions, disks, downloads }));
+}
+
 // ---- runner -------------------------------------------------------------
 
 async function runChecks({ force = false } = {}) {
@@ -211,6 +232,7 @@ async function runChecks({ force = false } = {}) {
       rules.lowDisk ? checkLowDisk(rules).catch(() => []) : [],
       rules.failedJobs ? checkFailedJobs().catch(() => []) : [],
       rules.newDevices ? checkNewDevices(state).catch(() => []) : [],
+      rules.customRules.length ? checkCustomRules(rules).catch(() => []) : [],
     ]);
     const found = results.flat();
     const now = Date.now();

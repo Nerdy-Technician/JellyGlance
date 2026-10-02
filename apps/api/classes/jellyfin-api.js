@@ -687,6 +687,10 @@ class JellyfinAPI {
         },
       });
       result.isValid = response.status == 200;
+      if (result.isValid) {
+        result.status = 200;
+        result.errorMessage = "";
+      }
       return result;
     } catch (error) {
       this.#errorHandler(error);

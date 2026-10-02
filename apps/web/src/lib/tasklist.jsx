@@ -1,9 +1,11 @@
+import { mediaServerName } from "./media-server";
+
 export const taskList = [
   {
     id: 0,
     name: "PartialJellyfinSync",
     title: "Recently Added Items Sync",
-    description: "Pull newly added Jellyfin media, refresh recent shelves, and emit media-added webhooks.",
+    description: `Pull newly added ${mediaServerName()} media, refresh recent shelves, and emit media-added webhooks.`,
     type: "JOB",
     group: "Sync",
     link: "/api/startTask?task=PartialJellyfinSync",
@@ -11,8 +13,8 @@ export const taskList = [
   {
     id: 1,
     name: "JellyfinSync",
-    title: "Complete Jellyfin Sync",
-    description: "Run the full Jellyfin library, user, season, episode, metadata, and stats refresh.",
+    title: `Complete ${mediaServerName()} Sync`,
+    description: `Run the full ${mediaServerName()} library, user, season, episode, metadata, and stats refresh.`,
     type: "JOB",
     group: "Sync",
     link: "/api/startTask?task=JellyfinSync",
@@ -21,7 +23,7 @@ export const taskList = [
     id: 2,
     name: "JellyfinPlaybackReportingPluginSync",
     title: "Playback Reporting Import",
-    description: "Import Jellyfin Playback Reporting Plugin rows into JellyGlance activity.",
+    description: `Import ${mediaServerName()} Playback Reporting Plugin rows into JellyGlance activity.`,
     type: "JOB",
     group: "Import",
     link: "/api/startTask?task=JellyfinPlaybackReportingPluginSync",
@@ -102,7 +104,7 @@ export const taskList = [
     id: 11,
     name: "IntegrationHealthCheck",
     title: "Integration Health Check",
-    description: "Check connected Jellyfin, Arr apps, download clients, and invite integrations, then alert enabled health webhooks.",
+    description: `Check connected ${mediaServerName()}, Arr apps, download clients, and invite integrations, then alert enabled health webhooks.`,
     type: "JOB",
     group: "Integrations",
     link: "/api/startTask?task=IntegrationHealthCheck",

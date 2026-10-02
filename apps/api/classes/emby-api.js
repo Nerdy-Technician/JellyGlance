@@ -489,6 +489,48 @@ class EmbyAPI {
     }
   }
 
+  #notReady() {
+    return Object.assign(new Error("Emby is not ready"), { statusCode: 503 });
+  }
+
+  #post(path, body = {}, timeout = 15000) {
+    return axios.post(`${this.config.JF_HOST}${path}`, body, {
+      headers: { "X-MediaBrowser-Token": this.config.JF_API_KEY, "Content-Type": "application/json" },
+      timeout,
+    });
+  }
+
+  async stopSession(sessionId) {
+    if (!this.configReady || !sessionId) throw this.#notReady();
+    await this.#post(`/Sessions/${encodeURIComponent(sessionId)}/Playing/Stop`);
+    return { ok: true };
+  }
+
+  async sendSessionMessage(sessionId, { header = "JellyGlance", text = "", timeoutMs = 8000 } = {}) {
+    if (!this.configReady || !sessionId) throw this.#notReady();
+    await this.#post(`/Sessions/${encodeURIComponent(sessionId)}/Message`, { Header: header, Text: text, TimeoutMs: Number(timeoutMs) || 8000 });
+    return { ok: true };
+  }
+
+  async refreshItem(itemId, { recursive = true } = {}) {
+    if (!this.configReady || !itemId) throw this.#notReady();
+    const params = new URLSearchParams({
+      Recursive: String(Boolean(recursive)),
+      ImageRefreshMode: "Default",
+      MetadataRefreshMode: "Default",
+      ReplaceAllImages: "false",
+      ReplaceAllMetadata: "false",
+    });
+    await this.#post(`/Items/${encodeURIComponent(itemId)}/Refresh?${params.toString()}`, {}, 20000);
+    return { ok: true };
+  }
+
+  async refreshLibrary() {
+    if (!this.configReady) throw this.#notReady();
+    await this.#post("/Library/Refresh", {}, 20000);
+    return { ok: true };
+  }
+
   async getInstalledPlugins() {
     if (!this.configReady) {
       const success = await this.#fetchConfig();
@@ -577,6 +619,10 @@ class EmbyAPI {
         },
       });
       result.isValid = response.status == 200;
+      if (result.isValid) {
+        result.status = 200;
+        result.errorMessage = "";
+      }
       return result;
     } catch (error) {
       this.#errorHandler(error);

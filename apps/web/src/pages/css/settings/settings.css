@@ -6028,6 +6028,21 @@
 .threshold-alerts-log-row.is-info { border-left-color: #38bdf8; }
 .threshold-alerts-log-row small { color: rgba(199, 211, 230, 0.55); white-space: nowrap; }
 @media (max-width: 640px) { .threshold-alerts-log-row { grid-template-columns: 1fr; gap: 2px; } }
+.threshold-rules-wrap.is-disabled { opacity: 0.45; pointer-events: none; }
+.threshold-rules { margin-top: 16px; display: grid; gap: 8px; }
+.threshold-rules h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(199, 211, 230, 0.6); margin: 0; }
+.threshold-rules .threshold-alerts-copy { margin: 0 0 4px; }
+.threshold-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 12px; background: rgba(8, 12, 20, 0.45); font-size: 13px; color: rgba(199, 211, 230, 0.8); }
+.threshold-rule.is-disabled > :not(.threshold-rule-toggle):not(.threshold-rule-remove) { opacity: 0.5; }
+.threshold-rule input:not([type="checkbox"]), .threshold-rule select { padding: 4px 8px; border: 1px solid rgba(var(--primary-light-rgb, 139, 92, 246), 0.25); border-radius: 8px; background: rgba(8, 12, 20, 0.8); color: #e6edf7; font-size: 13px; }
+.threshold-rule input[type="number"] { width: 80px; }
+.threshold-rule-name { flex: 1 1 160px; min-width: 120px; }
+.threshold-rule-toggle { display: flex; cursor: pointer; }
+.threshold-rule-remove { margin-left: auto; width: 28px; height: 28px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background: transparent; color: rgba(199, 211, 230, 0.7); font-size: 18px; line-height: 1; }
+.threshold-rule-remove:hover { border-color: #ef4444; color: #ef4444; }
+.threshold-rule-add { display: flex; flex-wrap: wrap; gap: 6px; }
+.threshold-rule-add button { padding: 6px 12px; border: 1px dashed rgba(var(--primary-light-rgb, 139, 92, 246), 0.35); border-radius: 10px; background: transparent; color: #e6edf7; font-size: 12px; font-weight: 600; }
+.threshold-rule-add button:disabled { opacity: 0.4; }
 
 /* Settings search */
 .settings-search { position: relative; width: 100%; min-width: 0; box-sizing: border-box; margin: 0 0 8px; }

@@ -1,4 +1,31 @@
 {
+  "1.3.0": [
+    {
+      "icon": "rocket",
+      "title": "Emby Support",
+      "body": "Pick Jellyfin or Emby during setup, or let JellyGlance detect it for you. Emby installs sign in with their Emby username and password, can import history from the Emby Playback Reporting plugin, and see Emby wording throughout."
+    },
+    {
+      "icon": "chat",
+      "title": "Audiobookshelf",
+      "body": "Connect Audiobookshelf under Settings > Integrations > 3rd party apps to see who is listening, recent sessions, library totals and newly added books under Server > Audiobooks."
+    },
+    {
+      "icon": "movie",
+      "title": "Weekly And Monthly Recaps",
+      "body": "The Recap tab now covers a week, a month or a year. Step back through past periods and tap Share card to save a ready-to-post image of any recap."
+    },
+    {
+      "icon": "shield",
+      "title": "Custom Alert Rules",
+      "body": "Build your own alerts for active streams, transcodes, one user running several streams, bandwidth, disk space or the download queue, with optional active hours. Presets cover late-night streaming and account sharing."
+    },
+    {
+      "icon": "speed",
+      "title": "Faster, Steadier Under The Hood",
+      "body": "Fixes for integrations on custom ports, tighter protection of saved API keys and secrets, no more blank pages after quick reloads, a setup wizard that works on smaller screens, a single MUI version and new automated tests."
+    }
+  ],
   "1.2.11": [
     {
       "icon": "magic",

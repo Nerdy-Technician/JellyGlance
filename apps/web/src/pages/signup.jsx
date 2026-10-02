@@ -24,6 +24,23 @@ function Signup() {
   const [authMode, setAuthMode] = useState("quick-connect");
   const [quickConnect, setQuickConnect] = useState(null);
   const [quickConnectStatus, setQuickConnectStatus] = useState("");
+  const [serverType, setServerType] = useState("jellyfin");
+  // Emby has no Quick Connect: its option signs in with an Emby admin username and password.
+  const embyLogin = authMode === "quick-connect" && serverType === "emby";
+  const serverName = serverType === "emby" ? "Emby" : "Jellyfin";
+  const quickConnectLabel = serverType === "emby" ? "Emby login" : "Jellyfin Quick Connect";
+
+  useEffect(() => {
+    axios
+      .get("/auth/isConfigured")
+      .then((response) => {
+        if (response.data?.serverType === "emby") {
+          setServerType("emby");
+          setsubmitButtonText("Sign in with Emby");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function handleFormChange(event) {
     setFormValues({ ...formValues, [event.target.name]: event.target.value });
@@ -34,13 +51,24 @@ function Signup() {
     setQuickConnect(null);
     setQuickConnectStatus("");
     setsubmitButtonText(
-      nextMode === "quick-connect" ? "Enable Quick Connect" : nextMode === "oidc" ? "Test & Save OIDC" : i18next.t("CREATE_USER")
+      nextMode === "quick-connect"
+        ? serverType === "emby"
+          ? "Sign in with Emby"
+          : "Enable Quick Connect"
+        : nextMode === "oidc"
+          ? "Test & Save OIDC"
+          : i18next.t("CREATE_USER")
     );
   }
 
   async function handleFormSubmit(event) {
     setProcessing(true);
     event.preventDefault();
+
+    if (embyLogin) {
+      finishEmbyLogin();
+      return;
+    }
 
     if (authMode === "quick-connect") {
       if (quickConnect?.secret) {
@@ -93,6 +121,25 @@ function Signup() {
         setsubmitButtonText(errorMessage);
         setProcessing(false);
       });
+  }
+
+  async function finishEmbyLogin() {
+    try {
+      setProcessing(true);
+      setQuickConnectStatus("Signing in with Emby...");
+      const response = await axios.post(
+        "/auth/media-server-login",
+        { username: formValues.JS_USERNAME, password: formValues.JS_PASSWORD },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      localStorage.setItem("token", response.data.token);
+      localStorage.removeItem("config");
+      window.dispatchEvent(new Event("jellyglance-config-updated"));
+      await finishSetupNavigation();
+    } catch (error) {
+      setQuickConnectStatus(error.response?.data?.errorMessage || `Error : ${error.response?.status || "Unknown"}`);
+      setProcessing(false);
+    }
   }
 
   async function finishQuickConnect(secret) {
@@ -250,7 +297,7 @@ function Signup() {
       step={2}
       eyebrow="Admin access"
       title="Choose admin authentication"
-      description="Choose how JellyGlance should protect the dashboard. Quick Connect uses Jellyfin auth, OIDC validates your provider first, or Local creates JellyGlance credentials."
+      description={`Choose how JellyGlance should protect the dashboard. ${quickConnectLabel} uses ${serverName} accounts, OIDC validates your provider first, or Local creates JellyGlance credentials.`}
       minimal
     >
         <section className="setup-stage-shell">
@@ -261,8 +308,8 @@ function Signup() {
             className={`setup-auth-option ${authMode === "quick-connect" ? "is-active" : ""}`}
             onClick={() => handleAuthModeChange("quick-connect")}
           >
-            <strong>Jellyfin Quick Connect</strong>
-            <small>No local admin details</small>
+            <strong>{quickConnectLabel}</strong>
+            <small>{serverType === "emby" ? "Your Emby admin account" : "No local admin details"}</small>
           </button>
           <button
             type="button"
@@ -286,20 +333,28 @@ function Signup() {
           <div className="setup-form-heading-block">
             <strong>
               {authMode === "quick-connect"
-                ? "Jellyfin Quick Connect"
+                ? quickConnectLabel
                 : authMode === "oidc"
                   ? "OIDC provider details"
                   : "Local admin account"}
             </strong>
             <span>
-              {authMode === "quick-connect"
+              {embyLogin
+                ? "Sign in with an Emby administrator account. The password is checked by Emby and not stored."
+                : authMode === "quick-connect"
                 ? "Approve the setup in Jellyfin to continue."
                 : authMode === "oidc"
                   ? "Save the provider details JellyGlance should validate against."
                   : "Create the JellyGlance credentials used to access the dashboard."}
             </span>
           </div>
-          {authMode === "quick-connect" && (
+          {embyLogin && quickConnectStatus ? (
+            <div className="setup-auth-summary">
+              <small className="quick-connect-status">{quickConnectStatus}</small>
+            </div>
+          ) : null}
+
+          {authMode === "quick-connect" && !embyLogin && (
             <div className="setup-auth-summary">
               <strong>Jellyfin Quick Connect</strong>
               {quickConnect?.code ? (
@@ -314,7 +369,7 @@ function Signup() {
             </div>
           )}
 
-          {authMode === "local" && (
+          {(authMode === "local" || embyLogin) && (
             <>
               <Form.Group className="inputbox">
                 <Form.Label>
@@ -326,7 +381,7 @@ function Signup() {
                   value={formValues.JS_USERNAME || ""}
                   onChange={handleFormChange}
                   placeholder=" "
-                  required={authMode === "local"}
+                  required={authMode === "local" || embyLogin}
                 />
               </Form.Group>
 
@@ -342,7 +397,7 @@ function Signup() {
                     onChange={handleFormChange}
                     type={showPassword ? "text" : "password"}
                     placeholder=" "
-                    required={authMode === "local"}
+                    required={authMode === "local" || embyLogin}
                   />
                   <Button className="login-show-password" type="button" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeFillIcon /> : <EyeOffFillIcon />}

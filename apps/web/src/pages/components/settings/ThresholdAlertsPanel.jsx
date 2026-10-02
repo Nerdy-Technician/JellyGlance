@@ -22,6 +22,110 @@ const CHECKS = [
   { key: "newDevices", title: "New devices", text: "Someone plays something on a device that hasn't been seen before." },
 ];
 
+const PRESETS = [
+  { name: "Late-night streaming", metric: "active_streams", op: "gt", value: 0, from: 1, to: 5, severity: "info" },
+  { name: "Transcode spike", metric: "transcodes", op: "gte", value: 3, from: null, to: null, severity: "warning" },
+  { name: "Account sharing", metric: "user_streams", op: "gte", value: 3, from: null, to: null, severity: "warning" },
+  { name: "Bandwidth spike", metric: "bandwidth_mbps", op: "gt", value: 100, from: null, to: null, severity: "warning" },
+];
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+function newRule(preset = {}) {
+  return {
+    id: `rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    name: "",
+    enabled: true,
+    metric: "active_streams",
+    op: "gt",
+    value: 0,
+    from: null,
+    to: null,
+    severity: "warning",
+    ...preset,
+  };
+}
+
+function CustomRules({ rules, catalog, onChange }) {
+  const units = Object.fromEntries((catalog?.metrics || []).map((metric) => [metric.id, metric.unit]));
+  const max = catalog?.maxRules || 25;
+  const edit = (id, patch) => onChange(rules.map((rule) => (rule.id === id ? { ...rule, ...patch } : rule)));
+  const remove = (id) => onChange(rules.filter((rule) => rule.id !== id));
+  const add = (preset) => rules.length < max && onChange([...rules, newRule(preset)]);
+
+  return (
+    <div className="threshold-rules">
+      <h4>Custom rules</h4>
+      <p className="threshold-alerts-copy">Alert when a live number crosses your limit. Hours use the server&apos;s time zone and can wrap past midnight.</p>
+      {rules.map((rule) => (
+        <div key={rule.id} className={`threshold-rule${rule.enabled ? "" : " is-disabled"}`}>
+          <label className="threshold-rule-toggle" title={rule.enabled ? "Rule on" : "Rule off"}>
+            <input type="checkbox" checked={rule.enabled} onChange={(event) => edit(rule.id, { enabled: event.target.checked })} />
+          </label>
+          <input className="threshold-rule-name" placeholder="Rule name" maxLength={80} value={rule.name} onChange={(event) => edit(rule.id, { name: event.target.value })} />
+          <span>when</span>
+          <select value={rule.metric} onChange={(event) => edit(rule.id, { metric: event.target.value })}>
+            {(catalog?.metrics || []).map((metric) => (
+              <option key={metric.id} value={metric.id}>
+                {metric.label}
+              </option>
+            ))}
+          </select>
+          <span>is</span>
+          <select value={rule.op} onChange={(event) => edit(rule.id, { op: event.target.value })}>
+            {(catalog?.operators || []).map((op) => (
+              <option key={op.id} value={op.id}>
+                {op.label}
+              </option>
+            ))}
+          </select>
+          <input type="number" min="0" step="any" value={rule.value} onChange={(event) => edit(rule.id, { value: event.target.value })} />
+          <span>{units[rule.metric] || ""}</span>
+          <select
+            value={rule.from === null ? "" : rule.from}
+            aria-label="Active from"
+            onChange={(event) => edit(rule.id, event.target.value === "" ? { from: null, to: null } : { from: Number(event.target.value), to: rule.to ?? (Number(event.target.value) + 1) % 24 })}
+          >
+            <option value="">any time</option>
+            {HOURS.map((hour) => (
+              <option key={hour} value={hour}>
+                from {String(hour).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+          {rule.from !== null ? (
+            <select value={rule.to ?? ""} aria-label="Active until" onChange={(event) => edit(rule.id, { to: Number(event.target.value) })}>
+              {HOURS.filter((hour) => hour !== rule.from).map((hour) => (
+                <option key={hour} value={hour}>
+                  to {String(hour).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <select value={rule.severity} aria-label="Severity" onChange={(event) => edit(rule.id, { severity: event.target.value })}>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="critical">Critical</option>
+          </select>
+          <button type="button" className="threshold-rule-remove" aria-label="Remove rule" onClick={() => remove(rule.id)}>
+            ×
+          </button>
+        </div>
+      ))}
+      <div className="threshold-rule-add">
+        <button type="button" disabled={rules.length >= max} onClick={() => add()}>
+          Add rule
+        </button>
+        {PRESETS.map((preset) => (
+          <button key={preset.name} type="button" disabled={rules.length >= max} onClick={() => add(preset)}>
+            + {preset.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function timeAgo(value) {
   const minutes = Math.round((Date.now() - new Date(value).getTime()) / 60000);
   if (minutes < 1) return "just now";
@@ -32,6 +136,7 @@ function timeAgo(value) {
 
 export default function ThresholdAlertsPanel() {
   const [settings, setSettings] = useState(null);
+  const [catalog, setCatalog] = useState(null);
   const [log, setLog] = useState([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,6 +147,7 @@ export default function ThresholdAlertsPanel() {
       .get("/alerts-data/settings", { headers: authHeader() })
       .then((response) => {
         setSettings(response.data.settings);
+        setCatalog(response.data.catalog || null);
         setLog(response.data.log || []);
       })
       .catch((error) => setMessage(error.response?.data?.error || "Unable to load alert settings."));
@@ -88,7 +194,7 @@ export default function ThresholdAlertsPanel() {
         <h3>Threshold alerts</h3>
       </div>
       <p className="threshold-alerts-copy">
-        JellyGlance checks these every 5 minutes. Alerts appear here for admins and go to any webhook subscribed to the <strong>Threshold alert</strong> event.
+        JellyGlance checks these every 5 minutes. Alerts appear here for admins and go to any webhook subscribed to the <strong>Threshold alert</strong> event. Add your own rules below for anything else you want to watch.
       </p>
       {!settings ? (
         <p className="threshold-alerts-copy">{message || "Loading…"}</p>
@@ -123,6 +229,9 @@ export default function ThresholdAlertsPanel() {
                 ) : null}
               </div>
             ))}
+          </div>
+          <div className={`threshold-rules-wrap${settings.enabled ? "" : " is-disabled"}`}>
+            <CustomRules rules={settings.customRules || []} catalog={catalog} onChange={(customRules) => update({ customRules })} />
           </div>
           <div className="threshold-alerts-actions">
             <button type="button" className="is-primary" disabled={busy} onClick={() => run("save")}>
