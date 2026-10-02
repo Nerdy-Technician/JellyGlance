@@ -36,6 +36,13 @@
       "matchManagers": ["github-actions"],
       "addLabels": ["dependencies", "github-actions"],
       "pinDigests": true
+    },
+    {
+      "description": "Keep the node-arm (linux/arm/v7) Dockerfile stage on Node 22: node:24+ images publish no linux/arm/v7 variant. Digest updates are still allowed.",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["node"],
+      "matchCurrentValue": "/^22-/",
+      "allowedVersions": "<23"
     }
   ]
 }
