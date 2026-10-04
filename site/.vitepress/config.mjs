@@ -21,6 +21,7 @@ export default defineConfig({
   cleanUrls: true,
   srcExclude: ["README.md"],
   head: [
+    ["script", { defer: "", "data-domain": "jellyglance.com", src: "https://track.nerdytech.dev/js/script.js" }],
     ["link", { rel: "icon", href: withBase("/favicon.ico") }],
     ["link", { rel: "apple-touch-icon", sizes: "180x180", href: withBase("/apple-touch-icon.png") }],
     ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: withBase("/icon-b-192.png") }],
