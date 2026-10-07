@@ -1,0 +1,80 @@
+# Open one issue per open security alert, authored by JellyGlance Security Bot.
+#
+# Sources: code scanning (CodeQL, Trivy, OSV-Scanner) and Dependabot alerts.
+# Each issue has a hidden marker, so reruns update it instead of opening a
+# duplicate. Issues close themselves when the alert is fixed or dismissed.
+#
+# Runs hourly, right after each Security workflow run on main, and on demand.
+# GitHub Actions has no code_scanning_alert / dependabot_alert trigger, so
+# the Security workflow_run hook is what makes new scan findings show up fast.
+name: JellyGlance Security Alerts
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_run:
+    workflows:
+      - Security
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only log what would change
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  security-events: read
+
+concurrency:
+  group: security-alert-issues
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync security alert issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Mint JellyGlance Security Bot token
+        id: bot
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Security Bot
+          app-id: ${{ secrets.SECURITY_BOT_APP_ID }}
+          private-key: ${{ secrets.SECURITY_BOT_PRIVATE_KEY }}
+
+      - name: Open, update and close alert issues
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ACTIONS_TOKEN: ${{ github.token }}
+          BOT_TOKEN: ${{ steps.bot.outputs.token }}
+          ASSIGNEE: Nerdy-Technician
+          # Scorecard findings are repo-posture checks, not vulnerabilities.
+          IGNORED_TOOLS: Scorecard
+          MIN_SEVERITY: low
+          MAX_NEW_ISSUES: "15"
+          DRY_RUN: ${{ inputs.dry-run || false }}
+        with:
+          # Issues are written as the Security Bot (falls back to github-actions[bot]).
+          github-token: ${{ steps.bot.outputs.token }}
+          script: |
+            // Read alerts with the workflow token first (security-events: read),
+            // then the Security Bot token (needs "Dependabot alerts: read" on the app).
+            const readers = [
+              ['GITHUB_TOKEN', getOctokit(process.env.ACTIONS_TOKEN)],
+              ['JellyGlance Security Bot', getOctokit(process.env.BOT_TOKEN)],
+            ];
+            const run = require('./.github/scripts/security-alert-issues.cjs');
+            await run({ github, readers, context, core });
