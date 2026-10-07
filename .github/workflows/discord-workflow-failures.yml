@@ -1,0 +1,63 @@
+name: Notify / Discord Workflow Failures
+
+# Ping Discord when an important workflow fails on main (or on a schedule /
+# manual run). Check Bot, Build Bot and Security already have their own
+# notifiers, so they are not listed here.
+on:
+  workflow_run:
+    workflows:
+      - JellyGlance Release Bot
+      - JellyGlance Publish Bot
+      - JellyGlance Nightly Image
+      - JellyGlance Site
+      - JellyGlance Security Alerts
+      - Renovate (Security Bot)
+      - CI
+      - Workflow Lint
+      - OpenSSF Scorecard
+      - Release Drafter
+      - Auto-merge Security Bot PRs
+      - Notify / Discord Stars
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    name: Post workflow failure to Discord
+    if: >-
+      contains(fromJSON('["failure","timed_out","startup_failure"]'), github.event.workflow_run.conclusion) &&
+      (github.event.workflow_run.head_branch == 'main' ||
+       contains(fromJSON('["schedule","workflow_dispatch","release","push"]'), github.event.workflow_run.event))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Post failure notification
+        env:
+          DISCORD_EVENT_TYPE: workflow
+          WORKFLOW_KIND: failure
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_CI_WEBHOOK || secrets.DISCORD_BUILD_WEBHOOK }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event }}
+          DISPLAY_TITLE: ${{ github.event.workflow_run.display_title }}
+          ACTOR: ${{ github.event.workflow_run.triggering_actor.login }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::warning::DISCORD_CI_WEBHOOK (or DISCORD_BUILD_WEBHOOK) is not set. Skipping."
+            exit 0
+          fi
+          node .github/scripts/discord-notify.mjs || echo "::warning::Discord failure notification failed."
