@@ -12,6 +12,11 @@ on:
   schedule:
     # 09:00 Europe/London during BST (cron is UTC). Adjust to 09:00 UTC in winter if wanted.
     - cron: "0 8 * * *"
+  # Ticking a checkbox on the Dependency Dashboard only edits the issue body;
+  # Renovate acts on it the next time it runs. Run straight away instead of
+  # waiting for the daily schedule.
+  issues:
+    types: [edited]
   workflow_dispatch:
     inputs:
       log-level:
@@ -24,14 +29,26 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: renovate
-  cancel-in-progress: false
-
 jobs:
   renovate:
+    # For issue edits, only react to a person ticking a box on the dashboard.
+    # Renovate rewrites the dashboard itself on every run; ignoring bot edits
+    # stops it from re-triggering itself in a loop.
+    if: >-
+      github.event_name != 'issues' || (
+        github.event.issue.title == 'Dependency Dashboard' &&
+        github.event.issue.user.type == 'Bot' &&
+        github.event.sender.type != 'Bot' &&
+        contains(github.event.issue.body, '- [x] ')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Job-level so skipped runs (edits to other issues) never take the slot.
+    # One Renovate run at a time; a queued run is replaced by a newer one,
+    # which is fine because every run reads the current dashboard state.
+    concurrency:
+      group: renovate
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
