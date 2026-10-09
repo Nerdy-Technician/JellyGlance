@@ -1,4 +1,16 @@
 {
+  "1.3.1": [
+    {
+      "icon": "shield",
+      "title": "Security Patches",
+      "body": "proxy-addr is updated to 2.0.8 and sharp to 0.35.5 to fix a reported vulnerability, with source-map-js and shell-quote also moved to patched versions."
+    },
+    {
+      "icon": "speed",
+      "title": "Fresher Foundations",
+      "body": "An updated Node base image, a cleaner lockfile and the latest MUI icons, ESLint and build tooling. Nothing to change on your side, just update and restart."
+    }
+  ],
   "1.3.0": [
     {
       "icon": "rocket",
