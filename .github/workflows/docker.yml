@@ -10,6 +10,10 @@ permissions:
   contents: read
   packages: write
 
+env:
+  # Primary image repo this workflow publishes to (also baked in as JG_IMAGE_REPO).
+  IMAGE_NAME: ghcr.io/nerdy-technician/jellyglance
+
 jobs:
   image:
     name: "JellyGlance Publish Bot · GHCR"
@@ -30,7 +34,7 @@ jobs:
       - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
         with:
-          images: ghcr.io/nerdy-technician/jellyglance
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -44,6 +48,11 @@ jobs:
           sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Primary repo this build pushes to; Settings uses it to show the
+          # image-move notice. A dual publish must pass the primary repo only,
+          # never label the old repo as the new one.
+          build-args: |
+            JG_IMAGE_REPO=${{ env.IMAGE_NAME }}
 
   trivy-image:
     name: "JellyGlance Publish Bot · Trivy image"
@@ -71,12 +80,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
-        run: docker pull "ghcr.io/nerdy-technician/jellyglance:${{ steps.tag.outputs.tag }}"
+        run: docker pull "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
 
       - name: Trivy image scan (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: "ghcr.io/nerdy-technician/jellyglance:${{ steps.tag.outputs.tag }}"
+          image-ref: "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           scanners: vuln
