@@ -59,12 +59,12 @@ body:
       label: Related tags
       description: Optional — tick anything that also applies. These become GitHub labels.
       options:
-        - label: `security` — auth, tokens, exposure, CVE-ish
-        - label: `docker` — compose, image, deploy
-        - label: `performance` — slow, lag, memory, CPU
-        - label: `api` — REST / widgets API
-        - label: `webhooks` — Discord / notifications
-        - label: `integration` — Arr / Seerr / Homarr / etc.
+        - label: "`security` — auth, tokens, exposure, CVE-ish"
+        - label: "`docker` — compose, image, deploy"
+        - label: "`performance` — slow, lag, memory, CPU"
+        - label: "`api` — REST / widgets API"
+        - label: "`webhooks` — Discord / notifications"
+        - label: "`integration` — Arr / Seerr / Homarr / etc."
 
   - type: input
     id: version

@@ -50,11 +50,11 @@ body:
       label: Related tags
       description: Optional — tick anything that also applies. These become GitHub labels.
       options:
-        - label: `docker` — Docker / Compose docs
-        - label: `integration` — integration docs
-        - label: `api` — API / widgets docs
-        - label: `security` — auth / hardening docs
-        - label: `webhooks` — webhook / Discord docs
+        - label: "`docker` — Docker / Compose docs"
+        - label: "`integration` — integration docs"
+        - label: "`api` — API / widgets docs"
+        - label: "`security` — auth / hardening docs"
+        - label: "`webhooks` — webhook / Discord docs"
 
   - type: textarea
     id: issue
