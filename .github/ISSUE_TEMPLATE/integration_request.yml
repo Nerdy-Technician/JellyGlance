@@ -34,11 +34,11 @@ body:
       label: Related tags
       description: Optional — tick anything that also applies. These become GitHub labels.
       options:
-        - label: `api` — needs API / webhook work
-        - label: `webhooks` — inbound/outbound notifications
-        - label: `docker` — deploy notes required
-        - label: `documentation` — docs must ship with it
-        - label: `security` — auth / secrets involved
+        - label: "`api` — needs API / webhook work"
+        - label: "`webhooks` — inbound/outbound notifications"
+        - label: "`docker` — deploy notes required"
+        - label: "`documentation` — docs must ship with it"
+        - label: "`security` — auth / secrets involved"
 
   - type: input
     id: app_name
