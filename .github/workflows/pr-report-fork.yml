@@ -1,0 +1,186 @@
+name: JellyGlance PR Report (forks)
+
+# Posts the Check Bot / Build Bot report comment on fork PRs.
+# Fork PRs run check.yml and check-docker.yml with a read-only token and no
+# secrets, so their own Report job is skipped. This workflow runs from the base
+# branch after those runs complete, with a write token and bot secrets.
+# Safety: it never checks out or runs PR code. The PR is found through the API
+# and must match the run's head SHA and head repository. Job results come from
+# the API, not from anything the PR uploaded. Untrusted fields (branch name)
+# are passed via env and only used as API query parameters.
+# The run must come from the base repo's own check.yml / check-docker.yml file
+# (workflow_run.path), so a fork cannot trigger this by reusing a workflow name.
+# Fork reports are informational only: the required status checks on the PR
+# are the real merge gate, not this comment.
+on:
+  workflow_run:
+    workflows:
+      - JellyGlance Check Bot
+      - JellyGlance Build Bot
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: pr-report-fork-${{ github.event.workflow_run.head_sha }}-${{ github.event.workflow_run.path }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: "JellyGlance PR Report · Fork comment"
+    # Same-repo PRs are reported by the original workflows; only handle forks.
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name != github.repository &&
+      (
+        (github.event.workflow_run.name == 'JellyGlance Check Bot' &&
+          github.event.workflow_run.path == '.github/workflows/check.yml') ||
+        (github.event.workflow_run.name == 'JellyGlance Build Bot' &&
+          github.event.workflow_run.path == '.github/workflows/check-docker.yml')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout (base branch, for the bot token action)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+
+      - name: Mint JellyGlance Build Bot token
+        id: build-bot
+        if: github.event.workflow_run.path == '.github/workflows/check-docker.yml'
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Build Bot
+          app-id: ${{ secrets.BUILD_BOT_APP_ID }}
+          private-key: ${{ secrets.BUILD_BOT_PRIVATE_KEY }}
+          permission-pull-requests: write
+          permission-issues: write
+
+      - name: Mint JellyGlance Check Bot token
+        id: check-bot
+        if: github.event.workflow_run.path == '.github/workflows/check.yml'
+        uses: ./.github/actions/mint-bot-token
+        with:
+          bot-name: JellyGlance Check Bot
+          app-id: ${{ secrets.CHECK_BOT_APP_ID }}
+          private-key: ${{ secrets.CHECK_BOT_PRIVATE_KEY }}
+          permission-pull-requests: write
+          permission-issues: write
+
+      - name: Post report on fork PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_PATH: ${{ github.event.workflow_run.path }}
+          USING_BOT: ${{ steps.build-bot.outputs.using-bot || steps.check-bot.outputs.using-bot }}
+        with:
+          github-token: ${{ steps.build-bot.outputs.token || steps.check-bot.outputs.token }}
+          script: |
+            const run = context.payload.workflow_run;
+            const { owner, repo } = context.repo;
+            const headSha = run.head_sha;
+            const headRepo = run.head_repository?.full_name;
+            const headOwner = run.head_repository?.owner?.login;
+            const headBranch = run.head_branch;
+            if (!/^[0-9a-f]{40}$/.test(headSha || '') || !headRepo || !headOwner || !headBranch) {
+              core.setFailed('workflow_run payload is missing head details');
+              return;
+            }
+
+            // Find the open PR whose head is exactly this fork commit.
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', head: `${headOwner}:${headBranch}`, per_page: 100,
+            });
+            const pr = prs.find((p) => p.head.sha === headSha && p.head.repo?.full_name === headRepo);
+            if (!pr || !Number.isInteger(pr.number)) {
+              core.info(`No open PR matches ${headRepo}@${headSha.slice(0, 7)}; nothing to report.`);
+              return;
+            }
+
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: run.id, filter: 'latest', per_page: 100,
+            });
+            const resultOf = (prefix) => {
+              const matched = jobs.filter((j) => j.name.startsWith(prefix));
+              if (!matched.length) return 'skipped';
+              const r = matched.map((j) => j.conclusion || 'cancelled');
+              if (r.includes('failure') || r.includes('timed_out')) return 'failure';
+              if (r.includes('cancelled')) return 'cancelled';
+              if (r.every((x) => x === 'skipped')) return 'skipped';
+              return 'success';
+            };
+            const icon = (result) => {
+              switch (result) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '⏹️';
+                case 'skipped': return '⏭️';
+                default: return '❓';
+              }
+            };
+            const usingBot = process.env.USING_BOT === 'true';
+            const sha = headSha.slice(0, 7);
+            const runUrl = run.html_url;
+            let body;
+
+            if (process.env.WORKFLOW_PATH === '.github/workflows/check-docker.yml') {
+              const build = resultOf('JellyGlance Build Bot · linux/');
+              const overall = build === 'success' ? 'PASSED' : build === 'cancelled' ? 'CANCELLED' : 'FAILED';
+              body = [
+                '<!-- jellyglance-check-docker-report -->',
+                `## ${icon(build)} JellyGlance Docker check · \`${overall}\``,
+                '',
+                `| Check | Result |`,
+                `| --- | --- |`,
+                `| Docker build (parallel, no push) | ${icon(build)} \`${build}\` |`,
+                '',
+                `- Commit: \`${sha}\``,
+                `- Run: [View details](${runUrl})`,
+                '',
+                '_PR/push builds \`amd64\` + \`arm64\` in parallel. \`arm/v7\` runs on weekly schedule, manual dispatch, and Publish._',
+                '',
+                usingBot
+                  ? '_Posted by **JellyGlance Build Bot**._'
+                  : '_Posted by github-actions[bot] (configure BUILD_BOT_APP_ID / BUILD_BOT_PRIVATE_KEY to use JellyGlance Build Bot)._',
+              ].join('\n');
+            } else {
+              const needs = {
+                Quality: resultOf('JellyGlance Check Bot · Quality'),
+                Secrets: resultOf('JellyGlance Security Bot · Secrets'),
+                Security: resultOf('JellyGlance Security Bot · Security'),
+                Compatibility: resultOf('JellyGlance Check Bot · Compatibility'),
+              };
+              const rows = Object.entries(needs)
+                .map(([name, result]) => `| ${name} | ${icon(result)} \`${result}\` |`)
+                .join('\n');
+              const failed = Object.values(needs).some((r) => r === 'failure');
+              const cancelled = Object.values(needs).some((r) => r === 'cancelled');
+              const overall = failed ? 'FAILED' : cancelled ? 'CANCELLED' : 'PASSED';
+              const overallIcon = failed ? '❌' : cancelled ? '⏹️' : '✅';
+              body = [
+                '<!-- jellyglance-check-report -->',
+                `## ${overallIcon} JellyGlance checks · \`${overall}\``,
+                '',
+                `| Check | Result |`,
+                `| --- | --- |`,
+                rows,
+                '',
+                `- Commit: \`${sha}\``,
+                `- Run: [View details](${runUrl})`,
+                '',
+                usingBot
+                  ? '_Posted by **JellyGlance Check Bot**._'
+                  : '_Posted by github-actions[bot] (configure CHECK_BOT_APP_ID / CHECK_BOT_PRIVATE_KEY to use JellyGlance Check Bot)._',
+              ].join('\n');
+            }
+
+            // New comment on every PR commit, matching the same-repo Report jobs.
+            await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+            core.info(`Posted ${process.env.WORKFLOW_NAME} report on fork PR #${pr.number}`);

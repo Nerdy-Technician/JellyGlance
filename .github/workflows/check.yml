@@ -254,7 +254,11 @@ jobs:
       - secrets
       - security
       - compatibility
-    if: always() && github.event_name == 'pull_request'
+    # Fork PRs get a read-only token and no secrets, so their report comment is
+    # posted by pr-report-fork.yml (workflow_run) instead. Same-repo PRs only here.
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
