@@ -1,22 +1,23 @@
 name: PR Labeler
 
-# pull_request (not pull_request_target): runs from the PR branch so this
-# workflow can label the PR that introduces it. Same-repo PRs only need
-# GITHUB_TOKEN with pull-requests: write. Fork PRs get labels after merge
-# when this file is on the default branch (or add pull_request_target later).
+# pull_request_target: runs this file from the base branch with a write token,
+# so labels and the assignee also work on fork PRs (pull_request gives forks a
+# read-only token). Safe because no job checks out or runs PR code: they only
+# read the event payload and call the API. actions/labeler reads
+# .github/labeler.yml from the base repo through the API, not from the PR.
+# Do NOT add actions/checkout of the PR head/merge ref or run PR scripts here.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+permissions: {}
 
 jobs:
   ensure-labels:
     name: Ensure labels exist
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Create path + size labels if missing
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -50,6 +51,9 @@ jobs:
     name: Path labels
     needs: [ensure-labels]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Label by paths
         uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
@@ -61,6 +65,8 @@ jobs:
     name: Size label
     needs: [ensure-labels]
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Apply size label
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -103,6 +109,8 @@ jobs:
   assign:
     name: Assign maintainer
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Assign Nerdy-Technician
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
