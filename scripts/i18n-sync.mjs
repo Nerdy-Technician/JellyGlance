@@ -6,6 +6,7 @@ const localesRoot = path.resolve("apps/web/public/locales");
 const sourceLocale = "en-GB";
 const sourceFile = path.join(localesRoot, sourceLocale, "translation.json");
 const checkOnly = process.argv.includes("--check");
+const pluralSuffix = /_(zero|one|two|few|many|other)$/;
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -31,6 +32,16 @@ function syncShape(source, target = {}, stats) {
     } else {
       next[key] = sourceValue;
       stats.missing += 1;
+    }
+  }
+
+  // Keep plural forms that only some languages need (e.g. Czech/Polish _few), as long as the base key exists in the source.
+  for (const [key, targetValue] of Object.entries(target)) {
+    if (key in next || typeof targetValue !== "string") continue;
+    const baseKey = key.replace(pluralSuffix, "");
+    if (baseKey === key) continue;
+    if (baseKey in source || `${baseKey}_one` in source || `${baseKey}_other` in source) {
+      next[key] = targetValue;
     }
   }
 
