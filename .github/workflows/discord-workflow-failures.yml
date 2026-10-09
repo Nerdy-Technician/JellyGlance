@@ -9,7 +9,6 @@ on:
       - JellyGlance Release Bot
       - JellyGlance Publish Bot
       - JellyGlance Nightly Image
-      - JellyGlance Site
       - JellyGlance Security Alerts
       - Renovate (Security Bot)
       - CI

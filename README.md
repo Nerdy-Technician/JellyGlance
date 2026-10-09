@@ -5,6 +5,9 @@
   </picture>
 </p>
 
+> [!WARNING]
+> AFTER VERSION V1.3.2 the Project is being moved to https://github.com/JellyGlance/Server 
+
 <p align="center">
   <strong>Your Jellyfin command center: live sessions, requests, users, libraries, stats, calendars, downloads, health, webhooks, and tasks in one clean dashboard.</strong>
 </p>
@@ -87,7 +90,7 @@ Read the live guides at **[docs.jellyglance.com](http://docs.jellyglance.com/)**
 - [Backup and restore](http://docs.jellyglance.com/operations/backup-restore/)
 - [Troubleshooting](http://docs.jellyglance.com/guide/troubleshooting/)
 
-For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/Nerdy-Technician/JellyGlance/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website.
+For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/Nerdy-Technician/JellyGlance/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website. Its source is in **[JellyGlance/Website](https://github.com/JellyGlance/Website)**. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing widgets.
 
 ## Why JellyGlance
 

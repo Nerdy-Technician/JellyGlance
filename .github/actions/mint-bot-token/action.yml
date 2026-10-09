@@ -22,6 +22,14 @@ inputs:
   bot-name:
     description: Human-readable bot name for notices
     required: true
+  permission-pull-requests:
+    description: Optional pull-requests scope for the app token (read or write). Empty keeps all app permissions.
+    required: false
+    default: ""
+  permission-issues:
+    description: Optional issues scope for the app token (read or write). Empty keeps all app permissions.
+    required: false
+    default: ""
 
 outputs:
   token:
@@ -45,6 +53,8 @@ runs:
       with:
         app-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.private-key }}
+        permission-pull-requests: ${{ inputs.permission-pull-requests }}
+        permission-issues: ${{ inputs.permission-issues }}
 
     - name: Resolve token
       id: resolve

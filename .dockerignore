@@ -12,4 +12,3 @@ postgres-data
 apps/api/backup-data
 apps/api/config-data
 apps/web/dist
-site
