@@ -5,6 +5,9 @@
   </picture>
 </p>
 
+> [!WARNING]
+> AFTER VERSION V1.3.2 the Project is being moved to https://github.com/JellyGlance/Server 
+
 <p align="center">
   <strong>Your Jellyfin command center: live sessions, requests, users, libraries, stats, calendars, downloads, health, webhooks, and tasks in one clean dashboard.</strong>
 </p>
