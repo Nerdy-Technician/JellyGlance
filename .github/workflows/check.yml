@@ -40,16 +40,6 @@ jobs:
       - name: Check i18n locale sync
         run: npm run i18n:check
 
-      - name: Checkout website
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: JellyGlance/Website
-          path: website
-          persist-credentials: false
-
-      - name: Check downloadable widget files
-        run: node scripts/widget-files.mjs --out website/public/widgets --check
-
       - name: Lint web
         run: npm run lint
 

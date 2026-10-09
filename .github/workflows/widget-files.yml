@@ -1,0 +1,55 @@
+name: Widget Files
+
+# Checks that the downloadable Homarr widget files on jellyglance.com match
+# the app's widget pack. They live in JellyGlance/Website, so open the Website
+# PR first. This check reads Website's main and is non-blocking: it only warns.
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/lib/widgetSnippets.js"
+      - "scripts/widget-files.mjs"
+      - ".github/workflows/widget-files.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/web/src/lib/widgetSnippets.js"
+      - "scripts/widget-files.mjs"
+      - ".github/workflows/widget-files.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  widgets:
+    name: Website widget files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout website
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: JellyGlance/Website
+          path: website
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Check downloadable widget files
+        env:
+          JG_WEBSITE_DIR: website
+        run: |
+          if ! npm run --silent widgets:check; then
+            echo "::warning title=Widget files out of date::The Homarr widget files in JellyGlance/Website don't match this change. Open a PR in https://github.com/JellyGlance/Website with the regenerated public/widgets files (JG_WEBSITE_DIR=<Website checkout> npm run widgets:sync), then re-run this check."
+            exit 1
+          fi

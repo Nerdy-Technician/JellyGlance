@@ -2,18 +2,27 @@
 // Writes the downloadable Homarr widget files for the website
 // (public/widgets in https://github.com/JellyGlance/Website) from the same
 // widget pack the app uses, so the two can't drift apart.
-//   node scripts/widget-files.mjs --out <Website checkout>/public/widgets          # regenerate
-//   node scripts/widget-files.mjs --out <Website checkout>/public/widgets --check  # fail if any file is out of date
+//   npm run widgets:sync    # regenerate in $JG_WEBSITE_DIR/public/widgets (default ../Website)
+//   npm run widgets:check   # fail if any file is out of date
+//   node scripts/widget-files.mjs --out <dir>  # write straight to another folder
 import fs from "node:fs";
 import path from "node:path";
 import { WIDGET_PACK, DEFAULT_WIDGET_HOST, homarrFromPack, prettyJson } from "../apps/web/src/lib/widgetSnippets.js";
 
 const outIndex = process.argv.indexOf("--out");
-if (!(outIndex > 0 && process.argv[outIndex + 1])) {
-  console.error("Pass --out <dir>, e.g. a JellyGlance/Website checkout's public/widgets folder.");
-  process.exit(2);
+let dir;
+if (outIndex > 0 && process.argv[outIndex + 1]) {
+  dir = path.resolve(process.argv[outIndex + 1]);
+} else {
+  const websiteDir = path.resolve(process.env.JG_WEBSITE_DIR || "../Website");
+  if (!fs.existsSync(websiteDir)) {
+    console.error(`JellyGlance/Website checkout not found at ${websiteDir}.`);
+    console.error("Clone it next to this repo, or set JG_WEBSITE_DIR to your checkout:");
+    console.error("  git clone https://github.com/JellyGlance/Website ../Website");
+    process.exit(2);
+  }
+  dir = path.join(websiteDir, "public", "widgets");
 }
-const dir = path.resolve(process.argv[outIndex + 1]);
 const check = process.argv.includes("--check");
 
 const stale = [];
