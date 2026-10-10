@@ -17,43 +17,43 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/releases/latest">
+  <a href="https://github.com/JellyGlance/Server/releases/latest">
     <img
       alt="Latest Release"
-      src="https://img.shields.io/github/v/release/Nerdy-Technician/JellyGlance?sort=semver&display_name=tag&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Release&color=aa5cc3&labelColor=16111f">
+      src="https://img.shields.io/github/v/release/JellyGlance/Server?sort=semver&display_name=tag&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Release&color=aa5cc3&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/releases">
+  <a href="https://github.com/JellyGlance/Server/releases">
     <img
       alt="Latest Beta"
-      src="https://img.shields.io/github/v/tag/Nerdy-Technician/JellyGlance?include_prereleases&filter=*beta*&sort=semver&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Beta&color=7c5cff&labelColor=16111f">
+      src="https://img.shields.io/github/v/tag/JellyGlance/Server?include_prereleases&filter=*beta*&sort=semver&style=for-the-badge&logo=github&logoColor=white&label=Latest%20Beta&color=7c5cff&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/stargazers">
+  <a href="https://github.com/JellyGlance/Server/stargazers">
     <img
       alt="GitHub Stars"
-      src="https://img.shields.io/github/stars/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=github&logoColor=white&label=Stars&color=aa5cc3&labelColor=16111f">
+      src="https://img.shields.io/github/stars/JellyGlance/Server?style=for-the-badge&logo=github&logoColor=white&label=Stars&color=aa5cc3&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/check-docker.yml">
+  <a href="https://github.com/JellyGlance/Server/actions/workflows/check-docker.yml">
     <img
       alt="Docker"
-      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/check-docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
+      src="https://img.shields.io/github/actions/workflow/status/JellyGlance/Server/check-docker.yml?style=for-the-badge&logo=docker&logoColor=white&label=Docker&color=2496ED&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/actions/workflows/check.yml">
+  <a href="https://github.com/JellyGlance/Server/actions/workflows/check.yml">
     <img
       alt="CI"
-      src="https://img.shields.io/github/actions/workflow/status/Nerdy-Technician/JellyGlance/check.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=3FB950&labelColor=16111f">
+      src="https://img.shields.io/github/actions/workflow/status/JellyGlance/Server/check.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI&color=3FB950&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/blob/main/LICENSE">
+  <a href="https://github.com/JellyGlance/Server/blob/main/LICENSE">
     <img
       alt="License"
-      src="https://img.shields.io/github/license/Nerdy-Technician/JellyGlance?style=for-the-badge&logo=gnu&logoColor=white&label=License&color=aa5cc3&labelColor=16111f">
+      src="https://img.shields.io/github/license/JellyGlance/Server?style=for-the-badge&logo=gnu&logoColor=white&label=License&color=aa5cc3&labelColor=16111f">
   </a>
 
-  <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance">
+  <a href="https://github.com/JellyGlance/Server/pkgs/container/server">
     <img
       alt="GHCR"
       src="https://img.shields.io/badge/Container-ghcr.io-2f3136?style=for-the-badge&logo=github&logoColor=white&labelColor=16111f">
@@ -90,7 +90,7 @@ Read the live guides at **[docs.jellyglance.com](http://docs.jellyglance.com/)**
 - [Backup and restore](http://docs.jellyglance.com/operations/backup-restore/)
 - [Troubleshooting](http://docs.jellyglance.com/guide/troubleshooting/)
 
-For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/Nerdy-Technician/JellyGlance/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website. Its source is in **[JellyGlance/Website](https://github.com/JellyGlance/Website)**. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing widgets.
+For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/JellyGlance/Server/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website. Its source is in **[JellyGlance/Website](https://github.com/JellyGlance/Website)**. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing widgets.
 
 ## Why JellyGlance
 
@@ -297,7 +297,7 @@ Backups created inside JellyGlance appear in `./backups`. To restore, place a ba
 ## Updates
 
 > [!IMPORTANT]
-> **The Docker image is moving.** After v1.3.2, new releases are only published to `ghcr.io/jellyglance/server:latest`. Change your `image:` line to it, then pull and restart as below. See the [v1.3.2 release notes](https://github.com/Nerdy-Technician/JellyGlance/releases/tag/v1.3.2).
+> **The Docker image is moving.** After v1.3.2, new releases are only published to `ghcr.io/jellyglance/server:latest`. Change your `image:` line to it, then pull and restart as below. See the [v1.3.2 release notes](https://github.com/JellyGlance/Server/releases/tag/v1.3.2).
 >
 > - Building your own image? Pass `--build-arg JG_IMAGE_REPO=<your image repo>` so Settings knows which image it runs.
 > - To hide the image-move reminder in Settings, set `JG_HIDE_IMAGE_NOTICE=true` on the container.

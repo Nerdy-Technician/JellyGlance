@@ -60,7 +60,7 @@ export default function VersionCard() {
               {Number.isFinite(data.stars) ? (
                 <a
                   className="version-stars"
-                  href={data.repository_url || "https://github.com/Nerdy-Technician/JellyGlance"}
+                  href={data.repository_url || "https://github.com/JellyGlance/Server"}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -73,7 +73,7 @@ export default function VersionCard() {
             {data.update_available ? (
               <a
                 className="version-update"
-                href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"}
+                href={data.releases_url || "https://github.com/JellyGlance/Server/releases"}
                 target="_blank"
                 rel="noreferrer"
               >

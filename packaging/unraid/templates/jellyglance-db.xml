@@ -5,16 +5,16 @@
   <Registry>https://hub.docker.com/_/postgres</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
-  <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
+  <Support>https://github.com/JellyGlance/Server/issues</Support>
+  <Project>https://github.com/JellyGlance/Server</Project>
   <Overview>PostgreSQL 16 companion for JellyGlance. Install on the same custom Docker network as jellyglance, then set JellyGlance POSTGRES_IP to jellyglance-db with matching credentials.</Overview>
   <Description>Official postgres:16-alpine image, packaged as a one-click companion for JellyGlance.
 
 Put both containers on one custom network. Match POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB with the jellyglance template. Skip this if you already run Postgres elsewhere.</Description>
   <Category>Other:</Category>
   <WebUI></WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance-db.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/unraid/templates/jellyglance-db.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/JellyGlance/Server/main/.github/assets/icon-b-512.png</Icon>
   <ExtraParams>--restart=unless-stopped --shm-size=1g</ExtraParams>
   <Shell>sh</Shell>
   <Config Name="Database Data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/jellyglance/postgres" Mode="rw" Description="Postgres data directory" Type="Path" Display="always" Required="true" Mask="false"/>

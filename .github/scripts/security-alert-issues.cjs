@@ -11,7 +11,7 @@
 const MARKER_PREFIX = 'jellyglance-security-alert';
 const LABEL = 'security-alert';
 const LOGO =
-  'https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-192.png';
+  'https://raw.githubusercontent.com/JellyGlance/Server/main/.github/assets/icon-b-192.png';
 
 const SEVERITY_ORDER = ['low', 'medium', 'high', 'critical'];
 const SEVERITY_BADGE = {
@@ -136,7 +136,7 @@ function issueBody(a) {
     '',
     a.fix,
     '',
-    `🔗 **[Open the alert](${a.url})** · [Security overview](https://github.com/Nerdy-Technician/JellyGlance/security)`,
+    `🔗 **[Open the alert](${a.url})** · [Security overview](https://github.com/JellyGlance/Server/security)`,
     '',
     '---',
     '<sub>🪼 JellyGlance Security Bot · this issue is updated automatically and closes itself when the alert is fixed or dismissed.</sub>',

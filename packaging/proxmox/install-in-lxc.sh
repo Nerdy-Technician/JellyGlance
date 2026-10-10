@@ -5,8 +5,8 @@
 set -euo pipefail
 
 APP_DIR="${JELLYGLANCE_DIR:-/opt/jellyglance}"
-COMPOSE_URL="${JELLYGLANCE_COMPOSE_URL:-https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/docker-compose.yml}"
-ENV_URL="${JELLYGLANCE_ENV_URL:-https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/.env.example}"
+COMPOSE_URL="${JELLYGLANCE_COMPOSE_URL:-https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/proxmox/docker-compose.yml}"
+ENV_URL="${JELLYGLANCE_ENV_URL:-https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/proxmox/.env.example}"
 IMAGE="${JELLYGLANCE_IMAGE:-ghcr.io/jellyglance/server:latest}"
 
 need_root() {

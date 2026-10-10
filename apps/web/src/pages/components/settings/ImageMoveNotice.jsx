@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import axios from "../../../lib/axios_instance";
 
 const DISMISS_KEY_PREFIX = "JG_IMAGE_MOVE_NOTICE_DISMISSED_";
-const RELEASE_NOTES_URL = "https://github.com/Nerdy-Technician/JellyGlance/releases/tag/v1.3.2";
+const RELEASE_NOTES_URL = "https://github.com/JellyGlance/Server/releases/tag/v1.3.2";
 
 function dismissKey(version) {
   return `${DISMISS_KEY_PREFIX}${String(version || "unknown").replace(/^v/i, "")}`;

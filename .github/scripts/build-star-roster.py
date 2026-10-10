@@ -92,7 +92,7 @@ def logo() -> Image.Image | None:
             except Exception:
                 pass
     img = fetch(
-        "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-192.png",
+        "https://raw.githubusercontent.com/JellyGlance/Server/main/.github/assets/icon-b-192.png",
         LOGO,
     )
     return circle(img, LOGO) if img else None

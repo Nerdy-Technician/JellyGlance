@@ -10,7 +10,7 @@ Files in `unraid/templates/` are Community Applications XML templates.
 
 1. On Unraid: **Apps** → ⚙️ → **Template Repositories**
 2. Add:
-   `https://github.com/Nerdy-Technician/JellyGlance`
+   `https://github.com/JellyGlance/Server`
    (CA looks under `/packaging/unraid/templates` only if configured; for stock CA, mirror these XMLs into a dedicated templates repo, or install via Compose below.)
 3. Or install via **Compose Manager** using `unraid/docker-compose.yml` + `unraid/.env.example` under `/mnt/user/appdata/jellyglance/`.
 
@@ -45,7 +45,7 @@ pct enter <CTID>
 # then inside:
 bash /path/to/install-in-lxc.sh
 # or:
-curl -fsSL https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/install-in-lxc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/proxmox/install-in-lxc.sh | bash
 ```
 
 ## Build dist tarball

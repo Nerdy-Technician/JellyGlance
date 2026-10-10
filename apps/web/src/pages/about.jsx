@@ -160,7 +160,7 @@ export default function SettingsAbout() {
         const releases = response.data?.releases || [];
         setReleaseData({
           releases,
-          releases_url: response.data?.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases",
+          releases_url: response.data?.releases_url || "https://github.com/JellyGlance/Server/releases",
           channel: response.data?.channel || "stable",
         });
         setSelectedReleaseId(String(releases[0]?.id || ""));
@@ -413,7 +413,7 @@ export default function SettingsAbout() {
                   Updates
                 </dt>
                 <dd>
-                  <a href={data.releases_url || "https://github.com/Nerdy-Technician/JellyGlance/releases"} target="_blank" rel="noreferrer">
+                  <a href={data.releases_url || "https://github.com/JellyGlance/Server/releases"} target="_blank" rel="noreferrer">
                     {updateMessage}
                   </a>
                 </dd>
@@ -461,11 +461,11 @@ export default function SettingsAbout() {
               <GithubFillIcon />
               Documentation source
             </a>
-            <a href="https://github.com/Nerdy-Technician/JellyGlance" target="_blank" rel="noreferrer">
+            <a href="https://github.com/JellyGlance/Server" target="_blank" rel="noreferrer">
               <GithubFillIcon />
               Source code
             </a>
-            <a href="https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance" target="_blank" rel="noreferrer">
+            <a href="https://github.com/JellyGlance/Server/pkgs/container/server" target="_blank" rel="noreferrer">
               <ArchiveLineIcon />
               Container image
             </a>

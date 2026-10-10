@@ -5,8 +5,8 @@
   <Registry>https://github.com/JellyGlance/Server/pkgs/container/server</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
-  <Project>https://github.com/Nerdy-Technician/JellyGlance</Project>
+  <Support>https://github.com/JellyGlance/Server/issues</Support>
+  <Project>https://github.com/JellyGlance/Server</Project>
   <Overview>JellyGlance — modern Jellyfin command center: live sessions, libraries, stats, calendars, requests, downloads, webhooks, and backups. Sits beside Jellyfin (not a Seerr/Sonarr replacement). Needs Postgres (use jellyglance-db or your own).</Overview>
   <Description>JellyGlance is the dashboard that sits next to your Jellyfin server.
 
@@ -22,8 +22,8 @@
 WebUI on port 3000. Persist /app/config and /app/backups.</Description>
   <Category>MediaApp:Other ProductivityTools:</Category>
   <WebUI>http://[IP]:[PORT:3000]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/unraid/templates/jellyglance.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/unraid/templates/jellyglance.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/JellyGlance/Server/main/.github/assets/icon-b-512.png</Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <Shell>sh</Shell>
   <Requires>PostgreSQL (use jellyglance-db template or your own). Jellyfin URL and API key configured on first run.</Requires>
