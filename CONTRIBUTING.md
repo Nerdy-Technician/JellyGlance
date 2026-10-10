@@ -1,6 +1,6 @@
 # Contributing to JellyGlance
 
-Bugs and feature requests go in the [issue tracker](https://github.com/Nerdy-Technician/JellyGlance/issues). Documentation lives in [JellyGlance/Documentation](https://github.com/JellyGlance/Documentation), and the jellyglance.com website in [JellyGlance/Website](https://github.com/JellyGlance/Website).
+Bugs and feature requests go in the [issue tracker](https://github.com/JellyGlance/Server/issues). Documentation lives in [JellyGlance/Documentation](https://github.com/JellyGlance/Documentation), and the jellyglance.com website in [JellyGlance/Website](https://github.com/JellyGlance/Website).
 
 ## Widget changes: open the Website PR first
 

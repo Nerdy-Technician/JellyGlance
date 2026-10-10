@@ -15,7 +15,7 @@ SWAP="${SWAP:-512}"
 DISK="${DISK:-8}"
 BRIDGE="${BRIDGE:-vmbr0}"
 PASSWORD="${PASSWORD:-}"  # empty => random
-INSTALL_SCRIPT_URL="${INSTALL_SCRIPT_URL:-https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/install-in-lxc.sh}"
+INSTALL_SCRIPT_URL="${INSTALL_SCRIPT_URL:-https://raw.githubusercontent.com/JellyGlance/Server/main/packaging/proxmox/install-in-lxc.sh}"
 
 if ! command -v pct >/dev/null 2>&1; then
   echo "This script must run on a Proxmox VE host (pct not found)." >&2

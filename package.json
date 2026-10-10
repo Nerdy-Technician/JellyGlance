@@ -23,10 +23,10 @@
   "homepage": "https://jellyglance.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nerdy-Technician/JellyGlance.git"
+    "url": "https://github.com/JellyGlance/Server.git"
   },
   "bugs": {
-    "url": "https://github.com/Nerdy-Technician/JellyGlance/issues"
+    "url": "https://github.com/JellyGlance/Server/issues"
   },
   "license": "GPL-3.0",
   "type": "module",

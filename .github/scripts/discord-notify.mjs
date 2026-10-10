@@ -14,9 +14,9 @@ const WARN_AMBER = 0xf0b429;
 const BRAND = BRAND_RED;
 const ISSUE_BLUE = 0x5b9cff;
 const BETA_AMBER = WARN_AMBER;
-const REPO_URL = "https://github.com/Nerdy-Technician/JellyGlance";
+const REPO_URL = "https://github.com/JellyGlance/Server";
 const LOGO_URL =
-  "https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/.github/assets/icon-b-192.png";
+  "https://raw.githubusercontent.com/JellyGlance/Server/main/.github/assets/icon-b-192.png";
 
 /** Webhook identity: "JellyGlance Bot" or one of its sub-bots, always with the logo. */
 function botIdentity(name = "JellyGlance Bot") {
@@ -222,7 +222,7 @@ async function sendRelease() {
   const title = optionalEnv("RELEASE_TITLE", tag);
   const url = optionalEnv(
     "RELEASE_URL",
-    `https://github.com/Nerdy-Technician/JellyGlance/releases/tag/${tag}`,
+    `https://github.com/JellyGlance/Server/releases/tag/${tag}`,
   );
   const channel = optionalEnv("DISCORD_CHANNEL", "stable").toLowerCase();
   const isBeta = channel === "beta" || optionalEnv("RELEASE_PRERELEASE", "") === "true";
@@ -233,7 +233,7 @@ async function sendRelease() {
 
   const displayTitle = title && title !== tag ? title : `JellyGlance ${tag}`;
   const dockerTag = isBeta ? tag : "latest";
-  const dockerImage = `\`ghcr.io/nerdy-technician/jellyglance:${dockerTag}\``;
+  const dockerImage = `\`ghcr.io/jellyglance/server:${dockerTag}\``;
 
   await postDiscord(webhook, {
     ...botIdentity(isBeta ? "JellyGlance Release Bot · Beta" : "JellyGlance Release Bot"),
@@ -561,7 +561,7 @@ async function sendSecurity() {
   }
   fields.push({
     name: "Security tab",
-    value: "[Code scanning / Dependabot](https://github.com/Nerdy-Technician/JellyGlance/security)",
+    value: "[Code scanning / Dependabot](https://github.com/JellyGlance/Server/security)",
     inline: false,
   });
 
@@ -723,7 +723,7 @@ async function sendStars() {
   const current = Number(requireEnv("STAR_COUNT"));
   const previous = Number(optionalEnv("PREVIOUS_STAR_COUNT", "0"));
   const gained = Math.max(0, current - previous);
-  const repoUrl = optionalEnv("REPOSITORY_URL", "https://github.com/Nerdy-Technician/JellyGlance");
+  const repoUrl = optionalEnv("REPOSITORY_URL", "https://github.com/JellyGlance/Server");
   const users = parseStarUsers();
   console.log(`Star notify: ${previous} → ${current} (gained=${gained}), users=${users.length}`);
   if (gained > 0 && users.length === 0) {

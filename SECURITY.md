@@ -4,7 +4,7 @@
 
 Please report security issues privately via GitHub Security Advisories for this repository:
 
-https://github.com/Nerdy-Technician/JellyGlance/security/advisories/new
+https://github.com/JellyGlance/Server/security/advisories/new
 
 Do not open a public issue for vulnerabilities that could put users at risk.
 
