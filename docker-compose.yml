@@ -17,9 +17,9 @@ services:
       retries: 5
 
   jellyglance:
-    # After v1.3.2, new releases are published as ghcr.io/jellyglance/server:latest.
-    # Switch this line to that image once v1.3.2 is out (see the v1.3.2 release notes).
-    image: ghcr.io/nerdy-technician/jellyglance:latest
+    # Official image from v1.3.2 on. Older installs on ghcr.io/nerdy-technician/jellyglance
+    # should switch to this line (see the v1.3.2 release notes).
+    image: ghcr.io/jellyglance/server:latest
     container_name: jellyglance
     restart: unless-stopped
     environment:

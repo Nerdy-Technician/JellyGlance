@@ -253,7 +253,7 @@ async function sendRelease() {
           { name: "Docker", value: dockerImage, inline: false },
           {
             name: "Links",
-            value: `[Release notes](${url}) · [Docs](https://jellyglance.com/) · [Docker](https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance)`,
+            value: `[Release notes](${url}) · [Docs](https://jellyglance.com/) · [Docker](https://github.com/JellyGlance/Server/pkgs/container/server)`,
             inline: false,
           },
         ],

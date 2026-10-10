@@ -2,7 +2,7 @@
   "jellyglance": {
     "name": "jellyglance",
     "desc": "JellyGlance — modern Jellyfin dashboard",
-    "image": "ghcr.io/nerdy-technician/jellyglance:latest"
+    "image": "ghcr.io/jellyglance/server:latest"
   },
   "jellyglance-db": {
     "name": "jellyglance-db",

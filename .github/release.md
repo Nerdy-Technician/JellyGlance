@@ -18,7 +18,7 @@ title: JellyGlance v1.3.2
 <br>
 
 > [!IMPORTANT]
-> **After v1.3.2, new releases will only be published to the JellyGlance/Server image.** The current `ghcr.io/nerdy-technician/jellyglance` image will stop getting updates, so switch now to keep receiving fixes and security patches. Your settings, database and history are untouched; only the image name changes.
+> **v1.3.2 is published to both images. After v1.3.2, new releases will only be published to the JellyGlance/Server image.** The old `ghcr.io/nerdy-technician/jellyglance` image will stop getting updates, so switch now to keep receiving fixes and security patches. Your settings, database and history are untouched; only the image name changes.
 
 <br>
 

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>jellyglance</Name>
-  <Repository>ghcr.io/nerdy-technician/jellyglance:latest</Repository>
-  <Registry>https://github.com/Nerdy-Technician/JellyGlance/pkgs/container/jellyglance</Registry>
+  <Repository>ghcr.io/jellyglance/server:latest</Repository>
+  <Registry>https://github.com/JellyGlance/Server/pkgs/container/server</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://github.com/Nerdy-Technician/JellyGlance/issues</Support>
