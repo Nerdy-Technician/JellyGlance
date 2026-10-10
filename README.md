@@ -66,7 +66,7 @@
   ·
   <a href="https://demo.jellyglance.com/"><strong>Live Demo</strong></a>
   ·
-  <a href="http://docs.jellyglance.com/"><strong>Documentation</strong></a>
+  <a href="https://github.com/JellyGlance/Documentation"><strong>Documentation</strong></a>
   ·
   <a href="https://discord.gg/dMGhv8j2kx"><strong>Discord</strong></a>
   ·
@@ -81,14 +81,14 @@ Try JellyGlance without installing anything at **[demo.jellyglance.com](https://
 
 ## Documentation
 
-Read the live guides at **[docs.jellyglance.com](http://docs.jellyglance.com/)**. Source and contributions are maintained in **[JellyGlance/Documentation](https://github.com/JellyGlance/Documentation)**.
+Read the guides and contribute in **[JellyGlance/Documentation](https://github.com/JellyGlance/Documentation)**.
 
-- [Installation and first setup](http://docs.jellyglance.com/guide/getting-started/)
-- [Integration directory](http://docs.jellyglance.com/integrations/)
-- [Reverse proxy: Nginx, Caddy, Nginx Proxy Manager, and Traefik](http://docs.jellyglance.com/operations/reverse-proxy/)
-- [Configuration reference](http://docs.jellyglance.com/reference/configuration/)
-- [Backup and restore](http://docs.jellyglance.com/operations/backup-restore/)
-- [Troubleshooting](http://docs.jellyglance.com/guide/troubleshooting/)
+- [Installation and first setup](https://github.com/JellyGlance/Documentation/blob/main/docs/guide/getting-started.md)
+- [Integration directory](https://github.com/JellyGlance/Documentation/blob/main/docs/integrations.md)
+- [Reverse proxy: Nginx, Caddy, Nginx Proxy Manager, and Traefik](https://github.com/JellyGlance/Documentation/blob/main/docs/operations/reverse-proxy.md)
+- [Configuration reference](https://github.com/JellyGlance/Documentation/blob/main/docs/reference/configuration.md)
+- [Backup and restore](https://github.com/JellyGlance/Documentation/blob/main/docs/operations/backup-restore.md)
+- [Troubleshooting](https://github.com/JellyGlance/Documentation/blob/main/docs/guide/troubleshooting.md)
 
 For documentation corrections or requests, [open a docs issue](https://github.com/JellyGlance/Documentation/issues/new/choose). Application bugs belong in [this project's issue tracker](https://github.com/JellyGlance/Server/issues). Visit [jellyglance.com](https://jellyglance.com/) for the project website. Its source is in **[JellyGlance/Website](https://github.com/JellyGlance/Website)**. See [CONTRIBUTING.md](CONTRIBUTING.md) before changing widgets.
 
