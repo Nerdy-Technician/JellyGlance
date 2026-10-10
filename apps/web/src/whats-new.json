@@ -1,6 +1,11 @@
 {
   "1.3.2": [
     {
+      "icon": "download",
+      "title": "New Docker Image: Please Switch",
+      "body": "After v1.3.2, JellyGlance updates will only be published to the JellyGlance/Server image, ghcr.io/jellyglance/server:latest. Change the image: line in your docker-compose file (or your docker run command) to it as soon as possible, then pull and restart. Settings shows a reminder until you have switched."
+    },
+    {
       "icon": "chat",
       "title": "Čeština",
       "body": "JellyGlance now speaks Czech. Pick Čeština from the language menu to switch, with proper Czech plural forms throughout."

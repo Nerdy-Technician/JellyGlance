@@ -237,10 +237,6 @@
     "API_KEYS": "API klíče",
     "API_KEY_EYEBROW": "Přístupové tokeny",
     "API_KEY_COUNT": "{{count}} klíčů",
-    "API_KEY_COUNT_one": "{{count}} klíč",
-    "API_KEY_COUNT_few": "{{count}} klíče",
-    "API_KEY_COUNT_many": "{{count}} klíče",
-    "API_KEY_COUNT_other": "{{count}} klíčů",
     "API_KEY_INTRO": "Vytvořte tokeny a pak stáhněte JSON pro Homarr nebo YAML pro Homepage. Klíče „Jen widgety“ mohou číst endpointy dashboardu, klíče „Widgety + zápis“ mohou navíc posílat jednoduché akce (POST) a klíče „Celé API“ mají přístup ke zbytku API.",
     "API_KEY_NAME": "Název klíče",
     "API_KEY_NAME_PLACEHOLDER": "Homarr, Homepage...",
@@ -376,10 +372,6 @@
     "THEME_SEARCH": "Hledat motivy",
     "THEME_EMPTY": "Hledání neodpovídají žádné motivy.",
     "THEME_COUNT": "{{count}} palet",
-    "THEME_COUNT_one": "{{count}} paleta",
-    "THEME_COUNT_few": "{{count}} palety",
-    "THEME_COUNT_many": "{{count}} palety",
-    "THEME_COUNT_other": "{{count}} palet",
     "THEME_GROUP_ALL": "Vše",
     "THEME_GROUP_SIGNATURE": "Originální",
     "THEME_GROUP_COOL": "Studené",
@@ -394,7 +386,15 @@
     "NAVBAR_ORDER": "Pořadí v navigaci",
     "NAVBAR_ORDER_INTRO": "Přetáhněte odemčené položky do požadovaného pořadí. Domů, Můj Glance, Nastavení a O aplikaci zůstávají na svém místě.",
     "RESET": "Obnovit",
-    "STATUS_PAGE": "Stavová stránka"
+    "STATUS_PAGE": "Stavová stránka",
+    "API_KEY_COUNT_one": "{{count}} klíč",
+    "API_KEY_COUNT_few": "{{count}} klíče",
+    "API_KEY_COUNT_many": "{{count}} klíče",
+    "API_KEY_COUNT_other": "{{count}} klíčů",
+    "THEME_COUNT_one": "{{count}} paleta",
+    "THEME_COUNT_few": "{{count}} palety",
+    "THEME_COUNT_many": "{{count}} palety",
+    "THEME_COUNT_other": "{{count}} palet"
   },
   "TASK_TYPE": {
     "JOB": "Úloha",
@@ -416,9 +416,9 @@
   "TIMELINE_PAGE": {
     "TIMELINE": "Časová osa",
     "EPISODES_one": "epizoda",
+    "EPISODES_other": "epizod",
     "EPISODES_few": "epizody",
-    "EPISODES_many": "epizody",
-    "EPISODES_other": "epizod"
+    "EPISODES_many": "epizody"
   },
   "SEARCH": "Hledat",
   "TOTAL": "Celkem",
@@ -539,21 +539,21 @@
       "NO_FAILED_STARTS": "Nebyla nalezena žádná opakovaně neúspěšná spuštění.",
       "TRANSCODES_OF_PLAYS": "{{transcodes}} překódování / {{plays}} přehrání",
       "FAILED_START_META": "{{count}} krátkých přehrání",
-      "FAILED_START_META_one": "{{count}} krátké přehrání",
-      "FAILED_START_META_few": "{{count}} krátká přehrání",
-      "FAILED_START_META_many": "{{count}} krátkého přehrání",
-      "FAILED_START_META_other": "{{count}} krátkých přehrání",
       "OPEN_LOGS": "Otevřít logy",
       "FAILED": "Selhalo",
       "NO_TASK_FAILURES": "Žádné nedávno selhané úlohy.",
       "SAMPLES": "{{count}} příkladů",
+      "NO_RECENT": "Žádná nedávná aktivita",
+      "LIBRARY_ITEM": "Položka knihovny",
+      "LOAD_ERROR": "Centrum oprav se nepodařilo načíst.",
+      "FAILED_START_META_one": "{{count}} krátké přehrání",
+      "FAILED_START_META_few": "{{count}} krátká přehrání",
+      "FAILED_START_META_many": "{{count}} krátkého přehrání",
+      "FAILED_START_META_other": "{{count}} krátkých přehrání",
       "SAMPLES_one": "{{count}} příklad",
       "SAMPLES_few": "{{count}} příklady",
       "SAMPLES_many": "{{count}} příkladu",
-      "SAMPLES_other": "{{count}} příkladů",
-      "NO_RECENT": "Žádná nedávná aktivita",
-      "LIBRARY_ITEM": "Položka knihovny",
-      "LOAD_ERROR": "Centrum oprav se nepodařilo načíst."
+      "SAMPLES_other": "{{count}} příkladů"
     },
     "GLANCE": {
       "JELLYFIN_IN": "Jellyfin · v knihovně",
@@ -630,14 +630,14 @@
       "EMPTY": "Žádná aktivní stahování. Přidejte klienta v Nastavení > Integrace a pak synchronizujte frontu.",
       "CLIENTS": "Klienti",
       "DOWNLOAD_COUNT_one": "{{count}} stahování",
-      "DOWNLOAD_COUNT_few": "{{count}} stahování",
-      "DOWNLOAD_COUNT_many": "{{count}} stahování",
       "DOWNLOAD_COUNT_other": "{{count}} stahování",
       "NO_CLIENTS_YET": "Zatím nejsou přidáni žádní klienti pro stahování.",
       "NEW_TORRENT": "Nový torrent",
       "MAGNET_DOWNLOAD": "Stahování z magnet odkazu",
       "TORRENT_DOWNLOAD": "Stahování torrentu",
-      "QUEUED": "Ve frontě"
+      "QUEUED": "Ve frontě",
+      "DOWNLOAD_COUNT_few": "{{count}} stahování",
+      "DOWNLOAD_COUNT_many": "{{count}} stahování"
     },
     "MY_GLANCE": {
       "TITLE": "Můj Glance",
@@ -740,8 +740,6 @@
       "NEVER": "Nikdy",
       "CAMPAIGN": "Kampaň",
       "RECIPIENTS_one": "{{count}} příjemce",
-      "RECIPIENTS_few": "{{count}} příjemci",
-      "RECIPIENTS_many": "{{count}} příjemce",
       "RECIPIENTS_other": "{{count}} příjemců",
       "NO_SENDS": "Zatím nebyly odeslány žádné kampaně.",
       "EDIT_CAMPAIGN": "Upravit kampaň",
@@ -786,15 +784,17 @@
       "ENABLE_SMTP": "Zapnout sdílené nastavení SMTP",
       "LEGACY_RECIPIENTS": "Výchozí příjemci (starší nastavení)",
       "LEGACY_HELP_one": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}",
-      "LEGACY_HELP_few": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}",
-      "LEGACY_HELP_many": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}",
       "LEGACY_HELP_other": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}",
       "SAVE_SMTP": "Uložit SMTP",
       "REFRESH": "Obnovit",
       "OPEN_TAB": "Otevřít v nové kartě",
       "PREVIEW_SUBJECT": "Náhled newsletteru",
       "GENERATED": "Vygenerováno {{date}}",
-      "PREVIEW_EMPTY": "Vygenerujte náhled, abyste newsletter viděli."
+      "PREVIEW_EMPTY": "Vygenerujte náhled, abyste newsletter viděli.",
+      "RECIPIENTS_few": "{{count}} příjemci",
+      "RECIPIENTS_many": "{{count}} příjemce",
+      "LEGACY_HELP_few": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}",
+      "LEGACY_HELP_many": "Použijí se pro kampaně bez vlastních příjemců. Počet příjemců: {{count}}"
     },
     "REQUESTS": {
       "TITLE": "Najít nebo vyžádat obsah",
@@ -956,5 +956,12 @@
       "JELLYFIN_DOWN_DETAIL": "{{error}}{{version}}",
       "OPEN_HEALTH": "Otevřít stav systému"
     }
+  },
+  "IMAGE_MOVE_NOTICE": {
+    "TITLE": "JellyGlance is moving to a new Docker image",
+    "BODY": "After v{{version}}, updates will only be published to the JellyGlance/Server image. Switch your docker-compose file or docker run command to it as soon as possible, then pull and restart.",
+    "COPY": "Copy image line",
+    "COPIED": "Copied",
+    "RELEASE_NOTES": "Read the release notes"
   }
 }
