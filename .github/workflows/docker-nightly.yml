@@ -11,7 +11,7 @@ permissions:
 
 env:
   # Primary image repo this workflow publishes to (also baked in as JG_IMAGE_REPO).
-  IMAGE_NAME: ghcr.io/nerdy-technician/jellyglance
+  IMAGE_NAME: ghcr.io/jellyglance/server
 
 concurrency:
   group: jellyglance-nightly-image
@@ -43,13 +43,13 @@ jobs:
         run: |
           set -euo pipefail
           OWNER="${{ github.repository_owner }}"
-          PACKAGE="jellyglance"
+          PACKAGE="server"
           echo "Looking for existing 'nightly' tag on ghcr.io/${OWNER,,}/${PACKAGE}..."
 
-          # User-owned packages (Nerdy-Technician/...); fall back to org API if needed.
+          # Org-owned package (ghcr.io/jellyglance/server); fall back to the user API.
           list_versions() {
-            gh api --paginate "/users/${OWNER}/packages/container/${PACKAGE}/versions" 2>/dev/null \
-              || gh api --paginate "/orgs/${OWNER}/packages/container/${PACKAGE}/versions" 2>/dev/null \
+            gh api --paginate "/orgs/${OWNER}/packages/container/${PACKAGE}/versions" 2>/dev/null \
+              || gh api --paginate "/users/${OWNER}/packages/container/${PACKAGE}/versions" 2>/dev/null \
               || true
           }
 
@@ -66,8 +66,8 @@ jobs:
 
           for id in "${IDS[@]}"; do
             echo "Deleting package version id=${id} (tagged nightly)..."
-            gh api -X DELETE "/users/${OWNER}/packages/container/${PACKAGE}/versions/${id}" 2>/dev/null \
-              || gh api -X DELETE "/orgs/${OWNER}/packages/container/${PACKAGE}/versions/${id}" 2>/dev/null \
+            gh api -X DELETE "/orgs/${OWNER}/packages/container/${PACKAGE}/versions/${id}" 2>/dev/null \
+              || gh api -X DELETE "/users/${OWNER}/packages/container/${PACKAGE}/versions/${id}" 2>/dev/null \
               || echo "Warning: could not delete version ${id} (continuing)"
           done
 

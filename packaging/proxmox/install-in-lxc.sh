@@ -7,7 +7,7 @@ set -euo pipefail
 APP_DIR="${JELLYGLANCE_DIR:-/opt/jellyglance}"
 COMPOSE_URL="${JELLYGLANCE_COMPOSE_URL:-https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/docker-compose.yml}"
 ENV_URL="${JELLYGLANCE_ENV_URL:-https://raw.githubusercontent.com/Nerdy-Technician/JellyGlance/main/packaging/proxmox/.env.example}"
-IMAGE="${JELLYGLANCE_IMAGE:-ghcr.io/nerdy-technician/jellyglance:latest}"
+IMAGE="${JELLYGLANCE_IMAGE:-ghcr.io/jellyglance/server:latest}"
 
 need_root() {
   if [[ "${EUID}" -ne 0 ]]; then
@@ -64,7 +64,7 @@ write_stack() {
   fi
   # Optional image override
   if [[ -n "${IMAGE}" ]]; then
-    sed -i "s|image: ghcr.io/nerdy-technician/jellyglance:.*|image: ${IMAGE}|" "${APP_DIR}/docker-compose.yml"
+    sed -i "s#image: ghcr.io/\(nerdy-technician/jellyglance\|jellyglance/server\):.*#image: ${IMAGE}#" "${APP_DIR}/docker-compose.yml"
   fi
 }
 
