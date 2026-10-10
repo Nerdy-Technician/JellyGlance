@@ -5,6 +5,7 @@ const packageJson = require("./package.json");
 const { compareVersions } = require("compare-versions");
 const memoizee = require("memoizee");
 const { getConfigDir } = require("./utils/storage-paths");
+const { getImageInfo } = require("./utils/image-source");
 
 const REPO_OWNER = process.env.JS_REPO_OWNER || "Nerdy-Technician";
 const REPO_NAME = process.env.JS_REPO_NAME || "JellyGlance";
@@ -617,6 +618,7 @@ async function checkForUpdates() {
   const starsInfo = await fetchGithubStars();
   return {
     ...result,
+    ...getImageInfo(),
     stars: Number.isFinite(starsInfo?.stars) ? starsInfo.stars : null,
     repository_url: starsInfo?.repository_url || REPOSITORY_URL,
   };

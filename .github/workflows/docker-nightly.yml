@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Primary image repo this workflow publishes to (also baked in as JG_IMAGE_REPO).
+  IMAGE_NAME: ghcr.io/nerdy-technician/jellyglance
+
 concurrency:
   group: jellyglance-nightly-image
   cancel-in-progress: false
@@ -77,7 +81,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/nerdy-technician/jellyglance
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=nightly
           labels: |
@@ -94,3 +98,8 @@ jobs:
           sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Primary repo this build pushes to; Settings uses it to show the
+          # image-move notice. A dual publish must pass the primary repo only,
+          # never label the old repo as the new one.
+          build-args: |
+            JG_IMAGE_REPO=${{ env.IMAGE_NAME }}
